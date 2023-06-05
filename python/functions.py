@@ -25,11 +25,6 @@ def setup_logging(filename):
     # Create a directory if it does not exist
     if not os.path.exists("log"):
         os.makedirs("log")
-        print(f"Directory \"log\" created successfully.")
-        print("===========================================================")
-    else:
-        print(f"Directory \"log\" already exists ...")
-        print("===========================================================")
     # Create a custom log formatter without the prefix
     class LogFormatter(logging.Formatter):
         def format(self, record):
@@ -79,6 +74,42 @@ def count_lines(filename):
             line_count += 1
     return line_count
 
+# Merge dictionaries
+def merge_dictionaries(dictionaries):
+    """
+    Merge a list of dictionaries by key terms.
+
+    Args:
+        dictionaries (list): A list of dictionaries to merge.
+
+    Returns:
+        dict: A single dictionary with merged key-value pairs.
+
+    Raises:
+        ValueError: If the dictionaries list is empty.
+    """
+    if not dictionaries:
+        raise ValueError("The dictionaries list is empty.")
+
+    merged_dict = {}
+    for dictionary in dictionaries:
+        for key, value in dictionary.items():
+            if key in merged_dict:
+                if isinstance(merged_dict[key], list):
+                    if isinstance(value, list):
+                        merged_dict[key].extend(value)
+                    else:
+                        merged_dict[key].append(value)
+                else:
+                    if isinstance(value, list):
+                        merged_dict[key] = [merged_dict[key]] + value
+                    else:
+                        merged_dict[key] = [merged_dict[key], value]
+            else:
+                merged_dict[key] = value
+
+    return merged_dict
+
 # Create MAGEMin input
 def create_MAGEMin_input(
         mode, pressure_range,
@@ -91,10 +122,10 @@ def create_MAGEMin_input(
 
     Args:
         mode (str): The mode value for MAGEMin.
-        pressure_range (list): A list containing the start, end, and step values for the pressure range.
-        temperature_range (list): A list containing the start, end, and step values for the temperature range.
-        composition (list): A list of floats for the bulk composition with the following oxides
-                            [SiO2, Al2O3, CaO, MgO, FeOt, K2O, Na2O, TiO2, O, Cr2O3, H2O]
+        pressure_range (list): Start, end, and step values for the pressure range.
+        temperature_range (list): Start, end, and step values for the temperature range.
+        composition (list): Bulk composition with the following oxides
+            [SiO2, Al2O3, CaO, MgO, FeOt, K2O, Na2O, TiO2, O, Cr2O3, H2O]
     Returns:
         (file): Writes the input string for MAGEMin to filename.
     """
@@ -138,30 +169,6 @@ def read_pseudosection_data_MAGEMin(filename):
 
     Example:
         results = read_pseudosection_data_MAGEMin("_pseudosection.txt")
-        for result in results:
-            print(f"Point {result["Point"]}:")
-            print(f"Status: {result["Status"]}")
-            print(f"P: {result["P"]}")
-            print(f"T: {result["T"]}")
-            print(f"Gibbs: {result["Gibbs"]}")
-            print(f"BrNorm: {result["BrNorm"]}")
-            print(f"Gamma: {result["Gamma"]}")
-            print(f"Vp: {result["Vp"]}")
-            print(f"Vs: {result["Vs"]}")
-            print(f"Entropy: {result["Entropy"]}")
-            print(f"Stable Solutions: {result["StableSolutions"]}")
-            print(f"Stable Fractions: {result["StableFractions"]}")
-            print(f"Density: {result["Density"]}")
-            print(f"Compositional Var: {result["CompositionalVar"]}")
-            print(f"EM Fractions: {result["EMFractions"]}")
-            print(f"EM List: {result["EMList"]}")
-            print(f"Liquid Fraction: {result["LiquidFraction"]}")
-            print(f"Density of Full Assemblage: {result["DensityOfFullAssemblage"]}")
-            print(f"Density of Liquid: {result["DensityOfLiquid"]}")
-            print(f"Density of Solid: {result["DensityOfSolid"]}")
-            print(f"Density of Mixture: {result["DensityOfMixture"]}")
-            print()
-
     """
     with open(filename, "r") as file:
         lines = file.readlines()
@@ -214,8 +221,8 @@ def read_pseudosection_data_MAGEMin(filename):
             if len(data) > 4:
                 n_xeos = int(data[3])
                 comp_var = data[4:4+n_xeos]
-                em_frac = data[4+n_xeos::2]
-                em = out[5+n_xeos::2]
+                em = out[4+n_xeos::2]
+                em_frac = data[5+n_xeos::2]
 
             compositional_var.append(comp_var)
             em_fractions.append(em_frac)
@@ -256,16 +263,16 @@ def read_pseudosection_data_MAGEMin(filename):
             "T": t,
             "Gibbs": gibbs,
             "BrNorm": br_norm,
-            "Gamma": gamma,
+            "Gamma": [gamma],
             "Vp": vp,
             "Vs": vs,
             "Entropy": entropy,
-            "StableSolutions": stable_solutions,
-            "StableFractions": stable_fractions,
+            "StableSolutions": [stable_solutions],
+            "StableFractions": [stable_fractions],
             "Density": density,
-            "CompositionalVar": compositional_var,
-            "EMFractions": em_fractions,
-            "EMList": em_list,
+            "CompositionalVar": [compositional_var],
+            "EMList": [em_list],
+            "EMFractions": [em_fractions],
             "LiquidFraction": liq,
             "DensityOfFullAssemblage": density_total,
             "DensityOfLiquid": density_liq,
@@ -287,37 +294,10 @@ def process_MAGEMin_files(directory, pattern):
         pattern (str): The filename pattern to match the files.
 
     Returns:
-        list: A list of processed results from the files.
+        dict: A single dictionary with merged key-value pairs from all files.
 
     Raises:
         FileNotFoundError: If the specified directory does not exist.
-
-    Example:
-        results = process_files("output/", "_pseudosection*.txt")
-        for result in results:
-            print(f"Point {result["Point"]}:")
-            print(f"Status: {result["Status"]}")
-            print(f"P: {result["P"]}")
-            print(f"T: {result["T"]}")
-            print(f"Gibbs: {result["Gibbs"]}")
-            print(f"BrNorm: {result["BrNorm"]}")
-            print(f"Gamma: {result["Gamma"]}")
-            print(f"Vp: {result["Vp"]}")
-            print(f"Vs: {result["Vs"]}")
-            print(f"Entropy: {result["Entropy"]}")
-            print(f"Stable Solutions: {result["StableSolutions"]}")
-            print(f"Stable Fractions: {result["StableFractions"]}")
-            print(f"Density: {result["Density"]}")
-            print(f"Compositional Var: {result["CompositionalVar"]}")
-            print(f"EM Fractions: {result["EMFractions"]}")
-            print(f"EM List: {result["EMList"]}")
-            print(f"Liquid Fraction: {result["LiquidFraction"]}")
-            print(f"Density of Full Assemblage: {result["DensityOfFullAssemblage"]}")
-            print(f"Density of Liquid: {result["DensityOfLiquid"]}")
-            print(f"Density of Solid: {result["DensityOfSolid"]}")
-            print(f"Density of Mixture: {result["DensityOfMixture"]}")
-            print()
-
     """
     results = []
 
@@ -327,7 +307,101 @@ def process_MAGEMin_files(directory, pattern):
             file_results = read_pseudosection_data_MAGEMin(filepath)
             results.extend(file_results)
 
-    return results
+    merged_results = merge_dictionaries(results)
+    return merged_results
+
+def encode_phases(phases):
+    """
+    Encode unique phase assemblages and their corresponding numbers.
+
+    Args:
+        phases (list): List of phase assemblages represented as lists of phases.
+
+    Returns:
+        tuple: A tuple containing two elements:
+            - encoded_assemblages (list): List of encoded phase assemblages.
+            - unique_assemblages (dict): Dictionary mapping unique phase assemblages
+            to their encoded numbers.
+    """
+    unique_assemblages = {}
+    encoded_assemblages = []
+
+    # Encoding unique phase assemblages
+    for phase_assemblage in phases:
+        assemblage_tuple = tuple(sorted(phase_assemblage))
+        if assemblage_tuple not in unique_assemblages:
+            unique_assemblages[assemblage_tuple] = len(unique_assemblages) + 1
+
+    # Encoding phase assemblage numbers
+    for phase_assemblage in phases:
+        encoded_assemblage = unique_assemblages[tuple(sorted(phase_assemblage))]
+        encoded_assemblages.append(encoded_assemblage)
+
+    return encoded_assemblages, unique_assemblages
+
+
+# Plot MAGEMin pseudosection
+def plot_pseudosection_results(results, parameter, filename=None):
+    """
+    Plot the results of a pseudosection calculation.
+
+    Args:
+        results (dict): Dictionary containing the results of a pseudosection calculation.
+        parameter (str): The parameter to plot. If "StableSolutions", phase assemblages
+        will be plotted, otherwise, the specified parameter values will be plotted.
+        filename (str, optional): If provided, the plot will be saved to the specified file.
+
+    Returns:
+        None
+    """
+    P = results["P"]
+    T = results["T"]
+    if (parameter == "StableSolutions"):
+        # Encode unique phase assemblages
+        encoded, unique = encode_phases(results[parameter])
+        legend_elements = []
+        # Plot
+        fig, ax = plt.subplots()
+        scatter = ax.scatter(T, P, c=encoded, cmap="viridis", marker=",")
+        ax.set_xlabel("T (˚C)")
+        ax.set_ylabel("P (kbar)")
+        # Legend
+        for assemblage_tuple, encoded_number in unique.items():
+            assemblage_name = ", ".join(assemblage_tuple)
+            legend_elements.append(
+                ax.scatter(
+                    [],
+                    [],
+                    marker="o",
+                    color=scatter.cmap(scatter.norm(encoded_number)),
+                    label=assemblage_name
+                )
+            )
+#        legend = ax.legend(
+#            handles=legend_elements,
+#            title="Phase Assemblage",
+#            bbox_to_anchor=(0.5, -0.15),
+#            loc="upper center",
+#            ncol=2
+#        )
+        plt.subplots_adjust(bottom=0.15)
+#        legend.get_frame().set_facecolor("white")
+        fig.tight_layout(rect=[0, 0, 1, 1])
+    else:
+        parameter_values = results[parameter]
+        # Plot
+        fig, ax = plt.subplots()
+        scatter = ax.scatter(T, P, c=parameter_values, cmap="viridis", marker=",")
+        ax.set_xlabel("T (˚C)")
+        ax.set_ylabel("P (kbar)")
+        plt.colorbar(scatter, ax=ax, label=parameter)
+
+    # Print plot
+    plt.show()
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(filename)
 
 # Run MAGEMin and visualize
 def run_MAGEMin(MAGEMin_program_path, MAGEMin_input_path, MAGEMin_output_directory,
@@ -336,19 +410,21 @@ def run_MAGEMin(MAGEMin_program_path, MAGEMin_input_path, MAGEMin_output_directo
                 MAGEMin_temperature_range, MAGEMin_composition, MAGEMin_param,
                 MAGEMin_plot=True, MAGEMin_plot_fname="MAGEMin-fig-1.png", verbose = False):
     # Look for previous MAGEMin output
-    MAGEMin_output_file_list = glob.glob(MAGEMin_output_directory + "/" + MAGEMin_output_pattern)
+    MAGEMin_output_file_list = glob.glob(
+        MAGEMin_output_directory + "/" + MAGEMin_output_pattern
+    )
     if len(MAGEMin_output_file_list) == 0:
         # Run your code here if no files matching the pattern are found
         print("No MAGEMin output files found ...")
         print("Creating MAGEMin input file ...")
-        print("===========================================================")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~")
         print(f"P range: from {MAGEMin_pressure_range[0]}–{MAGEMin_pressure_range[1]} kbar")
         print(f"T range: from {MAGEMin_temperature_range[0]}–{MAGEMin_temperature_range[1]} C")
         print(
             f"Composition [wt%]: \n"
-            f"SiO2({MAGEMin_composition[0]}) Al2O3({MAGEMin_composition[1]}) CaO({MAGEMin_composition[2]}) MgO({MAGEMin_composition[3]}) FeOt({MAGEMin_composition[4]}) K2O({MAGEMin_composition[5]}) Na2O({MAGEMin_composition[6]}) TiO2({MAGEMin_composition[7]}) O({MAGEMin_composition[8]}) Cr2O3({MAGEMin_composition[9]}) H2O({MAGEMin_composition[10]})"
+            f"SiO2({MAGEMin_composition[0]})\nAl2O3({MAGEMin_composition[1]})\nCaO({MAGEMin_composition[2]})\nMgO({MAGEMin_composition[3]})\nFeOt({MAGEMin_composition[4]})\nK2O({MAGEMin_composition[5]})\nNa2O({MAGEMin_composition[6]})\nTiO2({MAGEMin_composition[7]})\nO({MAGEMin_composition[8]})\nCr2O3({MAGEMin_composition[9]})\nH2O({MAGEMin_composition[10]})"
         )
-        print("===========================================================")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~")
         # Write MAGEMin input file
         create_MAGEMin_input(
             MAGEMin_mode, MAGEMin_pressure_range, MAGEMin_temperature_range,
@@ -369,45 +445,44 @@ def run_MAGEMin(MAGEMin_program_path, MAGEMin_input_path, MAGEMin_output_directo
                 f"--n_points={n_MAGEMin_pt_points} --db=ig --test=0 --out_matlab=1 "
             )
         # Call MAGEMin in the terminal
-        print(f"Running MAGEMin in the shell at {n_MAGEMin_pt_points} pt points ...")
+        print(f"Running MAGEMin in the shell for {n_MAGEMin_pt_points} pt points ...")
         print(f"{MAGEMin_mpi_exec}")
-        print("===========================================================")
         shell_process = subprocess.run(
             MAGEMin_mpi_exec, shell=True, capture_output=True, text=True
         )
         # Print terminal output
-        if shell_process.stdout is not None:
-            print("Terminal stdout:")
-            print(shell_process.stdout)
-            print("===========================================================")
-        if shell_process.stderr is not None:
-            print("Terminal stderr:")
-            print(shell_process.stderr)
-            print("===========================================================")
+        if(verbose == True):
+            if shell_process.stdout is not None:
+                print("Terminal stdout:")
+                print(shell_process.stdout)
+                print("===========================================================")
+            if shell_process.stderr is not None:
+                print("Terminal stderr:")
+                print(shell_process.stderr)
+                print("===========================================================")
         # Process MAGEMin output files
-        MAGEMin_output = process_MAGEMin_files(
+        print("Processing MAGEMin output ...")
+        results = process_MAGEMin_files(
             MAGEMin_output_directory,
             MAGEMin_output_pattern
         )
-        print(f"MAGEMin output [P (kbar), T (˚C), {MAGEMin_param}: ")
-        if(verbose == True): print(MAGEMin_output)
-        print("===========================================================")
+        if(verbose == True):
+            print(results)
     else:
         # If previous output exists just visualize
         print("MAGEMin output found ...")
-        print(f"Plotting {MAGEMin_param} ...")
-        print("===========================================================")
+        print("Processing MAGEMin output ...")
         # Process MAGEMin output files
-        MAGEMin_output = process_MAGEMin_files(
+        results = process_MAGEMin_files(
             MAGEMin_output_directory,
             MAGEMin_output_pattern
         )
+        if(verbose == True):
+            print(results)
     if MAGEMin_plot == True:
+        print(f"Plotting {MAGEMin_param} ...")
         # Create a directory if it does not exist
         if not os.path.exists("figs"):
             os.makedirs("figs")
-            print(f"Directory \"figs\" created successfully.")
-            print("===========================================================")
-        else:
-            print(f"Directory \"figs\" already exists ...")
-            print("===========================================================")
+        print(f"Saving pseudosection plot to figs/{MAGEMin_plot_fname}")
+        plot_pseudosection_results(results, MAGEMin_param, "figs" + MAGEMin_plot_fname)
