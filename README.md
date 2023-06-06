@@ -1,1 +1,1 @@
-# kerswell_et_al_madnn
+# Kerswell et al. (2023)
