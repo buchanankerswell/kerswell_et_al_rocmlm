@@ -9,7 +9,39 @@ import fnmatch
 import itertools
 import subprocess
 import numpy as np
+from git import Repo
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+
+# Download github repo as submodule
+def download_github_submodule(repository_url, submodule_dir):
+    """
+    Download a GitHub repository as a submodule.
+
+    Args:
+        repository_url (str): The URL of the GitHub repository.
+        submodule_dir (str): The directory where the submodule will be cloned.
+
+    Raises:
+        Exception: If an error occurs while cloning the GitHub repository.
+
+    Note:
+        This function checks if the submodule directory already exists and deletes it.
+        Then it clones the submodule and recursively clones its contents.
+
+    Example:
+        download_github_submodule("https://github.com/username/repo.git", "submodule_dir")
+    """
+    # Check if submodule directory already exists and delete it
+    if os.path.exists(submodule_dir):
+        shutil.rmtree(submodule_dir)
+
+    # Clone submodule and recurse its contents
+    try:
+        repo = Repo.clone_from(repository_url, submodule_dir, recursive=True)
+    except Exception as e:
+        print(f"An error occurred while cloning the GitHub repository: {e} ...")
+
 
 # Count lines in a file
 def count_lines(filename):
@@ -67,8 +99,6 @@ def cleanup_ouput_dir(run_name):
 
     # Remove the output directory
     shutil.rmtree("output")
-
-    print(f"{len(matching_files)} MAGEMin output files moved to {directory}")
 
 # Merge dictionaries
 def merge_dictionaries(dictionaries):
@@ -128,7 +158,7 @@ def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test")
         - Composition [wt%] of the oxides.
 
     Creates:
-        - A directory "runs" if it doesn't exist.
+        - A directory "runs" if it does not exist.
         - Writes the input string for MAGEMin to a file named "run_name.dat"
         inside the "runs" directory.
     """
@@ -136,25 +166,6 @@ def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test")
     if not os.path.exists("runs"):
         os.makedirs("runs")
     # Print ranges and compositions
-    print(f"Creating MAGEMin input file: runs/{run_name}.dat ...")
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    print(f"P range: from {P_range[0]}–{P_range[1]} kbar")
-    print(f"T range: from {T_range[0]}–{T_range[1]} C")
-    print(
-        f"Composition [wt%]:\n"
-        f"SiO2({composition[0]})\n"
-        f"Al2O3({composition[1]})\n"
-        f"CaO({composition[2]})\n"
-        f"MgO({composition[3]})\n"
-        f"FeOt({composition[4]})\n"
-        f"K2O({composition[5]})\n"
-        f"Na2O({composition[6]})\n"
-        f"TiO2({composition[7]})\n"
-        f"O({composition[8]})\n"
-        f"Cr2O3({composition[9]})\n"
-        f"H2O({composition[10]})"
-    )
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     # Setup PT vectors
     MAGEMin_input = ""
     pressure_values = np.arange(
@@ -184,11 +195,11 @@ def run_MAGEMin(
         program_path=None,
         run_name="test",
         mode=0,
-        comp_type="wt",
+        comp_type="mol",
         database="ig",
         parallel=True,
         nprocs=os.cpu_count()-2,
-        verbose=True):
+        verbose=False):
     """
     Runs MAGEMin with the specified parameters.
 
@@ -241,20 +252,11 @@ def run_MAGEMin(
             f"--n_points={n_points} --sys_in={comp_type} --db={database} "
         )
 
-    # Call MAGEMin in the terminal
-    print(f"Running MAGEMin for {n_points} pt points ...")
-    print(f"{exec}")
-
-    # Timing
-    start_time = time.perf_counter()
-
     # Run MAGEMin
-    shell_process = subprocess.run(exec, shell=True, text=True)
-
-    # Print elapsed time
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed time: {elapsed_time} seconds")
+    if(verbose == True):
+        shell_process = subprocess.run(exec, shell=True, text=True)
+    else:
+        shell_process = subprocess.run(exec, shell=True)
 
     # Move output files and cleanup directory
     cleanup_ouput_dir(run_name)
@@ -482,48 +484,125 @@ def plot_pseudosection(results, parameter, filename=None):
     if (parameter == "StableSolutions"):
         # Encode unique phase assemblages
         encoded, unique = encode_phases(results[parameter])
-        legend_elements = []
-        # Plot
+
+        # Convert P, T, and parameter_values to arrays
+        P = np.array(P)
+        T = np.array(T)
+        parameter_values = np.array(encoded)
+
+        # Normalize P and T between 0 and 1
+        normalized_P = (P - P.min()) / (P.max() - P.min())
+        normalized_T = (T - T.min()) / (T.max() - T.min())
+
+        # Get unique normalized P and T values
+        unique_normalized_P = np.unique(normalized_P)
+        unique_normalized_T = np.unique(normalized_T)
+
+        # Determine the grid dimensions
+        rows = len(unique_normalized_P)
+        cols = len(unique_normalized_T)
+
+        # Create an empty grid to store the reshaped parameter_values
+        grid = np.empty((rows, cols))
+
+        # Reshape the parameter_values to match the grid dimensions
+        for i, normalized_p in enumerate(unique_normalized_P):
+            for j, normalized_t in enumerate(unique_normalized_T):
+                index = np.where(
+                    (normalized_P == normalized_p) &
+                    (normalized_T == normalized_t)
+                )[0]
+                if len(index) > 0:
+                    grid[i, j] = parameter_values[index[0]]
+
+        # Create a custom colormap with dynamically determined colors
+        num_colors = len(unique)
+
+        # Viridis
+        viridis_palette = plt.cm.get_cmap('viridis', num_colors)
+        # Greyscale
+        greyscale_palette = plt.cm.get_cmap('Greys', num_colors)
+        # Descritize
+        color_palette = greyscale_palette(np.linspace(0, 1, num_colors))
+        cmap = ListedColormap(color_palette)
+
+        # Plot as a raster using imshow
         fig, ax = plt.subplots()
-        scatter = ax.scatter(T, P, c=encoded, cmap="viridis", marker=",")
-        ax.set_xlabel("T (˚C)")
-        ax.set_ylabel("P (kbar)")
-        # Legend
-        for assemblage_tuple, encoded_number in unique.items():
-            assemblage_name = ", ".join(assemblage_tuple)
-            legend_elements.append(
-                ax.scatter(
-                    [],
-                    [],
-                    marker="o",
-                    color=scatter.cmap(scatter.norm(encoded_number)),
-                    label=assemblage_name
-                )
-            )
-#        legend = ax.legend(
-#            handles=legend_elements,
-#            title="Phase Assemblage",
-#            bbox_to_anchor=(0.5, -0.15),
-#            loc="upper center",
-#            ncol=2
-#        )
-        plt.subplots_adjust(bottom=0.15)
-        plt.colorbar(scatter, ax=ax, label=parameter)
-#        legend.get_frame().set_facecolor("white")
+        im = ax.imshow(
+            grid,
+            cmap=cmap,
+            extent=[
+                normalized_T.min(),
+                normalized_T.max(),
+                normalized_P.min(),
+                normalized_P.max()
+            ],
+            origin='lower',
+            vmin=0,
+            vmax=num_colors-1
+        )
+        ax.set_xlabel("Normalized T")
+        ax.set_ylabel("Normalized P")
+        plt.colorbar(im, ax=ax, ticks=np.arange(num_colors), label=parameter)
         fig.tight_layout()
     else:
         parameter_values = results[parameter]
-        # Plot
-        fig, ax = plt.subplots()
-        scatter = ax.scatter(T, P, c=parameter_values, cmap="viridis", marker=",")
-        ax.set_xlabel("T (˚C)")
-        ax.set_ylabel("P (kbar)")
-        plt.colorbar(scatter, ax=ax, label=parameter)
-        fig.tight_layout()
+        # Convert P, T, and parameter_values to arrays
+        P = np.array(P)
+        T = np.array(T)
+        parameter_values = np.array(parameter_values)
 
-    # Print plot
-    plt.show()
+        # Normalize P and T between 0 and 1
+        normalized_P = (P - P.min()) / (P.max() - P.min())
+        normalized_T = (T - T.min()) / (T.max() - T.min())
+        normalized_parameter_values = (
+            (parameter_values - parameter_values.min()) /
+            (parameter_values.max() - parameter_values.min())
+        )
+
+
+        # Get unique normalized P and T values
+        unique_normalized_P = np.unique(normalized_P)
+        unique_normalized_T = np.unique(normalized_T)
+
+        # Determine the grid dimensions
+        rows = len(unique_normalized_P)
+        cols = len(unique_normalized_T)
+
+        # Create an empty grid to store the reshaped parameter_values
+        grid = np.empty((rows, cols))
+
+        # Reshape the parameter_values to match the grid dimensions
+        for i, normalized_p in enumerate(unique_normalized_P):
+            for j, normalized_t in enumerate(unique_normalized_T):
+                index = np.where(
+                    (normalized_P == normalized_p) &
+                    (normalized_T == normalized_t)
+                )[0]
+                if len(index) > 0:
+                    grid[i, j] = normalized_parameter_values[index[0]]
+
+        # Plot as a raster using imshow
+        fig, ax = plt.subplots()
+        im = ax.imshow(
+            grid,
+            cmap="Greys",
+            extent=[
+                normalized_T.min(),
+                normalized_T.max(),
+                normalized_P.min(),
+                normalized_P.max()
+            ],
+            origin='lower'
+        )
+        ax.set_xlabel("Normalized T")
+        ax.set_ylabel("Normalized P")
+        plt.colorbar(im, ax=ax, label=f"Normalized {parameter}")
+        fig.tight_layout()
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig("figs/" + filename)
+        plt.savefig("figs/" + filename, dpi=330)
+    else:
+        # Print plot
+        plt.show()
