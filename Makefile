@@ -14,7 +14,17 @@ SHELL = /bin/bash -o pipefail
 HAS_CONDA := $(shell command -v conda >/dev/null && echo true || echo false)
 CONDA_ENV_NAME = madnn
 CONDA_SPECS_FILE = python/conda-environment.yaml
-CONDA_ENV_DIR=$(shell conda info --base)
+
+# Search for Conda environment directory
+CONDA_ENV_DIR := $(shell \
+		if [ -d "$(shell conda info --base)/envs/$(CONDA_ENV_NAME)" ]; then \
+			echo "$(shell conda info --base)/envs"; \
+		elif [ -d "$(HOME)/.conda/envs/$(CONDA_ENV_NAME)" ]; then \
+			echo "$(HOME)/.conda/envs"; \
+		fi \
+	)
+
+# Conda environment variables
 MY_ENV_DIR=$(CONDA_ENV_DIR)/envs/$(CONDA_ENV_NAME)
 CONDA_PYTHON = $$(conda run -n $(CONDA_ENV_NAME) which python)
 
