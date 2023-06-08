@@ -26,8 +26,8 @@ def download_github_submodule(repository_url, submodule_dir):
         Exception: If an error occurs while cloning the GitHub repository.
 
     Note:
-        This function checks if the submodule directory already exists and deletes it.
-        Then it clones the submodule and recursively clones its contents.
+        This function checks if the submodule directory already exists and deletes it
+        before cloning the submodule and recursively cloning its contents.
 
     Example:
         download_github_submodule("https://github.com/username/repo.git", "submodule_dir")
@@ -48,14 +48,11 @@ def count_lines(filename):
     """
     Count the number of lines in a file.
 
-    This function opens the specified file and counts the number of lines present in the file.
-
     Args:
         filename (str): The path to the file.
 
     Returns:
         int: The number of lines in the file.
-
     """
     line_count = 0
     with open(filename, "r") as file:
@@ -71,12 +68,9 @@ def cleanup_ouput_dir(run_name):
 
     Args:
         run_name (str): The name of the run, used to create the new directory and rename
-        the files.
+            the files.
 
     Returns:
-        None
-
-    Raises:
         None
     """
     # Create the directory based on the run_name
@@ -358,7 +352,13 @@ def read_MAGEMin_pseudosection_data(filename):
             density_liq = density[ind_liq[0]]
             ind_sol = [idx for idx, sol in enumerate(stable_solutions) if sol != "liq"]
             if ind_sol:
-                density_sol = sum(frac * dens for frac, dens in zip([stable_fractions[idx] for idx in ind_sol], [density[idx] for idx in ind_sol])) / sum([stable_fractions[idx] for idx in ind_sol])
+                density_sol =\
+                    sum(
+                        frac * dens for frac, dens in zip(
+                            [stable_fractions[idx] for idx in ind_sol],
+                            [density[idx] for idx in ind_sol]
+                        )
+                    ) / sum([stable_fractions[idx] for idx in ind_sol])
             else:
                 density_sol = 0
             density_mix = (liq * density_liq + (1 - liq) * density_sol)
@@ -408,7 +408,8 @@ def process_MAGEMin_files(run_name):
         dict: A single dictionary with merged key-value pairs from all files.
 
     Raises:
-        FileNotFoundError: If the "runs" directory or the specific MAGEMin run directory does not exist.
+        FileNotFoundError: If the "runs" directory or the specific MAGEMin run
+        directory does not exist.
     """
     # Check for input MAGEMin input files
     if not os.path.exists("runs"):
@@ -432,6 +433,7 @@ def process_MAGEMin_files(run_name):
     merged_results = merge_dictionaries(results)
     return merged_results
 
+# Encode stable phase assemblage for plotting with imshow
 def encode_phases(phases):
     """
     Encode unique phase assemblages and their corresponding numbers.
@@ -461,16 +463,69 @@ def encode_phases(phases):
 
     return encoded_assemblages, unique_assemblages
 
+# Transform results into 2D numpy array across PT space
+def create_PT_grid(P, T, parameter_values):
+    """
+    Create a 2D NumPy array representing a grid of parameter values across PT space.
+
+    Parameters:
+        P (list or array-like): A 1D array or list of P values.
+        T (list or array-like): A 1D array or list of T values.
+        parameter_values (list or array-like): A 1D array or list of parameter values.
+
+    Returns:
+        grid (numpy.ndarray): A 2D NumPy array representing the grid of parameter values.
+            The grid is created by reshaping the parameter values based on unique
+            P and T values.
+            Missing values in the grid are represented by NaN.
+
+    Example:
+        P = [0.1, 0.2, 0.3, 0.1, 0.2, 0.3]
+        T = [25, 25, 25, 50, 50, 50]
+        parameter_values = [1, 2, 3, 4, 5, 6]
+        grid = create_PT_grid(P, T, parameter_values)
+        print(grid)
+
+    Output:
+        [[1. 2. 3.]
+         [4. 5. 6.]]
+    """
+    # Convert P, T, and parameter_values to arrays
+    P = np.array(P)
+    T = np.array(T)
+    parameter_values = np.array(parameter_values)
+
+    # Get unique P and T values
+    unique_P = np.unique(P)
+    unique_T = np.unique(T)
+
+    # Determine the grid dimensions
+    rows = len(unique_P)
+    cols = len(unique_T)
+
+    # Create an empty grid to store the reshaped parameter_values
+    grid = np.empty((rows, cols))
+
+    # Reshape the parameter_values to match the grid dimensions
+    for i, p in enumerate(unique_P):
+        for j, t in enumerate(unique_T):
+            index = np.where((P == p) & (T == t))[0]
+            if len(index) > 0:
+                grid[i, j] = parameter_values[index[0]]
+
+    return grid
 
 # Plot MAGEMin pseudosection
-def plot_pseudosection(results, parameter, filename=None):
+def plot_pseudosection(P, T, grid, parameter, filename=None):
     """
     Plot the results of a pseudosection calculation.
 
     Args:
-        results (dict): Results of a pseudosection calculation.
+        P (list or array-like): A 1D array or list of P values.
+        T (list or array-like): A 1D array or list of T values.
+        grid (numpy.ndarray): A 2D array representing the pseudosection grid.
         parameter (str): The parameter to plot. If "StableSolutions", phase assemblages
-        will be plotted, otherwise, the specified parameter values will be plotted.
+            will be plotted, otherwise, the specified parameter values will be plotted.
         filename (str, optional): If provided, the plot will be saved to the specified file.
 
     Returns:
@@ -479,49 +534,13 @@ def plot_pseudosection(results, parameter, filename=None):
     # Check for figs directory
     if not os.path.exists("figs"):
         os.makedirs("figs", exist_ok=True)
-    P = results["P"]
-    T = results["T"]
     if (parameter == "StableSolutions"):
-        # Encode unique phase assemblages
-        encoded, unique = encode_phases(results[parameter])
-
-        # Convert P, T, and parameter_values to arrays
-        P = np.array(P)
-        T = np.array(T)
-        parameter_values = np.array(encoded)
-
-        # Normalize P and T between 0 and 1
-        normalized_P = (P - P.min()) / (P.max() - P.min())
-        normalized_T = (T - T.min()) / (T.max() - T.min())
-
-        # Get unique normalized P and T values
-        unique_normalized_P = np.unique(normalized_P)
-        unique_normalized_T = np.unique(normalized_T)
-
-        # Determine the grid dimensions
-        rows = len(unique_normalized_P)
-        cols = len(unique_normalized_T)
-
-        # Create an empty grid to store the reshaped parameter_values
-        grid = np.empty((rows, cols))
-
-        # Reshape the parameter_values to match the grid dimensions
-        for i, normalized_p in enumerate(unique_normalized_P):
-            for j, normalized_t in enumerate(unique_normalized_T):
-                index = np.where(
-                    (normalized_P == normalized_p) &
-                    (normalized_T == normalized_t)
-                )[0]
-                if len(index) > 0:
-                    grid[i, j] = parameter_values[index[0]]
-
         # Create a custom colormap with dynamically determined colors
-        num_colors = len(unique)
-
+        num_colors = len(np.unique(grid))
         # Viridis
-        viridis_palette = plt.cm.get_cmap('viridis', num_colors)
+        viridis_palette = plt.cm.get_cmap("viridis", num_colors)
         # Greyscale
-        greyscale_palette = plt.cm.get_cmap('Greys', num_colors)
+        greyscale_palette = plt.cm.get_cmap("Greys", num_colors)
         # Descritize
         color_palette = greyscale_palette(np.linspace(0, 1, num_colors))
         cmap = ListedColormap(color_palette)
@@ -530,74 +549,40 @@ def plot_pseudosection(results, parameter, filename=None):
         fig, ax = plt.subplots()
         im = ax.imshow(
             grid,
-            cmap=cmap,
             extent=[
-                normalized_T.min(),
-                normalized_T.max(),
-                normalized_P.min(),
-                normalized_P.max()
+                np.array(T).min(),
+                np.array(T).max(),
+                np.array(P).min(),
+                np.array(P).max()
             ],
-            origin='lower',
+            aspect="auto",
+            cmap=cmap,
+            origin="lower",
             vmin=0,
             vmax=num_colors-1
         )
-        ax.set_xlabel("Normalized T")
-        ax.set_ylabel("Normalized P")
+        ax.set_xlabel("T (˚C)")
+        ax.set_ylabel("P (kbar)")
         plt.colorbar(im, ax=ax, ticks=np.arange(num_colors), label=parameter)
         fig.tight_layout()
     else:
-        parameter_values = results[parameter]
-        # Convert P, T, and parameter_values to arrays
-        P = np.array(P)
-        T = np.array(T)
-        parameter_values = np.array(parameter_values)
-
-        # Normalize P and T between 0 and 1
-        normalized_P = (P - P.min()) / (P.max() - P.min())
-        normalized_T = (T - T.min()) / (T.max() - T.min())
-        normalized_parameter_values = (
-            (parameter_values - parameter_values.min()) /
-            (parameter_values.max() - parameter_values.min())
-        )
-
-
-        # Get unique normalized P and T values
-        unique_normalized_P = np.unique(normalized_P)
-        unique_normalized_T = np.unique(normalized_T)
-
-        # Determine the grid dimensions
-        rows = len(unique_normalized_P)
-        cols = len(unique_normalized_T)
-
-        # Create an empty grid to store the reshaped parameter_values
-        grid = np.empty((rows, cols))
-
-        # Reshape the parameter_values to match the grid dimensions
-        for i, normalized_p in enumerate(unique_normalized_P):
-            for j, normalized_t in enumerate(unique_normalized_T):
-                index = np.where(
-                    (normalized_P == normalized_p) &
-                    (normalized_T == normalized_t)
-                )[0]
-                if len(index) > 0:
-                    grid[i, j] = normalized_parameter_values[index[0]]
-
         # Plot as a raster using imshow
         fig, ax = plt.subplots()
         im = ax.imshow(
             grid,
-            cmap="Greys",
             extent=[
-                normalized_T.min(),
-                normalized_T.max(),
-                normalized_P.min(),
-                normalized_P.max()
+                np.array(T).min(),
+                np.array(T).max(),
+                np.array(P).min(),
+                np.array(P).max()
             ],
-            origin='lower'
+            aspect="auto",
+            cmap="Greys",
+            origin="lower"
         )
-        ax.set_xlabel("Normalized T")
-        ax.set_ylabel("Normalized P")
-        plt.colorbar(im, ax=ax, label=f"Normalized {parameter}")
+        ax.set_xlabel("T (˚C)")
+        ax.set_ylabel("P (kbar)")
+        plt.colorbar(im, ax=ax, label=f"{parameter}")
         fig.tight_layout()
 
     # Save the plot to a file if a filename is provided

@@ -1,4 +1,4 @@
-from magemin import process_MAGEMin_files, plot_pseudosection
+from magemin import process_MAGEMin_files, encode_phases, create_PT_grid, plot_pseudosection
 
 # Process MAGEMin output files
 results = process_MAGEMin_files(run_name="test")
@@ -7,8 +7,6 @@ results = process_MAGEMin_files(run_name="test")
 parameters = [
     "Point",
     "Status",
-    "P",
-    "T",
     "Gibbs",
     "BrNorm",
     "Vp",
@@ -22,5 +20,18 @@ parameters = [
     "DensityOfMixture"
 ]
 
+# Get PT values
+P = results["P"]
+T = results["T"]
+
 for parameter in parameters:
-    plot_pseudosection(results, parameter, filename=f"{parameter}.png")
+    # Transform results into 2D numpy arrays
+    if parameter == "StableSolutions":
+        # Encode unique phase assemblages
+        encoded, unique = encode_phases(results[parameter])
+        grid = create_PT_grid(P, T, encoded)
+    else:
+        grid = create_PT_grid(P, T, results[parameter])
+
+    # Plot PT grids
+    plot_pseudosection(P, T, grid, parameter, filename=f"{parameter}.png")
