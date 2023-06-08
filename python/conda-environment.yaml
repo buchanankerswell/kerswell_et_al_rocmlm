@@ -1,0 +1,10 @@
+name: madnn
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - gitpython
+  - numpy
+  - matplotlib
+prefix: /opt/homebrew/Caskroom/miniforge/base/envs/madnn

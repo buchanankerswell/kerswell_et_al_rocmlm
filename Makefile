@@ -2,7 +2,7 @@
 MAGEMIN = MAGEMin/MAGEMin
 
 # Python scripts
-PYTHON = python/conda-specs.txt python/magemin.py python/clone-magemin.py python/build-upper-mantle-database.py python/visualize-upper-mantle-database.py
+PYTHON = python/conda-environment.yaml python/magemin.py python/clone-magemin.py python/build-upper-mantle-database.py python/visualize-upper-mantle-database.py
 
 # Logging
 LOGFILE := log/log-$(shell date +%Y-%m-%d)
@@ -13,9 +13,9 @@ SHELL = /bin/bash -o pipefail
 # Conda environment variables
 HAS_CONDA := $(shell command -v conda >/dev/null && echo true || echo false)
 CONDA_ENV_NAME = madnn
+CONDA_SPECS_FILE = python/conda-environment.yaml
 CONDA_ENV_DIR=$(shell conda info --base)
 MY_ENV_DIR=$(CONDA_ENV_DIR)/envs/$(CONDA_ENV_NAME)
-CONDA_SPECS_FILE = python/conda-specs.txt
 CONDA_PYTHON = $$(conda run -n $(CONDA_ENV_NAME) which python)
 
 # Github repos
@@ -27,21 +27,21 @@ DATAPURGE = python/__pycache__
 FIGSPURGE = figs
 DATACLEAN = runs log MAGEMin
 
-all: create_conda_env $(PYTHON) $(LOGFILE) $(MAGEMIN)
-	@echo "Building MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
-	@$(CONDA_PYTHON) python/build-upper-mantle-database.py 2>&1 | tee -a $(LOGFILE)
-	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
+all: create_conda_env build_database visualize_database $(LOGFILE)
 	@conda remove --name $(CONDA_ENV_NAME) --all --yes > /dev/null 2>&1
-	@echo "Done!"
+	@echo "Done!" 2>&1 | tee -a $(LOGFILE)
 
-visualisize: create_conda_env $(PYTHON) $(LOGFILE)
+visualize_database: $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
 	@echo "Visualizing MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/visualize-upper-mantle-database.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
-	@conda remove --name $(CONDA_ENV_NAME) --all --yes > /dev/null 2>&1
-	@echo "Done!"
 
-$(MAGEMIN): $(PYTHON) $(LOGFILE)
+build_database: $(MAGEMIN) $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
+	@echo "Building MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
+	@$(CONDA_PYTHON) python/build-upper-mantle-database.py 2>&1 | tee -a $(LOGFILE)
+	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
+
+$(MAGEMIN): $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
 	@echo "Cloning MAGEMin from $(MAGEMIN_REPO) ..." 2>&1 | tee -a $(LOGFILE)
 	@chmod +x python/clone-magemin.py
 	@$(CONDA_PYTHON) python/clone-magemin.py 2>&1 | tee -a $(LOGFILE)
@@ -64,13 +64,8 @@ create_conda_env: $(CONDA_SPECS_FILE) $(LOGFILE)
 		echo "Detected conda ..." 2>&1 | tee -a $(LOGFILE); \
 		echo "Creating environment \"$(CONDA_ENV_NAME)\" from $(CONDA_SPECS_FILE) ..." \
 		  2>&1 | tee -a $(LOGFILE); \
-		conda create --name $(CONDA_ENV_NAME) --file $(CONDA_SPECS_FILE) --yes > /dev/null 2>&1; \
-		conda_channel=$$(conda config --get channels); \
-		if [[ "$$conda_channel" != *"conda-forge"* ]]; then \
-		  echo "conda-forge channel not found. ..." 2>&1 | tee -a $(LOGFILE); \
-			echo "Setting conda-forge as highest-priority channel ..." 2>&1 | tee -a $(LOGFILE); \
-			conda config --add channels conda-forge; \
-	  fi; \
+		conda env create --file $(CONDA_SPECS_FILE) \
+		  2>&1 | tee -a $(LOGFILE); \
 	fi
 
 $(LOGFILE):
