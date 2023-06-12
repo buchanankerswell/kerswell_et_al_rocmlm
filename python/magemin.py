@@ -60,6 +60,51 @@ def count_lines(filename):
             line_count += 1
     return line_count
 
+# Normalize components
+def normalize_concentrations(concentrations, components="all"):
+    """
+    Normalize the concentrations for a subset of components.
+
+    Args:
+        concentrations (list): List of concentrations representing the components.
+        components (list): List of components to normalize the concentrations for.
+
+    Returns:
+        list: Normalized concentrations for each component in the same order.
+
+    Raises:
+        ValueError: If the input concentrations list doesn't have exactly 11 components.
+
+    """
+    if components == "all":
+        return concentrations
+    component_list = [
+        "SiO2", "Al2O3", "CaO", "MgO", "FeOt", "K2O",
+        "Na2O", "TiO2", "O(Fe2O3)", "Cr2O3", "H2O"
+    ]
+    if len(concentrations) != 11:
+        error_message = (
+            f"The input concentrations list must have exactly 11 components ...\n" +
+            f"{component_list}"
+        )
+        raise ValueError(error_message)
+    if len(concentrations) != 11:
+        raise ValueError("The input concentrations list must have exactly 11 components ...")
+    subset_concentrations = [
+        c if comp in components else 0.01 for c, comp in zip(concentrations, component_list)
+    ]
+    total_subset_concentration = sum([c for c in subset_concentrations if c != 0.01])
+    normalized_concentrations = []
+    for c, comp in zip(concentrations, component_list):
+        if comp in components:
+            normalized_concentration = (
+                (c / total_subset_concentration)*100 if c != 0.01 else 0.01
+            )
+        else:
+            normalized_concentration = 0.01
+        normalized_concentrations.append(normalized_concentration)
+    return normalized_concentrations
+
 # Move files from MAGEMin output dir
 def cleanup_ouput_dir(run_name):
     """
@@ -188,7 +233,6 @@ def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test")
 def run_MAGEMin(
         program_path=None,
         run_name="test",
-        mode=0,
         comp_type="mol",
         database="ig",
         parallel=True,
@@ -243,14 +287,15 @@ def run_MAGEMin(
     else:
         exec = (
             f"{program_path}MAGEMin --File={input_path} "
-            f"--n_points={n_points} --sys_in={comp_type} --db={database} "
+            f"--n_points={n_points} --sys_in={comp_type} --db={database}"
         )
 
     # Run MAGEMin
     if(verbose == True):
+        exec = exec + " --Verb=1"
         shell_process = subprocess.run(exec, shell=True, text=True)
     else:
-        shell_process = subprocess.run(exec, shell=True)
+        shell_process = subprocess.run(exec, shell=True, text=True)
 
     # Move output files and cleanup directory
     cleanup_ouput_dir(run_name)
@@ -516,7 +561,7 @@ def create_PT_grid(P, T, parameter_values):
     return grid
 
 # Plot MAGEMin pseudosection
-def plot_pseudosection(P, T, grid, parameter, filename=None):
+def plot_pseudosection(P, T, grid, parameter, title=None, filename=None):
     """
     Plot the results of a pseudosection calculation.
 
@@ -565,6 +610,8 @@ def plot_pseudosection(P, T, grid, parameter, filename=None):
         ax.set_ylabel("P (kbar)")
         plt.colorbar(im, ax=ax, ticks=np.arange(num_colors), label=parameter)
         fig.tight_layout()
+        if title:
+            plt.title(title)
     else:
         # Plot as a raster using imshow
         fig, ax = plt.subplots()
@@ -584,6 +631,8 @@ def plot_pseudosection(P, T, grid, parameter, filename=None):
         ax.set_ylabel("P (kbar)")
         plt.colorbar(im, ax=ax, label=f"{parameter}")
         fig.tight_layout()
+        if title:
+            plt.title(title)
 
     # Save the plot to a file if a filename is provided
     if filename:

@@ -1,7 +1,8 @@
 from magemin import process_MAGEMin_files, encode_phases, create_PT_grid, plot_pseudosection
 
 # Process MAGEMin output files
-results = process_MAGEMin_files(run_name="test")
+run_name = "test"
+results = process_MAGEMin_files(run_name=run_name)
 
 # Plot
 parameters = [
@@ -34,4 +35,8 @@ for parameter in parameters:
         grid = create_PT_grid(P, T, results[parameter])
 
     # Plot PT grids
-    plot_pseudosection(P, T, grid, parameter, filename=f"{parameter}.png")
+    plot_pseudosection(
+        P, T, grid, parameter,
+        title=run_name.replace("_", " "),
+        filename=f"{run_name}-{parameter}.png"
+    )
