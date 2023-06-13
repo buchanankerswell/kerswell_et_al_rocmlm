@@ -1,5 +1,9 @@
 from magemin import normalize_concentrations, create_MAGEMin_input, run_MAGEMin
 
+# Download earthchem data
+url = https://files.osf.io/v1/resources/k23tb/providers/osfstorage/648855d9bee36d01130e5f39/?zip=
+download_and_unzip(url, "data")
+
 # PT range
 P_range = [10, 100, 1]
 T_range = [500, 2500, 20]

@@ -5,12 +5,14 @@ import sys
 import glob
 import time
 import shutil
+import zipfile
 import fnmatch
 import itertools
 import subprocess
 import numpy as np
 import pandas as pd
 from git import Repo
+import urllib.request
 import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -30,6 +32,31 @@ def read_geochemical_data(file_path):
 
     data = pd.read_csv(file_path)
     return data
+
+# Download data from repo
+def download_and_unzip(url, destination):
+    """
+    Download a zip file from a given URL and extract its contents to a specified destination.
+
+    Args:
+        url (str): The URL of the zip file to download.
+        destination (str): The folder where the contents of the zip file will be extracted.
+
+    Raises:
+        urllib.error.HTTPError: If there is an error accessing the URL.
+
+    """
+    # Download the file
+    print(f"Downloading data from:\n{url}")
+    urllib.request.urlretrieve(url, "data.zip")
+
+    # Extract the contents of the zip file
+    print(f"Extracting the contents of the zip file to {destination}/ ...")
+    with zipfile.ZipFile("data.zip", "r") as zip_ref:
+        zip_ref.extractall(destination)
+
+    # Remove the zip file
+    os.remove("data.zip")
 
 # Download github repo as submodule
 def download_github_submodule(repository_url, submodule_dir):

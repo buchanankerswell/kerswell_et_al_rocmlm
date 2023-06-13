@@ -9,7 +9,7 @@ GITHUB_REPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
 MAGEMIN = MAGEMin/MAGEMin
 PYTHON = python/conda-environment.yaml python/magemin.py python/clone-magemin.py python/build-upper-mantle-database.py python/visualize-upper-mantle-database.py
 DATAPURGE = python/__pycache__
-DATACLEAN = runs log MAGEMin
+DATACLEAN = data runs log MAGEMin
 FIGSPURGE =
 FIGSCLEAN = figs
 
@@ -18,6 +18,8 @@ all: create_conda_env build_database visualize_database $(LOGFILE)
 	@echo "Done!" 2>&1 | tee -a $(LOGFILE)
 
 visualize_database: create_conda_env $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
+	@echo "Downloading Earthchem database ..." 2>&1 | tee -a $(LOGFILE)
+	@$(CONDA_PYTHON) python/download-data-osf-repo.py 2>&1 | tee -a $(LOGFILE)
 	@echo "Visualizing Earthchem database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/visualize-earthchem-samples.py 2>&1 | tee -a $(LOGFILE)
 	@echo "Visualizing MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
