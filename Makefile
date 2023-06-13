@@ -18,6 +18,8 @@ all: create_conda_env build_database visualize_database $(LOGFILE)
 	@echo "Done!" 2>&1 | tee -a $(LOGFILE)
 
 visualize_database: create_conda_env $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
+	@echo "Visualizing Earthchem database ..." 2>&1 | tee -a $(LOGFILE)
+	@$(CONDA_PYTHON) python/visualize-earthchem-samples.py 2>&1 | tee -a $(LOGFILE)
 	@echo "Visualizing MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/visualize-upper-mantle-database.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)

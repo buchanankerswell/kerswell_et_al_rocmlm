@@ -7,4 +7,7 @@ dependencies:
   - gitpython
   - numpy
   - matplotlib
+  - pandas
+  - scipy
+  - seaborn
 prefix: /opt/homebrew/Caskroom/miniforge/base/envs/madnn

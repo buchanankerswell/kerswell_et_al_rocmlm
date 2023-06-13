@@ -38,5 +38,6 @@ for parameter in parameters:
     plot_pseudosection(
         P, T, grid, parameter,
         title=run_name.replace("_", " "),
+        palette="grey",
         filename=f"{run_name}-{parameter}.png"
     )

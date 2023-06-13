@@ -9,9 +9,27 @@ import fnmatch
 import itertools
 import subprocess
 import numpy as np
+import pandas as pd
 from git import Repo
+import seaborn as sns
+from scipy import stats
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+
+# Read csv files
+def read_geochemical_data(file_path):
+    """
+    Reads a CSV file containing geochemical data and returns the data as a pandas DataFrame.
+
+    Parameters:
+        file_path (str): The path to the CSV file.
+
+    Returns:
+        pandas.DataFrame: The geochemical data read from the CSV file.
+    """
+
+    data = pd.read_csv(file_path)
+    return data
 
 # Download github repo as submodule
 def download_github_submodule(repository_url, submodule_dir):
@@ -561,7 +579,7 @@ def create_PT_grid(P, T, parameter_values):
     return grid
 
 # Plot MAGEMin pseudosection
-def plot_pseudosection(P, T, grid, parameter, title=None, filename=None):
+def plot_pseudosection(P, T, grid, parameter, title=None, palette="blues", filename=None):
     """
     Plot the results of a pseudosection calculation.
 
@@ -582,12 +600,15 @@ def plot_pseudosection(P, T, grid, parameter, title=None, filename=None):
     if (parameter == "StableSolutions"):
         # Create a custom colormap with dynamically determined colors
         num_colors = len(np.unique(grid))
-        # Viridis
-        viridis_palette = plt.cm.get_cmap("viridis", num_colors)
-        # Greyscale
-        greyscale_palette = plt.cm.get_cmap("Greys", num_colors)
+        # Color palette
+        if palette == "viridis":
+            pal = plt.cm.get_cmap("viridis", num_colors)
+        elif palette == "grey":
+            pal = plt.cm.get_cmap("Greys", num_colors)
+        elif palette not in ["viridis", "grey"]:
+            pal = plt.cm.get_cmap("Blues", num_colors)
         # Descritize
-        color_palette = greyscale_palette(np.linspace(0, 1, num_colors))
+        color_palette = pal(np.linspace(0, 1, num_colors))
         cmap = ListedColormap(color_palette)
 
         # Plot as a raster using imshow
@@ -613,6 +634,13 @@ def plot_pseudosection(P, T, grid, parameter, title=None, filename=None):
         if title:
             plt.title(title)
     else:
+        # Color palette
+        if palette == "viridis":
+            cmap = "viridis"
+        elif palette == "grey":
+            cmap = "Greys"
+        elif palette not in ["viridis", "grey"]:
+            cmap="Blues"
         # Plot as a raster using imshow
         fig, ax = plt.subplots()
         im = ax.imshow(
@@ -624,7 +652,7 @@ def plot_pseudosection(P, T, grid, parameter, title=None, filename=None):
                 np.array(P).max()
             ],
             aspect="auto",
-            cmap="Greys",
+            cmap=cmap,
             origin="lower"
         )
         ax.set_xlabel("T (˚C)")
@@ -636,7 +664,115 @@ def plot_pseudosection(P, T, grid, parameter, title=None, filename=None):
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig("figs/" + filename, dpi=330)
+        plt.savefig("figs/" + filename, bbox_inches="tight", dpi=330)
+    else:
+        # Print plot
+        plt.show()
+
+# Plot Harker diagram with density contours using seaborn
+def plot_harker_diagram(data, x_oxide, y_oxide, filename=None):
+    """
+    Plot Harker diagrams with density contours using seaborn.
+
+    Parameters:
+        data (pandas.DataFrame): The geochemical data to be plotted.
+        x_oxide (str): The x-axis oxide for the Harker diagram.
+        y_oxide (str or list): The y-axis oxide(s) for the Harker diagram.
+        Can be a single oxide or a list of oxides.
+        filename (str, optional): The filename to save the plot.
+        If not provided, the plot will be displayed interactively.
+
+    Returns:
+        None
+
+    Notes:
+        - The function creates a directory named "figs" to save the plots.
+        - The function uses seaborn's "dark" style, palette, and "talk" context for the plots.
+        - The function creates a grid of subplots based on the number of y-oxides specified.
+        - Density contours and scatter plots (Harker diagrams) are added to each subplot.
+        - Legends are shown only for the first subplot.
+        - The plot can be saved to a file if a filename is provided.
+    """
+    # Create figs dir
+    if not os.path.exists("figs"):
+        os.makedirs("figs", exist_ok=True)
+
+    # Set plot style and settings
+    sns.set_style("dark")
+    sns.set_context("talk")
+    plt.rcParams["legend.facecolor"] = "white"
+
+    # Create a grid of subplots
+    num_plots = len(y_oxide)
+    if num_plots == 1:
+        num_cols = 1
+    elif ((num_plots > 1) and (num_plots <= 4)):
+        num_cols = 2
+    elif ((num_plots > 4) and (num_plots <= 9)):
+        num_cols = 3
+    elif ((num_plots > 9) and (num_plots <= 16)):
+        num_cols = 4
+    else:
+        num_cols = 5
+    num_rows = (num_plots + 1) // num_cols
+
+    # Total figure size
+    fig_width = 6*num_cols
+    fig_height = 5*num_rows
+
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
+    axes = axes.flatten()
+
+    for i, y in enumerate(y_oxide):
+        ax = axes[i]
+
+        # Add density contours
+        sns.kdeplot(
+            data=data,
+            x=x_oxide.upper(),
+            y=y.upper(),
+            hue="COMPOSITION",
+            hue_order=["ultramafic", "mafic"],
+            fill=True,
+            ax=ax
+        )
+
+        # X-Y scatter (Harker diagram)
+        sns.scatterplot(
+            data=data,
+            x=x_oxide.upper(),
+            y=y.upper(),
+            hue="COMPOSITION",
+            hue_order=["ultramafic", "mafic"],
+            linewidth=0,
+            s=5,
+            legend=False,
+            ax=ax
+        )
+
+        ax.set_facecolor("0.5")
+        ax.set_xlabel(f"{x_oxide} (wt%)")
+        ax.set_ylabel(f"{y} (wt%)")
+
+        # Show legend only for the first subplot
+        if i > 0:
+            ax.get_legend().remove()
+
+    # Remove empty subplots
+    if num_plots < len(axes):
+        for i in range(num_plots, len(axes)):
+            fig.delaxes(axes[i])
+
+    # Count the number of mafic and ultramafic samples
+    n_mafic = len(data[data["COMPOSITION"] == "mafic"])
+    n_ulmafic = len(data[data["COMPOSITION"] == "ultramafic"])
+
+    fig.suptitle(f"Harker diagrams for {n_mafic} mafic and {n_ulmafic} ultramafic samples")
+    plt.tight_layout()
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig("figs/" + filename, bbox_inches="tight", dpi=330)
     else:
         # Print plot
         plt.show()
