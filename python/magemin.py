@@ -18,21 +18,6 @@ from scipy import stats
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
-# Read csv files
-def read_geochemical_data(file_path):
-    """
-    Reads a CSV file containing geochemical data and returns the data as a pandas DataFrame.
-
-    Parameters:
-        file_path (str): The path to the CSV file.
-
-    Returns:
-        pandas.DataFrame: The geochemical data read from the CSV file.
-    """
-
-    data = pd.read_csv(file_path)
-    return data
-
 # Download data from repo
 def download_and_unzip(url, destination):
     """
@@ -57,6 +42,104 @@ def download_and_unzip(url, destination):
 
     # Remove the zip file
     os.remove("data.zip")
+
+# Read csv files
+def read_geochemical_data(file_path):
+    """
+    Reads a CSV file containing geochemical data and returns the data as a pandas DataFrame.
+
+    Parameters:
+        file_path (str): The path to the CSV file.
+
+    Returns:
+        pandas.DataFrame: The geochemical data read from the CSV file.
+    """
+
+    data = pd.read_csv(file_path)
+    return data
+
+# Sample randomly from the earthchem database
+def random_sample_for_MAGEMin(datafile, seed=None):
+    """
+    Randomly samples one row from the given datafile and
+    extracts the oxide compositions needed for the "MAGEMin" analysis.
+
+    Args:
+        datafile (str): Path to the CSV data file.
+
+    Returns:
+        list: List of oxide compositions in the order
+        [SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O].
+        If an oxide is not found or has a null value, its composition is set to 0.01.
+
+    """
+    # All oxides needed for MAGEMin
+    component_list = [
+        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
+        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
+    ]
+
+    # Make uppercase
+    oxides = [oxide.upper() for oxide in component_list]
+
+    # Random sampling
+    df = pd.read_csv(datafile)
+    random_row = df.sample(1, random_state=seed)
+
+    # Get oxides in correct order
+    composition = []
+    for oxide in oxides:
+        if oxide in random_row.columns and pd.notnull(random_row[oxide].iloc[0]):
+            composition.append(float(random_row[oxide].iloc[0]))
+        else:
+            composition.append(0.01)
+
+    return composition
+
+# Normalize components
+def normalize_sample(sample, components="all"):
+    """
+    Normalize the concentrations for a subset of components.
+
+    Args:
+        sample (list): List of concentrations representing the components.
+        components (list): List of components to normalize the concentrations for.
+
+    Returns:
+        list: Normalized concentrations for each component in the same order.
+
+    Raises:
+        ValueError: If the input sample list doesn't have exactly 11 components.
+
+    """
+    if components == "all":
+        return sample
+    component_list = [
+        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
+        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
+    ]
+    if len(sample) != 11:
+        error_message = (
+            f"The input sample list must have exactly 11 components ...\n" +
+            f"{component_list}"
+        )
+        raise ValueError(error_message)
+    if len(sample) != 11:
+        raise ValueError("The input sample list must have exactly 11 components ...")
+    subset_sample = [
+        c if comp in components else 0.01 for c, comp in zip(sample, component_list)
+    ]
+    total_subset_concentration = sum([c for c in subset_sample if c != 0.01])
+    normalized_concentrations = []
+    for c, comp in zip(sample, component_list):
+        if comp in components:
+            normalized_concentration = (
+                (c / total_subset_concentration)*100 if c != 0.01 else 0.01
+            )
+        else:
+            normalized_concentration = 0.01
+        normalized_concentrations.append(normalized_concentration)
+    return normalized_concentrations
 
 # Download github repo as submodule
 def download_github_submodule(repository_url, submodule_dir):
@@ -87,7 +170,6 @@ def download_github_submodule(repository_url, submodule_dir):
     except Exception as e:
         print(f"An error occurred while cloning the GitHub repository: {e} ...")
 
-
 # Count lines in a file
 def count_lines(filename):
     """
@@ -104,85 +186,6 @@ def count_lines(filename):
         for line in file:
             line_count += 1
     return line_count
-
-# Normalize components
-def normalize_concentrations(concentrations, components="all"):
-    """
-    Normalize the concentrations for a subset of components.
-
-    Args:
-        concentrations (list): List of concentrations representing the components.
-        components (list): List of components to normalize the concentrations for.
-
-    Returns:
-        list: Normalized concentrations for each component in the same order.
-
-    Raises:
-        ValueError: If the input concentrations list doesn't have exactly 11 components.
-
-    """
-    if components == "all":
-        return concentrations
-    component_list = [
-        "SiO2", "Al2O3", "CaO", "MgO", "FeOt", "K2O",
-        "Na2O", "TiO2", "O(Fe2O3)", "Cr2O3", "H2O"
-    ]
-    if len(concentrations) != 11:
-        error_message = (
-            f"The input concentrations list must have exactly 11 components ...\n" +
-            f"{component_list}"
-        )
-        raise ValueError(error_message)
-    if len(concentrations) != 11:
-        raise ValueError("The input concentrations list must have exactly 11 components ...")
-    subset_concentrations = [
-        c if comp in components else 0.01 for c, comp in zip(concentrations, component_list)
-    ]
-    total_subset_concentration = sum([c for c in subset_concentrations if c != 0.01])
-    normalized_concentrations = []
-    for c, comp in zip(concentrations, component_list):
-        if comp in components:
-            normalized_concentration = (
-                (c / total_subset_concentration)*100 if c != 0.01 else 0.01
-            )
-        else:
-            normalized_concentration = 0.01
-        normalized_concentrations.append(normalized_concentration)
-    return normalized_concentrations
-
-# Move files from MAGEMin output dir
-def cleanup_ouput_dir(run_name):
-    """
-    Move files from the MAGEMin output directory to a new directory based on the run name.
-    Also moves the input data file into the new directory and removes the output directory.
-
-    Args:
-        run_name (str): The name of the run, used to create the new directory and rename
-            the files.
-
-    Returns:
-        None
-    """
-    # Create the directory based on the run_name
-    directory="runs/" + run_name
-    os.makedirs(directory, exist_ok=True)
-
-    # Get a list of all files in the "output" directory matching the pattern
-    files = os.listdir("output")
-    matching_files = [file for file in files if file.startswith("_pseudosection")]
-
-    # Rename and move the files
-    for file in matching_files:
-        new_filename = "_" + run_name + file[len("_pseudosection"):]
-        new_filepath = os.path.join(directory, new_filename)
-        old_filepath = os.path.join("output", file)
-        shutil.move(old_filepath, new_filepath)
-
-    # Move input data file into directory
-    shutil.move(directory + ".dat", directory)
-
-    # Remove the output directory
-    shutil.rmtree("output")
 
 # Merge dictionaries
 def merge_dictionaries(dictionaries):
@@ -273,6 +276,40 @@ def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test")
     # Write input file
     with open("runs/" + run_name + ".dat", "w") as f:
         f.write(MAGEMin_input)
+
+# Move files from MAGEMin output dir
+def cleanup_ouput_dir(run_name):
+    """
+    Move files from the MAGEMin output directory to a new directory based on the run name.
+    Also moves the input data file into the new directory and removes the output directory.
+
+    Args:
+        run_name (str): The name of the run, used to create the new directory and rename
+            the files.
+
+    Returns:
+        None
+    """
+    # Create the directory based on the run_name
+    directory="runs/" + run_name
+    os.makedirs(directory, exist_ok=True)
+
+    # Get a list of all files in the "output" directory matching the pattern
+    files = os.listdir("output")
+    matching_files = [file for file in files if file.startswith("_pseudosection")]
+
+    # Rename and move the files
+    for file in matching_files:
+        new_filename = "_" + run_name + file[len("_pseudosection"):]
+        new_filepath = os.path.join(directory, new_filename)
+        old_filepath = os.path.join("output", file)
+        shutil.move(old_filepath, new_filepath)
+
+    # Move input data file into directory
+    shutil.move(directory + ".dat", directory)
+
+    # Remove the output directory
+    shutil.rmtree("output")
 
 # Run MAGEMin
 def run_MAGEMin(

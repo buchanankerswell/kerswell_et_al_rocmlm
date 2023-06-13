@@ -9,7 +9,7 @@ GITHUB_REPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
 MAGEMIN = MAGEMin/MAGEMin
 PYTHON = python/conda-environment.yaml python/magemin.py python/clone-magemin.py python/build-upper-mantle-database.py python/visualize-upper-mantle-database.py
 DATAPURGE = python/__pycache__
-DATACLEAN = data runs log MAGEMin
+DATACLEAN = data runs output log MAGEMin
 FIGSPURGE =
 FIGSCLEAN = figs
 
@@ -17,19 +17,20 @@ all: create_conda_env build_database visualize_database $(LOGFILE)
 	@conda remove --name $(CONDA_ENV_NAME) --all --yes > /dev/null 2>&1
 	@echo "Done!" 2>&1 | tee -a $(LOGFILE)
 
-visualize_database: create_conda_env $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
-	@echo "Downloading Earthchem database ..." 2>&1 | tee -a $(LOGFILE)
-	@$(CONDA_PYTHON) python/download-data-osf-repo.py 2>&1 | tee -a $(LOGFILE)
+visualize_database: create_conda_env download_data $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
 	@echo "Visualizing Earthchem database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/visualize-earthchem-samples.py 2>&1 | tee -a $(LOGFILE)
 	@echo "Visualizing MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/visualize-upper-mantle-database.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
-build_database: create_conda_env $(MAGEMIN) $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
+build_database: create_conda_env download_data $(MAGEMIN) $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
 	@echo "Building MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/build-upper-mantle-database.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
+
+download_data:
+	@$(CONDA_PYTHON) python/download-data-osf-repo.py 2>&1 | tee -a $(LOGFILE)
 
 $(MAGEMIN): $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
 	@echo "Cloning MAGEMin from $(MAGEMIN_REPO) ..." 2>&1 | tee -a $(LOGFILE)
@@ -80,4 +81,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(MAGEMIN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env create_conda_env build_database visualize_database all purge clean
+.PHONY: find_conda_env create_conda_env download_data build_database visualize_database all purge clean
