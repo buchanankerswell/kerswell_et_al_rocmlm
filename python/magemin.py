@@ -318,8 +318,7 @@ def run_MAGEMin(
         comp_type="mol",
         database="ig",
         parallel=True,
-        nprocs=os.cpu_count()-2,
-        verbose=False):
+        nprocs=os.cpu_count()-2):
     """
     Runs MAGEMin with the specified parameters.
 
@@ -373,11 +372,7 @@ def run_MAGEMin(
         )
 
     # Run MAGEMin
-    if(verbose == True):
-        exec = exec + " --Verb=1"
-        shell_process = subprocess.run(exec, shell=True, text=True)
-    else:
-        shell_process = subprocess.run(exec, shell=True, text=True)
+    shell_process = subprocess.run(exec, shell=True, text=True)
 
     # Move output files and cleanup directory
     cleanup_ouput_dir(run_name)

@@ -1,3 +1,4 @@
+import os
 from magemin import process_MAGEMin_files, encode_phases, create_PT_grid, plot_pseudosection
 
 # Parameters to visualize
@@ -39,7 +40,7 @@ for run in runs:
         # Plot PT grids
         plot_pseudosection(
             P, T, grid, parameter,
-            title=run_name.replace("_", " "),
+            title=run.replace("_", " ") + ": " + parameter,
             palette="grey",
             filename=f"{run}-{parameter}.png"
         )
