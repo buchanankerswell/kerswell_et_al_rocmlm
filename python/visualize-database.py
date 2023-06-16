@@ -22,6 +22,8 @@ parameters = [
 runs = os.listdir("runs")
 
 for run in runs:
+    print(f"Plotting results for {run} ...")
+
     results = process_MAGEMin_files(run)
 
     # Get PT values

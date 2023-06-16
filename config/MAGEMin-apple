@@ -3,8 +3,8 @@
 CC = clang 
 EXE_NAME := MAGEMin
 CCFLAGS = -Wall -O3 -g -fPIC -Wno-unused-variable -Wno-unused-but-set-variable
-LIBS = -lm -framework Accelerate /opt/homebrew/lib/libnlopt.dylib /opt/homebrew/lib/libmpi.dylib
-INC = -I/opt/homebrew/include 
+LIBS = -lm -framework Accelerate /opt/homebrew/lib/libnlopt.dylib /opt/homebrew/lib/libmpi.dylib -L/opt/homebrew/Cellar/lapack/3.11/lib -llapacke
+INC = -I/opt/homebrew/include -I/opt/homebrew/Cellar/lapack/3.11/include
 EXE_NAME = MAGEMin
 SOURCES=src/MAGEMin.c \
 		src/toolkit.c \

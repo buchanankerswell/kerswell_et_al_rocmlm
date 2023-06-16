@@ -291,7 +291,7 @@ def cleanup_ouput_dir(run_name):
         None
     """
     # Create the directory based on the run_name
-    directory="runs/" + run_name
+    directory = "runs/" + run_name
     os.makedirs(directory, exist_ok=True)
 
     # Get a list of all files in the "output" directory matching the pattern
@@ -727,6 +727,10 @@ def plot_pseudosection(P, T, grid, parameter, title=None, palette="blues", filen
     else:
         # Print plot
         plt.show()
+
+    # Close device
+    plt.close()
+
 
 # Plot Harker diagram with density contours using seaborn
 def plot_harker_diagram(data, x_oxide, y_oxide, filename=None):
