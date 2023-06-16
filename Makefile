@@ -1,4 +1,5 @@
 SHELL = /bin/bash -o pipefail
+UNAME_S := $(shell uname -s)
 LOGFILE := log/log-$(shell date +%Y-%m-%d)
 DATA = data
 HAS_CONDA := $(shell command -v conda >/dev/null && echo true || echo false)
@@ -37,12 +38,15 @@ $(MAGEMIN): $(MY_ENV_DIR) $(PYTHON) $(LOGFILE)
 	@echo "Cloning MAGEMin from $(MAGEMIN_REPO) ..." 2>&1 | tee -a $(LOGFILE)
 	@chmod +x python/clone-magemin.py
 	@$(CONDA_PYTHON) python/clone-magemin.py 2>&1 | tee -a $(LOGFILE)
-	@echo "Configuring MAGEMin ..." 2>&1 | tee -a $(LOGFILE)
-	@if [ -z $$(command -v clang) ]; then \
-	  echo "clang not found, uncommenting CC=gcc in MAGEMin Makefile ..." \
+	@if [ "$(UNAME_S)" = "Darwin" ]; then \
+	  echo "Configuring MAGEMin for apple using the Makefile in config/MAGEMin-apple ..." \
 	    2>&1 | tee -a $(LOGFILE); \
-	  sed -i 's/# CC=gcc/CC=gcc/' MAGEMin/Makefile; \
-	  sed -i 's/CC=clang/# CC=clang/' MAGEMin/Makefile; \
+	  cp config/MAGEMin-apple MAGEMin/Makefile; \
+	fi
+	@if [ "$(UNAME_S)" = "Linux" ]; then \
+	  echo "Configuring MAGEMin for meso using the Makefile in config/MAGEMin-meso ..." \
+	    2>&1 | tee -a $(LOGFILE); \
+	  cp config/MAGEMin-meso MAGEMin/Makefile; \
 	fi
 	@echo "Compiling MAGEMin ..." 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
