@@ -2,11 +2,13 @@
 import os
 import re
 import sys
+import ast
 import glob
 import time
 import shutil
 import zipfile
 import fnmatch
+import argparse
 import itertools
 import subprocess
 import numpy as np
@@ -17,6 +19,139 @@ import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+
+# Parse string argument as list of numbers
+def parse_list_of_numbers(arg):
+    """
+    Parse a string argument as a list of numbers.
+
+    Args:
+        arg (str): The string argument to parse.
+
+    Returns:
+        list: A list of numbers parsed from the input string.
+
+    Raises:
+        argparse.ArgumentTypeError: If the input string is not a valid list of three numbers.
+
+    Examples:
+        >>> parse_list_of_numbers("[10, 20, 30]")
+        [10, 20, 30]
+
+        >>> parse_list_of_numbers("[1.5, 2.5, 3.5]")
+        [1.5, 2.5, 3.5]
+
+    """
+    try:
+        num_list = ast.literal_eval(arg)
+        if (
+             isinstance(num_list, list) and
+             len(num_list) == 3 and
+             all(isinstance(num, (int, float)) for num in num_list)
+        ):
+            return num_list
+        else:
+            raise argparse.ArgumentTypeError(
+                f"Invalid list: {arg} ...\nIt must contain exactly three numerical values ..."
+            )
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Invalid list: {arg} ...\nIt must contain exactly three numerical values ..."
+        )
+
+# Parse arguments for build-database.py
+def parse_arguments_build_db():
+    """
+    Parse the command-line arguments for the build-database.py script.
+
+    Returns:
+        argparse.Namespace: An object containing the parsed command-line arguments.
+
+    Raises:
+        argparse.ArgumentTypeError: If any of the required arguments are missing.
+
+    """
+    # Create the argument parser
+    parser = argparse.ArgumentParser()
+
+    # Add the command-line arguments
+    parser.add_argument(
+        "--Prange",
+        type=parse_list_of_numbers,
+        help="Specify the Prange argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--Trange",
+        type=parse_list_of_numbers,
+        help="Specify the Trange argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--type",
+        type=str,
+        help="Specify the type argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--n",
+        type=int,
+        help="Specify the n argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        help="Specify the k argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--parallel",
+        type=bool,
+        help="Specify the parallel argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--nprocs",
+        type=int,
+        help="Specify the nprocs argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--out_dir",
+        type=str,
+        help="Specify the out_dir argument ...",
+        required = True
+    )
+
+    # Parse the command-line arguments
+    return parser.parse_args()
+
+# Parse arguments for visualize-database.py
+def parse_arguments_visualize_db():
+    """
+    Parse the command-line arguments for the visualize-database.py script.
+
+    Returns:
+        argparse.Namespace: An object containing the parsed command-line arguments.
+
+    Raises:
+        argparse.ArgumentTypeError: If any of the required arguments are missing.
+
+    """
+    # Create the argument parser
+    parser = argparse.ArgumentParser()
+
+    # Add the command-line arguments
+    parser.add_argument(
+        "--out_dir",
+        type=str,
+        help="Specify the out_dir argument ...",
+        required = True
+    )
+
+    # Parse the command-line arguments
+    return parser.parse_args()
 
 # Download data from repo
 def download_and_unzip(url, destination):
@@ -58,19 +193,69 @@ def read_geochemical_data(file_path):
     data = pd.read_csv(file_path)
     return data
 
-# Sample randomly from the earthchem database
-def random_sample_for_MAGEMin(datafile, seed=None):
+# Sample batches from the earthchem database
+def batch_sample_for_MAGEMin(datafile, batch_size=1, k=0):
     """
-    Randomly samples one row from the given datafile and
+    Splits the data from the given datafile into batches of size `batch_size`
+    and returns the k-th batch.
+
+    Args:
+        datafile (str): Path to the CSV data file.
+        batch_size (int): Size of each batch (default: 1).
+        k (int): Index of the batch to retrieve (default: 0).
+
+    Returns:
+        tuple: Two lists, the first containing sample_ids and the second containing
+        lists of oxide compositions for the k-th batch.
+
+    """
+    # All oxides needed for MAGEMin
+    component_list = [
+        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
+        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
+    ]
+
+    # Make uppercase
+    oxides = [oxide.upper() for oxide in component_list]
+
+    # Read the datafile in chunks of size batch_size
+    df_iterator = pd.read_csv(datafile, chunksize=batch_size)
+
+    # Initialize variables for the k-th batch
+    sample_ids = []
+    compositions = []
+
+    # Iterate until the k-th batch
+    for i, chunk in enumerate(df_iterator):
+        if i == k:
+            # Process the k-th batch
+            for _, row in chunk.iterrows():
+                sample_ids.append(row["SAMPLE ID"])
+                composition = []
+                for oxide in oxides:
+                    if oxide in row.index and pd.notnull(row[oxide]):
+                        composition.append(float(row[oxide]))
+                    else:
+                        composition.append(0.01)
+                compositions.append(composition)
+            break
+
+    return sample_ids, compositions
+
+# Sample randomly from the earthchem database
+def random_sample_for_MAGEMin(datafile, n=1, seed=None):
+    """
+    Randomly samples n rows from the given datafile and
     extracts the oxide compositions needed for the "MAGEMin" analysis.
 
     Args:
         datafile (str): Path to the CSV data file.
+        n (int): Number of random samples to extract (default: 1).
+        seed (int): Random seed for reproducibility (default: None).
 
     Returns:
-        list: List of oxide compositions in the order
-        [SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O].
-        If an oxide is not found or has a null value, its composition is set to 0.01.
+        tuple: Two lists, the first containing sample_ids and the second containing
+        lists of oxide compositions for each random sample.
 
     """
     # All oxides needed for MAGEMin
@@ -84,17 +269,23 @@ def random_sample_for_MAGEMin(datafile, seed=None):
 
     # Random sampling
     df = pd.read_csv(datafile)
-    random_row = df.sample(1, random_state=seed)
+    random_rows = df.sample(n, random_state=seed)
 
-    # Get oxides in correct order
-    composition = []
-    for oxide in oxides:
-        if oxide in random_row.columns and pd.notnull(random_row[oxide].iloc[0]):
-            composition.append(float(random_row[oxide].iloc[0]))
-        else:
-            composition.append(0.01)
+    # Get sample names and oxides in correct order for each random sample
+    sample_ids = []
+    compositions = []
 
-    return composition
+    for _, random_row in random_rows.iterrows():
+        sample_ids.append(random_row["SAMPLE ID"])
+        composition = []
+        for oxide in oxides:
+            if oxide in random_row.index and pd.notnull(random_row[oxide]):
+                composition.append(float(random_row[oxide]))
+            else:
+                composition.append(0.01)
+        compositions.append(composition)
+
+    return sample_ids, compositions
 
 # Normalize components
 def normalize_sample(sample, components="all"):
@@ -224,7 +415,13 @@ def merge_dictionaries(dictionaries):
     return merged_dict
 
 # Create MAGEMin input
-def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test"):
+def create_MAGEMin_input(
+        P_range,
+        T_range,
+        composition,
+        mode=0,
+        run_name="test",
+        out_dir=os.getcwd()):
     """
     Creates an input string for MAGEMin.
 
@@ -250,9 +447,9 @@ def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test")
         inside the "runs" directory.
     """
     # Create directory
-    if not os.path.exists("runs"):
-        os.makedirs("runs")
-    # Print ranges and compositions
+    directory = out_dir + "/runs"
+    os.makedirs(directory, exist_ok=True)
+
     # Setup PT vectors
     MAGEMin_input = ""
     pressure_values = np.arange(
@@ -265,6 +462,7 @@ def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test")
         float(T_range[1]) + 1,
         float(T_range[2])
     )
+
     # Expand PT vectors into grid
     combinations = list(itertools.product(pressure_values, temperature_values))
     for p, t in combinations:
@@ -273,12 +471,13 @@ def create_MAGEMin_input(P_range, T_range, composition, mode=0, run_name="test")
             f"{composition[3]} {composition[4]} {composition[5]} {composition[6]} "
             f"{composition[7]} {composition[8]} {composition[9]} {composition[10]}\n"
         )
+
     # Write input file
-    with open("runs/" + run_name + ".dat", "w") as f:
+    with open(directory + "/" + run_name + ".dat", "w") as f:
         f.write(MAGEMin_input)
 
 # Move files from MAGEMin output dir
-def cleanup_ouput_dir(run_name):
+def cleanup_ouput_dir(run_name, out_dir=os.getcwd()):
     """
     Move files from the MAGEMin output directory to a new directory based on the run name.
     Also moves the input data file into the new directory and removes the output directory.
@@ -291,7 +490,7 @@ def cleanup_ouput_dir(run_name):
         None
     """
     # Create the directory based on the run_name
-    directory = "runs/" + run_name
+    directory = out_dir + "/runs/" + run_name
     os.makedirs(directory, exist_ok=True)
 
     # Get a list of all files in the "output" directory matching the pattern
@@ -306,7 +505,11 @@ def cleanup_ouput_dir(run_name):
         shutil.move(old_filepath, new_filepath)
 
     # Move input data file into directory
-    shutil.move(directory + ".dat", directory)
+    if os.path.isfile(directory + "/" + run_name + ".dat"):
+        os.remove(directory + "/" + run_name + ".dat")
+        shutil.move(directory + ".dat", directory)
+    else:
+        shutil.move(directory + ".dat", directory)
 
     # Remove the output directory
     shutil.rmtree("output")
@@ -318,7 +521,8 @@ def run_MAGEMin(
         comp_type="mol",
         database="ig",
         parallel=True,
-        nprocs=os.cpu_count()-2):
+        nprocs=None,
+        out_dir=os.getcwd()):
     """
     Runs MAGEMin with the specified parameters.
 
@@ -351,15 +555,24 @@ def run_MAGEMin(
         sys.exit("Please provide location to MAGEMin executable ...")
 
     # Check for input MAGEMin input files
-    if not os.path.exists("runs"):
+    if not os.path.exists(out_dir + "/runs"):
         sys.exit("No MAGEMin input files to run ...")
 
     # Count number of pt points to model with MAGEMin
-    input_path = "runs/" + run_name + ".dat"
+    input_path = out_dir + "/runs/" + run_name + ".dat"
     n_points = count_lines(input_path)
 
     # Execute MAGEMin in parallel with MPI
     if parallel == True:
+        if nprocs > os.cpu_count():
+            raise ValueError(
+                "Number of processors less than nprocs argument ...\n"
+                "Choose fewer nprocs ..."
+            )
+        elif nprocs is not None and nprocs < os.cpu_count():
+            nprocs = nprocs
+        elif nprocs is None:
+            nprocs = os.cpu_count()-2
         exec = (
             f"mpirun -np {nprocs} {program_path}MAGEMin --File={input_path} "
             f"--n_points={n_points} --sys_in={comp_type} --db={database}"
@@ -375,7 +588,7 @@ def run_MAGEMin(
     shell_process = subprocess.run(exec, shell=True, text=True)
 
     # Move output files and cleanup directory
-    cleanup_ouput_dir(run_name)
+    cleanup_ouput_dir(run_name, out_dir)
 
 # Read pseudosection info from MAGEMin output file
 def read_MAGEMin_pseudosection_data(filename):
@@ -519,7 +732,7 @@ def read_MAGEMin_pseudosection_data(filename):
     return results
 
 # Process all MAGEMin output files in a directory
-def process_MAGEMin_files(run_name):
+def process_MAGEMin_files(run_name, out_dir=os.getcwd()):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
@@ -534,13 +747,13 @@ def process_MAGEMin_files(run_name):
         directory does not exist.
     """
     # Check for input MAGEMin input files
-    if not os.path.exists("runs"):
+    if not os.path.exists(out_dir + "/runs"):
         sys.exit("No MAGEMin output files to process ...")
-    if not os.path.exists("runs/" + run_name):
+    if not os.path.exists(out_dir + "/runs/" + run_name):
         sys.exit("No MAGEMin output files to process ...")
 
     # Get filenames directory for files
-    directory = "runs/" + run_name
+    directory = out_dir + "/runs/" + run_name
     pattern = "_" + run_name + "*.txt"
 
     results = []

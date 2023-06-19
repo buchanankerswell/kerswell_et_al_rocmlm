@@ -13,19 +13,42 @@ PYTHON = python/conda-environment.yaml \
 				 python/magemin.py \
 				 python/clone-magemin.py \
 				 python/build-database.py \
+				 python/submit-jobs.py \
 				 python/visualize-database.py \
 				 python/download-data.py \
 				 python/visualize-earthchem.py
-DATAPURGE = python/__pycache__
-DATACLEAN = data runs output log MAGEMin
-FIGSPURGE =
+PRANGE ?= [10, 110, 10]
+TRANGE ?= [500, 2500, 200]
+TYPE ?= batch
+N ?= 3
+K ?= 1
+PARALLEL ?= False
+OUTDIR ?= $(shell pwd)
+NPROCS ?= 1
+DATAPURGE = python/__pycache__ .job
+DATACLEAN = data log MAGEMin runs output
+FIGSPURGE = figs
 FIGSCLEAN = figs
 
 all: $(LOGFILE) create_conda_env
 	@echo "Now you can run any of the following:" 2>&1 | tee -a $(LOGFILE)
-	@echo "make build_database" 2>&1 | tee -a $(LOGFILE)
+	@echo -e \
+	"make build_database\n\
+  PRANGE=<\"[from, to, by]\"> in kbar\n\
+  TRANGE=<\"[from, to, by]\"> in celcius\n\
+  TYPE=<batch or random>\n\
+  N=<number of samples>\n\
+  K=<batch number>\n\
+  PARALLEL=<True or False>\n\
+  NPROCS=<number of processors>\n\
+  OUTDIR=<directory of MAGEMin output>" \
+	2>&1 | tee -a $(LOGFILE)
+	@echo -e \
+	"make visualize_database\n\
+  OUTDIR=<directory of MAGEMin output>" \
+	2>&1 | tee -a $(LOGFILE)
+	@echo "make submit_jobs" 2>&1 | tee -a $(LOGFILE)
 	@echo "make visualize_earthchem" 2>&1 | tee -a $(LOGFILE)
-	@echo "make visualize_databse" 2>&1 | tee -a $(LOGFILE)
 	@echo "make remove_conda_env" 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
@@ -34,19 +57,28 @@ visualize_earthchem: $(LOGFILE) $(PYTHON) $(DATA)
 	@$(CONDA_PYTHON) python/visualize-earthchem.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
-visualize_database: $(LOGFILE) $(PYTHON) $(DATA)
+visualize_database: $(LOGFILE) $(PYTHON)
 	@echo "Visualizing MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
-	@$(CONDA_PYTHON) python/visualize-database.py 2>&1 | tee -a $(LOGFILE)
+	@$(CONDA_PYTHON) python/visualize-database.py --out_dir=$(OUTDIR) 2>&1 | tee -a $(LOGFILE)
+	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
+
+submit_jobs: $(LOGFILE) $(PYTHON) $(DATA)
+	@echo "Submitting job to SLURM ..." 2>&1 | tee -a $(LOGFILE)
+	@$(CONDA_PYTHON) python/submit-jobs.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
-	@if [ "$(UNAME_S)" = "Darwin" ]; then \
-	  echo "Building MAGEMin database ..." 2>&1 | tee -a $(LOGFILE); \
-	  $(CONDA_PYTHON) python/build-database.py 2>&1 | tee -a $(LOGFILE); \
-	fi
-	@if [ "$(UNAME_S)" = "Linux" ]; then \
-	  echo "Submitting job to SLURM ..." 2>&1 | tee -a $(LOGFILE); \
-	fi
+	@echo "Building MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
+	@$(CONDA_PYTHON) python/build-database.py \
+	--Prange "$(PRANGE)" \
+	--Trange "$(TRANGE)" \
+	--type $(TYPE) \
+	--n $(N) \
+	--k $(K) \
+	--parallel $(PARALLEL) \
+	--nprocs $(NPROCS) \
+	--out_dir $(OUTDIR) \
+	2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
@@ -114,4 +146,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(MAGEMIN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env build_database visualize_earthchem visualize_database all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env build_database submit_jobs visualize_earthchem visualize_database all purge clean

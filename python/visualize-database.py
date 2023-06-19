@@ -1,5 +1,25 @@
 import os
-from magemin import process_MAGEMin_files, encode_phases, create_PT_grid, plot_pseudosection
+from magemin import (
+    parse_arguments_visualize_db,
+    process_MAGEMin_files,
+    encode_phases,
+    create_PT_grid,
+    plot_pseudosection
+)
+
+# Parse arguments
+args = parse_arguments_visualize_db()
+
+# Directory of MAGEMin output
+out_dir = args.out_dir
+
+# Process MAGEMin output files
+if out_dir is None:
+    runs = os.listdir("runs")
+    runs = [run for run in runs if run != '.DS_Store']
+else:
+    runs = os.listdir(out_dir + "/runs")
+    runs = [run for run in runs if run != '.DS_Store']
 
 # Parameters to visualize
 parameters = [
@@ -18,13 +38,10 @@ parameters = [
     "DensityOfMixture"
 ]
 
-# Process MAGEMin output files
-runs = os.listdir("runs")
-
 for run in runs:
     print(f"Plotting results for {run} ...")
 
-    results = process_MAGEMin_files(run)
+    results = process_MAGEMin_files(run, out_dir)
 
     # Get PT values
     P = results["P"]
