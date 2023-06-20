@@ -22,8 +22,8 @@ PRANGE ?= [10, 60, 10]
 TRANGE ?= [500, 2500, 400]
 SOURCE ?= earthchem
 STRATEGY ?= batch
-N ?= 3
-K ?= 1
+N ?= 6
+K ?= 0
 PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
 OUTDIR ?= $(shell pwd)/runs
@@ -177,8 +177,10 @@ $(CONFIG): $(LOGFILE) $(PYTHON)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 $(LOGFILE):
-	@mkdir log
-	@touch $(LOGFILE)
+	@if [ ! -d "$(LOGFILE)" ]; then \
+		mkdir log; \
+		touch $(LOGFILE); \
+	fi
 
 purge:
 	@rm -rf $(DATAPURGE) $(FIGSPURGE)
