@@ -1,6 +1,8 @@
 import os
 from magemin import (
     parse_arguments_visualize_db,
+    read_geochemical_data,
+    plot_harker_diagram,
     process_MAGEMin_files,
     encode_phases,
     create_PT_grid,
@@ -10,34 +12,25 @@ from magemin import (
 # Parse arguments
 args = parse_arguments_visualize_db()
 
-# Directory of MAGEMin output
-out_dir = args.out_dir
+# Get argument values
+parameters = args.params
+y_oxide = args.oxides
+out_dir = args.outdir
+fig_dir = args.figdir
+
+print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+print("Plotting with the following parameters:")
+print(f"parameters: {parameters}")
+print(f"y_oxide: {y_oxide}")
+print(f"out_dir: {out_dir}")
+print(f"fig_dir: {fig_dir}")
+print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
 # Process MAGEMin output files
-if out_dir is None:
-    runs = os.listdir("runs")
-    runs = [run for run in runs if run != '.DS_Store']
-else:
-    runs = os.listdir(out_dir + "/runs")
-    runs = [run for run in runs if run != '.DS_Store']
+MAGEMin_output = os.listdir(out_dir)
+runs = [run for run in MAGEMin_output if run != ".DS_Store" and not run.endswith(".dat")]
 
-# Parameters to visualize
-parameters = [
-    "Point",
-    "Status",
-    "Gibbs",
-    "BrNorm",
-    "Vp",
-    "Vs",
-    "Entropy",
-    "StableSolutions",
-    "LiquidFraction",
-    "DensityOfFullAssemblage",
-    "DensityOfLiquid",
-    "DensityOfSolid",
-    "DensityOfMixture"
-]
-
+# Plot MAGEMin output
 for run in runs:
     print(f"Plotting results for {run} ...")
 
@@ -61,5 +54,14 @@ for run in runs:
             P, T, grid, parameter,
             title=run.replace("_", " ") + ": " + parameter,
             palette="grey",
-            filename=f"{run}-{parameter}.png"
+            filename=f"{run}-{parameter}.png",
+            fig_dir=fig_dir
         )
+
+# Plot Earthchem data
+plot_harker_diagram(
+    data=read_geochemical_data("assets/data/earthchem-ig.csv"),
+    x_oxide="SiO2",
+    y_oxide=y_oxide,
+    fig_dir=fig_dir
+)

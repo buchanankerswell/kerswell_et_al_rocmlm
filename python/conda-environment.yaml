@@ -3,11 +3,12 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python
-  - gitpython
   - numpy
-  - matplotlib
   - pandas
-  - scipy
+  - python
+  - matplotlib
   - seaborn
+  - scipy
+  - gitpython
+  - pyyaml
 prefix: /opt/homebrew/Caskroom/miniforge/base/envs/madnn

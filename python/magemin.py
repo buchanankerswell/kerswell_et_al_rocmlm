@@ -3,22 +3,120 @@ import os
 import re
 import sys
 import ast
+import yaml
 import glob
 import time
 import shutil
 import zipfile
 import fnmatch
 import argparse
+import platform
 import itertools
 import subprocess
 import numpy as np
 import pandas as pd
+import pkg_resources
 from git import Repo
 import urllib.request
 import seaborn as sns
 from scipy import stats
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+
+# Read conda packages from yaml
+def get_conda_packages(conda_file):
+    try:
+        with open(conda_file, 'r') as file:
+            conda_data = yaml.safe_load(file)
+        return conda_data.get('dependencies', [])
+    except (IOError, yaml.YAMLError) as e:
+        print(f"Error reading Conda file: {e}")
+        return []
+
+# Read makefile variables
+def read_makefile_variable(makefile, variable):
+    try:
+        with open(makefile, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if line.strip().startswith(variable):
+                    return line.split('=')[1].strip()
+    except IOError as e:
+        print(f"Error reading Makefile: {e}")
+    return None
+
+# Print session info for logging
+def print_session_info(conda_file=None, makefile=None):
+    print("Session info:")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+    # Print Python version
+    python_version = sys.version_info
+    version_string = '.'.join(map(str, python_version))
+    print(f"Python Version: {version_string}")
+
+    # Print package versions
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("Loaded packages:")
+    if conda_file:
+        conda_packages = get_conda_packages(conda_file)
+        for package in conda_packages:
+            if isinstance(package, str) and package != "python":
+                package_name = package.split('=')[0]
+                try:
+                    version = pkg_resources.get_distribution(package_name).version
+                    print(f"{package_name} Version: {version}")
+                except pkg_resources.DistributionNotFound:
+                    print(f"{package_name} not found.")
+    else:
+        print("No Conda file provided.")
+
+    # Print operating system information
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    os_info = platform.platform()
+    print(f"Operating System: {os_info}")
+
+    # Print random seed
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    if makefile:
+        seed = read_makefile_variable(makefile, 'SEED')
+        if seed:
+            print(f"Random Seed (from Makefile): {seed}")
+        else:
+            print("SEED variable not found in Makefile.")
+    else:
+        print("No Makefile provided.")
+
+# Parse string argument as list of strings
+def parse_list_of_strings(arg):
+    """
+    Parse a string argument as a list of strings.
+
+    Args:
+        arg (str): The string argument to parse.
+
+    Returns:
+        list: A list of strings parsed from the input string.
+
+    Raises:
+        argparse.ArgumentTypeError: If the input string is not a valid list of strings.
+
+    """
+    try:
+        str_list = ast.literal_eval(arg)
+        if (
+            isinstance(str_list, list) and
+            all(isinstance(item, str) for item in str_list)
+        ):
+            return str_list
+        else:
+            raise argparse.ArgumentTypeError(
+                f"Invalid list: {arg} ...\nIt must contain a valid list of strings."
+            )
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Invalid list: {arg} ...\nIt must contain a valid list of strings."
+        )
 
 # Parse string argument as list of numbers
 def parse_list_of_numbers(arg):
@@ -33,13 +131,6 @@ def parse_list_of_numbers(arg):
 
     Raises:
         argparse.ArgumentTypeError: If the input string is not a valid list of three numbers.
-
-    Examples:
-        >>> parse_list_of_numbers("[10, 20, 30]")
-        [10, 20, 30]
-
-        >>> parse_list_of_numbers("[1.5, 2.5, 3.5]")
-        [1.5, 2.5, 3.5]
 
     """
     try:
@@ -79,53 +170,73 @@ def parse_arguments_build_db():
         "--Prange",
         type=parse_list_of_numbers,
         help="Specify the Prange argument ...",
-        required = True
+        required=True
     )
     parser.add_argument(
         "--Trange",
         type=parse_list_of_numbers,
         help="Specify the Trange argument ...",
-        required = True
+        required=True
     )
     parser.add_argument(
-        "--type",
+        "--source",
         type=str,
-        help="Specify the type argument ...",
-        required = True
+        help="Specify the source argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--strategy",
+        type=str,
+        help="Specify the strategy argument ...",
+        required=True
     )
     parser.add_argument(
         "--n",
         type=int,
         help="Specify the n argument ...",
-        required = True
+        required=True
     )
     parser.add_argument(
         "--k",
         type=int,
         help="Specify the k argument ...",
-        required = True
+        required=True
     )
     parser.add_argument(
         "--parallel",
-        type=bool,
+        type=str,
         help="Specify the parallel argument ...",
-        required = True
+        required=True
     )
     parser.add_argument(
         "--nprocs",
         type=int,
         help="Specify the nprocs argument ...",
-        required = True
+        required=True
     )
     parser.add_argument(
-        "--out_dir",
+        "--seed",
+        type=int,
+        help="Specify the seed argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--outdir",
         type=str,
-        help="Specify the out_dir argument ...",
-        required = True
+        help="Specify the outdir argument ...",
+        required=True
     )
 
     # Parse the command-line arguments
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # Convert the parallel argument to a boolean value based on the string value
+    parallel = args.parallel.lower() == "true" if args.parallel else False
+
+    # Assign the modified parallel value back to the args object
+    args.parallel = parallel
+
+    return args
 
 # Parse arguments for visualize-database.py
 def parse_arguments_visualize_db():
@@ -144,9 +255,30 @@ def parse_arguments_visualize_db():
 
     # Add the command-line arguments
     parser.add_argument(
-        "--out_dir",
+        "--params",
+        type=parse_list_of_strings,
+        help="Specify the params argument ...",
+        required = True
+    )
+
+    parser.add_argument(
+        "--oxides",
+        type=parse_list_of_strings,
+        help="Specify the oxides argument ...",
+        required = True
+    )
+
+    parser.add_argument(
+        "--outdir",
         type=str,
-        help="Specify the out_dir argument ...",
+        help="Specify the outdir argument ...",
+        required = True
+    )
+
+    parser.add_argument(
+        "--figdir",
+        type=str,
+        help="Specify the figdir argument ...",
         required = True
     )
 
@@ -167,16 +299,16 @@ def download_and_unzip(url, destination):
 
     """
     # Download the file
-    print(f"Downloading data from:\n{url}")
-    urllib.request.urlretrieve(url, "data.zip")
+    print(f"Downloading assets from:\n{url}")
+    urllib.request.urlretrieve(url, "assets.zip")
 
     # Extract the contents of the zip file
     print(f"Extracting the contents of the zip file to {destination}/ ...")
-    with zipfile.ZipFile("data.zip", "r") as zip_ref:
+    with zipfile.ZipFile("assets.zip", "r") as zip_ref:
         zip_ref.extractall(destination)
 
     # Remove the zip file
-    os.remove("data.zip")
+    os.remove("assets.zip")
 
 # Read csv files
 def read_geochemical_data(file_path):
@@ -303,25 +435,33 @@ def normalize_sample(sample, components="all"):
         ValueError: If the input sample list doesn't have exactly 11 components.
 
     """
+    # No normalizing for all components
     if components == "all":
         return sample
+
+    # MAGEMin req components
     component_list = [
         "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
         "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
     ]
+
+    # Check input
     if len(sample) != 11:
         error_message = (
             f"The input sample list must have exactly 11 components ...\n" +
             f"{component_list}"
         )
         raise ValueError(error_message)
-    if len(sample) != 11:
-        raise ValueError("The input sample list must have exactly 11 components ...")
+
+    # Filter components
     subset_sample = [
         c if comp in components else 0.01 for c, comp in zip(sample, component_list)
     ]
+
+    # Normalize
     total_subset_concentration = sum([c for c in subset_sample if c != 0.01])
     normalized_concentrations = []
+
     for c, comp in zip(sample, component_list):
         if comp in components:
             normalized_concentration = (
@@ -330,6 +470,7 @@ def normalize_sample(sample, components="all"):
         else:
             normalized_concentration = 0.01
         normalized_concentrations.append(normalized_concentration)
+
     return normalized_concentrations
 
 # Download github repo as submodule
@@ -421,7 +562,7 @@ def create_MAGEMin_input(
         composition,
         mode=0,
         run_name="test",
-        out_dir=os.getcwd()):
+        out_dir=os.getcwd() + "/runs"):
     """
     Creates an input string for MAGEMin.
 
@@ -447,7 +588,7 @@ def create_MAGEMin_input(
         inside the "runs" directory.
     """
     # Create directory
-    directory = out_dir + "/runs"
+    directory = out_dir
     os.makedirs(directory, exist_ok=True)
 
     # Setup PT vectors
@@ -477,7 +618,7 @@ def create_MAGEMin_input(
         f.write(MAGEMin_input)
 
 # Move files from MAGEMin output dir
-def cleanup_ouput_dir(run_name, out_dir=os.getcwd()):
+def cleanup_ouput_dir(run_name, out_dir=os.getcwd() + "/runs"):
     """
     Move files from the MAGEMin output directory to a new directory based on the run name.
     Also moves the input data file into the new directory and removes the output directory.
@@ -490,7 +631,7 @@ def cleanup_ouput_dir(run_name, out_dir=os.getcwd()):
         None
     """
     # Create the directory based on the run_name
-    directory = out_dir + "/runs/" + run_name
+    directory = out_dir + "/" + run_name
     os.makedirs(directory, exist_ok=True)
 
     # Get a list of all files in the "output" directory matching the pattern
@@ -511,9 +652,6 @@ def cleanup_ouput_dir(run_name, out_dir=os.getcwd()):
     else:
         shutil.move(directory + ".dat", directory)
 
-    # Remove the output directory
-    shutil.rmtree("output")
-
 # Run MAGEMin
 def run_MAGEMin(
         program_path=None,
@@ -522,7 +660,7 @@ def run_MAGEMin(
         database="ig",
         parallel=True,
         nprocs=None,
-        out_dir=os.getcwd()):
+        out_dir=os.getcwd() + "/runs"):
     """
     Runs MAGEMin with the specified parameters.
 
@@ -555,11 +693,11 @@ def run_MAGEMin(
         sys.exit("Please provide location to MAGEMin executable ...")
 
     # Check for input MAGEMin input files
-    if not os.path.exists(out_dir + "/runs"):
+    if not os.path.exists(out_dir):
         sys.exit("No MAGEMin input files to run ...")
 
     # Count number of pt points to model with MAGEMin
-    input_path = out_dir + "/runs/" + run_name + ".dat"
+    input_path = out_dir + "/" + run_name + ".dat"
     n_points = count_lines(input_path)
 
     # Execute MAGEMin in parallel with MPI
@@ -732,7 +870,7 @@ def read_MAGEMin_pseudosection_data(filename):
     return results
 
 # Process all MAGEMin output files in a directory
-def process_MAGEMin_files(run_name, out_dir=os.getcwd()):
+def process_MAGEMin_files(run_name, out_dir=os.getcwd() + "/runs"):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
@@ -747,13 +885,13 @@ def process_MAGEMin_files(run_name, out_dir=os.getcwd()):
         directory does not exist.
     """
     # Check for input MAGEMin input files
-    if not os.path.exists(out_dir + "/runs"):
+    if not os.path.exists(out_dir):
         sys.exit("No MAGEMin output files to process ...")
-    if not os.path.exists(out_dir + "/runs/" + run_name):
+    if not os.path.exists(out_dir + "/" + run_name):
         sys.exit("No MAGEMin output files to process ...")
 
     # Get filenames directory for files
-    directory = out_dir + "/runs/" + run_name
+    directory = out_dir + "/" + run_name
     pattern = "_" + run_name + "*.txt"
 
     results = []
@@ -851,7 +989,15 @@ def create_PT_grid(P, T, parameter_values):
     return grid
 
 # Plot MAGEMin pseudosection
-def plot_pseudosection(P, T, grid, parameter, title=None, palette="blues", filename=None):
+def plot_pseudosection(
+        P,
+        T,
+        grid,
+        parameter,
+        title=None,
+        palette="blues",
+        filename=None,
+        fig_dir=os.getcwd() + "/figs"):
     """
     Plot the results of a pseudosection calculation.
 
@@ -867,8 +1013,8 @@ def plot_pseudosection(P, T, grid, parameter, title=None, palette="blues", filen
         None
     """
     # Check for figs directory
-    if not os.path.exists("figs"):
-        os.makedirs("figs", exist_ok=True)
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
     if (parameter == "StableSolutions"):
         # Create a custom colormap with dynamically determined colors
         num_colors = len(np.unique(grid))
@@ -936,7 +1082,7 @@ def plot_pseudosection(P, T, grid, parameter, title=None, palette="blues", filen
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig("figs/" + filename, bbox_inches="tight", dpi=330)
+        plt.savefig(fig_dir + "/" + filename, bbox_inches="tight", dpi=330)
     else:
         # Print plot
         plt.show()
@@ -946,7 +1092,12 @@ def plot_pseudosection(P, T, grid, parameter, title=None, palette="blues", filen
 
 
 # Plot Harker diagram with density contours using seaborn
-def plot_harker_diagram(data, x_oxide, y_oxide, filename=None):
+def plot_harker_diagram(
+        data,
+        x_oxide="SiO2",
+        y_oxide="MgO",
+        filename="harker.png",
+        fig_dir=os.getcwd() + "/figs"):
     """
     Plot Harker diagrams with density contours using seaborn.
 
@@ -970,8 +1121,8 @@ def plot_harker_diagram(data, x_oxide, y_oxide, filename=None):
         - The plot can be saved to a file if a filename is provided.
     """
     # Create figs dir
-    if not os.path.exists("figs"):
-        os.makedirs("figs", exist_ok=True)
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
 
     # Set plot style and settings
     sns.set_style("dark")
@@ -1048,7 +1199,7 @@ def plot_harker_diagram(data, x_oxide, y_oxide, filename=None):
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig("figs/" + filename, bbox_inches="tight", dpi=330)
+        plt.savefig(fig_dir + "/" + filename, bbox_inches="tight", dpi=330)
     else:
         # Print plot
         plt.show()
