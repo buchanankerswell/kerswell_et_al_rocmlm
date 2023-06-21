@@ -1,5 +1,64 @@
-# Kerswell et al. (2023)
+![](draft/assets/images/repo-banner.png)
 
+***Figure:*** *Density and P-wave velocity models for a rock with fixed composition. Models are computed with the Gibbs free energy minimizer program MAGEMin ([Riel et al., 2022](https://doi.org/10.1029/2022GC010427)).*
+
+# Kerswell et al. (2023; in prep.)
+
+This work is in progress---stay tuned for updates.
+
+## Repository
+
+This repository provides all materials for the manuscript *MADNN: Predicting changing pysical properties of rocks in the mantle with AI* (Kerswell et al., 2023; in prep.).
+
+This repository includes:
+
+- All datasets required to compile the study
+- python scripts to reproduce all results and figures
+- A Makefile to compile the study
+- The complete manuscript written in Rmarkdown
+
+This repository is self-contained but requires the following software (all open-source).
+
+## Prerequisite software
+
+### Python
+
+This study is written in [python](https://www.python.org). For most users, I recommend installing the [anaconda](https://www.anaconda.com), [miniconda](https://docs.conda.io/en/latest/miniconda.html), or [miniforge](https://github.com/conda-forge/miniforge) python distributions. These distributions include at least a minimal installation of python (plus some dependencies) and the package manager [conda](https://docs.conda.io/en/latest/), which is required to build the necessary python environment for this study. Any of these distributions will work to compile and run the study, and any can be installed (for macOS users) with homebrew.
+
+### Installation with homebrew
+
+Follow the instructions at [Hombrew's homepage](https://brew.sh) to download and install Homebrew on your machine. Once Homebrew is installed, use any of the following to install python and conda:
+
+```
+brew install anaconda
+brew install miniconda
+brew install miniforge
+```
+
+## Running the study
+
+```
+# Clone this repository
+git clone https://github.com/buchanankerswell/kerswell_et_al_madnn.git
+
+# Change into the directory
+cd kerswell_et_al_madnn
+
+# Use Makefile to compile
+make
+```
+
+This will build the required python environment and proceed to run the study. The study takes about ??? to run on my MacBook Pro (M2 16GB, 2022).
+
+## Coauthors
+
+## Acknowledgement
+
+## Open Research
+
+All data, code, and relevant information for reproducing this work can be found at [https://github.com/buchanankerswell/kerswell_et_al_madnn](https://github.com/buchanankerswell/kerswell_et_al_madnn), and at [https://doi.org/10.17605/OSF.IO/K23TB](https://doi.org/10.17605/OSF.IO/K23TB), the official Open Science Framework data repository ([Kerswell et al., 2023](https://doi.org/10.17605/OSF.IO/K23TB)). All code is MIT Licensed and free for use and distribution (see license details).
+
+## Abstract
 
 # License
 
