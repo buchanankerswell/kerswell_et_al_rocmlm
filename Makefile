@@ -8,27 +8,37 @@ CONDA_PYTHON = $$(conda run -n $(CONDA_ENV_NAME) which python)
 MAGEMIN = MAGEMin/MAGEMin
 MAGEMIN_REPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
 GITHUB_REPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
+PERPLEX = assets/perplex
 DATA = assets/data
 CONFIG = assets/config
 PYTHON = python/conda-environment.yaml \
 				 python/magemin.py \
 				 python/clone-magemin.py \
 				 python/build-database.py \
+				 python/benchmark-magemin-perplex.py \
 				 python/submit-jobs.py \
 				 python/visualize-database.py \
 				 python/download-assets.py
 SEED = 32
-PRANGE ?= [10, 60, 10]
-TRANGE ?= [500, 2500, 400]
+PMIN ?= 10
+PMAX ?= 110
+PRES ?= 8
+TMIN ?= 500
+TMAX ?= 2500
+TRES ?= 8
+COMP ?= [44.9, 4.44, 3.54, 37.71, 8.03, 0.029, 0.36, 0.2, 0.01, 0.38, 0]
+FRAC ?= wt
+SAMPLEID ?= PUM
+NORMOX ?= '["MgO", "FeO", "CaO", "Al2O3", "SiO2"]'
 SOURCE ?= earthchem
-STRATEGY ?= batch
-N ?= 6
+STRATEGY ?= random
+N ?= 1
 K ?= 0
 PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
 OUTDIR ?= $(shell pwd)/runs
 FIGDIR ?= $(shell pwd)/figs
-OXIDES ?= '["MgO", "FeO", "CaO", "Al2O3"]'
+FIGOX ?= '["MgO", "FeO", "CaO", "Al2O3"]'
 PARAMS ?= '[ \
 					"Status", \
 					"Vp", \
@@ -44,15 +54,26 @@ DATACLEAN = assets log MAGEMin runs
 FIGSPURGE = figs
 FIGSCLEAN = figs
 
-all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(MAGEMIN)
+all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/session-info.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 	@echo "Run any of the following:" 2>&1 | tee -a $(LOGFILE)
 	@echo -e \
-	"make build_database\n\
-  PRANGE=   <\"[from, to, by]\"> in kbar\n\
-  TRANGE=   <\"[from, to, by]\"> in celcius\n\
-  SOURCE=   <earthchem>\n\
+	"make build_database\nmake benchmark-magemin-perplex\n\
+  PMIN=     <kbar>\n\
+  PMAX=     <kbar>\n\
+  PRES=     <number of points>\n\
+  TMIN=     <Celcius>\n\
+  TMAX=     <Celcius>\n\
+  TRES=     <number of points>\n\
+  COMP=     <'[SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O]'>\n\
+  FRAC=     <mol or wt>\n\
+  SAMPLEID= <sample name>\n\
+  NORMOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'>\n\
+    Options:\n\
+    SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O\n\
+  SOURCE=   <earthchem or sample>\n\
   STRATEGY= <batch or random>\n\
   N=        <number of samples>\n\
   K=        <batch number>\n\
@@ -61,28 +82,31 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(MAGEMIN)
   SEED=     <number for random state>\n\
   OUTDIR=   <directory of MAGEMin output>" \
 	2>&1 | tee -a $(LOGFILE)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 2>&1 | tee -a $(LOGFILE)
 	@echo -e \
 	"make visualize_database\n\
-  PARAMS=   <\'[\"param\", \"param\", \"param\"]\'>\n\
+  PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
     Options:\n\
     Point,Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
     LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
     DensityOfMixture\n\
-  OXIDES=   <\'[\"oxide\", \"oxide\", \"oxide\"]\'> list of options below\n\
+  FIGOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'> for Harker diagrams\n\
     Options:\n\
     SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O\n\
   OUTDIR=   <directory of MAGEMin output>\n\
   FIGDIR=   <directory for saving plots>" \
 	2>&1 | tee -a $(LOGFILE)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 2>&1 | tee -a $(LOGFILE)
 	@echo "make submit_jobs" 2>&1 | tee -a $(LOGFILE)
 	@echo "make remove_conda_env" 2>&1 | tee -a $(LOGFILE)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 visualize_database: $(LOGFILE) $(PYTHON)
 	@echo "Visualizing MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/visualize-database.py \
 	--params=$(PARAMS) \
-	--oxides=$(OXIDES) \
+	--figox=$(FIGOX) \
 	--outdir=$(OUTDIR) \
 	--figdir=$(FIGDIR) \
 	2>&1 | tee -a $(LOGFILE)
@@ -93,11 +117,43 @@ submit_jobs: $(LOGFILE) $(PYTHON) $(DATA)
 	@$(CONDA_PYTHON) python/submit-jobs.py 2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
-build_database: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(MAGEMIN)
+benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(PERPLEX) $(MAGEMIN)
+	@echo "Building MAGEMin model ..." 2>&1 | tee -a $(LOGFILE)
+	@$(CONDA_PYTHON) python/benchmark-magemin-perplex.py \
+	--Pmin "$(PMIN)" \
+	--Pmax "$(PMAX)" \
+	--Pres "$(PRES)" \
+	--Tmin "$(TMIN)" \
+	--Tmax "$(TMAX)" \
+	--Tres "$(TRES)" \
+	--comp "$(COMP)" \
+	--frac "$(FRAC)" \
+	--sampleid "$(SAMPLEID)" \
+	--normox=$(NORMOX) \
+	--source $(SOURCE) \
+	--strategy $(STRATEGY) \
+	--n $(N) \
+	--k $(K) \
+	--parallel $(PARALLEL) \
+	--nprocs $(NPROCS) \
+	--seed $(SEED) \
+	--outdir $(OUTDIR) \
+	2>&1 | tee -a $(LOGFILE)
+	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
+
+build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
 	@echo "Building MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/build-database.py \
-	--Prange "$(PRANGE)" \
-	--Trange "$(TRANGE)" \
+	--Pmin "$(PMIN)" \
+	--Pmax "$(PMAX)" \
+	--Pres "$(PRES)" \
+	--Tmin "$(TMIN)" \
+	--Tmax "$(TMAX)" \
+	--Tres "$(TRES)" \
+	--comp "$(COMP)" \
+	--frac "$(FRAC)" \
+	--sampleid "$(SAMPLEID)" \
+	--normox=$(NORMOX) \
 	--source $(SOURCE) \
 	--strategy $(STRATEGY) \
 	--n $(N) \
@@ -111,14 +167,10 @@ build_database: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(MAGEMIN)
 
 $(MAGEMIN): $(LOGFILE) $(PYTHON) $(CONFIG)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
+		echo "=============================================" 2>&1 | tee -a $(LOGFILE); \
 	  echo "Cloning MAGEMin from $(MAGEMIN_REPO) ..." 2>&1 | tee -a $(LOGFILE); \
 	  chmod +x python/clone-magemin.py; \
 	  $(CONDA_PYTHON) python/clone-magemin.py 2>&1 | tee -a $(LOGFILE); \
-	  if [ "$(UNAME_S)" = "Darwin" ]; then \
-	    echo "Configuring MAGEMin for apple ..." 2>&1 | tee -a $(LOGFILE); \
-	    cp $(CONFIG)/PGE_function.c MAGEMin/src/; \
-	    cp $(CONFIG)/MAGEMin-apple MAGEMin/Makefile; \
-	  fi; \
 	  if [ "$(UNAME_S)" = "Linux" ]; then \
 	    echo "Configuring MAGEMin for meso ..." 2>&1 | tee -a $(LOGFILE); \
 	    cp $(CONFIG)/MAGEMin-meso MAGEMin/Makefile; \
@@ -130,7 +182,6 @@ $(MAGEMIN): $(LOGFILE) $(PYTHON) $(CONFIG)
 	else \
 	  echo "MAGEMin found ..." 2>&1 | tee -a $(LOGFILE); \
 	fi
-	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 remove_conda_env: $(LOGFILE)
 	@echo "Removing conda env $(CONDA_ENV_NAME) ..." 2>&1 | tee -a $(LOGFILE)
@@ -144,9 +195,7 @@ create_conda_env: $(LOGFILE) $(CONDA_SPECS_FILE) find_conda_env
 		exit 1; \
 	fi
 	@if [ -d "$(MY_ENV_DIR)" ]; then \
-		echo "Env \"$(CONDA_ENV_NAME)\" found in:"; \
-	  echo "$(MY_ENV_DIR)"; \
-		  2>&1 | tee -a $(LOGFILE); \
+		echo "Env \"$(CONDA_ENV_NAME)\" found in: $(MY_ENV_DIR) ..." 2>&1 | tee -a $(LOGFILE); \
 	else \
 		echo "Creating env $(CONDA_ENV_NAME) from $(CONDA_SPECS_FILE) ..." \
 		  2>&1 | tee -a $(LOGFILE); \
@@ -154,11 +203,17 @@ create_conda_env: $(LOGFILE) $(CONDA_SPECS_FILE) find_conda_env
 		  2>&1 | tee -a $(LOGFILE); \
 	  echo "Conda env created ..." 2>&1 | tee -a $(LOGFILE); \
 	fi
-	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 find_conda_env:
 	@echo "Looking for conda env ..." 2>&1 | tee -a $(LOGFILE)
 	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDA_ENV_NAME) | awk '{print $$2}'))
+
+$(PERPLEX): $(LOGFILE) $(PYTHON)
+	@if [ ! -d "$(DATA)" ]; then \
+		$(CONDA_PYTHON) python/download-assets.py 2>&1 | tee -a $(LOGFILE); \
+	else \
+		echo "$(PERPLEX) found..." 2>&1 | tee -a $(LOGFILE); \
+	fi
 
 $(DATA): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATA)" ]; then \
@@ -166,15 +221,14 @@ $(DATA): $(LOGFILE) $(PYTHON)
 	else \
 		echo "$(DATA) found..." 2>&1 | tee -a $(LOGFILE); \
 	fi
-	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 $(CONFIG): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(CONFIG)" ]; then \
 		$(CONDA_PYTHON) python/download-assets.py 2>&1 | tee -a $(LOGFILE); \
+		echo "=============================================" 2>&1 | tee -a $(LOGFILE); \
 	else \
 		echo "$(CONFIG) found..." 2>&1 | tee -a $(LOGFILE); \
 	fi
-	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 $(LOGFILE):
 	@if [ ! -d "$(LOGFILE)" ]; then \

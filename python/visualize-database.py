@@ -1,7 +1,6 @@
 import os
 from magemin import (
     parse_arguments_visualize_db,
-    read_geochemical_data,
     plot_harker_diagram,
     process_MAGEMin_files,
     encode_phases,
@@ -20,8 +19,12 @@ fig_dir = args.figdir
 
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 print("Plotting with the following parameters:")
-print(f"parameters: {parameters}")
-print(f"y_oxide: {y_oxide}")
+print("Physical properties:")
+for param in parameters:
+    print(f"    {param}")
+print("Oxides (for Harker diagrams):")
+for oxide in y_oxide:
+    print(f"    {oxide}")
 print(f"out_dir: {out_dir}")
 print(f"fig_dir: {fig_dir}")
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -60,7 +63,7 @@ for run in runs:
 
 # Plot Earthchem data
 plot_harker_diagram(
-    data=read_geochemical_data("assets/data/earthchem-ig.csv"),
+    datafile="assets/data/earthchem-samples.csv",
     x_oxide="SiO2",
     y_oxide=y_oxide,
     fig_dir=fig_dir

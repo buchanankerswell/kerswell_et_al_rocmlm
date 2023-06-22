@@ -25,7 +25,7 @@ strategy = "batch"
 parallel = True
 
 # Earthchem batches setup
-df = pd.read_csv("assets/data/earthchem-ig.csv")
+df = pd.read_csv("assets/data/earthchem-samples.csv")
 num_observations = df.shape[0]
 batch_size = 28
 batches = num_observations // batch_size

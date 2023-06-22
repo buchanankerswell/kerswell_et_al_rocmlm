@@ -6,6 +6,7 @@ import ast
 import yaml
 import glob
 import time
+import math
 import shutil
 import zipfile
 import fnmatch
@@ -87,6 +88,46 @@ def print_session_info(conda_file=None, makefile=None):
     else:
         print("No Makefile provided.")
 
+# Check non-matching strings
+def check_non_matching_strings(list1, list2):
+    set1 = set(list1)
+    set2 = set(list2)
+    non_matching_strings = set1 - set2
+
+    return bool(non_matching_strings)
+
+# Parse string argument as list of numbers
+def parse_list_of_numbers(arg):
+    """
+    Parse a string argument as a list of numbers.
+
+    Args:
+        arg (str): The string argument to parse.
+
+    Returns:
+        list: A list of numbers parsed from the input string.
+
+    Raises:
+        argparse.ArgumentTypeError: If the input string is not a valid list of three numbers.
+
+    """
+    try:
+        num_list = ast.literal_eval(arg)
+        if (
+             isinstance(num_list, list) and
+             len(num_list) == 11 and
+             all(isinstance(num, (int, float)) for num in num_list)
+        ):
+            return num_list
+        else:
+            raise argparse.ArgumentTypeError(
+                f"Invalid list: {arg} ...\nIt must contain exactly 11 numerical values ..."
+            )
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Invalid list: {arg} ...\nIt must contain exactly 11 numerical values ..."
+        )
+
 # Parse string argument as list of strings
 def parse_list_of_strings(arg):
     """
@@ -118,38 +159,6 @@ def parse_list_of_strings(arg):
             f"Invalid list: {arg} ...\nIt must contain a valid list of strings."
         )
 
-# Parse string argument as list of numbers
-def parse_list_of_numbers(arg):
-    """
-    Parse a string argument as a list of numbers.
-
-    Args:
-        arg (str): The string argument to parse.
-
-    Returns:
-        list: A list of numbers parsed from the input string.
-
-    Raises:
-        argparse.ArgumentTypeError: If the input string is not a valid list of three numbers.
-
-    """
-    try:
-        num_list = ast.literal_eval(arg)
-        if (
-             isinstance(num_list, list) and
-             len(num_list) == 3 and
-             all(isinstance(num, (int, float)) for num in num_list)
-        ):
-            return num_list
-        else:
-            raise argparse.ArgumentTypeError(
-                f"Invalid list: {arg} ...\nIt must contain exactly three numerical values ..."
-            )
-    except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"Invalid list: {arg} ...\nIt must contain exactly three numerical values ..."
-        )
-
 # Parse arguments for build-database.py
 def parse_arguments_build_db():
     """
@@ -167,15 +176,63 @@ def parse_arguments_build_db():
 
     # Add the command-line arguments
     parser.add_argument(
-        "--Prange",
-        type=parse_list_of_numbers,
-        help="Specify the Prange argument ...",
+        "--Pmin",
+        type=int,
+        help="Specify the Pmin argument ...",
         required=True
     )
     parser.add_argument(
-        "--Trange",
+        "--Pmax",
+        type=int,
+        help="Specify the Pmax argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Pres",
+        type=int,
+        help="Specify the Pres argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Tmin",
+        type=int,
+        help="Specify the Tmin argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Tmax",
+        type=int,
+        help="Specify the Tmax argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Tres",
+        type=int,
+        help="Specify the Tres argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--comp",
         type=parse_list_of_numbers,
-        help="Specify the Trange argument ...",
+        help="Specify the comp argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--frac",
+        type=str,
+        help="Specify the frac argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--sampleid",
+        type=str,
+        help="Specify the sampleid argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--normox",
+        type=parse_list_of_strings,
+        help="Specify the normox argument ...",
         required=True
     )
     parser.add_argument(
@@ -260,21 +317,18 @@ def parse_arguments_visualize_db():
         help="Specify the params argument ...",
         required = True
     )
-
     parser.add_argument(
-        "--oxides",
+        "--figox",
         type=parse_list_of_strings,
-        help="Specify the oxides argument ...",
+        help="Specify the figox argument ...",
         required = True
     )
-
     parser.add_argument(
         "--outdir",
         type=str,
         help="Specify the outdir argument ...",
         required = True
     )
-
     parser.add_argument(
         "--figdir",
         type=str,
@@ -373,6 +427,48 @@ def batch_sample_for_MAGEMin(datafile, batch_size=1, k=0):
             break
 
     return sample_ids, compositions
+
+# Get composition of a single benchmark mantle samples
+def get_benchmark_sample_for_MAGEMin(datafile, sample_id):
+    """
+    Extracts the oxide compositions needed for the "MAGEMin" analysis
+    for a single sample specified by name from the given datafile.
+
+    Args:
+        datafile (str): Path to the CSV data file.
+        sample_id (str): Name of the sample to select.
+
+    Returns:
+        list: Oxide compositions for the specified sample.
+
+    """
+    # All oxides needed for MAGEMin
+    component_list = [
+        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
+        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
+    ]
+
+    # Make uppercase
+    oxides = [oxide.upper() for oxide in component_list]
+
+    # Read the data file
+    df = pd.read_csv(datafile)
+
+    # Subset the DataFrame based on the sample name
+    subset_df = df[df['NAME'] == sample_id]
+
+    if subset_df.empty:
+        raise ValueError("Sample name not found in the dataset ...")
+
+    # Get the oxide compositions for the selected sample
+    composition = []
+    for oxide in oxides:
+        if oxide in subset_df.columns and pd.notnull(subset_df[oxide].iloc[0]):
+            composition.append(float(subset_df[oxide].iloc[0]))
+        else:
+            composition.append(0.01)
+
+    return composition
 
 # Sample randomly from the earthchem database
 def random_sample_for_MAGEMin(datafile, n=1, seed=None):
@@ -652,6 +748,9 @@ def cleanup_ouput_dir(run_name, out_dir=os.getcwd() + "/runs"):
     else:
         shutil.move(directory + ".dat", directory)
 
+    # Remove MAGEMin output directory
+    shutil.rmtree("output")
+
 # Run MAGEMin
 def run_MAGEMin(
         program_path=None,
@@ -692,19 +791,19 @@ def run_MAGEMin(
     if program_path is None:
         sys.exit("Please provide location to MAGEMin executable ...")
 
-    # Check for input MAGEMin input files
-    if not os.path.exists(out_dir):
-        sys.exit("No MAGEMin input files to run ...")
-
     # Count number of pt points to model with MAGEMin
     input_path = out_dir + "/" + run_name + ".dat"
     n_points = count_lines(input_path)
+
+    # Check for input MAGEMin input files
+    if not os.path.exists(input_path):
+        sys.exit("No MAGEMin input files to run ...")
 
     # Execute MAGEMin in parallel with MPI
     if parallel == True:
         if nprocs > os.cpu_count():
             raise ValueError(
-                "Number of processors less than nprocs argument ...\n"
+                f"Number of processors {os.cpu_count()} is less than nprocs argument ...\n"
                 "Choose fewer nprocs ..."
             )
         elif nprocs is not None and nprocs < os.cpu_count():
@@ -952,16 +1051,6 @@ def create_PT_grid(P, T, parameter_values):
             P and T values.
             Missing values in the grid are represented by NaN.
 
-    Example:
-        P = [0.1, 0.2, 0.3, 0.1, 0.2, 0.3]
-        T = [25, 25, 25, 50, 50, 50]
-        parameter_values = [1, 2, 3, 4, 5, 6]
-        grid = create_PT_grid(P, T, parameter_values)
-        print(grid)
-
-    Output:
-        [[1. 2. 3.]
-         [4. 5. 6.]]
     """
     # Convert P, T, and parameter_values to arrays
     P = np.array(P)
@@ -1093,7 +1182,7 @@ def plot_pseudosection(
 
 # Plot Harker diagram with density contours using seaborn
 def plot_harker_diagram(
-        data,
+        datafile,
         x_oxide="SiO2",
         y_oxide="MgO",
         filename="harker.png",
@@ -1102,7 +1191,7 @@ def plot_harker_diagram(
     Plot Harker diagrams with density contours using seaborn.
 
     Parameters:
-        data (pandas.DataFrame): The geochemical data to be plotted.
+        data (filepath): Path to the geochemical datafile in .csv format.
         x_oxide (str): The x-axis oxide for the Harker diagram.
         y_oxide (str or list): The y-axis oxide(s) for the Harker diagram.
         Can be a single oxide or a list of oxides.
@@ -1120,6 +1209,8 @@ def plot_harker_diagram(
         - Legends are shown only for the first subplot.
         - The plot can be saved to a file if a filename is provided.
     """
+    # Read geochemical data
+    data = read_geochemical_data(datafile)
     # Create figs dir
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
