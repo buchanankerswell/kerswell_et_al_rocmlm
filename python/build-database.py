@@ -47,11 +47,13 @@ if P_res > 128 or T_res > 128:
     )
 print(f"Prange: [{P_min}, {P_max}, {P_res}]")
 print(f"Trange: [{T_min}, {T_max}, {T_res}]")
-if check_non_matching_strings(norm_ox, oxide_list_magemin):
-    raise ValueError(
-        "Invalid --normox argument ...\n"
-        f"Can only normalize to oxides {oxide_list_magemin}"
-    )
+if norm_ox != "all":
+    if check_non_matching_strings(norm_ox, oxide_list_magemin):
+        raise ValueError(
+            "Invalid --normox argument ...\n"
+            f"Can only normalize to oxides {oxide_list_magemin}"
+            "Or --normox=all"
+        )
 print(f"Normalizing composition to: {norm_ox}")
 if source == "earthchem":
     if strategy not in ["random", "batch"]:

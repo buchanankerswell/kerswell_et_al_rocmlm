@@ -13,7 +13,7 @@ args = parse_arguments_visualize_db()
 
 # Get argument values
 parameters = args.params
-y_oxide = args.oxides
+y_oxide = args.figox
 out_dir = args.outdir
 fig_dir = args.figdir
 

@@ -10,7 +10,7 @@ MAGEMIN_REPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
 GITHUB_REPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
 PERPLEX = assets/perplex
 DATA = assets/data
-CONFIG = assets/config
+CONFIG = assets/MAGEMin-meso-config
 PYTHON = python/conda-environment.yaml \
 				 python/magemin.py \
 				 python/clone-magemin.py \
@@ -22,22 +22,22 @@ PYTHON = python/conda-environment.yaml \
 SEED = 32
 PMIN ?= 10
 PMAX ?= 110
-PRES ?= 8
+PRES ?= 128
 TMIN ?= 500
 TMAX ?= 2500
-TRES ?= 8
+TRES ?= 128
 COMP ?= [44.9, 4.44, 3.54, 37.71, 8.03, 0.029, 0.36, 0.2, 0.01, 0.38, 0]
 FRAC ?= wt
 SAMPLEID ?= PUM
-NORMOX ?= '["MgO", "FeO", "CaO", "Al2O3", "SiO2"]'
+NORMOX ?= all
 SOURCE ?= earthchem
 STRATEGY ?= random
 N ?= 1
 K ?= 0
 PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
-OUTDIR ?= $(shell pwd)/runs
-FIGDIR ?= $(shell pwd)/figs
+OUTDIR ?= runs
+FIGDIR ?= figs
 FIGOX ?= '["MgO", "FeO", "CaO", "Al2O3"]'
 PARAMS ?= '[ \
 					"Status", \
@@ -70,9 +70,7 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
   COMP=     <'[SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O]'>\n\
   FRAC=     <mol or wt>\n\
   SAMPLEID= <sample name>\n\
-  NORMOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'>\n\
-    Options:\n\
-    SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O\n\
+  NORMOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'> or <all>\n\
   SOURCE=   <earthchem or sample>\n\
   STRATEGY= <batch or random>\n\
   N=        <number of samples>\n\
@@ -120,16 +118,16 @@ submit_jobs: $(LOGFILE) $(PYTHON) $(DATA)
 benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(PERPLEX) $(MAGEMIN)
 	@echo "Building MAGEMin model ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/benchmark-magemin-perplex.py \
-	--Pmin "$(PMIN)" \
-	--Pmax "$(PMAX)" \
-	--Pres "$(PRES)" \
-	--Tmin "$(TMIN)" \
-	--Tmax "$(TMAX)" \
-	--Tres "$(TRES)" \
-	--comp "$(COMP)" \
-	--frac "$(FRAC)" \
-	--sampleid "$(SAMPLEID)" \
-	--normox=$(NORMOX) \
+	--Pmin $(PMIN) \
+	--Pmax $(PMAX) \
+	--Pres $(PRES) \
+	--Tmin $(TMIN) \
+	--Tmax $(TMAX) \
+	--Tres $(TRES) \
+	--comp '$(COMP)' \
+	--frac $(FRAC) \
+	--sampleid $(SAMPLEID) \
+	--normox '$(NORMOX)' \
 	--source $(SOURCE) \
 	--strategy $(STRATEGY) \
 	--n $(N) \
@@ -140,20 +138,35 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(PERPLEX) $(MAGEMIN)
 	--outdir $(OUTDIR) \
 	2>&1 | tee -a $(LOGFILE)
 	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
+	@chmod +x $(PERPLEX)/build $(PERPLEX)/vertex $(PERPLEX)/pssect
+	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
+	  echo "Building Perple_x model ..." 2>&1 | tee -a $(LOGFILE); \
+		(cd $(PERPLEX) && ./build < perplex-benchmark-$(SAMPLEID)) 2>&1 | tee -a $(LOGFILE); \
+	  (cd $(PERPLEX) && echo "$(SAMPLEID)" | ./vertex) 2>&1 | tee -a $(LOGFILE); \
+	fi
+	@if [ -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
+	  echo "Plotting Perple_x model ..." 2>&1 | tee -a $(LOGFILE); \
+		echo "$(SAMPLEID)" > $(PERPLEX)/$(SAMPLEID)-pssect-config; \
+		echo "N" >> $(PERPLEX)/$(SAMPLEID)-pssect-config; \
+	  (cd $(PERPLEX) && ./pssect < $(SAMPLEID)-pssect-config) 2>&1 | tee -a $(LOGFILE); \
+		(cd $(PERPLEX) && ps2pdf $(SAMPLEID).ps $(SAMPLEID).pdf) 2>&1 | tee -a $(LOGFILE); \
+		rm $(PERPLEX)/$(SAMPLEID)-pssect-config; \
+	fi
+	@echo "=============================================" 2>&1 | tee -a $(LOGFILE)
 
 build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
 	@echo "Building MAGEMin database ..." 2>&1 | tee -a $(LOGFILE)
 	@$(CONDA_PYTHON) python/build-database.py \
-	--Pmin "$(PMIN)" \
-	--Pmax "$(PMAX)" \
-	--Pres "$(PRES)" \
-	--Tmin "$(TMIN)" \
-	--Tmax "$(TMAX)" \
-	--Tres "$(TRES)" \
-	--comp "$(COMP)" \
-	--frac "$(FRAC)" \
-	--sampleid "$(SAMPLEID)" \
-	--normox=$(NORMOX) \
+	--Pmin $(PMIN) \
+	--Pmax $(PMAX) \
+	--Pres $(PRES) \
+	--Tmin $(TMIN) \
+	--Tmax $(TMAX) \
+	--Tres $(TRES) \
+	--comp '$(COMP)' \
+	--frac $(FRAC) \
+	--sampleid $(SAMPLEID) \
+	--normox '$(NORMOX)' \
 	--source $(SOURCE) \
 	--strategy $(STRATEGY) \
 	--n $(N) \
@@ -173,7 +186,7 @@ $(MAGEMIN): $(LOGFILE) $(PYTHON) $(CONFIG)
 	  $(CONDA_PYTHON) python/clone-magemin.py 2>&1 | tee -a $(LOGFILE); \
 	  if [ "$(UNAME_S)" = "Linux" ]; then \
 	    echo "Configuring MAGEMin for meso ..." 2>&1 | tee -a $(LOGFILE); \
-	    cp $(CONFIG)/MAGEMin-meso MAGEMin/Makefile; \
+	    cp $(CONFIG) MAGEMin/Makefile; \
 	  fi; \
 	  echo "Compiling MAGEMin ..." 2>&1 | tee -a $(LOGFILE); \
 	  echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 2>&1 | tee -a $(LOGFILE); \
@@ -223,7 +236,7 @@ $(DATA): $(LOGFILE) $(PYTHON)
 	fi
 
 $(CONFIG): $(LOGFILE) $(PYTHON)
-	@if [ ! -d "$(CONFIG)" ]; then \
+	@if [ ! -e "$(CONFIG)" ]; then \
 		$(CONDA_PYTHON) python/download-assets.py 2>&1 | tee -a $(LOGFILE); \
 		echo "=============================================" 2>&1 | tee -a $(LOGFILE); \
 	else \

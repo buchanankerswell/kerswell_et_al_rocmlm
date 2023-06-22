@@ -143,6 +143,8 @@ def parse_list_of_strings(arg):
         argparse.ArgumentTypeError: If the input string is not a valid list of strings.
 
     """
+    if arg == "all":
+        return arg
     try:
         str_list = ast.literal_eval(arg)
         if (
@@ -658,7 +660,7 @@ def create_MAGEMin_input(
         composition,
         mode=0,
         run_name="test",
-        out_dir=os.getcwd() + "/runs"):
+        out_dir="runs"):
     """
     Creates an input string for MAGEMin.
 
@@ -684,7 +686,7 @@ def create_MAGEMin_input(
         inside the "runs" directory.
     """
     # Create directory
-    directory = out_dir
+    directory = os.getcwd() + "/" + out_dir
     os.makedirs(directory, exist_ok=True)
 
     # Setup PT vectors
@@ -714,7 +716,7 @@ def create_MAGEMin_input(
         f.write(MAGEMin_input)
 
 # Move files from MAGEMin output dir
-def cleanup_ouput_dir(run_name, out_dir=os.getcwd() + "/runs"):
+def cleanup_ouput_dir(run_name, out_dir="runs"):
     """
     Move files from the MAGEMin output directory to a new directory based on the run name.
     Also moves the input data file into the new directory and removes the output directory.
@@ -727,7 +729,7 @@ def cleanup_ouput_dir(run_name, out_dir=os.getcwd() + "/runs"):
         None
     """
     # Create the directory based on the run_name
-    directory = out_dir + "/" + run_name
+    directory = os.getcwd() + "/" + out_dir + "/" + run_name
     os.makedirs(directory, exist_ok=True)
 
     # Get a list of all files in the "output" directory matching the pattern
@@ -759,7 +761,7 @@ def run_MAGEMin(
         database="ig",
         parallel=True,
         nprocs=None,
-        out_dir=os.getcwd() + "/runs"):
+        out_dir="runs"):
     """
     Runs MAGEMin with the specified parameters.
 
@@ -792,7 +794,7 @@ def run_MAGEMin(
         sys.exit("Please provide location to MAGEMin executable ...")
 
     # Count number of pt points to model with MAGEMin
-    input_path = out_dir + "/" + run_name + ".dat"
+    input_path = os.getcwd() + "/" + out_dir + "/" + run_name + ".dat"
     n_points = count_lines(input_path)
 
     # Check for input MAGEMin input files
@@ -969,7 +971,7 @@ def read_MAGEMin_pseudosection_data(filename):
     return results
 
 # Process all MAGEMin output files in a directory
-def process_MAGEMin_files(run_name, out_dir=os.getcwd() + "/runs"):
+def process_MAGEMin_files(run_name, out_dir="runs"):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
@@ -984,13 +986,13 @@ def process_MAGEMin_files(run_name, out_dir=os.getcwd() + "/runs"):
         directory does not exist.
     """
     # Check for input MAGEMin input files
-    if not os.path.exists(out_dir):
+    if not os.path.exists(os.getcwd() + "/" + out_dir):
         sys.exit("No MAGEMin output files to process ...")
-    if not os.path.exists(out_dir + "/" + run_name):
+    if not os.path.exists(os.getcwd() + "/" + out_dir + "/" + run_name):
         sys.exit("No MAGEMin output files to process ...")
 
     # Get filenames directory for files
-    directory = out_dir + "/" + run_name
+    directory = os.getcwd() + "/" + out_dir + "/" + run_name
     pattern = "_" + run_name + "*.txt"
 
     results = []

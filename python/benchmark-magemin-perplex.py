@@ -61,11 +61,12 @@ for component, value in zip(oxide_list_magemin, sample_norm):
     formatted_value = "{:.2f}".format(value)
     print(f"{component}: {formatted_value}")
 print("-------------")
-if check_non_matching_strings(norm_ox, oxide_list_magemin):
-    raise ValueError(
-        "Invalid --normox argument ...\n"
-        f"Can only normalize to oxides {oxide_list_magemin}"
-    )
+if norm_ox != "all":
+    if check_non_matching_strings(norm_ox, oxide_list_magemin):
+        raise ValueError(
+            "Invalid --normox argument ...\n"
+            f"Can only normalize to oxides {oxide_list_magemin}"
+        )
 print(f"Normalizing composition to: {norm_ox}")
 if not isinstance(parallel, bool):
     raise ValueError(
