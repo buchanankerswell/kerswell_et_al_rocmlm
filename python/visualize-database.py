@@ -52,11 +52,25 @@ for run in runs:
         else:
             grid = create_PT_grid(P, T, results[parameter])
 
+        # Use discrete colorscale
+        if parameter in ["StableSolutions", "StableVariance"]:
+            color_discrete = True
+        else:
+            color_discrete = False
+
+        # Reverse color scale
+        if parameter in ["StableVariance"]:
+            color_reverse = True
+        else:
+            color_reverse = False
+
         # Plot PT grids
         plot_pseudosection(
             P, T, grid, parameter,
             title=run.replace("_", " ") + ": " + parameter,
             palette="grey",
+            color_discrete=color_discrete,
+            color_reverse=color_reverse,
             filename=f"{run}-{parameter}.png",
             fig_dir=fig_dir
         )

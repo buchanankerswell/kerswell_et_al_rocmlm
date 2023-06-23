@@ -1005,6 +1005,19 @@ def process_MAGEMin_files(run_name, out_dir="runs"):
             results.extend(file_results)
 
     merged_results = merge_dictionaries(results)
+
+    # Compute assemblage variance (number of phases)
+    assemblages = merged_results.get("StableSolutions")
+
+    variance = []
+
+    for assemblage in assemblages:
+        unique_phases = set(assemblage)
+        count = len(unique_phases)
+        variance.append(count)
+
+    merged_results["StableVariance"] = variance
+
     return merged_results
 
 # Encode stable phase assemblage for plotting with imshow
@@ -1087,6 +1100,8 @@ def plot_pseudosection(
         parameter,
         title=None,
         palette="blues",
+        color_discrete=False,
+        color_reverse=False,
         filename=None,
         fig_dir=os.getcwd() + "/figs"):
     """
@@ -1106,16 +1121,25 @@ def plot_pseudosection(
     # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
-    if (parameter == "StableSolutions"):
+    if color_discrete:
         # Create a custom colormap with dynamically determined colors
         num_colors = len(np.unique(grid))
         # Color palette
         if palette == "viridis":
-            pal = plt.cm.get_cmap("viridis", num_colors)
+            if color_reverse:
+                pal = plt.cm.get_cmap("viridis_r", num_colors)
+            else:
+                pal = plt.cm.get_cmap("viridis", num_colors)
         elif palette == "grey":
-            pal = plt.cm.get_cmap("Greys", num_colors)
+            if color_reverse:
+                pal = plt.cm.get_cmap("Greys_r", num_colors)
+            else:
+                pal = plt.cm.get_cmap("Greys", num_colors)
         elif palette not in ["viridis", "grey"]:
-            pal = plt.cm.get_cmap("Blues", num_colors)
+            if color_reverse:
+                pal = plt.cm.get_cmap("Blues_r", num_colors)
+            else:
+                pal = plt.cm.get_cmap("Blues", num_colors)
         # Descritize
         color_palette = pal(np.linspace(0, 1, num_colors))
         cmap = ListedColormap(color_palette)
@@ -1145,11 +1169,20 @@ def plot_pseudosection(
     else:
         # Color palette
         if palette == "viridis":
-            cmap = "viridis"
+            if color_reverse:
+                cmap = "viridis_r"
+            else:
+                cmap = "viridis"
         elif palette == "grey":
-            cmap = "Greys"
+            if color_reverse:
+                cmap = "Greys_r"
+            else:
+                cmap = "Greys"
         elif palette not in ["viridis", "grey"]:
-            cmap="Blues"
+            if color_reverse:
+                cmap="Blues_r"
+            else:
+                cmap="Blues"
         # Plot as a raster using imshow
         fig, ax = plt.subplots()
         im = ax.imshow(

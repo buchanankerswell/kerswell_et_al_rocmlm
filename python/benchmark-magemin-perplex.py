@@ -30,8 +30,8 @@ oxide_list_magemin = [
 ]
 
 # Read benchmarking samples
-datafile = "assets/data/benchmark-mantle-compositions.csv"
-benchmark_sample_ids = ["PUM", "DMM", "KLB1", "RE46", "NMORB1", "NMORB2"]
+datafile = "assets/data/benchmark-samples.csv"
+benchmark_sample_ids = ["PUM", "DMM", "RE46", "NMORB1", "NMORB2"]
 
 # Get benchmark sample composition
 sample_comp = get_benchmark_sample_for_MAGEMin(datafile, sample_id)
