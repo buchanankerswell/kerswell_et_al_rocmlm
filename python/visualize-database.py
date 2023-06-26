@@ -12,13 +12,14 @@ from magemin import (
 args = parse_arguments_visualize_db()
 
 # Get argument values
+sampleid = args.sampleid
 parameters = args.params
 y_oxide = args.figox
 out_dir = args.outdir
 fig_dir = args.figdir
 
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("Plotting with the following parameters:")
+print(f"Plotting sample {sampleid} the following parameters:")
 print("Physical properties:")
 for param in parameters:
     print(f"    {param}")
@@ -29,15 +30,11 @@ print(f"out_dir: {out_dir}")
 print(f"fig_dir: {fig_dir}")
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-# Process MAGEMin output files
-MAGEMin_output = os.listdir(out_dir)
-runs = [run for run in MAGEMin_output if run != ".DS_Store" and not run.endswith(".dat")]
-
 # Plot MAGEMin output
-for run in runs:
-    print(f"Plotting results for {run} ...")
+if len(os.listdir(out_dir + "/" + sampleid)) != 0:
+    print(f"Plotting results for {sampleid} ...")
 
-    results = process_MAGEMin_files(run, out_dir)
+    results = process_MAGEMin_files(sampleid, out_dir)
 
     # Get PT values
     P = results["P"]
@@ -67,11 +64,11 @@ for run in runs:
         # Plot PT grids
         plot_pseudosection(
             P, T, grid, parameter,
-            title=run.replace("_", " ") + ": " + parameter,
+            #title=sampleid.replace("_", " ") + ": " + parameter,
             palette="grey",
             color_discrete=color_discrete,
             color_reverse=color_reverse,
-            filename=f"{run}-{parameter}.png",
+            filename=f"{sampleid}-{parameter}.png",
             fig_dir=fig_dir
         )
 

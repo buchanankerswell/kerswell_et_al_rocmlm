@@ -314,6 +314,12 @@ def parse_arguments_visualize_db():
 
     # Add the command-line arguments
     parser.add_argument(
+        "--sampleid",
+        type=str,
+        help="Specify the sampleid argument ...",
+        required = True
+    )
+    parser.add_argument(
         "--params",
         type=parse_list_of_strings,
         help="Specify the params argument ...",
@@ -1220,7 +1226,7 @@ def plot_harker_diagram(
         datafile,
         x_oxide="SiO2",
         y_oxide="MgO",
-        filename="harker.png",
+        filename="earthchem-harker.png",
         fig_dir=os.getcwd() + "/figs"):
     """
     Plot Harker diagrams with density contours using seaborn.
