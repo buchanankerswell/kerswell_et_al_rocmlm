@@ -106,6 +106,12 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 visualize_database: $(LOGFILE) $(PYTHON)
 	@echo "Visualizing MAGEMin database ..." $(LOG)
 	@$(CONDA_PYTHON) python/visualize-database.py \
+		--Pmin $(PMIN) \
+		--Pmax $(PMAX) \
+		--Pres $(PRES) \
+		--Tmin $(TMIN) \
+		--Tmax $(TMAX) \
+		--Tres $(TRES) \
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMS)' \
 		--figox '$(FIGOX)' \
@@ -120,6 +126,10 @@ submit_jobs: $(LOGFILE) $(PYTHON) $(DATA)
 	@echo "=============================================" $(LOG)
 
 benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+	@mkdir -p $(BENCHMARK)
+	@mkdir -p $(WORKDIR)/$(FIGDIR)/benchmark
+	@mkdir -p $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)
+	@mkdir -p $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/perplex
 	@echo "Building MAGEMin model ..." $(LOG)
 	@$(CONDA_PYTHON) python/benchmark-magemin-perplex.py \
 		--Pmin $(PMIN) \
@@ -141,27 +151,31 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 		--seed $(SEED) \
 		--outdir $(OUTDIR) \
 	$(LOG)
-	@$(MAKE) visualize_database SAMPLEID=$(SAMPLEID) $(LOG)
-	@convert $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-StableVariance.png \
+	@echo "magemin,$(SAMPLEID),$(TRES),$(PRES),$$( \
+		grep -oE "MAGEMin comp time: \+([0-9.]+) ms }" $(LOGFILE) | \
+		tail -n 1 | \
+		sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
+		awk '{printf "%.1f", $$NF/1000}')" >> $(DATA)/benchmark-comp-times.csv
+	@$(MAKE) visualize_database \
+		SAMPLEID=$(SAMPLEID) \
+		TRES=$(TRES) \
+		PRES=$(PRES) \
+		FIGDIR=$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES) $(LOG)
+	@convert $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/StableVariance.png \
 		-pointsize 100 \
 		-annotate +25+90 "b" \
-		$(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-bench.png
-	@convert $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-bench.png \
-		-pointsize 75 \
-		-annotate +25+1530 \
-		"comp time: $$(grep -oE "MAGEMin comp time: \+([0-9.]+) ms }" $(LOGFILE) | \
-			tail -n 1 | \
-			sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
-			awk '{printf "%.1f", $$NF/1000}')s" \
-		$(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-bench.png
+		$(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/bench.png
 	@chmod +x $(PERPLEX)/build $(PERPLEX)/vertex $(PERPLEX)/pssect
-	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
+	@if [ ! -e "$(PERPLEX)/$(SAMPLEID)-$(TRES)x$(PRES).dat" ]; then \
 		echo "Building perplex model ..." $(LOG); \
 		(cd $(PERPLEX) && cp $(CONFIG)/perplex-build-config .); \
 		(cd $(PERPLEX) && cp $(CONFIG)/perplex-options-config perplex_option.dat); \
 		(cd $(PERPLEX) && cp $(CONFIG)/perplex-plot-config perplex_plot_option.dat); \
 		(cd $(PERPLEX) && \
-			awk '{gsub("{SAMPLEID}", "$(SAMPLEID)"); print}' perplex-build-config > temp_file && \
+			awk '{ \
+				gsub("{SAMPLEID}", \
+				"$(SAMPLEID)-$(TRES)x$(PRES)"); print \
+			}' perplex-build-config > temp_file && \
 			mv temp_file perplex-build-config \
 		); \
 		(cd $(PERPLEX) && \
@@ -193,18 +207,23 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			mv temp-file perplex_option.dat \
 		); \
 		(cd $(PERPLEX) && ./build < perplex-build-config) $(LOG); \
-		(cd $(PERPLEX) && echo "$(SAMPLEID)" | ./vertex) $(LOG); \
+		(cd $(PERPLEX) && echo "$(SAMPLEID)-$(TRES)x$(PRES)" | ./vertex) $(LOG); \
+		echo "perplex,$(SAMPLEID),$(TRES),$(PRES),$$( \
+			grep -oE "Total elapsed time\s+([0-9.]+)" $(LOGFILE) | \
+			tail -n 1 | \
+			sed -E 's/Total elapsed time\s+([0-9.]+)/\1/' | \
+			awk '{printf "%.1f", $$NF*60}')" >> $(DATA)/benchmark-comp-times.csv; \
 		echo "Finished perplex model ..." $(LOG); \
 		echo "=============================================" $(LOG); \
 	fi
-	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).pdf" ]; then \
+	@if [ ! -e "$(PERPLEX)/$(SAMPLEID)-$(TRES)x$(PRES).pdf" ]; then \
 		echo "Plotting perplex model ..." $(LOG); \
-		(cd $(PERPLEX) && echo "$(SAMPLEID)" > pssect-config); \
+		(cd $(PERPLEX) && echo "$(SAMPLEID)-$(TRES)x$(PRES)" > pssect-config); \
 		(cd $(PERPLEX) && echo "N" >> pssect-config); \
 		(cd $(PERPLEX) && ./pssect < pssect-config) $(LOG); \
-		(cd $(PERPLEX) && ps2pdf $(SAMPLEID).ps $(SAMPLEID).pdf); \
+		(cd $(PERPLEX) && ps2pdf $(SAMPLEID)-$(TRES)x$(PRES).ps $(SAMPLEID)-$(TRES)x$(PRES).pdf); \
 		(cd $(PERPLEX) && \
-			convert $(SAMPLEID).pdf \
+			convert $(SAMPLEID)-$(TRES)x$(PRES).pdf \
 				-background white \
 				-flatten \
 				-crop 565x495+0+165 \
@@ -212,36 +231,25 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 				-pointsize 100 \
 				-fill black \
 				-annotate +25+605 "a" \
-				$(SAMPLEID).png \
+				$(SAMPLEID)-$(TRES)x$(PRES).png \
 		); \
 		(cd $(PERPLEX) && \
-			convert $(SAMPLEID).png \
-				-pointsize 75 \
-				-annotate +25+2045 \
-					"comp time: $$(grep -oE "Total elapsed time\s+([0-9.]+)" $(LOGFILE) | \
-						tail -n 1 | \
-						sed -E 's/Total elapsed time\s+([0-9.]+)/\1/' | \
-						awk '{printf "%.1f", $$NF*60}')s" \
-					$(SAMPLEID).png \
+			rm perplex-build-config pssect-config perplex_plot_option.dat perplex_option.dat \
 		); \
-		mkdir -p $(BENCHMARK); \
-		mkdir -p $(BENCHMARK)/$(SAMPLEID); \
-		mkdir -p $(BENCHMARK)/$(SAMPLEID)/perplex; \
 		(cd $(PERPLEX) && \
-			rm pssect-config perplex_plot_option.dat perplex_option.dat \
+			mv $(SAMPLEID)-$(TRES)x$(PRES)* $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/perplex \
 		); \
-		(cd $(PERPLEX) && mv $(SAMPLEID)* $(BENCHMARK)/$(SAMPLEID)/perplex); \
 		montage \
-			$(BENCHMARK)/$(SAMPLEID)/perplex/$(SAMPLEID).png \
-			$(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-bench.png -tile 2x1 -geometry +0+0 \
-			$(BENCHMARK)/$(SAMPLEID)/$(SAMPLEID)-benchmark-Tres$(TRES)-Pres$(PRES).png; \
-		rm $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-bench.png; \
+			$(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/perplex/$(SAMPLEID)-$(TRES)x$(PRES).png \
+			$(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/bench.png -tile 2x1 -geometry +0+0 \
+			$(WORKDIR)/$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES).png; \
+		rm $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/bench.png; \
 		echo "Finished plotting perplex model ..." $(LOG); \
 	fi
 	@echo "=============================================" $(LOG)
-	@echo "Finished benchmarking $(SAMPLEID) ..." $(LOG)
+	@echo "Finished benchmarking $(SAMPLEID)-$(TRES)x$(PRES) ..." $(LOG)
 	@echo "See figure at:" $(LOG)
-	@echo "$(BENCHMARK)/$(SAMPLEID)/$(SAMPLEID)-benchmark-Tres$(TRES)-Pres$(PRES).png" $(LOG)
+	@echo "$(WORKDIR)/$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES).png" $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)

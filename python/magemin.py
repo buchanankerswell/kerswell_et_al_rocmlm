@@ -314,6 +314,42 @@ def parse_arguments_visualize_db():
 
     # Add the command-line arguments
     parser.add_argument(
+        "--Pmin",
+        type=int,
+        help="Specify the Pmin argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Pmax",
+        type=int,
+        help="Specify the Pmax argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Pres",
+        type=int,
+        help="Specify the Pres argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Tmin",
+        type=int,
+        help="Specify the Tmin argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Tmax",
+        type=int,
+        help="Specify the Tmax argument ...",
+        required=True
+    )
+    parser.add_argument(
+        "--Tres",
+        type=int,
+        help="Specify the Tres argument ...",
+        required=True
+    )
+    parser.add_argument(
         "--sampleid",
         type=str,
         help="Specify the sampleid argument ...",
