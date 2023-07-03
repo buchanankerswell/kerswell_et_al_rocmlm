@@ -314,42 +314,6 @@ def parse_arguments_visualize_db():
 
     # Add the command-line arguments
     parser.add_argument(
-        "--Pmin",
-        type=int,
-        help="Specify the Pmin argument ...",
-        required=True
-    )
-    parser.add_argument(
-        "--Pmax",
-        type=int,
-        help="Specify the Pmax argument ...",
-        required=True
-    )
-    parser.add_argument(
-        "--Pres",
-        type=int,
-        help="Specify the Pres argument ...",
-        required=True
-    )
-    parser.add_argument(
-        "--Tmin",
-        type=int,
-        help="Specify the Tmin argument ...",
-        required=True
-    )
-    parser.add_argument(
-        "--Tmax",
-        type=int,
-        help="Specify the Tmax argument ...",
-        required=True
-    )
-    parser.add_argument(
-        "--Tres",
-        type=int,
-        help="Specify the Tres argument ...",
-        required=True
-    )
-    parser.add_argument(
         "--sampleid",
         type=str,
         help="Specify the sampleid argument ...",
@@ -728,7 +692,7 @@ def create_MAGEMin_input(
         inside the "runs" directory.
     """
     # Create directory
-    directory = os.getcwd() + "/" + out_dir
+    directory = f"{os.getcwd()}/{out_dir}"
     os.makedirs(directory, exist_ok=True)
 
     # Setup PT vectors
@@ -754,7 +718,7 @@ def create_MAGEMin_input(
         )
 
     # Write input file
-    with open(directory + "/" + run_name + ".dat", "w") as f:
+    with open(f"{directory}/{run_name}.dat", "w") as f:
         f.write(MAGEMin_input)
 
 # Move files from MAGEMin output dir
@@ -771,7 +735,7 @@ def cleanup_ouput_dir(run_name, out_dir="runs"):
         None
     """
     # Create the directory based on the run_name
-    directory = os.getcwd() + "/" + out_dir + "/" + run_name
+    directory = f"{os.getcwd()}/{out_dir}/{run_name}"
     os.makedirs(directory, exist_ok=True)
 
     # Get a list of all files in the "output" directory matching the pattern
@@ -780,17 +744,17 @@ def cleanup_ouput_dir(run_name, out_dir="runs"):
 
     # Rename and move the files
     for file in matching_files:
-        new_filename = "_" + run_name + file[len("_pseudosection"):]
+        new_filename = f"_{run_name}{file[len('_pseudosection'):]}"
         new_filepath = os.path.join(directory, new_filename)
         old_filepath = os.path.join("output", file)
         shutil.move(old_filepath, new_filepath)
 
     # Move input data file into directory
-    if os.path.isfile(directory + "/" + run_name + ".dat"):
-        os.remove(directory + "/" + run_name + ".dat")
-        shutil.move(directory + ".dat", directory)
+    if os.path.isfile(f"{directory}/{run_name}.dat"):
+        os.remove(f"{directory}/{run_name}.dat")
+        shutil.move(f"{directory}.dat", directory)
     else:
-        shutil.move(directory + ".dat", directory)
+        shutil.move(f"{directory}.dat", directory)
 
     # Remove MAGEMin output directory
     shutil.rmtree("output")
@@ -836,7 +800,7 @@ def run_MAGEMin(
         sys.exit("Please provide location to MAGEMin executable ...")
 
     # Count number of pt points to model with MAGEMin
-    input_path = os.getcwd() + "/" + out_dir + "/" + run_name + ".dat"
+    input_path = f"{os.getcwd()}/{out_dir}/{run_name}.dat"
     n_points = count_lines(input_path)
 
     # Check for input MAGEMin input files
@@ -1013,7 +977,7 @@ def read_MAGEMin_pseudosection_data(filename):
     return results
 
 # Process all MAGEMin output files in a directory
-def process_MAGEMin_files(run_name, out_dir="runs"):
+def process_MAGEMin_grid(run_name, out_dir="runs"):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
@@ -1027,15 +991,15 @@ def process_MAGEMin_files(run_name, out_dir="runs"):
         FileNotFoundError: If the "runs" directory or the specific MAGEMin run
         directory does not exist.
     """
-    # Check for input MAGEMin input files
-    if not os.path.exists(os.getcwd() + "/" + out_dir):
+    # Check for MAGEMin output files
+    if not os.path.exists(f"{os.getcwd()}/{out_dir}"):
         sys.exit("No MAGEMin output files to process ...")
-    if not os.path.exists(os.getcwd() + "/" + out_dir + "/" + run_name):
+    if not os.path.exists(f"{os.getcwd()}/{out_dir}/{run_name}"):
         sys.exit("No MAGEMin output files to process ...")
 
     # Get filenames directory for files
-    directory = os.getcwd() + "/" + out_dir + "/" + run_name
-    pattern = "_" + run_name + "*.txt"
+    directory = f"{os.getcwd()}/{out_dir}/{run_name}"
+    pattern = f"_{run_name}*.txt"
 
     results = []
 
@@ -1087,10 +1051,91 @@ def encode_phases(phases):
 
     # Encoding phase assemblage numbers
     for phase_assemblage in phases:
-        encoded_assemblage = unique_assemblages[tuple(sorted(phase_assemblage))]
-        encoded_assemblages.append(encoded_assemblage)
+        if phase_assemblage == "":
+            encoded_assemblages.append(math.nan)
+        else:
+            encoded_assemblage = unique_assemblages[tuple(sorted(phase_assemblage))]
+            encoded_assemblages.append(encoded_assemblage)
 
     return encoded_assemblages, unique_assemblages
+
+# Get perplex grids
+def process_perplex_grid(file_path_grid, file_path_assemblages):
+    results = {
+        "T": [],
+        "P": [],
+        "DensityOfFullAssemblage": [],
+        "Vp": [],
+        "Vs": [],
+        "Entropy": [],
+        "AssemblageIndex": [],
+        "LiquidFraction": [],
+        "StableSolutions": [],
+        "StableVariance": []
+    }
+
+    with open(file_path_grid, "r") as file:
+        # Skip lines until column headers are found
+        for line in file:
+            if line.strip().startswith("T(K)"):
+                break
+
+        # Read the data
+        for line in file:
+            values = line.split()
+            if len(values) >= 8:
+                try:
+                    for i in range(8):
+                        value = (
+                            float(values[i])
+                            if not math.isnan(float(values[i]))
+                            else math.nan
+                        )
+                        if i == 0:  # "T" column
+                            value -= 273  # Subtract 273 from "T"
+                        if i == 1:  # "P" column
+                            value /= 1000  # Divide "P" by 1000
+                        if i == 6:  # "AssemblageIndex" column
+                            value = (
+                                int(value)
+                                if not math.isnan(value)
+                                else math.nan
+                            )
+                        results[list(results.keys())[i]].append(value)
+                except ValueError:
+                    continue
+
+    # Get assemblages from file
+    assemblages = process_perplex_assemblage(file_path_assemblages)
+
+    # Add assemblage to dictionary
+    for index in results.get("AssemblageIndex"):
+        if math.isnan(index):
+            results["StableSolutions"].append("")
+        else:
+            phases = assemblages[index]
+            results["StableSolutions"].append(phases)
+
+    # Add assemblage variance to dictionary
+    for assemblage in results.get("StableSolutions"):
+        if assemblage is None:
+            count = math.nan
+        else:
+            unique_phases = set(assemblage)
+            count = len(unique_phases)
+        results["StableVariance"].append(count)
+
+    return results
+
+# Get phase assemblages from perplex fields
+def process_perplex_assemblage(file_path):
+    phase_dict = {}
+    with open(file_path, 'r') as file:
+        for line_number, line in enumerate(file, start=1):
+            phases = line.split('-')[1].strip().split()
+            cleaned_phases = [phase.split('(')[0].lower() for phase in phases]
+            phase_dict[line_number] = cleaned_phases
+    return phase_dict
 
 # Transform results into 2D numpy array across PT space
 def create_PT_grid(P, T, parameter_values):
@@ -1145,7 +1190,7 @@ def plot_pseudosection(
         color_discrete=False,
         color_reverse=False,
         filename=None,
-        fig_dir=os.getcwd() + "/figs"):
+        fig_dir=f"{os.getcwd()}/figs"):
     """
     Plot the results of a pseudosection calculation.
 
@@ -1172,12 +1217,27 @@ def plot_pseudosection(
                 pal = plt.cm.get_cmap("viridis_r", num_colors)
             else:
                 pal = plt.cm.get_cmap("viridis", num_colors)
+        elif palette == "bone":
+            if color_reverse:
+                pal = plt.cm.get_cmap("bone_r", num_colors)
+            else:
+                pal = plt.cm.get_cmap("bone", num_colors)
+        elif palette == "pink":
+            if color_reverse:
+                pal = plt.cm.get_cmap("pink_r", num_colors)
+            else:
+                pal = plt.cm.get_cmap("pink", num_colors)
+        elif palette == "seismic":
+            if color_reverse:
+                pal = plt.cm.get_cmap("seismic_r", num_colors)
+            else:
+                pal = plt.cm.get_cmap("seismic", num_colors)
         elif palette == "grey":
             if color_reverse:
                 pal = plt.cm.get_cmap("Greys_r", num_colors)
             else:
                 pal = plt.cm.get_cmap("Greys", num_colors)
-        elif palette not in ["viridis", "grey"]:
+        elif palette not in ["viridis", "grey", "bone", "pink", "seismic"]:
             if color_reverse:
                 pal = plt.cm.get_cmap("Blues_r", num_colors)
             else:
@@ -1199,12 +1259,12 @@ def plot_pseudosection(
             aspect="auto",
             cmap=cmap,
             origin="lower",
-            vmin=0,
-            vmax=num_colors-1
+            vmin=1,
+            vmax=num_colors+1
         )
         ax.set_xlabel("T (˚C)")
         ax.set_ylabel("P (kbar)")
-        plt.colorbar(im, ax=ax, ticks=np.arange(num_colors), label=parameter)
+        plt.colorbar(im, ax=ax, ticks=np.arange(num_colors)+1, label=parameter)
         fig.tight_layout()
         if title:
             plt.title(title)
@@ -1215,12 +1275,27 @@ def plot_pseudosection(
                 cmap = "viridis_r"
             else:
                 cmap = "viridis"
+        elif palette == "bone":
+            if color_reverse:
+                cmap = "bone_r"
+            else:
+                cmap = "bone"
+        elif palette == "pink":
+            if color_reverse:
+                cmap = "pink_r"
+            else:
+                cmap = "pink"
+        elif palette == "seismic":
+            if color_reverse:
+                cmap = "seismic_r"
+            else:
+                cmap = "seismic"
         elif palette == "grey":
             if color_reverse:
                 cmap = "Greys_r"
             else:
                 cmap = "Greys"
-        elif palette not in ["viridis", "grey"]:
+        elif palette not in ["viridis", "grey", "bone", "pink", "seismic"]:
             if color_reverse:
                 cmap="Blues_r"
             else:
@@ -1248,7 +1323,7 @@ def plot_pseudosection(
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(fig_dir + "/" + filename, bbox_inches="tight", dpi=330)
+        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
     else:
         # Print plot
         plt.show()
@@ -1263,7 +1338,7 @@ def plot_harker_diagram(
         x_oxide="SiO2",
         y_oxide="MgO",
         filename="earthchem-harker.png",
-        fig_dir=os.getcwd() + "/figs"):
+        fig_dir=f"{os.getcwd()}/figs"):
     """
     Plot Harker diagrams with density contours using seaborn.
 
@@ -1288,6 +1363,8 @@ def plot_harker_diagram(
     """
     # Read geochemical data
     data = read_geochemical_data(datafile)
+    data = data.rename(columns={"COMPOSITION": "Rock Type"})
+
     # Create figs dir
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
@@ -1326,7 +1403,7 @@ def plot_harker_diagram(
             data=data,
             x=x_oxide.upper(),
             y=y.upper(),
-            hue="COMPOSITION",
+            hue="Rock Type",
             hue_order=["ultramafic", "mafic"],
             fill=True,
             ax=ax
@@ -1337,7 +1414,7 @@ def plot_harker_diagram(
             data=data,
             x=x_oxide.upper(),
             y=y.upper(),
-            hue="COMPOSITION",
+            hue="Rock Type",
             hue_order=["ultramafic", "mafic"],
             linewidth=0,
             s=5,
@@ -1359,15 +1436,91 @@ def plot_harker_diagram(
             fig.delaxes(axes[i])
 
     # Count the number of mafic and ultramafic samples
-    n_mafic = len(data[data["COMPOSITION"] == "mafic"])
-    n_ulmafic = len(data[data["COMPOSITION"] == "ultramafic"])
+    n_mafic = len(data[data["Rock Type"] == "mafic"])
+    n_ulmafic = len(data[data["Rock Type"] == "ultramafic"])
 
     fig.suptitle(f"Harker diagrams for {n_mafic} mafic and {n_ulmafic} ultramafic samples")
     plt.tight_layout()
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(fig_dir + "/" + filename, bbox_inches="tight", dpi=330)
+        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
+    else:
+        # Print plot
+        plt.show()
+
+# Visualize benchmark comp times
+def visualize_benchmark_comp_times(
+        datafile,
+        filename="benchmark-comp-times.png",
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+    # Read data
+    data = pd.read_csv(datafile)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "white"
+    plt.rcParams["axes.facecolor"] = "0.5"
+
+    # Create a dictionary to map methods to marker styles and line styles
+    method_styles = {
+        "magemin": {"marker": "o", "linestyle": "-"},
+        "perplex": {"marker": "s", "linestyle": "--"}
+    }
+
+    # Create a dictionary to map samples to colors
+    sample_colors = {
+        "DMM": "blue",
+        "NMORB1": "green",
+        "NMORB2": "red",
+        "PUM": "orange",
+        "RE46": "purple"
+    }
+
+    # Get max resolution
+    data["maxres"] = data[["tres", "pres"]].max(axis=1)
+
+    # Group the data by method and sample
+    grouped_data = data.groupby(["method", "sample"])
+
+    # Plot the data
+    for group, group_data in grouped_data:
+        method_val, sample_val = group
+        marker_style = method_styles[method_val]["marker"]
+        linestyle_val = method_styles[method_val]["linestyle"]
+        color_val = sample_colors[sample_val]
+
+        # Filter out rows with missing time values
+        filtered_data = group_data.dropna(subset=["time"])
+
+        # Extract x and y values
+        x = filtered_data["maxres"]
+        y = filtered_data["time"]
+
+        # Plot the data points and connect them with lines
+        plt.plot(
+            x, y,
+            marker=marker_style,
+            color=color_val,
+            linestyle=linestyle_val,
+            label=f"{method_val} {sample_val}"
+        )
+
+    # Set labels and title
+    plt.xlabel("PT Grid Resolution")
+    plt.ylabel("Time (s)")
+    plt.title("Gibbs Minimization Efficiency")
+    plt.xticks([8, 16, 32, 64, 128])
+    plt.legend()
+    plt.tight_layout()
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
     else:
         # Print plot
         plt.show()

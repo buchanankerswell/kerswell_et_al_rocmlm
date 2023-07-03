@@ -132,19 +132,18 @@ if source == "earthchem":
             print("---------------------------------------------")
 
             # Write MAGEMin input
-            run_name = sample_id + f"-{T_res}x{P_res}"
             create_MAGEMin_input(
                 P_range,
                 T_range,
                 sample_norm,
-                run_name=run_name,
+                run_name=sample_id,
                 out_dir=out_dir
             )
 
             # Run MAGEMin
             run_MAGEMin(
                 "MAGEMin/",
-                run_name=run_name,
+                run_name=sample_id,
                 comp_type="wt",
                 parallel=parallel,
                 nprocs=nprocs,
@@ -168,19 +167,18 @@ if source == "earthchem":
             sample_norm = normalize_sample(sample_comp)
 
             # Write MAGEMin input
-            run_name = sample_id + f"-{T_res}x{P_res}"
             create_MAGEMin_input(
                 P_range,
                 T_range,
                 sample_norm,
-                run_name=run_name,
+                run_name=sample_id,
                 out_dir=out_dir
             )
 
             # Run MAGEMin
             run_MAGEMin(
                 "MAGEMin/",
-                run_name=run_name,
+                run_name=sample_id,
                 comp_type="wt",
                 parallel=parallel,
                 nprocs=nprocs,
@@ -197,14 +195,14 @@ if source == "sample":
         P_range,
         T_range,
         sample_norm,
-        run_name=sample_id + f"-{T_res}x{P_res}",
+        run_name=sample_id,
         out_dir=out_dir
     )
 
     # Run MAGEMin
     run_MAGEMin(
         "MAGEMin/",
-        run_name=sample_id + f"-{T_res}x{P_res}",
+        run_name=sample_id,
         comp_type=comp_type,
         parallel=parallel,
         nprocs=nprocs,

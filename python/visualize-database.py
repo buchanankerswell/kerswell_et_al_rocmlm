@@ -2,7 +2,7 @@ import os
 from magemin import (
     parse_arguments_visualize_db,
     plot_harker_diagram,
-    process_MAGEMin_files,
+    process_MAGEMin_grid,
     encode_phases,
     create_PT_grid,
     plot_pseudosection
@@ -12,23 +12,14 @@ from magemin import (
 args = parse_arguments_visualize_db()
 
 # Get argument values
-P_min = args.Pmin
-P_max = args.Pmax
-P_res = args.Pres
-T_min = args.Tmin
-T_max = args.Tmax
-T_res = args.Tres
 sample_id = args.sampleid
 parameters = args.params
 y_oxide = args.figox
 out_dir = args.outdir
 fig_dir = args.figdir
 
-# Run name
-run_name = sample_id + f"-{T_res}x{P_res}"
-
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print(f"Plotting sample {run_name} the following parameters:")
+print(f"Plotting sample {sample_id} the following parameters:")
 print("Physical properties:")
 for param in parameters:
     print(f"    {param}")
@@ -40,10 +31,10 @@ print(f"fig_dir: {fig_dir}")
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
 # Plot MAGEMin output
-if len(os.listdir(out_dir + "/" + run_name)) != 0:
-    print(f"Plotting results for {run_name} ...")
+if len(os.listdir(out_dir + "/" + sample_id)) != 0:
+    print(f"Plotting results for {sample_id} ...")
 
-    results = process_MAGEMin_files(run_name, out_dir)
+    results = process_MAGEMin_grid(sample_id, out_dir)
 
     # Get PT values
     P = results["P"]
@@ -73,8 +64,8 @@ if len(os.listdir(out_dir + "/" + run_name)) != 0:
         # Plot PT grids
         plot_pseudosection(
             P, T, grid, parameter,
-            #title=run_name.replace("_", " ") + ": " + parameter,
-            palette="grey",
+            #title=sample_id.replace("_", " ") + ": " + parameter,
+            palette="bone",
             color_discrete=color_discrete,
             color_reverse=color_reverse,
             filename=f"{parameter}.png",

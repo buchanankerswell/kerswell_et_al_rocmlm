@@ -1,16 +1,16 @@
 # Makefile config
 SHELL = /bin/bash -o pipefail
 WORKDIR = $(shell pwd)
-UNAME_S := $(shell uname -s)
+UNAMES := $(shell uname -s)
 # Logging
 LOGFILE := $(WORKDIR)/log/log-$(shell date +%Y-%m-%d)
 LOG := 2>&1 | tee -a $(LOGFILE)
 # Requirements for running study
 # Conda env
-CONDA_ENV_NAME = madnn
-HAS_CONDA := $(shell command -v conda > /dev/null && echo true || echo false)
-CONDA_SPECS_FILE = $(WORKDIR)/python/conda-environment.yaml
-CONDA_PYTHON = $$(conda run -n $(CONDA_ENV_NAME) which python)
+CONDAENVNAME = madnn
+HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
+CONDASPECSFILE = $(WORKDIR)/python/conda-environment.yaml
+CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
 # Magemin program
 MAGEMIN = $(WORKDIR)/MAGEMin/MAGEMin
 # Perplex program
@@ -28,8 +28,8 @@ PYTHON = $(WORKDIR)/python/conda-environment.yaml \
 				 $(WORKDIR)/python/visualize-database.py \
 				 $(WORKDIR)/python/download-assets.py
 # Other variables
-GITHUB_REPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
-MAGEMIN_REPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
+GITHUBREPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
+MAGEMINREPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
 # Database build and benchmarking options
 SEED = 32
 PMIN ?= 10
@@ -52,7 +52,7 @@ OUTDIR ?= runs
 # Database visualization options
 FIGDIR ?= figs
 FIGOX ?= ["MgO", "FeO", "CaO", "Al2O3"]
-PARAMS ?= ["Vp", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
+PARAMS ?= ["Vp", "LiquidFraction", "StableVariance", "DensityOfFullAssemblage"]
 # Make clean
 DATAPURGE = python/__pycache__ .job output
 DATACLEAN = assets log MAGEMin runs
@@ -61,11 +61,11 @@ FIGSCLEAN = figs
 
 all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
-	@$(CONDA_PYTHON) python/session-info.py $(LOG)
+	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
 	@echo "Run any of the following:" $(LOG)
 	@echo -e \
-		"make build_database\nmake benchmark_magemin_perplex\n\
+		"make build_database\n\
 		PMIN=     <kbar>\n\
 		PMAX=     <kbar>\n\
 		PRES=     <number of points>\n\
@@ -82,14 +82,21 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 		K=        <batch number>\n\
 		PARALLEL= <True or False>\n\
 		NPROCS=   <number of processors for parallel>\n\
-		SEED=     <number for random state>\n\
-		OUTDIR=   <directory of MAGEMin output>" $(LOG)
+		SEED=     <number for random state>" $(LOG)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo -e \
+		"make benchmark_magemin_perplex\n\
+		PRES=     <number of points>\n\
+		TRES=     <number of points>\n\
+		SAMPLEID= <sample name>\n\
+		PARALLEL= <True or False>\n\
+		NPROCS=   <number of processors for parallel>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo -e \
 		"make visualize_database\n\
 		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
 			Options:\n\
-			Point,Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
+			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
 			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
 			DensityOfMixture\n\
 		FIGOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'> for Harker diagrams\n\
@@ -103,15 +110,20 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo "=============================================" $(LOG)
 
+visualize_benchmark: $(LOGFILE) $(PYTHON)
+	@echo "Visualizing benchmark comparisons ..." $(LOG)
+	@$(CONDAPYTHON) python/visualize-benchmark.py \
+		--sampleid '$(SAMPLEID)' \
+		--params '$(PARAMS)' \
+		--figox '$(FIGOX)' \
+		--outdir $(OUTDIR) \
+		--figdir $(FIGDIR) \
+	$(LOG)
+	@echo "=============================================" $(LOG)
+
 visualize_database: $(LOGFILE) $(PYTHON)
 	@echo "Visualizing MAGEMin database ..." $(LOG)
-	@$(CONDA_PYTHON) python/visualize-database.py \
-		--Pmin $(PMIN) \
-		--Pmax $(PMAX) \
-		--Pres $(PRES) \
-		--Tmin $(TMIN) \
-		--Tmax $(TMAX) \
-		--Tres $(TRES) \
+	@$(CONDAPYTHON) python/visualize-database.py \
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMS)' \
 		--figox '$(FIGOX)' \
@@ -122,63 +134,71 @@ visualize_database: $(LOGFILE) $(PYTHON)
 
 submit_jobs: $(LOGFILE) $(PYTHON) $(DATA)
 	@echo "Submitting job to SLURM ..." $(LOG)
-	@$(CONDA_PYTHON) python/submit-jobs.py $(LOG)
+	@$(CONDAPYTHON) python/submit-jobs.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
-	@mkdir -p $(BENCHMARK)
-	@mkdir -p $(WORKDIR)/$(FIGDIR)/benchmark
-	@mkdir -p $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)
-	@mkdir -p $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/perplex
-	@echo "Building MAGEMin model ..." $(LOG)
-	@$(CONDA_PYTHON) python/benchmark-magemin-perplex.py \
-		--Pmin $(PMIN) \
-		--Pmax $(PMAX) \
-		--Pres $(PRES) \
-		--Tmin $(TMIN) \
-		--Tmax $(TMAX) \
-		--Tres $(TRES) \
-		--comp '$(COMP)' \
-		--frac $(FRAC) \
-		--sampleid $(SAMPLEID) \
-		--normox '$(NORMOX)' \
-		--source $(SOURCE) \
-		--strategy $(STRATEGY) \
-		--n $(N) \
-		--k $(K) \
-		--parallel $(PARALLEL) \
-		--nprocs $(NPROCS) \
-		--seed $(SEED) \
-		--outdir $(OUTDIR) \
-	$(LOG)
-	@echo "magemin,$(SAMPLEID),$(TRES),$(PRES),$$( \
-		grep -oE "MAGEMin comp time: \+([0-9.]+) ms }" $(LOGFILE) | \
-		tail -n 1 | \
-		sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
-		awk '{printf "%.1f", $$NF/1000}')" >> $(DATA)/benchmark-comp-times.csv
-	@$(MAKE) visualize_database \
-		SAMPLEID=$(SAMPLEID) \
-		TRES=$(TRES) \
-		PRES=$(PRES) \
-		FIGDIR=$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES) $(LOG)
-	@convert $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/StableVariance.png \
-		-pointsize 100 \
-		-annotate +25+90 "b" \
-		$(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/bench.png
-	@chmod +x $(PERPLEX)/build $(PERPLEX)/vertex $(PERPLEX)/pssect
-	@if [ ! -e "$(PERPLEX)/$(SAMPLEID)-$(TRES)x$(PRES).dat" ]; then \
+	@if [ -e \
+		"$(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/$(SAMPLEID)-$(TRES)x$(PRES)_phases.tab" \
+	]; then \
+		echo "$(SAMPLEID)-$(TRES)x$(PRES) already benchmarked ..."; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(OUTDIR)/$(SAMPLEID)-$(TRES)x$(PRES)" ]; then \
+		mkdir -p $(BENCHMARK); \
+		mkdir -p $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES); \
+		mkdir -p $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES); \
+		mkdir -p $(WORKDIR)/$(FIGDIR)/benchmark; \
+		echo "Building MAGEMin model ..." $(LOG); \
+		$(CONDAPYTHON) python/benchmark-magemin-perplex.py \
+			--Pmin $(PMIN) \
+			--Pmax $(PMAX) \
+			--Pres $(PRES) \
+			--Tmin $(TMIN) \
+			--Tmax $(TMAX) \
+			--Tres $(TRES) \
+			--comp '$(COMP)' \
+			--frac $(FRAC) \
+			--sampleid $(SAMPLEID) \
+			--normox '$(NORMOX)' \
+			--source $(SOURCE) \
+			--strategy $(STRATEGY) \
+			--n $(N) \
+			--k $(K) \
+			--parallel $(PARALLEL) \
+			--nprocs $(NPROCS) \
+			--seed $(SEED) \
+			--outdir $(OUTDIR) \
+			$(LOG); \
+		mv $(OUTDIR)/$(SAMPLEID) $(OUTDIR)/$(SAMPLEID)-$(TRES)x$(PRES); \
+		(cd $(OUTDIR)/$(SAMPLEID)-$(TRES)x$(PRES) && \
+			find . -name "*$(SAMPLEID)*" -type f -exec sh -c \
+			'mv "$$0" "$${0/$(SAMPLEID)/$(SAMPLEID)-$(TRES)x$(PRES)}"' {} \; \
+		); \
+		echo "magemin,$(SAMPLEID),$(TRES),$(PRES),$$( \
+			grep -oE "MAGEMin comp time: \+([0-9.]+) ms }" $(LOGFILE) | \
+			tail -n 1 | \
+			sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
+			awk '{printf "%.1f", $$NF/1000}')" >> $(DATA)/benchmark-comp-times.csv; \
+		$(MAKE) visualize_database \
+			SAMPLEID=$(SAMPLEID)-$(TRES)x$(PRES) \
+			FIGDIR=$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES) \
+			$(LOG); \
+		chmod +x $(PERPLEX)/build $(PERPLEX)/vertex $(PERPLEX)/pssect $(PERPLEX)/werami; \
+	fi
+	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
 		echo "Building perplex model ..." $(LOG); \
-		(cd $(PERPLEX) && cp $(CONFIG)/perplex-build-config .); \
-		(cd $(PERPLEX) && cp $(CONFIG)/perplex-options-config perplex_option.dat); \
-		(cd $(PERPLEX) && cp $(CONFIG)/perplex-plot-config perplex_plot_option.dat); \
 		(cd $(PERPLEX) && \
+			cp $(CONFIG)/perplex-build-config perplex-build-config-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-grid-config perplex-grid-config-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-phase-config perplex-phase-config-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-options-config perplex-options-config-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-plot-config perplex_plot_option.dat && \
 			awk '{ \
 				gsub("{SAMPLEID}", \
-				"$(SAMPLEID)-$(TRES)x$(PRES)"); print \
-			}' perplex-build-config > temp_file && \
-			mv temp_file perplex-build-config \
-		); \
-		(cd $(PERPLEX) && \
+				"$(SAMPLEID)"); print \
+			}' perplex-build-config-$(SAMPLEID) > temp_file && \
+			mv temp_file perplex-build-config-$(SAMPLEID) && \
 			awk -F',' -v sample_id="$(SAMPLEID)" 'BEGIN { \
 				found=0 \
 			} $$13 == sample_id { \
@@ -192,22 +212,49 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 				sub(/{SAMPLECOMP}/, sample_comp) \
 			} { \
 				print \
-			}' perplex-build-config > temp-file && \
-			mv temp-file perplex-build-config \
-		); \
-		(cd $(PERPLEX) && \
+			}' perplex-build-config-$(SAMPLEID) > temp_file && \
+			mv temp_file perplex-build-config-$(SAMPLEID) && \
+			rm sample-data && \
+			awk '{ \
+				gsub("{SAMPLEID}", \
+				"$(SAMPLEID)"); print \
+			}' perplex-grid-config-$(SAMPLEID) > temp_file && \
+			mv temp_file perplex-grid-config-$(SAMPLEID) && \
+			awk '{ \
+				gsub("{SAMPLEID}", \
+				"$(SAMPLEID)"); print \
+			}' perplex-phase-config-$(SAMPLEID) > temp_file && \
+			mv temp_file perplex-phase-config-$(SAMPLEID) && \
 			awk -v tres=$(TRES) -v pres=$(PRES) 'BEGIN { \
 				div_tres = tres / 4; \
 				div_pres = pres / 4 \
 			} /x_nodes/ { \
-				sub(/default/, div_tres " " tres) \
+				sub(/default/, div_tres " " (tres + 1)) \
 			} /y_nodes/ { \
-				sub(/default/, div_pres " " pres) \
-			} 1' perplex_option.dat > temp-file && \
-			mv temp-file perplex_option.dat \
+				sub(/default/, div_pres " " (pres + 1)) \
+			} 1' perplex-options-config-$(SAMPLEID) > temp_file && \
+			mv temp_file perplex-options-config-$(SAMPLEID) && \
+			./build < perplex-build-config-$(SAMPLEID) && \
+			echo "$(SAMPLEID)" | ./vertex && \
+			./werami < perplex-grid-config-$(SAMPLEID) && \
+			mv $(SAMPLEID)_1.tab $(SAMPLEID)_grid.tab && \
+			./werami < perplex-phase-config-$(SAMPLEID) && \
+			mv $(SAMPLEID)_1.tab $(SAMPLEID)_phases.tab && \
+			echo "$(SAMPLEID)" > pssect-config-$(SAMPLEID) && \
+			echo "N" >> pssect-config-$(SAMPLEID) && \
+			./pssect < pssect-config-$(SAMPLEID) && \
+			ps2pdf $(SAMPLEID).ps $(SAMPLEID).pdf && \
+			rm perplex-build-config-$(SAMPLEID) \
+				perplex-grid-config-$(SAMPLEID) \
+				perplex-phase-config-$(SAMPLEID) \
+				pssect-config-$(SAMPLEID) \
+				perplex-options-config-$(SAMPLEID) && \
+			mv $(SAMPLEID)* $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES) \
+		) $(LOG); \
+		(cd $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES) && \
+			find . -name "*$(SAMPLEID)*" -type f -exec sh -c \
+			'mv "$$0" "$${0/$(SAMPLEID)/$(SAMPLEID)-$(TRES)x$(PRES)}"' {} \; \
 		); \
-		(cd $(PERPLEX) && ./build < perplex-build-config) $(LOG); \
-		(cd $(PERPLEX) && echo "$(SAMPLEID)-$(TRES)x$(PRES)" | ./vertex) $(LOG); \
 		echo "perplex,$(SAMPLEID),$(TRES),$(PRES),$$( \
 			grep -oE "Total elapsed time\s+([0-9.]+)" $(LOGFILE) | \
 			tail -n 1 | \
@@ -216,45 +263,18 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 		echo "Finished perplex model ..." $(LOG); \
 		echo "=============================================" $(LOG); \
 	fi
-	@if [ ! -e "$(PERPLEX)/$(SAMPLEID)-$(TRES)x$(PRES).pdf" ]; then \
-		echo "Plotting perplex model ..." $(LOG); \
-		(cd $(PERPLEX) && echo "$(SAMPLEID)-$(TRES)x$(PRES)" > pssect-config); \
-		(cd $(PERPLEX) && echo "N" >> pssect-config); \
-		(cd $(PERPLEX) && ./pssect < pssect-config) $(LOG); \
-		(cd $(PERPLEX) && ps2pdf $(SAMPLEID)-$(TRES)x$(PRES).ps $(SAMPLEID)-$(TRES)x$(PRES).pdf); \
-		(cd $(PERPLEX) && \
-			convert $(SAMPLEID)-$(TRES)x$(PRES).pdf \
-				-background white \
-				-flatten \
-				-crop 565x495+0+165 \
-				-resize 1994x1549 \
-				-pointsize 100 \
-				-fill black \
-				-annotate +25+605 "a" \
-				$(SAMPLEID)-$(TRES)x$(PRES).png \
-		); \
-		(cd $(PERPLEX) && \
-			rm perplex-build-config pssect-config perplex_plot_option.dat perplex_option.dat \
-		); \
-		(cd $(PERPLEX) && \
-			mv $(SAMPLEID)-$(TRES)x$(PRES)* $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/perplex \
-		); \
-		montage \
-			$(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/perplex/$(SAMPLEID)-$(TRES)x$(PRES).png \
-			$(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/bench.png -tile 2x1 -geometry +0+0 \
-			$(WORKDIR)/$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES).png; \
-		rm $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES)/bench.png; \
-		echo "Finished plotting perplex model ..." $(LOG); \
-	fi
-	@echo "=============================================" $(LOG)
-	@echo "Finished benchmarking $(SAMPLEID)-$(TRES)x$(PRES) ..." $(LOG)
+	@$(MAKE) visualize_benchmark \
+		SAMPLEID=$(SAMPLEID)-$(TRES)x$(PRES) \
+		FIGDIR=$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES) \
+		$(LOG)
+	@echo "Finished benchmarking $(SAMPLEID) ..." $(LOG)
 	@echo "See figure at:" $(LOG)
 	@echo "$(WORKDIR)/$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES).png" $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
 	@echo "Building MAGEMin database ..." $(LOG)
-	@$(CONDA_PYTHON) python/build-database.py \
+	@$(CONDAPYTHON) python/build-database.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
 		--Pres $(PRES) \
@@ -279,10 +299,10 @@ build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
 $(MAGEMIN): $(LOGFILE) $(PYTHON) $(CONFIG)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
 		echo "=============================================" $(LOG); \
-		echo "Cloning MAGEMin from $(MAGEMIN_REPO) ..." $(LOG); \
+		echo "Cloning MAGEMin from $(MAGEMINREPO) ..." $(LOG); \
 		chmod +x python/clone-magemin.py; \
-		$(CONDA_PYTHON) python/clone-magemin.py $(LOG); \
-		if [ "$(UNAME_S)" = "Linux" ]; then \
+		$(CONDAPYTHON) python/clone-magemin.py $(LOG); \
+		if [ "$(UNAMES)" = "Linux" ]; then \
 			echo "Configuring MAGEMin for meso ..." $(LOG); \
 			cp $(CONFIG)/meso-config MAGEMin/Makefile; \
 		fi; \
@@ -296,32 +316,32 @@ $(MAGEMIN): $(LOGFILE) $(PYTHON) $(CONFIG)
 	fi
 
 remove_conda_env: $(LOGFILE)
-	@echo "Removing conda env $(CONDA_ENV_NAME) ..." $(LOG)
-	@conda remove --name $(CONDA_ENV_NAME) --all --yes $(LOG)
+	@echo "Removing conda env $(CONDAENVNAME) ..." $(LOG)
+	@conda remove --name $(CONDAENVNAME) --all --yes $(LOG)
 	@echo "=============================================" $(LOG)
 
-create_conda_env: $(LOGFILE) $(CONDA_SPECS_FILE) find_conda_env
-	@if [ "$(HAS_CONDA)" = "false" ]; then \
+create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
+	@if [ "$(HASCONDA)" = "false" ]; then \
 		echo "conda not found in PATH, install conda first ..." $(LOG); \
-		echo "See $(GITHUB_REPO) for details ..." $(LOG); \
+		echo "See $(GITHUBREPO) for details ..." $(LOG); \
 		exit 1; \
 	fi
 	@if [ -d "$(MY_ENV_DIR)" ]; then \
-		echo "Conda environment \"$(CONDA_ENV_NAME)\" found at:" $(LOG); \
-		echo "$(MY_ENV_DIR) ..." $(LOG); \
+		echo "Conda environment \"$(CONDAENVNAME)\" found at:" $(LOG); \
+		echo "$(MY_ENV_DIR)" $(LOG); \
 	else \
-		echo "Creating env $(CONDA_ENV_NAME) from $(CONDA_SPECS_FILE) ..." $(LOG); \
-		conda env create --file $(CONDA_SPECS_FILE) > /dev/null $(LOG); \
+		echo "Creating env $(CONDAENVNAME) from $(CONDASPECSFILE) ..." $(LOG); \
+		conda env create --file $(CONDASPECSFILE) > /dev/null $(LOG); \
 		echo "Conda env created ..." $(LOG); \
 	fi
 
 find_conda_env:
 	@echo "Looking for conda env ..." $(LOG)
-	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDA_ENV_NAME) | awk '{print $$2}'))
+	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
 
 $(PERPLEX): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATA)" ]; then \
-		$(CONDA_PYTHON) python/download-assets.py $(LOG); \
+		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Perplex found at:" $(LOG); \
 		echo "$(PERPLEX)" $(LOG); \
@@ -329,7 +349,7 @@ $(PERPLEX): $(LOGFILE) $(PYTHON)
 
 $(DATA): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATA)" ]; then \
-		$(CONDA_PYTHON) python/download-assets.py $(LOG); \
+		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Data files found at:" $(LOG); \
 		echo "$(DATA)" $(LOG); \
@@ -337,7 +357,7 @@ $(DATA): $(LOGFILE) $(PYTHON)
 
 $(CONFIG): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(CONFIG)" ]; then \
-		$(CONDA_PYTHON) python/download-assets.py $(LOG); \
+		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 		echo "=============================================" $(LOG); \
 	else \
 		echo "Configuration files found at:" $(LOG); \
@@ -356,4 +376,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env build_database benchmark_magemin_perplex submit_jobs visualize_earthchem visualize_database all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env build_database benchmark_magemin_perplex submit_jobs visualize_database all purge clean

@@ -24,9 +24,6 @@ parallel = args.parallel
 nprocs = args.nprocs
 out_dir = args.outdir
 
-# Run name
-run_name = sample_id + f"-{T_res}x{P_res}"
-
 # MAGEMin oxide options
 oxide_list_magemin = [
     "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O", "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
@@ -101,14 +98,14 @@ create_MAGEMin_input(
     P_range,
     T_range,
     sample_norm,
-    run_name=run_name,
+    run_name=sample_id,
     out_dir=out_dir
 )
 
 # Run MAGEMin
 run_MAGEMin(
     "MAGEMin/",
-    run_name=run_name,
+    run_name=sample_id,
     comp_type="wt",
     parallel=parallel,
     nprocs=nprocs,
