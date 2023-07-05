@@ -21,11 +21,122 @@ from git import Repo
 import urllib.request
 import seaborn as sns
 from scipy import stats
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
 
+# Layout benchmark plots horizontally
+def combine_plots_horizontally(
+        image1_path,
+        image2_path,
+        output_path,
+        caption1,
+        caption2,
+        font_size=100,
+        caption_margin=25,
+        dpi=330):
+    """
+    Combine benchmark plots horizontally and add captions in the upper left corner.
+
+    Args:
+        image1_path (str): Path to the first image.
+        image2_path (str): Path to the second image.
+        output_path (str): Path to save the combined image with captions.
+        font_size (int, optional): Font size of the captions. Defaults to 100.
+        caption_margin (int, optional): Margin between the captions and the images.
+        dpi (int, optional): DPI (dots per inch) of the output image. Defaults to 330.
+    """
+
+    # Open the images
+    image1 = Image.open(image1_path)
+    image2 = Image.open(image2_path)
+
+    # Determine the maximum height between the two images
+    max_height = max(image1.height, image2.height)
+
+    # Create a new image with twice the width and the maximum height
+    combined_width = image1.width + image2.width
+    combined_image = Image.new('RGB', (combined_width, max_height), (255, 255, 255))
+
+    # Set the DPI metadata
+    combined_image.info['dpi'] = (dpi, dpi)
+
+    # Paste the first image on the left
+    combined_image.paste(image1, (0, 0))
+
+    # Paste the second image on the right
+    combined_image.paste(image2, (image1.width, 0))
+
+    # Add captions
+    draw = ImageDraw.Draw(combined_image)
+    font = ImageFont.truetype("Arial", font_size)
+    caption_margin = caption_margin
+
+    # Add caption "a"
+    draw.text(
+        (caption_margin, caption_margin),
+        caption1,
+        font=font,
+        fill="black"
+    )
+
+    # Add caption "b"
+    draw.text(
+        (image1.width + caption_margin, caption_margin),
+        caption2,
+        font=font,
+        fill="black"
+    )
+
+    # Save the combined image with captions
+    combined_image.save(output_path, dpi=(dpi, dpi))
+
+# Layout benchmark plots vertically
+def combine_plots_vertically(image1_path, image2_path, output_path):
+    """
+    Combine two plots vertically.
+
+    Args:
+        image1_path (str): Path to the first image.
+        image2_path (str): Path to the second image.
+        output_path (str): Path to save the combined image.
+    """
+    # Open the images
+    image1 = Image.open(image1_path)
+    image2 = Image.open(image2_path)
+
+    # Determine the maximum width between the two images
+    max_width = max(image1.width, image2.width)
+
+    # Create a new image with the maximum width and the sum of the heights
+    combined_height = image1.height + image2.height
+    combined_image = Image.new('RGB', (max_width, combined_height), (255, 255, 255))
+
+    # Paste the first image on the top
+    combined_image.paste(image1, (0, 0))
+
+    # Paste the second image below the first
+    combined_image.paste(image2, (0, image1.height))
+
+    # Save the combined image
+    combined_image.save(output_path)
 # Read conda packages from yaml
 def get_conda_packages(conda_file):
+    """
+    Read conda packages from a YAML file.
+
+    Parameters:
+        conda_file (str): The path to the Conda YAML file.
+
+    Returns:
+        list: A list of Conda package dependencies specified in the YAML file.
+
+    Raises:
+        IOError: If there was an error reading the Conda file.
+        yaml.YAMLError: If there was an error parsing the YAML file.
+
+    """
     try:
         with open(conda_file, 'r') as file:
             conda_data = yaml.safe_load(file)
@@ -48,6 +159,14 @@ def read_makefile_variable(makefile, variable):
 
 # Print session info for logging
 def print_session_info(conda_file=None, makefile=None):
+    """
+    Print session information for logging.
+
+    Parameters:
+        conda_file (str, optional): The path to the Conda YAML file. Defaults to None.
+        makefile (str, optional): The path to the Makefile. Defaults to None.
+
+    """
     print("Session info:")
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
@@ -90,6 +209,17 @@ def print_session_info(conda_file=None, makefile=None):
 
 # Check non-matching strings
 def check_non_matching_strings(list1, list2):
+    """
+    Check for non-matching strings between two lists.
+
+    Parameters:
+        list1 (list): The first list of strings.
+        list2 (list): The second list of strings.
+
+    Returns:
+        bool: True if there are non-matching strings between the two lists, False otherwise.
+
+    """
     set1 = set(list1)
     set2 = set(list2)
     non_matching_strings = set1 - set2
@@ -108,15 +238,15 @@ def parse_list_of_numbers(arg):
         list: A list of numbers parsed from the input string.
 
     Raises:
-        argparse.ArgumentTypeError: If the input string is not a valid list of three numbers.
+        argparse.ArgumentTypeError: If the input string is not a valid list of 11 numbers.
 
     """
     try:
         num_list = ast.literal_eval(arg)
         if (
-             isinstance(num_list, list) and
-             len(num_list) == 11 and
-             all(isinstance(num, (int, float)) for num in num_list)
+            isinstance(num_list, list) and
+            len(num_list) == 11 and
+            all(isinstance(num, (int, float)) for num in num_list)
         ):
             return num_list
         else:
@@ -329,6 +459,12 @@ def parse_arguments_visualize_db():
         "--figox",
         type=parse_list_of_strings,
         help="Specify the figox argument ...",
+        required = True
+    )
+    parser.add_argument(
+        "--colormap",
+        type=str,
+        help="Specify the colormap argument ...",
         required = True
     )
     parser.add_argument(
@@ -592,9 +728,6 @@ def download_github_submodule(repository_url, submodule_dir):
     Note:
         This function checks if the submodule directory already exists and deletes it
         before cloning the submodule and recursively cloning its contents.
-
-    Example:
-        download_github_submodule("https://github.com/username/repo.git", "submodule_dir")
     """
     # Check if submodule directory already exists and delete it
     if os.path.exists(submodule_dir):
@@ -699,12 +832,12 @@ def create_MAGEMin_input(
     MAGEMin_input = ""
     pressure_values = np.arange(
         float(P_range[0]),
-        float(P_range[1]) + 1,
+        float(P_range[1]) + float(P_range[2]),
         float(P_range[2])
     )
     temperature_values = np.arange(
         float(T_range[0]),
-        float(T_range[1]) + 1,
+        float(T_range[1]) + float(T_range[2]),
         float(T_range[2])
     )
 
@@ -849,9 +982,6 @@ def read_MAGEMin_pseudosection_data(filename):
     Raises:
         FileNotFoundError: If the specified file does not exist.
         ValueError: If there is an error in parsing the data.
-
-    Example:
-        results = read_MAGEMin_pseudosection_data("_pseudosection.txt")
     """
     # Open file
     with open(filename, "r") as file:
@@ -1061,6 +1191,20 @@ def encode_phases(phases):
 
 # Get perplex grids
 def process_perplex_grid(file_path_grid, file_path_assemblages):
+    """
+    Process the Perple_X assemblage file and extract the phase assemblages.
+
+    Args:
+        file_path_assemblages (str): The path to the Perple_X assemblage file.
+
+    Returns:
+        list: A list of phase assemblages, where each assemblage is represented
+              as a list of phase names.
+
+    Raises:
+        FileNotFoundError: If the specified assemblage file does not exist.
+        ValueError: If there is an error in parsing the assemblage data.
+    """
     results = {
         "T": [],
         "P": [],
@@ -1101,6 +1245,8 @@ def process_perplex_grid(file_path_grid, file_path_assemblages):
                                 if not math.isnan(value)
                                 else math.nan
                             )
+                        if i == 7:  # "LiquidFraction" column
+                            value /= 100  # Divide "LiquidFraction" by 100
                         results[list(results.keys())[i]].append(value)
                 except ValueError:
                     continue
@@ -1129,6 +1275,20 @@ def process_perplex_grid(file_path_grid, file_path_assemblages):
 
 # Get phase assemblages from perplex fields
 def process_perplex_assemblage(file_path):
+    """
+    Process the Perple_X assemblage file and extract the phase assemblages.
+
+    Args:
+        file_path (str): The path to the Perple_X assemblage file.
+
+    Returns:
+        dict: A dictionary where the keys represent line numbers in the file and
+              the values are lists of phase names that form the corresponding
+              phase assemblages.
+
+    Raises:
+        FileNotFoundError: If the specified assemblage file does not exist.
+    """
     phase_dict = {}
     with open(file_path, 'r') as file:
         for line_number, line in enumerate(file, start=1):
@@ -1142,17 +1302,15 @@ def create_PT_grid(P, T, parameter_values):
     """
     Create a 2D NumPy array representing a grid of parameter values across PT space.
 
-    Parameters:
+    Args:
         P (list or array-like): A 1D array or list of P values.
         T (list or array-like): A 1D array or list of T values.
         parameter_values (list or array-like): A 1D array or list of parameter values.
 
     Returns:
-        grid (numpy.ndarray): A 2D NumPy array representing the grid of parameter values.
+        numpy.ndarray: A 2D NumPy array representing the grid of parameter values.
             The grid is created by reshaping the parameter values based on unique
-            P and T values.
-            Missing values in the grid are represented by NaN.
-
+            P and T values. Missing values in the grid are represented by NaN.
     """
     # Convert P, T, and parameter_values to arrays
     P = np.array(P)
@@ -1179,6 +1337,62 @@ def create_PT_grid(P, T, parameter_values):
 
     return grid
 
+# Plot histogram
+def plot_histogram(
+        mgm_array,
+        ppx_array,
+        parameter,
+        palette="tab10",
+        bins="auto",
+        title=None,
+        filename=None,
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    Plots the distribution of values in two NumPy arrays as histograms.
+
+    Args:
+        mgm_array (numpy.ndarray): The first input NumPy array.
+        ppx_array (numpy.ndarray): The second input NumPy array.
+
+    Returns:
+        None
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Filter out nan values
+    mgm_array = mgm_array[~np.isnan(mgm_array)]
+    ppx_array = ppx_array[~np.isnan(ppx_array)]
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["axes.facecolor"] = "0.9"
+
+    # Colors
+    colormap = cm.get_cmap(palette)
+
+    # Draw plot
+    plt.figure(figsize=(5.2, 4.9))
+    plt.hist(mgm_array.flatten(), bins=bins, color=colormap(0), alpha=0.75, label="MAGEMin")
+    plt.hist(ppx_array.flatten(), bins=bins, color=colormap(1), alpha=0.75, label="Perple_X")
+    plt.xlabel(f"{parameter}")
+    plt.ylabel("Frequency")
+    plt.legend(frameon=False, loc="upper left")
+    if title:
+        plt.title(f"{title}")
+    plt.tight_layout()
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
 # Plot MAGEMin pseudosection
 def plot_pseudosection(
         P,
@@ -1189,6 +1403,9 @@ def plot_pseudosection(
         palette="blues",
         color_discrete=False,
         color_reverse=False,
+        vmin=None,
+        vmax=None,
+        contours=False,
         filename=None,
         fig_dir=f"{os.getcwd()}/figs"):
     """
@@ -1200,7 +1417,12 @@ def plot_pseudosection(
         grid (numpy.ndarray): A 2D array representing the pseudosection grid.
         parameter (str): The parameter to plot. If "StableSolutions", phase assemblages
             will be plotted, otherwise, the specified parameter values will be plotted.
+        title (str, optional): The title of the plot.
+        palette (str, optional): The color palette to use for the plot.
+        color_discrete (bool, optional): Whether to use a discrete color palette.
+        color_reverse (bool, optional): Whether to reverse the color palette.
         filename (str, optional): If provided, the plot will be saved to the specified file.
+        fig_dir (str, optional): The directory to save the plot (default is "./figs").
 
     Returns:
         None
@@ -1208,10 +1430,11 @@ def plot_pseudosection(
     # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
+
     if color_discrete:
-        # Create a custom colormap with dynamically determined colors
+        # Discrete color palette
         num_colors = len(np.unique(grid))
-        # Color palette
+
         if palette == "viridis":
             if color_reverse:
                 pal = plt.cm.get_cmap("viridis_r", num_colors)
@@ -1242,9 +1465,13 @@ def plot_pseudosection(
                 pal = plt.cm.get_cmap("Blues_r", num_colors)
             else:
                 pal = plt.cm.get_cmap("Blues", num_colors)
+
         # Descritize
         color_palette = pal(np.linspace(0, 1, num_colors))
         cmap = ListedColormap(color_palette)
+
+        # Set nan color
+        cmap.set_bad(color="white")
 
         # Plot as a raster using imshow
         fig, ax = plt.subplots()
@@ -1262,14 +1489,31 @@ def plot_pseudosection(
             vmin=1,
             vmax=num_colors+1
         )
+
+        if contours:
+            # Add contour lines
+            contour = plt.contour(
+                grid,
+                extent=[
+                    np.array(T).min(),
+                    np.array(T).max(),
+                    np.array(P).min(),
+                    np.array(P).max()
+                ],
+                levels=np.unique(grid),
+                colors="white",
+                linewidths=1
+            )
+
         ax.set_xlabel("T (˚C)")
         ax.set_ylabel("P (kbar)")
         plt.colorbar(im, ax=ax, ticks=np.arange(num_colors)+1, label=parameter)
         fig.tight_layout()
+
         if title:
             plt.title(title)
     else:
-        # Color palette
+        # Continuous color palette
         if palette == "viridis":
             if color_reverse:
                 cmap = "viridis_r"
@@ -1300,6 +1544,19 @@ def plot_pseudosection(
                 cmap="Blues_r"
             else:
                 cmap="Blues"
+
+        # Adjust diverging colorscale to center on zero
+        if palette == "seismic":
+            vmin=-np.max(np.abs(grid[np.logical_not(np.isnan(grid))]))
+            vmax=np.max(np.abs(grid[np.logical_not(np.isnan(grid))]))
+        else:
+            vmin=vmin
+            vmax=vmax
+
+        # Set nan color
+        cmap = plt.cm.get_cmap(cmap)
+        cmap.set_bad(color="white")
+
         # Plot as a raster using imshow
         fig, ax = plt.subplots()
         im = ax.imshow(
@@ -1312,7 +1569,9 @@ def plot_pseudosection(
             ],
             aspect="auto",
             cmap=cmap,
-            origin="lower"
+            origin="lower",
+            vmin=vmin,
+            vmax=vmax
         )
         ax.set_xlabel("T (˚C)")
         ax.set_ylabel("P (kbar)")
@@ -1343,12 +1602,13 @@ def plot_harker_diagram(
     Plot Harker diagrams with density contours using seaborn.
 
     Parameters:
-        data (filepath): Path to the geochemical datafile in .csv format.
+        datafile (str): Path to the geochemical datafile in .csv format.
         x_oxide (str): The x-axis oxide for the Harker diagram.
         y_oxide (str or list): The y-axis oxide(s) for the Harker diagram.
-        Can be a single oxide or a list of oxides.
-        filename (str, optional): The filename to save the plot.
-        If not provided, the plot will be displayed interactively.
+            Can be a single oxide or a list of oxides.
+        filename (str, optional): The filename to save the plot. If not provided,
+            the plot will be displayed interactively.
+        fig_dir (str, optional): The directory to save the plot. Default is "./figs".
 
     Returns:
         None
@@ -1370,9 +1630,8 @@ def plot_harker_diagram(
         os.makedirs(fig_dir, exist_ok=True)
 
     # Set plot style and settings
-    sns.set_style("dark")
-    sns.set_context("talk")
-    plt.rcParams["legend.facecolor"] = "white"
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["axes.facecolor"] = "0.9"
 
     # Create a grid of subplots
     num_plots = len(y_oxide)
@@ -1392,6 +1651,7 @@ def plot_harker_diagram(
     fig_width = 6*num_cols
     fig_height = 5*num_rows
 
+    # Draw plots
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
     axes = axes.flatten()
 
@@ -1422,7 +1682,6 @@ def plot_harker_diagram(
             ax=ax
         )
 
-        ax.set_facecolor("0.5")
         ax.set_xlabel(f"{x_oxide} (wt%)")
         ax.set_ylabel(f"{y} (wt%)")
 
@@ -1452,9 +1711,33 @@ def plot_harker_diagram(
 # Visualize benchmark comp times
 def visualize_benchmark_comp_times(
         datafile,
+        palette="tab10",
         filename="benchmark-comp-times.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
+    Visualize benchmark computation times.
+
+    Parameters:
+        datafile (str): Path to the benchmark data file in .csv format.
+        filename (str, optional): The filename to save the plot. If not provided,
+            the plot will be displayed interactively. Default is "benchmark-comp-times.png".
+        fig_dir (str, optional): The directory to save the plot. Default is "./figs".
+
+    Returns:
+        None
+
+    Notes:
+        - The function creates a directory named "figs" to save the plots.
+        - The function reads the data from the provided datafile in .csv format.
+        - The function sets plot styles and settings.
+        - The function creates a dictionary to map methods to marker styles and line styles.
+        - The function creates a dictionary to map samples to colors.
+        - The function groups the data by method and sample.
+        - The function filters out rows with missing time values.
+        - The function extracts x and y values from the filtered data.
+        - The function plots the data points and connects them with lines.
+        - The function sets labels, title, and x-axis tick values.
+        - The plot can be saved to a file if a filename is provided.
     """
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -1462,9 +1745,12 @@ def visualize_benchmark_comp_times(
     # Read data
     data = pd.read_csv(datafile)
 
+    # Arange data
+    data = data.sort_values(["sample", "method", "time"])
+
     # Set plot style and settings
-    plt.rcParams["legend.facecolor"] = "white"
-    plt.rcParams["axes.facecolor"] = "0.5"
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["axes.facecolor"] = "0.9"
 
     # Create a dictionary to map methods to marker styles and line styles
     method_styles = {
@@ -1472,13 +1758,14 @@ def visualize_benchmark_comp_times(
         "perplex": {"marker": "s", "linestyle": "--"}
     }
 
-    # Create a dictionary to map samples to colors
+    # Create a dictionary to map samples to colors using a colormap
+    colormap = cm.get_cmap(palette)
     sample_colors = {
-        "DMM": "blue",
-        "NMORB1": "green",
-        "NMORB2": "red",
-        "PUM": "orange",
-        "RE46": "purple"
+        "DMM": colormap(0),
+        "NMORB1": colormap(1),
+        "NMORB2": colormap(2),
+        "PUM": colormap(3),
+        "RE46": colormap(4)
     }
 
     # Get max resolution
@@ -1515,7 +1802,7 @@ def visualize_benchmark_comp_times(
     plt.ylabel("Time (s)")
     plt.title("Gibbs Minimization Efficiency")
     plt.xticks([8, 16, 32, 64, 128])
-    plt.legend()
+    plt.legend(frameon=False)
     plt.tight_layout()
 
     # Save the plot to a file if a filename is provided

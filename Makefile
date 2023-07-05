@@ -52,7 +52,8 @@ OUTDIR ?= runs
 # Database visualization options
 FIGDIR ?= figs
 FIGOX ?= ["MgO", "FeO", "CaO", "Al2O3"]
-PARAMS ?= ["Vp", "LiquidFraction", "StableVariance", "DensityOfFullAssemblage"]
+PARAMS ?= ["Vp", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
+COLORMAP ?= grey
 # Make clean
 DATAPURGE = python/__pycache__ .job output
 DATACLEAN = assets log MAGEMin runs
@@ -99,9 +100,21 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
 			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
 			DensityOfMixture\n\
-		FIGOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'> for Harker diagrams\n\
+		FIGOX=    <'[\"oxide\", \"oxide\", \"oxide\"]'> for Harker diagrams\n\
 			Options:\n\
 			SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O\n\
+		COLORMAP= <viridis bone pink grey>\n\
+		OUTDIR=   <directory of MAGEMin output>\n\
+		FIGDIR=   <directory for saving plots>" $(LOG)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo -e \
+		"make visualize_benchmark\n\
+		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
+			Options:\n\
+			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
+			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
+			DensityOfMixture\n\
+		COLORMAP= <viridis bone pink grey>\n\
 		OUTDIR=   <directory of MAGEMin output>\n\
 		FIGDIR=   <directory for saving plots>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
@@ -116,6 +129,7 @@ visualize_benchmark: $(LOGFILE) $(PYTHON)
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMS)' \
 		--figox '$(FIGOX)' \
+		--colormap $(COLORMAP) \
 		--outdir $(OUTDIR) \
 		--figdir $(FIGDIR) \
 	$(LOG)
@@ -127,6 +141,7 @@ visualize_database: $(LOGFILE) $(PYTHON)
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMS)' \
 		--figox '$(FIGOX)' \
+		--colormap $(COLORMAP) \
 		--outdir $(OUTDIR) \
 		--figdir $(FIGDIR) \
 	$(LOG)
@@ -147,7 +162,6 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 	@if [ ! -d "$(OUTDIR)/$(SAMPLEID)-$(TRES)x$(PRES)" ]; then \
 		mkdir -p $(BENCHMARK); \
 		mkdir -p $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES); \
-		mkdir -p $(WORKDIR)/$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES); \
 		mkdir -p $(WORKDIR)/$(FIGDIR)/benchmark; \
 		echo "Building MAGEMin model ..." $(LOG); \
 		$(CONDAPYTHON) python/benchmark-magemin-perplex.py \
@@ -180,10 +194,6 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			tail -n 1 | \
 			sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
 			awk '{printf "%.1f", $$NF/1000}')" >> $(DATA)/benchmark-comp-times.csv; \
-		$(MAKE) visualize_database \
-			SAMPLEID=$(SAMPLEID)-$(TRES)x$(PRES) \
-			FIGDIR=$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES) \
-			$(LOG); \
 		chmod +x $(PERPLEX)/build $(PERPLEX)/vertex $(PERPLEX)/pssect $(PERPLEX)/werami; \
 	fi
 	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
@@ -266,6 +276,7 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 	@$(MAKE) visualize_benchmark \
 		SAMPLEID=$(SAMPLEID)-$(TRES)x$(PRES) \
 		FIGDIR=$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES) \
+		COLORMAP=$(COLORMAP) \
 		$(LOG)
 	@echo "Finished benchmarking $(SAMPLEID) ..." $(LOG)
 	@echo "See figure at:" $(LOG)
@@ -376,4 +387,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env build_database benchmark_magemin_perplex submit_jobs visualize_database all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env build_database benchmark_magemin_perplex submit_jobs visualize_benchmark visualize_database all purge clean

@@ -1,0 +1,991 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0
+Archive:  /Users/localadmin/Working/kerswell_et_al_madnn/draft/Eisvogel.zip
+  End-of-central-directory signature not found.  Either this file is not
+  a zipfile, or it constitutes one disk of a multi-part archive.  In the
+  latter case the central directory and zipfile comment will be found on
+  the last disk(s) of this archive.
+unzip:  cannot find zipfile directory in one of /Users/localadmin/Working/kerswell_et_al_madnn/draft/Eisvogel.zip or
+        /Users/localadmin/Working/kerswell_et_al_madnn/draft/Eisvogel.zip.zip, and cannot find /Users/localadmin/Working/kerswell_et_al_madnn/draft/Eisvogel.zip.ZIP, period.
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ 19 10.3M   19 2031k    0     0  1880k      0  0:00:05  0:00:01  0:00:04 1880k100 10.3M  100 10.3M    0     0  5799k      0  0:00:01  0:00:01 --:--:-- 11.1M
+UnZip 6.00 of 20 April 2009, by Info-ZIP.  Maintained by C. Spieler.  Send
+bug reports using http://www.info-zip.org/zip-bug.html; see README for details.
+
+Usage: unzip [-Z] [-opts[modifiers]] file[.zip] [list] [-x xlist] [-d exdir]
+  Default action is to extract files in list, except those in xlist, to exdir;
+  file[.zip] may be a wildcard.  -Z => ZipInfo mode ("unzip -Z" for usage).
+
+  -p  extract files to pipe, no messages     -l  list files (short format)
+  -f  freshen existing files, create none    -t  test compressed archive data
+  -u  update files, create if necessary      -z  display archive comment only
+  -v  list verbosely/show version info       -T  timestamp archive to latest
+  -x  exclude files that follow (in xlist)   -d  extract files into exdir
+modifiers:
+  -n  never overwrite existing files         -q  quiet mode (-qq => quieter)
+  -o  overwrite files WITHOUT prompting      -a  auto-convert any text files
+  -j  junk paths (do not make directories)   -aa treat ALL files as text
+  -C  match filenames case-insensitively     -L  make (some) names lowercase
+  -X  restore UID/GID info                   -V  retain VMS version numbers
+  -K  keep setuid/setgid/tacky permissions   -M  pipe through "more" pager
+See "unzip -hh" or unzip.txt for more help.  Examples:
+  unzip data1 -x joe   => extract all files except joe from zipfile data1.zip
+  unzip -p foo | more  => send contents of foo.zip via pipe into program more
+  unzip -fo foo ReadMe => quietly replace existing ReadMe if archive file newer
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0
+ 60 10.3M   60 6388k    0     0  1487k      0  0:00:07  0:00:04  0:00:03 1487k100 10.3M  100 10.3M    0     0  2276k      0  0:00:04  0:00:04 --:--:-- 11.2M
+Archive:  Eisvogel.zip
+checkdir:  cannot create extraction directory: /Users/localadmin/Working/kerswell_et_al_madnn/draft/Eisvogel.zip
+           Attribute not found
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0 78 10.3M   78 8307k    0     0  3299k      0  0:00:03  0:00:02  0:00:01 9355k100 10.3M  100 10.3M    0     0  3904k      0  0:00:02  0:00:02 --:--:-- 9759k
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  7 10.3M    7  750k    0     0  1028k      0  0:00:10 --:--:--  0:00:10 1028k100 10.3M  100 10.3M    0     0  6820k      0  0:00:01  0:00:01 --:--:-- 11.6M
+tar: could not chdir to '/Users/localadmin/Working/kerswell_et_al_madnn/draft/Eisvogel'
+
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ 20 10.3M   20 2183k    0     0  2626k      0  0:00:04 --:--:--  0:00:04 2626k100 10.3M  100 10.3M    0     0  6771k      0  0:00:01  0:00:01 --:--:-- 11.1M
+pandoc: /Users/localadmin/Working/kerswell_et_al_madnn/draft/draft/notes.md: withBinaryFile: does not exist (No such file or directory)
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+Warning: Failed to open the file Eisvogel.tar.gz: File exists
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+curl: (23) Failed writing header
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+Warning: Failed to open the file Eisvogel.tar.gz: File exists
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+curl: (23) Failed writing header
+pandoc: /Users/localadmin/Working/kerswell_et_al_madnn/draft/draft/notes.md: withBinaryFile: does not exist (No such file or directory)
+pandoc: /Users/localadmin/Working/kerswell_et_al_madnn/draft/draft/notes.md: withBinaryFile: does not exist (No such file or directory)
+[INFO] Running filter citeproc
+File draft/assets/bib/main.bib not found in resource path
+[INFO] Running filter citeproc
+[INFO] Loaded assets/bib/main.bib from assets/bib/main.bib
+[WARNING] Citeproc: citation article not found
+[INFO] Completed filter citeproc in 12 ms
+[makePDF] temp dir:
+/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8f8a8
+[makePDF] Command line:
+pdflatex "-halt-on-error" "-interaction" "nonstopmode" "-output-directory" "/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8f8a8" "/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8f8a8/input.tex"
+
+[makePDF] Relevant environment variables:
+("TEXINPUTS","/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8f8a8:")
+("TEXMFOUTPUT","/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8f8a8")
+("SHELL","/bin/zsh")
+("TMPDIR","/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/")
+("PATH","/Users/localadmin/.nvm/versions/node/v18.16.1/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/texlive/2023/bin/universal-darwin:/opt/R/arm64/gfortran/bin:/Library/TeX/texbin:/opt/homebrew/bin:/usr/local/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/TeX/texbin:/usr/local/MacGPG2/bin:/opt/X11/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/homebrew/Caskroom/miniforge/base/condabin:/Users/localadmin/.nvm/versions/node/v18.16.1/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/texlive/2023/bin/universal-darwin:/opt/R/arm64/gfortran/bin:/Users/localadmin/.rvm/bin:/Users/localadmin/.rvm/bin")
+("PWD","/Users/localadmin/Working/kerswell_et_al_madnn/draft")
+("HOME","/Users/localadmin")
+
+[makePDF] Source:
+%%
+% Copyright (c) 2017 - 2023, Pascal Wagler;
+% Copyright (c) 2014 - 2023, John MacFarlane
+%
+% All rights reserved.
+%
+% Redistribution and use in source and binary forms, with or without
+% modification, are permitted provided that the following conditions
+% are met:
+%
+% - Redistributions of source code must retain the above copyright
+% notice, this list of conditions and the following disclaimer.
+%
+% - Redistributions in binary form must reproduce the above copyright
+% notice, this list of conditions and the following disclaimer in the
+% documentation and/or other materials provided with the distribution.
+%
+% - Neither the name of John MacFarlane nor the names of other
+% contributors may be used to endorse or promote products derived
+% from this software without specific prior written permission.
+%
+% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+% "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+% LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+% FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+% COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+% INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+% BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+% LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+% CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+% POSSIBILITY OF SUCH DAMAGE.
+%%
+
+%%
+% This is the Eisvogel pandoc LaTeX template.
+%
+% For usage information and examples visit the official GitHub page:
+% https://github.com/Wandmalfarbe/pandoc-latex-template
+%%
+
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names,table}{xcolor}
+%
+\documentclass[
+  paper=a4,
+  ,captions=tableheading
+]{scrartcl}
+\usepackage{amsmath,amssymb}
+% Use setspace anyway because we change the default line spacing.
+% The spacing is changed early to affect the titlepage and the TOC.
+\usepackage{setspace}
+\setstretch{1.2}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\definecolor{default-linkcolor}{HTML}{A50000}
+\definecolor{default-filecolor}{HTML}{A50000}
+\definecolor{default-citecolor}{HTML}{4077C0}
+\definecolor{default-urlcolor}{HTML}{4077C0}
+\usepackage[margin=2.5cm,includehead=true,includefoot=true,centering,]{geometry}
+\usepackage[export]{adjustbox}
+\usepackage{graphicx}
+\usepackage{listings}
+\newcommand{\passthrough}[1]{#1}
+\lstset{defaultdialect=[5.3]Lua}
+\lstset{defaultdialect=[x86masm]Assembler}
+% add backlinks to footnote references, cf. https://tex.stackexchange.com/questions/302266/make-footnote-clickable-both-ways
+\usepackage{footnotebackref}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newlength{\cslentryspacingunit} % times entry-spacing
+\setlength{\cslentryspacingunit}{\parskip}
+\newenvironment{CSLReferences}[2] % #1 hanging-ident, #2 entry spacing
+ {% don't indent paragraphs
+  \setlength{\parindent}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+  \let\oldpar\par
+  \def\par{\hangindent=\cslhangindent\oldpar}
+  \fi
+  % set entry spacing
+  \setlength{\parskip}{#2\cslentryspacingunit}
+ }%
+ {}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Using AI to Model Phase Changes in the Mantle},
+  pdfauthor={Buchanan Kerswell},
+  pdfkeywords={notes, brainstorming},
+  hidelinks,
+  breaklinks=true,
+  pdfcreator={LaTeX via pandoc with the Eisvogel template}}
+\title{Using AI to Model Phase Changes in the Mantle}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Notes and Brainstorming}
+\author{Buchanan Kerswell}
+\date{04 July 2023}
+
+
+
+%%
+%% added
+%%
+
+
+%
+% for the background color of the title page
+%
+\usepackage{pagecolor}
+\usepackage{afterpage}
+\usepackage[margin=2.5cm,includehead=true,includefoot=true,centering]{geometry}
+
+%
+% break urls
+%
+\PassOptionsToPackage{hyphens}{url}
+
+%
+% When using babel or polyglossia with biblatex, loading csquotes is recommended
+% to ensure that quoted texts are typeset according to the rules of your main language.
+%
+\usepackage{csquotes}
+
+%
+% captions
+%
+\definecolor{caption-color}{HTML}{777777}
+\usepackage[font={stretch=1.2}, textfont={color=caption-color}, position=top, skip=4mm, labelfont=bf, singlelinecheck=false, justification=raggedright]{caption}
+\setcapindent{0em}
+
+%
+% blockquote
+%
+\definecolor{blockquote-border}{RGB}{221,221,221}
+\definecolor{blockquote-text}{RGB}{119,119,119}
+\usepackage{mdframed}
+\newmdenv[rightline=false,bottomline=false,topline=false,linewidth=3pt,linecolor=blockquote-border,skipabove=\parskip]{customblockquote}
+\renewenvironment{quote}{\begin{customblockquote}\list{}{\rightmargin=0em\leftmargin=0em}%
+\item\relax\color{blockquote-text}\ignorespaces}{\unskip\unskip\endlist\end{customblockquote}}
+
+%
+% Source Sans Pro as the de­fault font fam­ily
+% Source Code Pro for monospace text
+%
+% 'default' option sets the default
+% font family to Source Sans Pro, not \sfdefault.
+%
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+    \usepackage[default]{sourcesanspro}
+  \usepackage{sourcecodepro}
+  \else % if not pdftex
+    \usepackage[default]{sourcesanspro}
+  \usepackage{sourcecodepro}
+
+  % XeLaTeX specific adjustments for straight quotes: https://tex.stackexchange.com/a/354887
+  % This issue is already fixed (see https://github.com/silkeh/latex-sourcecodepro/pull/5) but the
+  % fix is still unreleased.
+  % TODO: Remove this workaround when the new version of sourcecodepro is released on CTAN.
+  \ifxetex
+    \makeatletter
+    \defaultfontfeatures[\ttfamily]
+      { Numbers   = \sourcecodepro@figurestyle,
+        Scale     = \SourceCodePro@scale,
+        Extension = .otf }
+    \setmonofont
+      [ UprightFont    = *-\sourcecodepro@regstyle,
+        ItalicFont     = *-\sourcecodepro@regstyle It,
+        BoldFont       = *-\sourcecodepro@boldstyle,
+        BoldItalicFont = *-\sourcecodepro@boldstyle It ]
+      {SourceCodePro}
+    \makeatother
+  \fi
+  \fi
+
+%
+% heading color
+%
+\definecolor{heading-color}{RGB}{40,40,40}
+\addtokomafont{section}{\color{heading-color}}
+% When using the classes report, scrreprt, book,
+% scrbook or memoir, uncomment the following line.
+%\addtokomafont{chapter}{\color{heading-color}}
+
+%
+% variables for title, author and date
+%
+\usepackage{titling}
+\title{Using AI to Model Phase Changes in the Mantle}
+\author{Buchanan Kerswell}
+\date{04 July 2023}
+
+%
+% tables
+%
+
+%
+% remove paragraph indention
+%
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+
+%
+%
+% Listings
+%
+%
+
+
+%
+% general listing colors
+%
+\definecolor{listing-background}{HTML}{F7F7F7}
+\definecolor{listing-rule}{HTML}{B3B2B3}
+\definecolor{listing-numbers}{HTML}{B3B2B3}
+\definecolor{listing-text-color}{HTML}{000000}
+\definecolor{listing-keyword}{HTML}{435489}
+\definecolor{listing-keyword-2}{HTML}{1284CA} % additional keywords
+\definecolor{listing-keyword-3}{HTML}{9137CB} % additional keywords
+\definecolor{listing-identifier}{HTML}{435489}
+\definecolor{listing-string}{HTML}{00999A}
+\definecolor{listing-comment}{HTML}{8E8E8E}
+
+\lstdefinestyle{eisvogel_listing_style}{
+  language         = java,
+  numbers          = left,
+  xleftmargin      = 2.7em,
+  framexleftmargin = 2.5em,
+  backgroundcolor  = \color{listing-background},
+  basicstyle       = \color{listing-text-color}\linespread{1.0}%
+                      \lst@ifdisplaystyle%
+                      \small%
+                      \fi\ttfamily{},
+  breaklines       = true,
+  frame            = single,
+  framesep         = 0.19em,
+  rulecolor        = \color{listing-rule},
+  frameround       = ffff,
+  tabsize          = 4,
+  numberstyle      = \color{listing-numbers},
+  aboveskip        = 1.0em,
+  belowskip        = 0.1em,
+  abovecaptionskip = 0em,
+  belowcaptionskip = 1.0em,
+  keywordstyle     = {\color{listing-keyword}\bfseries},
+  keywordstyle     = {[2]\color{listing-keyword-2}\bfseries},
+  keywordstyle     = {[3]\color{listing-keyword-3}\bfseries\itshape},
+  sensitive        = true,
+  identifierstyle  = \color{listing-identifier},
+  commentstyle     = \color{listing-comment},
+  stringstyle      = \color{listing-string},
+  showstringspaces = false,
+  escapeinside     = {/*@}{@*/}, % Allow LaTeX inside these special comments
+  literate         =
+  {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+  {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+  {à}{{\`a}}1 {è}{{\`e}}1 {ì}{{\`i}}1 {ò}{{\`o}}1 {ù}{{\`u}}1
+  {À}{{\`A}}1 {È}{{\`E}}1 {Ì}{{\`I}}1 {Ò}{{\`O}}1 {Ù}{{\`U}}1
+  {ä}{{\"a}}1 {ë}{{\"e}}1 {ï}{{\"i}}1 {ö}{{\"o}}1 {ü}{{\"u}}1
+  {Ä}{{\"A}}1 {Ë}{{\"E}}1 {Ï}{{\"I}}1 {Ö}{{\"O}}1 {Ü}{{\"U}}1
+  {â}{{\^a}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1
+  {Â}{{\^A}}1 {Ê}{{\^E}}1 {Î}{{\^I}}1 {Ô}{{\^O}}1 {Û}{{\^U}}1
+  {œ}{{\oe}}1 {Œ}{{\OE}}1 {æ}{{\ae}}1 {Æ}{{\AE}}1 {ß}{{\ss}}1
+  {ç}{{\c c}}1 {Ç}{{\c C}}1 {ø}{{\o}}1 {å}{{\r a}}1 {Å}{{\r A}}1
+  {€}{{\EUR}}1 {£}{{\pounds}}1 {«}{{\guillemotleft}}1
+  {»}{{\guillemotright}}1 {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1
+  {…}{{\ldots}}1 {≥}{{>=}}1 {≤}{{<=}}1 {„}{{\glqq}}1 {“}{{\grqq}}1
+  {”}{{''}}1
+}
+\lstset{style=eisvogel_listing_style}
+
+%
+% Java (Java SE 12, 2019-06-22)
+%
+\lstdefinelanguage{Java}{
+  morekeywords={
+    % normal keywords (without data types)
+    abstract,assert,break,case,catch,class,continue,default,
+    do,else,enum,exports,extends,final,finally,for,if,implements,
+    import,instanceof,interface,module,native,new,package,private,
+    protected,public,requires,return,static,strictfp,super,switch,
+    synchronized,this,throw,throws,transient,try,volatile,while,
+    % var is an identifier
+    var
+  },
+  morekeywords={[2] % data types
+    % primitive data types
+    boolean,byte,char,double,float,int,long,short,
+    % String
+    String,
+    % primitive wrapper types
+    Boolean,Byte,Character,Double,Float,Integer,Long,Short
+    % number types
+    Number,AtomicInteger,AtomicLong,BigDecimal,BigInteger,DoubleAccumulator,DoubleAdder,LongAccumulator,LongAdder,Short,
+    % other
+    Object,Void,void
+  },
+  morekeywords={[3] % literals
+    % reserved words for literal values
+    null,true,false,
+  },
+  sensitive,
+  morecomment  = [l]//,
+  morecomment  = [s]{/*}{*/},
+  morecomment  = [s]{/**}{*/},
+  morestring   = [b]",
+  morestring   = [b]',
+}
+
+\lstdefinelanguage{XML}{
+  morestring      = [b]",
+  moredelim       = [s][\bfseries\color{listing-keyword}]{<}{\ },
+  moredelim       = [s][\bfseries\color{listing-keyword}]{</}{>},
+  moredelim       = [l][\bfseries\color{listing-keyword}]{/>},
+  moredelim       = [l][\bfseries\color{listing-keyword}]{>},
+  morecomment     = [s]{<?}{?>},
+  morecomment     = [s]{<!--}{-->},
+  commentstyle    = \color{listing-comment},
+  stringstyle     = \color{listing-string},
+  identifierstyle = \color{listing-identifier}
+}
+
+%
+% header and footer
+%
+\usepackage[headsepline,footsepline]{scrlayer-scrpage}
+
+\newpairofpagestyles{eisvogel-header-footer}{
+  \clearpairofpagestyles
+  \ihead*{Using AI to Model Phase Changes in the Mantle}
+  \chead*{}
+  \ohead*{04 July 2023}
+  \ifoot*{Buchanan Kerswell}
+  \cfoot*{}
+  \ofoot*{\thepage}
+  \addtokomafont{pageheadfoot}{\upshape}
+}
+\pagestyle{eisvogel-header-footer}
+
+
+
+%%
+%% end added
+%%
+
+\begin{document}
+
+%%
+%% begin titlepage
+%%
+\begin{titlepage}
+\newgeometry{left=6cm}
+\newcommand{\colorRule}[3][black]{\textcolor[HTML]{#1}{\rule{#2}{#3}}}
+\begin{flushleft}
+\noindent
+\\[-1em]
+\color[HTML]{5F5F5F}
+\makebox[0pt][l]{\colorRule[5F5F5F]{1.3\textwidth}{4pt}}
+\par
+\noindent
+
+{
+  \setstretch{1.4}
+  \vfill
+  \noindent {\huge \textbf{\textsf{Using AI to Model Phase Changes in
+the Mantle}}}
+    \vskip 1em
+  {\Large \textsf{Notes and Brainstorming}}
+    \vskip 2em
+  \noindent {\Large \textsf{Buchanan Kerswell}}
+  \vfill
+}
+
+\noindent
+\includegraphics[width=105mm, left]{assets/images/erc-logo.jpg}
+
+\textsf{04 July 2023}
+\end{flushleft}
+\end{titlepage}
+\restoregeometry
+\pagenumbering{arabic} 
+
+%%
+%% end titlepage
+%%
+
+% \maketitle
+
+
+\hypertarget{mantle-phase-transitions}{%
+\section{Mantle phase transitions}\label{mantle-phase-transitions}}
+
+\hypertarget{pt-conditions-of-the-660-discontinuity}{%
+\subsection{PT conditions of the 660
+discontinuity}\label{pt-conditions-of-the-660-discontinuity}}
+
+Generally attributed to the post-spinel transition at 23.4 GPa and
+between 1900–2000 K (Ishii et al. (2018))
+
+\begin{align}\label{eq:660-transition}
+\text{ringwoodite} &\rightarrow \text{bridgmanite} + \text{ferropericlase} \\
+\text{Mg}_{2}\text{SiO}_{4} &\rightarrow \text{(Mg,Fe)}\text{SiO}_{3} + \text{(Mg,Fe)}\text{O}
+\end{align}
+
+\hypertarget{references}{%
+\subsection{References}\label{references}}
+
+(\textbf{article?})\{ishii2018complete, title=\{Complete agreement of
+the post-spinel transition with the 660-km seismic discontinuity\},
+author=\{Ishii, Takayuki and Huang, Rong and Fei, Hongzhan and Koemets,
+Iuliia and Liu, Zhaodong and Maeda, Fumiya and Yuan, Liang and Wang, Lin
+and Druzhbin, Dmitry and Yamamoto, Takafumi and others\},
+journal=\{Scientific reports\}, volume=\{8\}, number=\{1\},
+pages=\{6358\}, year=\{2018\}, publisher=\{Nature Publishing Group UK
+London\} \}
+
+\hypertarget{refs}{}
+\begin{CSLReferences}{1}{0}
+\leavevmode\vadjust pre{\hypertarget{ref-ishii2018}{}}%
+Ishii, Takayuki, Rong Huang, Hongzhan Fei, Iuliia Koemets, Zhaodong Liu,
+Fumiya Maeda, Liang Yuan, et al. 2018. {“Complete Agreement of the
+Post-Spinel Transition with the 660-Km Seismic Discontinuity.”}
+\emph{Scientific Reports} 8 (1): 6358.
+
+\end{CSLReferences}
+
+\end{document}
+
+[makePDF] Run #1
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+
+(/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8
+f8a8/input.tex
+LaTeX2e <2023-06-01> patch level 1
+L3 programming layer <2023-06-30>
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrartcl.cls
+Document Class: scrartcl 2023/04/24 v3.40 KOMA-Script document class (article)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrkbase.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrbase.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlfile.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlfile-hook.st
+y (/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlogo.sty)))
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/keyval.sty)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/tocbasic.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrsize11pt.clo)
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/typearea.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/setspace/setspace.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/iftex.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/fontenc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/textcomp.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/lmodern.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/upquote/upquote.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/microtype.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/etoolbox/etoolbox.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/microtype-pdftex.d
+ef) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/microtype.cfg)
+) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/xcolor/xcolor.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics-def/pdftex.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/colortbl/colortbl.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/tools/array.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/mathcolor.ltx)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/dvipsnam.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/xcolor/svgnam.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/xcolor/x11nam.def))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/geometry/geometry.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/ifvtex.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/adjustbox.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/xkeyval/xkeyval.tex
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/xkeyval/xkvutils.tex)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/adjcalc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/trimclip.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/graphicx.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/graphics.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/trig.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)))
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/collectbox/collectbox.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/tc-pdftex.def)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/listings.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/lstmisc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/listings.cfg))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/footnotebackref/footnoteback
+ref.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/letltxmacro/letltxmacro.sty)
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/hyperref.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/infwarerr/infwarerr.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.
+sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/pdfescape/pdfescape.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/auxhook/auxhook.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/nameref.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/refcount/refcount.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/gettitlestring/gettitlestr
+ing.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/kvoptions/kvoptions.sty)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/puenc.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/url/url.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/bitset/bitset.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty)
+) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/atbegshi-ltx.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/hpdftex.def
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/rerunfilecheck/rerunfilechec
+k.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/uniquecounter/uniquecounte
+r.sty)))) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/tools/calc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/bookmark/bookmark.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/bookmark/bkm-pdftex.def))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/pagecolor/pagecolor.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/tools/afterpage.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/csquotes/csquotes.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/csquotes/csquotes.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/csquotes/csquotes.cfg))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/caption/caption.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/caption/caption3.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/caption/caption-koma.sto)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/mdframed/mdframed.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/l3packages/xparse/xparse.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/l3kernel/expl3.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/l3backend/l3backend-pdftex.d
+ef))) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/zref/zref-abspage.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/zref/zref-base.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/etexcmds/etexcmds.sty)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/needspace/needspace.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/mdframed/md-frame-0.mdf))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/sourcesanspro/sourcesanspro.
+sty (/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/ifxetex.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/ifluatex.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/fontenc.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/ly1/ly1enc.def
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/ly1enc.dfu))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/t1lmr.fd)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/sourcecodepro/sourcecodepro.
+sty (/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/fontenc.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/sourcesanspro/T1SourceSansPr
+o-TLF.fd)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/titling/titling.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/lstlang1.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlayer-scrpage
+.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlayer.sty))
+No file input.aux.
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/ly1/ly1ptm.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.s
+ty (/usr/local/texlive/2023basic/texmf-dist/tex/latex/grfext/grfext.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
+))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+[1{/usr/local/texlive/2023basic/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/
+usr/local/texlive/2023basic/texmf-dist/fonts/enc/dvips/sourcesanspro/a_emkxm5.e
+nc} <./assets/images/erc-logo.jpg>]
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/ot1lmr.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/omllmm.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/omslmsy.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/omxlmex.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/mt-msa.cfg)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/umsb.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/mt-msb.cfg)
+pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.480 \end{document}
+                     [1{/usr/local/texlive/2023basic/texmf-dist/fonts/enc/dvips
+/lm/lm-mathsy.enc}{/usr/local/texlive/2023basic/texmf-dist/fonts/enc/dvips/lm/l
+m-rm.enc}]
+(/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8
+f8a8/input.aux)
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+ )
+(see the transcript file for additional information)</usr/local/texlive/2023bas
+ic/texmf-dist/fonts/type1/adobe/sourcesanspro/SourceSansPro-Bold.pfb></usr/loca
+l/texlive/2023basic/texmf-dist/fonts/type1/adobe/sourcesanspro/SourceSansPro-It
+.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/adobe/sourcesanspro/S
+ourceSansPro-Regular.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/p
+ublic/lm/lmr10.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/public/
+lm/lmr8.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/public/lm/lmsy
+10.pfb>
+Output written on /private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2
+pdf.-0e54e7a007d8f8a8/input.pdf (2 pages, 272233 bytes).
+Transcript written on /private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/
+tex2pdf.-0e54e7a007d8f8a8/input.log.
+
+[makePDF] Run #2
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+
+(/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8
+f8a8/input.tex
+LaTeX2e <2023-06-01> patch level 1
+L3 programming layer <2023-06-30>
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrartcl.cls
+Document Class: scrartcl 2023/04/24 v3.40 KOMA-Script document class (article)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrkbase.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrbase.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlfile.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlfile-hook.st
+y (/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlogo.sty)))
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/keyval.sty)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/tocbasic.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrsize11pt.clo)
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/typearea.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/setspace/setspace.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/iftex.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/fontenc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/textcomp.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/lmodern.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/upquote/upquote.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/microtype.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/etoolbox/etoolbox.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/microtype-pdftex.d
+ef) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/microtype.cfg)
+) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/xcolor/xcolor.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics-def/pdftex.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/colortbl/colortbl.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/tools/array.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/mathcolor.ltx)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/dvipsnam.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/xcolor/svgnam.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/xcolor/x11nam.def))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/geometry/geometry.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/ifvtex.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/adjustbox.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/xkeyval/xkeyval.tex
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/xkeyval/xkvutils.tex)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/adjcalc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/trimclip.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/graphicx.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/graphics.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics/trig.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)))
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/collectbox/collectbox.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/adjustbox/tc-pdftex.def)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/listings.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/lstmisc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/listings.cfg))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/footnotebackref/footnoteback
+ref.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/letltxmacro/letltxmacro.sty)
+ (/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/hyperref.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/infwarerr/infwarerr.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.
+sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/pdfescape/pdfescape.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/auxhook/auxhook.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/nameref.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/refcount/refcount.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/gettitlestring/gettitlestr
+ing.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/kvoptions/kvoptions.sty)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/puenc.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/url/url.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/bitset/bitset.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty)
+) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/atbegshi-ltx.sty))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/hyperref/hpdftex.def
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/rerunfilecheck/rerunfilechec
+k.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/uniquecounter/uniquecounte
+r.sty)))) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/tools/calc.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/bookmark/bookmark.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/bookmark/bkm-pdftex.def))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/pagecolor/pagecolor.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/tools/afterpage.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/csquotes/csquotes.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/csquotes/csquotes.def)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/csquotes/csquotes.cfg))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/caption/caption.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/caption/caption3.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/caption/caption-koma.sto)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/mdframed/mdframed.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/l3packages/xparse/xparse.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/l3kernel/expl3.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/l3backend/l3backend-pdftex.d
+ef))) (/usr/local/texlive/2023basic/texmf-dist/tex/latex/zref/zref-abspage.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/zref/zref-base.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/etexcmds/etexcmds.sty)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/needspace/needspace.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/mdframed/md-frame-0.mdf))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/sourcesanspro/sourcesanspro.
+sty (/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/ifxetex.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/generic/iftex/ifluatex.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/fontenc.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/ly1/ly1enc.def
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/ly1enc.dfu))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/t1lmr.fd)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/sourcecodepro/sourcecodepro.
+sty (/usr/local/texlive/2023basic/texmf-dist/tex/latex/base/fontenc.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/sourcesanspro/T1SourceSansPr
+o-TLF.fd)))
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/titling/titling.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/listings/lstlang1.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlayer-scrpage
+.sty
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/koma-script/scrlayer.sty))
+(/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8
+f8a8/input.aux)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/ly1/ly1ptm.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.s
+ty (/usr/local/texlive/2023basic/texmf-dist/tex/latex/grfext/grfext.sty)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
+))
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+[1{/usr/local/texlive/2023basic/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/
+usr/local/texlive/2023basic/texmf-dist/fonts/enc/dvips/sourcesanspro/a_emkxm5.e
+nc} <./assets/images/erc-logo.jpg>]
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/ot1lmr.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/omllmm.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/omslmsy.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/lm/omxlmex.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/mt-msa.cfg)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/amsfonts/umsb.fd)
+(/usr/local/texlive/2023basic/texmf-dist/tex/latex/microtype/mt-msb.cfg)
+pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.480 \end{document}
+                     [1{/usr/local/texlive/2023basic/texmf-dist/fonts/enc/dvips
+/lm/lm-mathsy.enc}{/usr/local/texlive/2023basic/texmf-dist/fonts/enc/dvips/lm/l
+m-rm.enc}]
+(/private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2pdf.-0e54e7a007d8
+f8a8/input.aux) )
+(see the transcript file for additional information)</usr/local/texlive/2023bas
+ic/texmf-dist/fonts/type1/adobe/sourcesanspro/SourceSansPro-Bold.pfb></usr/loca
+l/texlive/2023basic/texmf-dist/fonts/type1/adobe/sourcesanspro/SourceSansPro-It
+.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/adobe/sourcesanspro/S
+ourceSansPro-Regular.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/p
+ublic/lm/lmr10.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/public/
+lm/lmr8.pfb></usr/local/texlive/2023basic/texmf-dist/fonts/type1/public/lm/lmsy
+10.pfb>
+Output written on /private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/tex2
+pdf.-0e54e7a007d8f8a8/input.pdf (2 pages, 272233 bytes).
+Transcript written on /private/var/folders/xp/140y109j5l7bv7q2gl20n_tr0000gn/T/
+tex2pdf.-0e54e7a007d8f8a8/input.log.
+
+[WARNING] Citeproc: citation article not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Citeproc: citation eq:660-transition not found
+[WARNING] Could not fetch resource assets/image/notes/bridgmanite.jpg: replacing image with description
+[WARNING] Citeproc: citation ig:bridgmanite not found
+pandoc-crossref: Duplicate label: fig:ringwoodite
+CallStack (from HasCallStack):
+  error, called at lib-internal/Text/Pandoc/CrossRef/References/Blocks/Util.hs:97:5 in pndc-crssrf-0.3.16.0-83bfeae5:Text.Pandoc.CrossRef.References.Blocks.Util
+Error running filter pandoc-crossref:
+Filter returned error status 1
+Error producing PDF.
+! Undefined control sequence.
+l.448 Abundance \(\gt
+
+[WARNING] Citeproc: citation tab:mantle-mineral-densities not found
+[WARNING] Citeproc: citation tab:mantle-mineral-densities not found
+[WARNING] Citeproc: citation tab:mantle-minerals not found
+[WARNING] Citeproc: citation tab:mantle-minerals not found
+Error producing PDF.
+! LaTeX Error: Environment lstlisting undefined.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.494 \begin{lstlisting}
+
+[WARNING] Citeproc: citation tab:mantle-minerals not found
+[WARNING] Citeproc: citation tab:mantle-minerals not found
+Error producing PDF.
+! You can't use `macro parameter character #' in vertical mode.
+l.570 #
+

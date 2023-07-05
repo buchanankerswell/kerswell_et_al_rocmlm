@@ -15,6 +15,7 @@ args = parse_arguments_visualize_db()
 sample_id = args.sampleid
 parameters = args.params
 y_oxide = args.figox
+palette = args.colormap
 out_dir = args.outdir
 fig_dir = args.figdir
 
@@ -64,8 +65,7 @@ if len(os.listdir(out_dir + "/" + sample_id)) != 0:
         # Plot PT grids
         plot_pseudosection(
             P, T, grid, parameter,
-            #title=sample_id.replace("_", " ") + ": " + parameter,
-            palette="bone",
+            palette=palette,
             color_discrete=color_discrete,
             color_reverse=color_reverse,
             filename=f"{parameter}.png",

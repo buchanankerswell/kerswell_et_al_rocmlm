@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from magemin import (
     parse_arguments_visualize_db,
     visualize_benchmark_comp_times,
@@ -7,7 +8,10 @@ from magemin import (
     process_perplex_grid,
     encode_phases,
     create_PT_grid,
-    plot_pseudosection
+    plot_histogram,
+    plot_pseudosection,
+    combine_plots_horizontally,
+    combine_plots_vertically
 )
 
 # Parse arguments
@@ -16,6 +20,7 @@ args = parse_arguments_visualize_db()
 # Get argument values
 sample_id = args.sampleid
 parameters = args.params
+palette = args.colormap
 out_dir = args.outdir
 fig_dir = args.figdir
 
@@ -69,6 +74,10 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             # perplex grid
             grid_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter])
 
+        # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
+        if parameter == "LiquidFraction":
+            grid_mgm = np.where(grid_mgm == 0, np.nan, grid_mgm)
+
         # Use discrete colorscale
         if parameter in ["StableSolutions", "StableVariance"]:
             color_discrete = True
@@ -76,48 +85,119 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             color_discrete = False
 
         # Reverse color scale
-        if parameter not in ["StableVariance"]:
+        if parameter in ["StableVariance"]:
             color_reverse = True
         else:
             color_reverse = False
+
+        if not color_discrete:
+            # Colorbar limits
+            vmin_mgm=np.min(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
+            vmax_mgm=np.max(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
+            vmin_ppx=np.min(grid_ppx[np.logical_not(np.isnan(grid_ppx))])
+            vmax_ppx=np.max(grid_ppx[np.logical_not(np.isnan(grid_ppx))])
+
+            vmin = min(vmin_mgm, vmin_ppx)
+            vmax = max(vmax_mgm, vmax_ppx)
+        else:
+            num_colors_mgm = len(np.unique(grid_mgm))
+            num_colors_ppx = len(np.unique(grid_ppx))
+            vmin = 1
+            vmax = max(num_colors_mgm, num_colors_ppx) + 1
+
 
         # Plot PT grid MAGEMin
         plot_pseudosection(
             P_mgm, T_mgm, grid_mgm, parameter,
             title="MAGEMin",
-            palette="bone",
+            palette=palette,
             color_discrete=color_discrete,
             color_reverse=color_reverse,
+            vmin=vmin,
+            vmax=vmax,
             filename=f"MAGEMin-{sample_id}-{parameter}.png",
             fig_dir=fig_dir
         )
 
-        # Plot PT grid MAGEMin
+        # Plot PT grid perplex
         plot_pseudosection(
             P_ppx, T_ppx, grid_ppx, parameter,
             title="Perple_X",
-            palette="bone",
+            palette=palette,
             color_discrete=color_discrete,
             color_reverse=color_reverse,
+            vmin=vmin,
+            vmax=vmax,
             filename=f"Perple_X-{sample_id}-{parameter}.png",
             fig_dir=fig_dir
         )
 
         if not color_discrete:
-            # Plot PT grid diff MAGEMin - perplex
+            # Plot distributions
+            plot_histogram(
+                grid_mgm,
+                grid_ppx,
+                parameter,
+                bins=30,
+                title="Distributions of Model Predictions",
+                filename=f"hist-{sample_id}-{parameter}.png",
+                fig_dir=fig_dir
+            )
+
+            # Plot PT grid diff mgm-ppx
             plot_pseudosection(
-                P_ppx, T_ppx, grid_ppx - grid_mgm, parameter,
-                title="Difference (Perple_X - MAGEMin)",
+                P_ppx, T_ppx, grid_mgm - grid_ppx, parameter,
+                title="Difference (MAGEMin - Perple_X)",
                 palette="seismic",
                 color_discrete=color_discrete,
-                color_reverse=True,
+                color_reverse=False,
                 filename=f"diff-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
 
+            # Create composition for continuous variables
+            # First row
+            combine_plots_horizontally(
+                f"{fig_dir}/MAGEMin-{sample_id}-{parameter}.png",
+                f"{fig_dir}/Perple_X-{sample_id}-{parameter}.png",
+                f"{fig_dir}/temp1.png",
+                caption1="a",
+                caption2="b"
+            )
+            # Second row
+            combine_plots_horizontally(
+                f"{fig_dir}/diff-{sample_id}-{parameter}.png",
+                f"{fig_dir}/hist-{sample_id}-{parameter}.png",
+                f"{fig_dir}/temp2.png",
+                caption1="c",
+                caption2="d"
+            )
+            # Stack rows
+            combine_plots_vertically(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp2.png",
+                f"{fig_dir}/comp-{sample_id}-{parameter}.png",
+            )
+
+        # Create composition for discrete variables
+        if color_discrete:
+            # First row
+            combine_plots_horizontally(
+                f"{fig_dir}/MAGEMin-{sample_id}-{parameter}.png",
+                f"{fig_dir}/Perple_X-{sample_id}-{parameter}.png",
+                f"{fig_dir}/comp-{sample_id}-{parameter}.png",
+                caption1="a",
+                caption2="b"
+            )
+
+        # Cleanup dir
+        if os.path.exists(f"{fig_dir}/temp1.png"):
+            os.remove(f"{fig_dir}/temp1.png")
+        if os.path.exists(f"{fig_dir}/temp2.png"):
+            os.remove(f"{fig_dir}/temp2.png")
+
 # Read benchmark data
 if os.path.exists("assets/data"):
     comp_times = "assets/data/benchmark-comp-times.csv"
-
-# Plot benchmark comp times
-visualize_benchmark_comp_times(comp_times, fig_dir="figs/benchmark")
+    # Plot benchmark comp times
+    visualize_benchmark_comp_times(comp_times, fig_dir="figs/benchmark")
