@@ -189,7 +189,7 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			find . -name "*$(SAMPLEID)*" -type f -exec sh -c \
 			'mv "$$0" "$${0/$(SAMPLEID)/$(SAMPLEID)-$(TRES)x$(PRES)}"' {} \; \
 		); \
-		echo "magemin,$(SAMPLEID),$(TRES),$(PRES),$$( \
+		echo -n "$(SAMPLEID),$$((TRES * PRES)),$$( \
 			grep -oE "MAGEMin comp time: \+([0-9.]+) ms }" $(LOGFILE) | \
 			tail -n 1 | \
 			sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
@@ -265,22 +265,21 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			find . -name "*$(SAMPLEID)*" -type f -exec sh -c \
 			'mv "$$0" "$${0/$(SAMPLEID)/$(SAMPLEID)-$(TRES)x$(PRES)}"' {} \; \
 		); \
-		echo "perplex,$(SAMPLEID),$(TRES),$(PRES),$$( \
+		echo ",$$( \
 			grep -oE "Total elapsed time\s+([0-9.]+)" $(LOGFILE) | \
 			tail -n 1 | \
 			sed -E 's/Total elapsed time\s+([0-9.]+)/\1/' | \
 			awk '{printf "%.1f", $$NF*60}')" >> $(DATA)/benchmark-comp-times.csv; \
+		echo "=============================================" $(LOG); \
 		echo "Finished perplex model ..." $(LOG); \
+		echo "Finished benchmarking $(SAMPLEID) ..." $(LOG); \
 		echo "=============================================" $(LOG); \
 	fi
-	@$(MAKE) visualize_benchmark \
-		SAMPLEID=$(SAMPLEID)-$(TRES)x$(PRES) \
-		FIGDIR=$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES) \
-		COLORMAP=$(COLORMAP) \
-		$(LOG)
-	@echo "Finished benchmarking $(SAMPLEID) ..." $(LOG)
-	@echo "See figure at:" $(LOG)
-	@echo "$(WORKDIR)/$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES).png" $(LOG)
+	@echo "To visualize benchmark, run:" $(LOG)
+	@echo "make visualize_benchmark \
+	SAMPLEID=$(SAMPLEID)-$(TRES)x$(PRES) \
+	FIGDIR=$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES) \
+	COLORMAP=$(COLORMAP)" $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)

@@ -1343,6 +1343,9 @@ def plot_histogram(
         ppx_array,
         parameter,
         palette="tab10",
+        figwidth=5.8,
+        figheight=4.725,
+        fontsize=20,
         bins="auto",
         title=None,
         filename=None,
@@ -1367,25 +1370,31 @@ def plot_histogram(
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
     plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
 
     # Colors
     colormap = cm.get_cmap(palette)
 
     # Draw plot
-    plt.figure(figsize=(5.2, 4.9))
+    plt.figure(figsize=(figwidth, figheight))
     plt.hist(mgm_array.flatten(), bins=bins, color=colormap(0), alpha=0.75, label="MAGEMin")
     plt.hist(ppx_array.flatten(), bins=bins, color=colormap(1), alpha=0.75, label="Perple_X")
     plt.xlabel(f"{parameter}")
-    plt.ylabel("Frequency")
+    plt.ylabel("")
     plt.legend(frameon=False, loc="upper left")
     if title:
         plt.title(f"{title}")
-    plt.tight_layout()
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
+        plt.savefig(f"{fig_dir}/{filename}")
     else:
         # Print plot
         plt.show()
@@ -1394,7 +1403,7 @@ def plot_histogram(
     plt.close()
 
 # Plot MAGEMin pseudosection
-def plot_pseudosection(
+def plot_MAD(
         P,
         T,
         grid,
@@ -1406,6 +1415,9 @@ def plot_pseudosection(
         vmin=None,
         vmax=None,
         contours=False,
+        figwidth=6.3,
+        figheight=4.725,
+        fontsize=20,
         filename=None,
         fig_dir=f"{os.getcwd()}/figs"):
     """
@@ -1430,6 +1442,17 @@ def plot_pseudosection(
     # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
 
     if color_discrete:
         # Discrete color palette
@@ -1474,7 +1497,7 @@ def plot_pseudosection(
         cmap.set_bad(color="white")
 
         # Plot as a raster using imshow
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(figwidth, figheight))
         im = ax.imshow(
             grid,
             extent=[
@@ -1508,7 +1531,6 @@ def plot_pseudosection(
         ax.set_xlabel("T (˚C)")
         ax.set_ylabel("P (kbar)")
         plt.colorbar(im, ax=ax, ticks=np.arange(num_colors)+1, label=parameter)
-        fig.tight_layout()
 
         if title:
             plt.title(title)
@@ -1575,14 +1597,13 @@ def plot_pseudosection(
         )
         ax.set_xlabel("T (˚C)")
         ax.set_ylabel("P (kbar)")
-        plt.colorbar(im, ax=ax, label=f"{parameter}")
-        fig.tight_layout()
+        plt.colorbar(im, ax=ax, label="")
         if title:
             plt.title(title)
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
+        plt.savefig(f"{fig_dir}/{filename}")
     else:
         # Print plot
         plt.show()
@@ -1596,6 +1617,7 @@ def plot_harker_diagram(
         datafile,
         x_oxide="SiO2",
         y_oxide="MgO",
+        fontsize=14,
         filename="earthchem-harker.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
@@ -1631,7 +1653,14 @@ def plot_harker_diagram(
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
     plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
 
     # Create a grid of subplots
     num_plots = len(y_oxide)
@@ -1648,8 +1677,8 @@ def plot_harker_diagram(
     num_rows = (num_plots + 1) // num_cols
 
     # Total figure size
-    fig_width = 6*num_cols
-    fig_height = 5*num_rows
+    fig_width = 3.15*num_cols
+    fig_height = 3.15*num_rows
 
     # Draw plots
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
@@ -1684,6 +1713,7 @@ def plot_harker_diagram(
 
         ax.set_xlabel(f"{x_oxide} (wt%)")
         ax.set_ylabel(f"{y} (wt%)")
+        ax.get_legend().set_title("")
 
         # Show legend only for the first subplot
         if i > 0:
@@ -1694,16 +1724,9 @@ def plot_harker_diagram(
         for i in range(num_plots, len(axes)):
             fig.delaxes(axes[i])
 
-    # Count the number of mafic and ultramafic samples
-    n_mafic = len(data[data["Rock Type"] == "mafic"])
-    n_ulmafic = len(data[data["Rock Type"] == "ultramafic"])
-
-    fig.suptitle(f"Harker diagrams for {n_mafic} mafic and {n_ulmafic} ultramafic samples")
-    plt.tight_layout()
-
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
+        plt.savefig(f"{fig_dir}/{filename}")
     else:
         # Print plot
         plt.show()
@@ -1712,6 +1735,9 @@ def plot_harker_diagram(
 def visualize_benchmark_comp_times(
         datafile,
         palette="tab10",
+        fontsize=14,
+        figwidth=6.3,
+        figheight=3.54,
         filename="benchmark-comp-times.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
@@ -1719,6 +1745,8 @@ def visualize_benchmark_comp_times(
 
     Parameters:
         datafile (str): Path to the benchmark data file in .csv format.
+        palette (str, optional): The color palette for sample colors. Default is "tab10".
+        fontsize (int, optional): The font size for text elements in the plot. Default is 12.
         filename (str, optional): The filename to save the plot. If not provided,
             the plot will be displayed interactively. Default is "benchmark-comp-times.png".
         fig_dir (str, optional): The directory to save the plot. Default is "./figs".
@@ -1730,11 +1758,10 @@ def visualize_benchmark_comp_times(
         - The function creates a directory named "figs" to save the plots.
         - The function reads the data from the provided datafile in .csv format.
         - The function sets plot styles and settings.
-        - The function creates a dictionary to map methods to marker styles and line styles.
-        - The function creates a dictionary to map samples to colors.
-        - The function groups the data by method and sample.
-        - The function filters out rows with missing time values.
-        - The function extracts x and y values from the filtered data.
+        - The function creates a dictionary to map samples to colors using a colormap.
+        - The function groups the data by sample.
+        - The function filters out rows with missing time values in both mgm and ppx columns.
+        - The function extracts x and y values from the filtered data for both mgm and ppx columns.
         - The function plots the data points and connects them with lines.
         - The function sets labels, title, and x-axis tick values.
         - The plot can be saved to a file if a filename is provided.
@@ -1742,72 +1769,82 @@ def visualize_benchmark_comp_times(
     # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
+
     # Read data
     data = pd.read_csv(datafile)
 
-    # Arange data
-    data = data.sort_values(["sample", "method", "time"])
+    # Arange data by grid resolution and sample
+    data.sort_values(by=["grid", "sample"], inplace=True)
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
     plt.rcParams["axes.facecolor"] = "0.9"
-
-    # Create a dictionary to map methods to marker styles and line styles
-    method_styles = {
-        "magemin": {"marker": "o", "linestyle": "-"},
-        "perplex": {"marker": "s", "linestyle": "--"}
-    }
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
 
     # Create a dictionary to map samples to colors using a colormap
     colormap = cm.get_cmap(palette)
     sample_colors = {
         "DMM": colormap(0),
-        "NMORB1": colormap(1),
-        "NMORB2": colormap(2),
+        "NMORB": colormap(1),
         "PUM": colormap(3),
         "RE46": colormap(4)
     }
 
-    # Get max resolution
-    data["maxres"] = data[["tres", "pres"]].max(axis=1)
-
-    # Group the data by method and sample
-    grouped_data = data.groupby(["method", "sample"])
+    # Group the data by sample
+    grouped_data = data.groupby(["sample"])
 
     # Plot the data
     for group, group_data in grouped_data:
-        method_val, sample_val = group
-        marker_style = method_styles[method_val]["marker"]
-        linestyle_val = method_styles[method_val]["linestyle"]
+        sample_val = group[0]
         color_val = sample_colors[sample_val]
 
-        # Filter out rows with missing time values
-        filtered_data = group_data.dropna(subset=["time"])
+        # Filter out rows with missing time values for mgm column
+        mgm_data = group_data.dropna(subset=["mgm"])
+        mgm_x = np.sqrt(mgm_data["grid"])
+        mgm_y = mgm_data["mgm"]
 
-        # Extract x and y values
-        x = filtered_data["maxres"]
-        y = filtered_data["time"]
-
-        # Plot the data points and connect them with lines
+        # Plot mgm data points and connect them with lines
         plt.plot(
-            x, y,
-            marker=marker_style,
+            mgm_x, mgm_y,
+            marker="o",
             color=color_val,
-            linestyle=linestyle_val,
-            label=f"{method_val} {sample_val}"
+            linestyle="-",
+            label=f"{sample_val} MGM"
+        )
+
+        # Filter out rows with missing time values for ppx column
+        ppx_data = group_data.dropna(subset=["ppx"])
+        ppx_x = np.sqrt(ppx_data["grid"])
+        ppx_y = ppx_data["ppx"]
+
+        # Plot ppx data points and connect them with lines
+        plt.plot(
+            ppx_x, ppx_y,
+            marker="s",
+            color=color_val,
+            linestyle="--",
+            label=f"{sample_val} PPX"
         )
 
     # Set labels and title
     plt.xlabel("PT Grid Resolution")
     plt.ylabel("Time (s)")
-    plt.title("Gibbs Minimization Efficiency")
+    plt.title("GFEM Efficiency")
     plt.xticks([8, 16, 32, 64, 128])
-    plt.legend(frameon=False)
-    plt.tight_layout()
+    plt.legend(frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
+
+    # Adjust the figure size
+    fig = plt.gcf()
+    fig.set_size_inches(figwidth, figheight)
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(f"{fig_dir}/{filename}", bbox_inches="tight", dpi=330)
+        plt.savefig(f"{fig_dir}/{filename}")
     else:
         # Print plot
         plt.show()

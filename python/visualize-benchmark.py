@@ -9,7 +9,7 @@ from magemin import (
     encode_phases,
     create_PT_grid,
     plot_histogram,
-    plot_pseudosection,
+    plot_MAD,
     combine_plots_horizontally,
     combine_plots_vertically
 )
@@ -107,7 +107,7 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
 
 
         # Plot PT grid MAGEMin
-        plot_pseudosection(
+        plot_MAD(
             P_mgm, T_mgm, grid_mgm, parameter,
             title="MAGEMin",
             palette=palette,
@@ -120,7 +120,7 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
         )
 
         # Plot PT grid perplex
-        plot_pseudosection(
+        plot_MAD(
             P_ppx, T_ppx, grid_ppx, parameter,
             title="Perple_X",
             palette=palette,
@@ -139,15 +139,15 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
                 grid_ppx,
                 parameter,
                 bins=30,
-                title="Distributions of Model Predictions",
+                title="Model Predictions",
                 filename=f"hist-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
 
             # Plot PT grid diff mgm-ppx
-            plot_pseudosection(
+            plot_MAD(
                 P_ppx, T_ppx, grid_mgm - grid_ppx, parameter,
-                title="Difference (MAGEMin - Perple_X)",
+                title="Difference (MGM - PPX)",
                 palette="seismic",
                 color_discrete=color_discrete,
                 color_reverse=False,

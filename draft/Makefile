@@ -23,8 +23,6 @@ notes: $(LOGFILE) $(NOTESTEMPLATE) notes.md
 		--highlight-style tango \
 		--filter pandoc-crossref \
 		--citeproc \
-		--bibliography $(BIB) \
-		--csl $(CSL) \
 		$(LOG)
 
 $(NOTESTEMPLATE): $(LOGFILE)

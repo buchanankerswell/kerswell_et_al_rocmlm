@@ -5,7 +5,7 @@ from magemin import (
     process_MAGEMin_grid,
     encode_phases,
     create_PT_grid,
-    plot_pseudosection
+    plot_MAD
 )
 
 # Parse arguments
@@ -63,7 +63,7 @@ if len(os.listdir(out_dir + "/" + sample_id)) != 0:
             color_reverse = False
 
         # Plot PT grids
-        plot_pseudosection(
+        plot_MAD(
             P, T, grid, parameter,
             palette=palette,
             color_discrete=color_discrete,
