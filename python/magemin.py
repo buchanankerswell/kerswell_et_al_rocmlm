@@ -54,10 +54,10 @@ def combine_plots_horizontally(
 
     # Determine the maximum height between the two images
     max_height = max(image1.height, image2.height)
+    max_width = max(image1.width, image2.width)
 
     # Create a new image with twice the width and the maximum height
-    combined_width = image1.width + image2.width
-    combined_image = Image.new('RGB', (combined_width, max_height), (255, 255, 255))
+    combined_image = Image.new('RGB', (max_width*2, max_height), (255, 255, 255))
 
     # Set the DPI metadata
     combined_image.info['dpi'] = (dpi, dpi)
@@ -66,7 +66,7 @@ def combine_plots_horizontally(
     combined_image.paste(image1, (0, 0))
 
     # Paste the second image on the right
-    combined_image.paste(image2, (image1.width, 0))
+    combined_image.paste(image2, (max_width, 0))
 
     # Add captions
     draw = ImageDraw.Draw(combined_image)
@@ -1337,71 +1337,6 @@ def create_PT_grid(P, T, parameter_values):
 
     return grid
 
-# Plot histogram
-def plot_histogram(
-        mgm_array,
-        ppx_array,
-        parameter,
-        palette="tab10",
-        figwidth=5.8,
-        figheight=4.725,
-        fontsize=20,
-        bins="auto",
-        title=None,
-        filename=None,
-        fig_dir=f"{os.getcwd()}/figs"):
-    """
-    Plots the distribution of values in two NumPy arrays as histograms.
-
-    Args:
-        mgm_array (numpy.ndarray): The first input NumPy array.
-        ppx_array (numpy.ndarray): The second input NumPy array.
-
-    Returns:
-        None
-    """
-    # Check for figs directory
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir, exist_ok=True)
-
-    # Filter out nan values
-    mgm_array = mgm_array[~np.isnan(mgm_array)]
-    ppx_array = ppx_array[~np.isnan(ppx_array)]
-
-    # Set plot style and settings
-    plt.rcParams["legend.facecolor"] = "0.9"
-    plt.rcParams["legend.loc"] = "upper left"
-    plt.rcParams["legend.fontsize"] = "small"
-    plt.rcParams["legend.frameon"] = "False"
-    plt.rcParams["axes.facecolor"] = "0.9"
-    plt.rcParams["font.size"] = fontsize
-    plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
-    plt.rcParams["savefig.bbox"] = "tight"
-
-    # Colors
-    colormap = cm.get_cmap(palette)
-
-    # Draw plot
-    plt.figure(figsize=(figwidth, figheight))
-    plt.hist(mgm_array.flatten(), bins=bins, color=colormap(0), alpha=0.75, label="MAGEMin")
-    plt.hist(ppx_array.flatten(), bins=bins, color=colormap(1), alpha=0.75, label="Perple_X")
-    plt.xlabel(f"{parameter}")
-    plt.ylabel("")
-    plt.legend(frameon=False, loc="upper left")
-    if title:
-        plt.title(f"{title}")
-
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
-    else:
-        # Print plot
-        plt.show()
-
-    # Close device
-    plt.close()
-
 # Plot MAGEMin pseudosection
 def plot_MAD(
         P,
@@ -1414,7 +1349,6 @@ def plot_MAD(
         color_reverse=False,
         vmin=None,
         vmax=None,
-        contours=False,
         figwidth=6.3,
         figheight=4.725,
         fontsize=20,
@@ -1513,25 +1447,9 @@ def plot_MAD(
             vmax=num_colors+1
         )
 
-        if contours:
-            # Add contour lines
-            contour = plt.contour(
-                grid,
-                extent=[
-                    np.array(T).min(),
-                    np.array(T).max(),
-                    np.array(P).min(),
-                    np.array(P).max()
-                ],
-                levels=np.unique(grid),
-                colors="white",
-                linewidths=1
-            )
-
         ax.set_xlabel("T (˚C)")
         ax.set_ylabel("P (kbar)")
-        plt.colorbar(im, ax=ax, ticks=np.arange(num_colors)+1, label=parameter)
-
+        plt.colorbar(im, ax=ax, ticks=np.arange(1, num_colors+1, num_colors // 6), label="")
         if title:
             plt.title(title)
     else:
@@ -1597,7 +1515,11 @@ def plot_MAD(
         )
         ax.set_xlabel("T (˚C)")
         ax.set_ylabel("P (kbar)")
-        plt.colorbar(im, ax=ax, label="")
+        if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+            cbar = plt.colorbar(im, ax=ax, label="")
+            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter('%.1f'))
+        else:
+            plt.colorbar(im, ax=ax, label="")
         if title:
             plt.title(title)
 
@@ -1836,7 +1758,7 @@ def visualize_benchmark_comp_times(
     plt.ylabel("Time (s)")
     plt.title("GFEM Efficiency")
     plt.xticks([8, 16, 32, 64, 128])
-    plt.legend(frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
 
     # Adjust the figure size
     fig = plt.gcf()

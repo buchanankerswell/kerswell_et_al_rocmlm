@@ -1,0 +1,39 @@
+---
+title: "Using Artificial Intellegence to Model Phase Changes in the Mantle"
+subtitle: "Preliminary Draft"
+author: "Buchanan Kerswell"
+keywords: [notes, brainstorming]
+titlepage: true
+titlepage-logo: "assets/images/erc-logo.jpg"
+logo-width: "120mm"
+titlepage-rule-color: "5F5F5F"
+lang: "en"
+toc: true
+toc-own-page: true
+link-citations: true
+color-links: true
+linkcolor: "purple"
+urlcolor: "blue"
+toccolor: "darkgray"
+figPrefix:
+  - "Figure"
+  - "Figures"
+tblPrefix:
+  - "Table"
+  - "Tables"
+eqnPrefix:
+  - "Equation"
+  - "Equations"
+header-includes:
+  - \usepackage{caption}
+  - \captionsetup[figure]{font={stretch=1}}
+  - \usepackage{soulutf8}
+  - \usepackage[utf8]{inputenc}
+  - \DeclareUnicodeCharacter{02DA}{$^\circ$}
+  - \DeclareUnicodeCharacter{2265}{$\geq$}
+  - \DeclareUnicodeCharacter{2264}{$\leq$}
+  - \DeclareUnicodeCharacter{177}{$\pm$}
+  - \usepackage{hyperref}
+csl: assets/bib/agu.csl
+bibliography: assets/bib/main.bib
+---

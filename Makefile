@@ -3,7 +3,7 @@ SHELL = /bin/bash -o pipefail
 WORKDIR = $(shell pwd)
 UNAMES := $(shell uname -s)
 # Logging
-LOGFILE := $(WORKDIR)/log/log-$(shell date +%Y-%m-%d)
+LOGFILE := $(WORKDIR)/log/log-$(shell date +"%d-%m-%Y")
 LOG := 2>&1 | tee -a $(LOGFILE)
 # Requirements for running study
 # Conda env
@@ -33,10 +33,10 @@ MAGEMINREPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
 # Database build and benchmarking options
 SEED = 32
 PMIN ?= 10
-PMAX ?= 110
+PMAX ?= 240
 PRES ?= 32
 TMIN ?= 500
-TMAX ?= 2500
+TMAX ?= 2000
 TRES ?= 32
 COMP ?= [44.9, 4.44, 3.54, 37.71, 8.03, 0.029, 0.36, 0.2, 0.01, 0.38, 0]
 FRAC ?= wt
@@ -52,7 +52,7 @@ OUTDIR ?= runs
 # Database visualization options
 FIGDIR ?= figs
 FIGOX ?= ["MgO", "FeO", "CaO", "Al2O3"]
-PARAMS ?= ["Vp", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
+PARAMS ?= ["Vp", "Vs", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
 COLORMAP ?= grey
 # Make clean
 DATAPURGE = python/__pycache__ .job output

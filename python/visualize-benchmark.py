@@ -8,7 +8,6 @@ from magemin import (
     process_perplex_grid,
     encode_phases,
     create_PT_grid,
-    plot_histogram,
     plot_MAD,
     combine_plots_horizontally,
     combine_plots_vertically
@@ -66,17 +65,18 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             # Encode unique phase assemblages perplex
             encoded_ppx, unique_ppx = encode_phases(results_ppx[parameter])
             grid_ppx = create_PT_grid(P_ppx, T_ppx, encoded_ppx)
-
         else:
-            # MAGEMin grid
             grid_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
-
-            # perplex grid
             grid_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter])
 
         # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
         if parameter == "LiquidFraction":
             grid_mgm = np.where(grid_mgm == 0, np.nan, grid_mgm)
+
+        # Transform units
+        if parameter == "DensityOfFullAssemblage":
+            grid_mgm = grid_mgm/1000
+            grid_ppx = grid_ppx/1000
 
         # Use discrete colorscale
         if parameter in ["StableSolutions", "StableVariance"]:
@@ -90,8 +90,8 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
         else:
             color_reverse = False
 
+        # Set colorbar limits for better comparisons
         if not color_discrete:
-            # Colorbar limits
             vmin_mgm=np.min(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
             vmax_mgm=np.max(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
             vmin_ppx=np.min(grid_ppx[np.logical_not(np.isnan(grid_ppx))])
@@ -104,7 +104,6 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             num_colors_ppx = len(np.unique(grid_ppx))
             vmin = 1
             vmax = max(num_colors_mgm, num_colors_ppx) + 1
-
 
         # Plot PT grid MAGEMin
         plot_MAD(
@@ -133,25 +132,50 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
         )
 
         if not color_discrete:
-            # Plot distributions
-            plot_histogram(
-                grid_mgm,
-                grid_ppx,
-                parameter,
-                bins=30,
-                title="Model Predictions",
-                filename=f"hist-{sample_id}-{parameter}.png",
-                fig_dir=fig_dir
-            )
+            # Comppute normalized diff
+            mask = ~np.isnan(grid_mgm) & ~np.isnan(grid_ppx)
+            max_diff = np.max(np.abs(grid_mgm[mask] - grid_ppx[mask]))
+            diff_norm = (grid_mgm - grid_ppx) / max_diff
+            diff_norm[~mask] = np.nan
 
-            # Plot PT grid diff mgm-ppx
+            # Plot PT grid normalized diff mgm-ppx
             plot_MAD(
-                P_ppx, T_ppx, grid_mgm - grid_ppx, parameter,
-                title="Difference (MGM - PPX)",
+                P_ppx, T_ppx, diff_norm, parameter,
+                title="Normalized Difference",
                 palette="seismic",
                 color_discrete=color_discrete,
                 color_reverse=False,
-                filename=f"diff-{sample_id}-{parameter}.png",
+                filename=f"diff-norm-{sample_id}-{parameter}.png",
+                fig_dir=fig_dir
+            )
+
+            # Compute the absolute gradient along the rows and columns
+            gradient_rows = np.abs(np.diff(diff_norm, axis=0))
+            gradient_cols = np.abs(np.diff(diff_norm, axis=1))
+
+            # Pad the gradients to match the original size
+            gradient_rows_padded = np.pad(
+                gradient_rows, ((0, 1), (0, 0)),
+                mode="constant",
+                constant_values=np.nan
+            )
+            gradient_cols_padded = np.pad(
+                gradient_cols, ((0, 0), (0, 1)),
+                mode="constant",
+                constant_values=np.nan
+            )
+
+            # Compute the maximum gradient between rows and columns
+            max_gradient = np.maximum(gradient_rows_padded, gradient_cols_padded)
+
+            # Plot PT grid max gradient
+            plot_MAD(
+                P_ppx, T_ppx, max_gradient, parameter,
+                title="Difference Gradient",
+                palette=palette,
+                color_discrete=color_discrete,
+                color_reverse=color_reverse,
+                filename=f"max-grad-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
 
@@ -166,8 +190,8 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             )
             # Second row
             combine_plots_horizontally(
-                f"{fig_dir}/diff-{sample_id}-{parameter}.png",
-                f"{fig_dir}/hist-{sample_id}-{parameter}.png",
+                f"{fig_dir}/diff-norm-{sample_id}-{parameter}.png",
+                f"{fig_dir}/max-grad-{sample_id}-{parameter}.png",
                 f"{fig_dir}/temp2.png",
                 caption1="c",
                 caption2="d"
