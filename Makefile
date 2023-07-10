@@ -32,12 +32,12 @@ GITHUBREPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
 MAGEMINREPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
 # Database build and benchmarking options
 SEED = 32
-PMIN ?= 10
-PMAX ?= 240
-PRES ?= 32
-TMIN ?= 500
-TMAX ?= 2000
-TRES ?= 32
+PMIN ?= 1
+PMAX ?= 28
+PRES ?= 8
+TMIN ?= 773
+TMAX ?= 2273
+TRES ?= 8
 COMP ?= [44.9, 4.44, 3.54, 37.71, 8.03, 0.029, 0.36, 0.2, 0.01, 0.38, 0]
 FRAC ?= wt
 SAMPLEID ?= PUM
@@ -67,11 +67,11 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 	@echo "Run any of the following:" $(LOG)
 	@echo -e \
 		"make build_database\n\
-		PMIN=     <kbar>\n\
-		PMAX=     <kbar>\n\
+		PMIN=     <GPa>\n\
+		PMAX=     <GPa>\n\
 		PRES=     <number of points>\n\
-		TMIN=     <Celcius>\n\
-		TMAX=     <Celcius>\n\
+		TMIN=     <K>\n\
+		TMAX=     <K>\n\
 		TRES=     <number of points>\n\
 		COMP=     <'[SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O]'>\n\
 		FRAC=     <mol or wt>\n\
@@ -86,7 +86,7 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 		SEED=     <number for random state>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo -e \
-		"make benchmark_magemin_perplex\n\
+		"make benchmark\n\
 		PRES=     <number of points>\n\
 		TRES=     <number of points>\n\
 		SAMPLEID= <sample name>\n\
@@ -123,6 +123,11 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo "=============================================" $(LOG)
 
+visualize_other: $(LOGFILE) $(PYTHON)
+	@echo "Visualizing other figures ..." $(LOG)
+	@$(CONDAPYTHON) python/visualize-other.py $(LOG)
+	@echo "=============================================" $(LOG)
+
 visualize_benchmark: $(LOGFILE) $(PYTHON)
 	@echo "Visualizing benchmark comparisons ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-benchmark.py \
@@ -152,7 +157,13 @@ submit_jobs: $(LOGFILE) $(PYTHON) $(DATA)
 	@$(CONDAPYTHON) python/submit-jobs.py $(LOG)
 	@echo "=============================================" $(LOG)
 
-benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+benchmark_all: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=DMM
+	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=NMORB
+	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=PUM
+	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=RE46
+
+benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@if [ -e \
 		"$(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/$(SAMPLEID)-$(TRES)x$(PRES)_phases.tab" \
 	]; then \
@@ -189,11 +200,11 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			find . -name "*$(SAMPLEID)*" -type f -exec sh -c \
 			'mv "$$0" "$${0/$(SAMPLEID)/$(SAMPLEID)-$(TRES)x$(PRES)}"' {} \; \
 		); \
-		echo -n "$(SAMPLEID),$$((TRES * PRES)),$$( \
+		echo -n "$(SAMPLEID),$(PMIN),$(PMAX),$(TMIN),$(TMAX),$$((TRES * PRES)),$$( \
 			grep -oE "MAGEMin comp time: \+([0-9.]+) ms }" $(LOGFILE) | \
 			tail -n 1 | \
 			sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
-			awk '{printf "%.1f", $$NF/1000}')" >> $(DATA)/benchmark-comp-times.csv; \
+			awk '{printf "%.1f", $$NF/1000}')" >> $(DATA)/benchmark-times.csv; \
 		chmod +x $(PERPLEX)/build $(PERPLEX)/vertex $(PERPLEX)/pssect $(PERPLEX)/werami; \
 	fi
 	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
@@ -207,8 +218,21 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			awk '{ \
 				gsub("{SAMPLEID}", \
 				"$(SAMPLEID)"); print \
-			}' perplex-build-config-$(SAMPLEID) > temp_file && \
-			mv temp_file perplex-build-config-$(SAMPLEID) && \
+			}' perplex-build-config-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-build-config-$(SAMPLEID) && \
+			awk \
+				-v tmin="$(TMIN)" \
+				-v tmax="$(TMAX)" \
+				-v pmin="$$(echo $(PMIN)*10000 | bc)" \
+				-v pmax="$$(echo $(PMAX)*10000 | bc)" \
+				'{\
+					gsub("{TMIN}", tmin); \
+					gsub("{TMAX}", tmax); \
+					gsub("{PMIN}", pmin); \
+					gsub("{PMAX}", pmax); \
+					print \
+				}' perplex-build-config-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-build-config-$(SAMPLEID) && \
 			awk -F',' -v sample_id="$(SAMPLEID)" 'BEGIN { \
 				found=0 \
 			} $$13 == sample_id { \
@@ -217,24 +241,24 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			} END { \
 				if (found==0) \
 					print "Sample ID not found" \
-			}' $(DATA)/benchmark-samples.csv > sample-data && \
+			}' $(DATA)/benchmark-comps.csv > sample-data && \
 			awk -v sample_comp="$$(cat sample-data)" '/{SAMPLECOMP}/ { \
 				sub(/{SAMPLECOMP}/, sample_comp) \
 			} { \
 				print \
-			}' perplex-build-config-$(SAMPLEID) > temp_file && \
-			mv temp_file perplex-build-config-$(SAMPLEID) && \
+			}' perplex-build-config-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-build-config-$(SAMPLEID) && \
 			rm sample-data && \
 			awk '{ \
 				gsub("{SAMPLEID}", \
 				"$(SAMPLEID)"); print \
-			}' perplex-grid-config-$(SAMPLEID) > temp_file && \
-			mv temp_file perplex-grid-config-$(SAMPLEID) && \
+			}' perplex-grid-config-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-grid-config-$(SAMPLEID) && \
 			awk '{ \
 				gsub("{SAMPLEID}", \
 				"$(SAMPLEID)"); print \
-			}' perplex-phase-config-$(SAMPLEID) > temp_file && \
-			mv temp_file perplex-phase-config-$(SAMPLEID) && \
+			}' perplex-phase-config-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-phase-config-$(SAMPLEID) && \
 			awk -v tres=$(TRES) -v pres=$(PRES) 'BEGIN { \
 				div_tres = tres / 4; \
 				div_pres = pres / 4 \
@@ -242,8 +266,8 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 				sub(/default/, div_tres " " (tres + 1)) \
 			} /y_nodes/ { \
 				sub(/default/, div_pres " " (pres + 1)) \
-			} 1' perplex-options-config-$(SAMPLEID) > temp_file && \
-			mv temp_file perplex-options-config-$(SAMPLEID) && \
+			} 1' perplex-options-config-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-options-config-$(SAMPLEID) && \
 			./build < perplex-build-config-$(SAMPLEID) && \
 			echo "$(SAMPLEID)" | ./vertex && \
 			./werami < perplex-grid-config-$(SAMPLEID) && \
@@ -254,11 +278,13 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			echo "N" >> pssect-config-$(SAMPLEID) && \
 			./pssect < pssect-config-$(SAMPLEID) && \
 			ps2pdf $(SAMPLEID).ps $(SAMPLEID).pdf && \
-			rm perplex-build-config-$(SAMPLEID) \
-				perplex-grid-config-$(SAMPLEID) \
-				perplex-phase-config-$(SAMPLEID) \
-				pssect-config-$(SAMPLEID) \
-				perplex-options-config-$(SAMPLEID) && \
+			rm -rf \
+			perplex_plot_option.dat \
+			perplex-build-config-$(SAMPLEID) \
+			perplex-grid-config-$(SAMPLEID) \
+			perplex-options-config-$(SAMPLEID) \
+			perplex-phase-config-$(SAMPLEID) \
+			pssect-config-$(SAMPLEID) && \
 			mv $(SAMPLEID)* $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES) \
 		) $(LOG); \
 		(cd $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES) && \
@@ -269,7 +295,7 @@ benchmark_magemin_perplex: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(M
 			grep -oE "Total elapsed time\s+([0-9.]+)" $(LOGFILE) | \
 			tail -n 1 | \
 			sed -E 's/Total elapsed time\s+([0-9.]+)/\1/' | \
-			awk '{printf "%.1f", $$NF*60}')" >> $(DATA)/benchmark-comp-times.csv; \
+			awk '{printf "%.1f", $$NF*60}')" >> $(DATA)/benchmark-times.csv; \
 		echo "=============================================" $(LOG); \
 		echo "Finished perplex model ..." $(LOG); \
 		echo "Finished benchmarking $(SAMPLEID) ..." $(LOG); \
@@ -386,4 +412,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env build_database benchmark_magemin_perplex submit_jobs visualize_benchmark visualize_database all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env build_database benchmark_all benchmark submit_jobs visualize_benchmark visualize_database visualize_other all purge clean

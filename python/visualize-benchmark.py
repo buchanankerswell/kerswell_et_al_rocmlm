@@ -46,13 +46,13 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
     file_path_assemblage_ppx = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
     results_ppx = process_perplex_grid(file_path_results_ppx, file_path_assemblage_ppx)
 
-    # Get PT values MAGEMin
-    P_mgm = results_mgm["P"]
-    T_mgm = results_mgm["T"]
+    # Get PT values MAGEMin and transform units
+    P_mgm = [P / 10 for P in results_mgm["P"]]
+    T_mgm = [T + 273 for T in results_mgm["T"]]
 
-    # Get PT values perplex
-    P_ppx = results_ppx["P"]
-    T_ppx = results_ppx["T"]
+    # Get PT values perplex and transform units
+    P_ppx = [P / 10 for P in results_ppx["P"]]
+    T_ppx = [T + 273 for T in results_ppx["T"]]
 
     for parameter in parameters:
 
@@ -219,9 +219,3 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             os.remove(f"{fig_dir}/temp1.png")
         if os.path.exists(f"{fig_dir}/temp2.png"):
             os.remove(f"{fig_dir}/temp2.png")
-
-# Read benchmark data
-if os.path.exists("assets/data"):
-    comp_times = "assets/data/benchmark-comp-times.csv"
-    # Plot benchmark comp times
-    visualize_benchmark_comp_times(comp_times, fig_dir="figs/benchmark")

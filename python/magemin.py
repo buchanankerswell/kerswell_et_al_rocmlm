@@ -23,6 +23,8 @@ import seaborn as sns
 from scipy import stats
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
 
@@ -1343,6 +1345,8 @@ def plot_MAD(
         T,
         grid,
         parameter,
+        T_unit = "K",
+        P_unit = "GPa",
         title=None,
         palette="blues",
         color_discrete=False,
@@ -1446,9 +1450,8 @@ def plot_MAD(
             vmin=1,
             vmax=num_colors+1
         )
-
-        ax.set_xlabel("T (˚C)")
-        ax.set_ylabel("P (kbar)")
+        ax.set_xlabel(f"T ({T_unit})")
+        ax.set_ylabel(f"P ({P_unit})")
         plt.colorbar(im, ax=ax, ticks=np.arange(1, num_colors+1, num_colors // 6), label="")
         if title:
             plt.title(title)
@@ -1513,8 +1516,8 @@ def plot_MAD(
             vmin=vmin,
             vmax=vmax
         )
-        ax.set_xlabel("T (˚C)")
-        ax.set_ylabel("P (kbar)")
+        ax.set_xlabel(f"T ({T_unit})")
+        ax.set_ylabel(f"P ({P_unit})")
         if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
             cbar = plt.colorbar(im, ax=ax, label="")
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter('%.1f'))
@@ -1653,6 +1656,9 @@ def plot_harker_diagram(
         # Print plot
         plt.show()
 
+    # Close device
+    plt.close()
+
 # Visualize benchmark comp times
 def visualize_benchmark_comp_times(
         datafile,
@@ -1660,7 +1666,7 @@ def visualize_benchmark_comp_times(
         fontsize=14,
         figwidth=6.3,
         figheight=3.54,
-        filename="benchmark-comp-times.png",
+        filename="benchmark-times.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Visualize benchmark computation times.
@@ -1670,7 +1676,7 @@ def visualize_benchmark_comp_times(
         palette (str, optional): The color palette for sample colors. Default is "tab10".
         fontsize (int, optional): The font size for text elements in the plot. Default is 12.
         filename (str, optional): The filename to save the plot. If not provided,
-            the plot will be displayed interactively. Default is "benchmark-comp-times.png".
+            the plot will be displayed interactively. Default is "benchmark-times.png".
         fig_dir (str, optional): The directory to save the plot. Default is "./figs".
 
     Returns:
@@ -1695,16 +1701,16 @@ def visualize_benchmark_comp_times(
     # Read data
     data = pd.read_csv(datafile)
 
-    # Arange data by grid resolution and sample
+    # Arrange data by grid resolution and sample
     data.sort_values(by=["grid", "sample"], inplace=True)
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
     plt.rcParams["legend.fontsize"] = "small"
-    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["legend.frameon"] = False
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
-    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.autolayout"] = True
     plt.rcParams["figure.dpi"] = 330
     plt.rcParams["savefig.bbox"] = "tight"
 
@@ -1720,7 +1726,11 @@ def visualize_benchmark_comp_times(
     # Group the data by sample
     grouped_data = data.groupby(["sample"])
 
-    # Plot the data
+    # Create a list to store the legend labels and handles
+    legend_labels = []
+    legend_handles = []
+
+    # Plot the data for MAGEMin lines
     for group, group_data in grouped_data:
         sample_val = group[0]
         color_val = sample_colors[sample_val]
@@ -1731,13 +1741,20 @@ def visualize_benchmark_comp_times(
         mgm_y = mgm_data["mgm"]
 
         # Plot mgm data points and connect them with lines
-        plt.plot(
+        line_mgm, = plt.plot(
             mgm_x, mgm_y,
             marker="o",
             color=color_val,
             linestyle="-",
-            label=f"{sample_val} MGM"
+            label=f"[MAGEMin] {sample_val}"
         )
+        legend_handles.append(line_mgm)
+        legend_labels.append(f"[MAGEMin] {sample_val}")
+
+    # Plot the data for Perple_X lines
+    for group, group_data in grouped_data:
+        sample_val = group[0]
+        color_val = sample_colors[sample_val]
 
         # Filter out rows with missing time values for ppx column
         ppx_data = group_data.dropna(subset=["ppx"])
@@ -1745,20 +1762,30 @@ def visualize_benchmark_comp_times(
         ppx_y = ppx_data["ppx"]
 
         # Plot ppx data points and connect them with lines
-        plt.plot(
+        line_ppx, = plt.plot(
             ppx_x, ppx_y,
             marker="s",
             color=color_val,
             linestyle="--",
-            label=f"{sample_val} PPX"
+            label=f"[Perple_X] {sample_val}"
         )
+        legend_handles.append(line_ppx)
+        legend_labels.append(f"[Perple_X] {sample_val}")
 
     # Set labels and title
     plt.xlabel("PT Grid Resolution")
     plt.ylabel("Time (s)")
     plt.title("GFEM Efficiency")
-    plt.xticks([8, 16, 32, 64, 128])
-    plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.xticks([16, 32, 64, 128])
+
+    # Create the legend with the desired order
+    plt.legend(
+        legend_handles,
+        legend_labels,
+        title="",
+        bbox_to_anchor=(1.02, 1),
+        loc="upper left"
+    )
 
     # Adjust the figure size
     fig = plt.gcf()
@@ -1770,3 +1797,239 @@ def visualize_benchmark_comp_times(
     else:
         # Print plot
         plt.show()
+
+    # Close device
+    plt.close()
+
+# Visualize training data PT range and Clapeyron slopes
+def visualize_training_PT_range(
+        P_unit="GPa",
+        T_unit="K",
+        palette="tab10",
+        fontsize=14,
+        figwidth=6.3,
+        figheight=3.54,
+        filename="madnn-training-pt-range.png",
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    Generate a plot to visualize the training data PT range and Clapeyron slopes.
+
+    Parameters:
+        - palette (str): Color palette for the plot. Default is "tab10".
+        - fontsize (int): Font size for the plot. Default is 14.
+        - figwidth (float): Width of the figure in inches. Default is 6.3.
+        - figheight (float): Height of the figure in inches. Default is 3.54.
+        - filename (str): Name of the file to save the plot.
+        - fig_dir (str): Directory path to save the plot file.
+
+    Returns:
+        None. The plot is either saved to a file or displayed on the screen.
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # T range
+    T = np.arange(0, 3001)
+
+    # Define P range
+    P_min, P_max = 1.0, 28.0
+
+    # Olivine --> Ringwoodite Clapeyron slopes
+    references_410 = {
+        "Akaogi89": [0.001, 0.002],
+        "Katsura89": [0.0025],
+        "Morishima94": [0.0034, 0.0038]
+    }
+
+    # Ringwoodite --> Bridgmanite + Ferropericlase Clapeyron slopes
+    references_660 = {
+        "Ito82": [-0.002],
+        "Ito89 & Hirose02": [-0.0028],
+        "Ito90": [-0.002, -0.006],
+        "Katsura03": [-0.0004, -0.002],
+        "Akaogi07": [-0.0024, -0.0028]
+    }
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Legend colors
+    colormap = cm.get_cmap(palette)
+    colors = [
+        colormap(0),
+        colormap(1),
+        colormap(2),
+        colormap(3),
+        colormap(4),
+        colormap(5),
+        colormap(6),
+        colormap(7),
+        colormap(8)
+    ]
+
+    # Calculate phase boundaries:
+    # Olivine --> Ringwoodite
+    lines_410 = []
+    labels_410 = set()
+    for i, (ref, c_values) in enumerate(references_410.items()):
+        ref_lines = []
+        for j, c in enumerate(c_values):
+            P = (T - 1758) * c + 13.4
+            ref_lines.append(P)
+            label = f"{ref}"
+            labels_410.add(label)
+        lines_410.append(ref_lines)
+
+    # Ringwoodite --> Bridgmanite + Ferropericlase
+    lines_660 = []
+    labels_660 = set()
+    for i, (ref, c_values) in enumerate(references_660.items()):
+        ref_lines = []
+        for j, c in enumerate(c_values):
+            P = (T - 1883) * c + 23.0
+            ref_lines.append(P)
+            label = f"{ref}"
+            labels_660.add(label)
+        lines_660.append(ref_lines)
+
+    # Plotting
+    plt.figure()
+
+    # Map labels to colors
+    label_color_mapping = {}
+
+    # Olivine --> Ringwoodite
+    for i, (ref, ref_lines) in enumerate(zip(references_410.keys(), lines_410)):
+        color = colors[i % len(colors)]
+        for j, line in enumerate(ref_lines):
+            label = f"[410] {ref}" if j == 0 else None
+            plt.plot(
+                T[(T >= 1200) & (T <= 2273)],
+                line[(T >= 1200) & (T <= 2273)],
+                color=color,
+                label=label
+            )
+            if label not in label_color_mapping:
+                label_color_mapping[label] = color
+
+    # Ringwoodite --> Bridgmanite + Ferropericlase
+    for j, (ref, ref_lines) in enumerate(zip(references_660.keys(), lines_660)):
+        color = colors[j+i+1 % len(colors)]
+        for j, line in enumerate(ref_lines):
+            label = f"[660] {ref}" if j == 0 else None
+            plt.plot(
+                T[(T >= 1200) & (T <= 2273)],
+                line[(T >= 1200) & (T <= 2273)],
+                color=color,
+                label=label
+            )
+            if label not in label_color_mapping:
+                label_color_mapping[label] = color
+
+    # Plot shaded rectangle for PT range of training dataset
+    fill = plt.fill_between(
+        T,
+        P_min,
+        P_max,
+        where=(T >= 773) & (T <= 2273),
+        color="gray",
+        alpha=0.2
+    )
+
+    # Calculate mantle geotherms
+    geotherm1 = (T - 273) / (0.5 * 35)
+    geotherm2 = (T - 1200 - 273) / (0.5 * 35)
+    geotherm3 = (T - 1500 - 273) / (0.5 * 35)
+
+    # Plot mantle geotherms
+    plt.plot(T, geotherm1, ":", color="black")
+    plt.plot(T, geotherm2, "--", color="black")
+    plt.plot(T, geotherm3, "-.", color="black")
+
+    # Geotherm legend handles
+    geotherm1_handle = mlines.Line2D(
+        [], [], linestyle=":", color="black", label="Geotherm 1"
+    )
+    geotherm2_handle = mlines.Line2D(
+        [], [], linestyle="--", color="black", label="Geotherm 2"
+    )
+    geotherm3_handle = mlines.Line2D(
+        [], [], linestyle="-.", color="black", label="Geotherm 3"
+    )
+
+    # Phase boundaries legend handles
+    ref_line_handles = [
+        mlines.Line2D([], [], color=color, label=label) \
+        for label, color in label_color_mapping.items() if label
+    ]
+
+    # Add geotherms to legend handles
+    ref_line_handles.extend([geotherm1_handle, geotherm2_handle, geotherm3_handle])
+
+    training_data_handle = mpatches.Patch(
+        color="gray",
+        alpha=0.2,
+        label="Training Data Range"
+    )
+
+    labels_660.add("Training Data Range")
+    label_color_mapping["Training Data Range"] = "gray"
+
+    # Define the desired order of the legend items
+    desired_order = [
+        "[410] Akaogi89",
+        "[410] Katsura89",
+        "[410] Morishima94",
+        "[660] Ito82",
+        "[660] Ito89 & Hirose02",
+        "[660] Ito90",
+        "[660] Katsura03",
+        "[660] Akaogi07",
+        "Geotherm 1",
+        "Geotherm 2",
+        "Geotherm 3",
+        "Training Data Range"
+    ]
+
+    # Sort the legend handles based on the desired order
+    legend_handles = sorted(
+        ref_line_handles + [training_data_handle],
+        key=lambda x: desired_order.index(x.get_label())
+    )
+
+    plt.xlabel(f"Temperature ({T_unit})")
+    plt.ylabel(f"Pressure ({P_unit})")
+    plt.title("Mantle Transition Zones")
+    plt.xlim(700, 2346)
+    plt.ylim(0, 29)
+    plt.yticks([0, 10, 20, 30])
+
+    # Move the legend outside the plot to the right
+    plt.legend(
+        title="",
+        handles=legend_handles,
+        loc="center left",
+        bbox_to_anchor=(1, 0.5)
+    )
+
+    # Adjust the figure size
+    fig = plt.gcf()
+    fig.set_size_inches(figwidth, figheight)
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}")
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()

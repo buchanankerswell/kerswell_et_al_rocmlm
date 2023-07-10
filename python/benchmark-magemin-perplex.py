@@ -30,7 +30,7 @@ oxide_list_magemin = [
 ]
 
 # Read benchmarking samples
-datafile = "assets/data/benchmark-samples.csv"
+datafile = "assets/data/benchmark-comps.csv"
 benchmark_sample_ids = ["PUM", "DMM", "RE46", "NMORB"]
 
 # Get benchmark sample composition
@@ -88,6 +88,12 @@ if len(out_dir) > 55:
     )
 print(f"out_dir: {out_dir}")
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+# Transform units
+P_min = P_min*10
+P_max = P_max*10
+T_min = T_min-273
+T_max = T_max-273
 
 # PT grid
 P_range = [P_min, P_max, (P_max-P_min)/P_res]
