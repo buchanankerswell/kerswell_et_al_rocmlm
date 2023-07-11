@@ -1159,7 +1159,7 @@ def process_MAGEMin_grid(run_name, out_dir="runs"):
     return merged_results
 
 # Encode stable phase assemblage for plotting with imshow
-def encode_phases(phases):
+def encode_phases(phases, filename=None):
     """
     Encode unique phase assemblages and their corresponding numbers.
 
@@ -1180,6 +1180,13 @@ def encode_phases(phases):
         assemblage_tuple = tuple(sorted(phase_assemblage))
         if assemblage_tuple not in unique_assemblages:
             unique_assemblages[assemblage_tuple] = len(unique_assemblages) + 1
+
+    # Save list of unique phase assemblages
+    if filename is not None:
+        df = pd.DataFrame(list(unique_assemblages.items()), columns=["Assemblage", "Index"])
+        df = df[["Index", "Assemblage"]]
+        df["Assemblage"] = df["Assemblage"].apply(" ".join)
+        df.to_csv(filename, index=False)
 
     # Encoding phase assemblage numbers
     for phase_assemblage in phases:
@@ -1355,7 +1362,7 @@ def plot_MAD(
         vmax=None,
         figwidth=6.3,
         figheight=4.725,
-        fontsize=20,
+        fontsize=22,
         filename=None,
         fig_dir=f"{os.getcwd()}/figs"):
     """
@@ -1542,7 +1549,7 @@ def plot_harker_diagram(
         datafile,
         x_oxide="SiO2",
         y_oxide="MgO",
-        fontsize=14,
+        fontsize=12,
         filename="earthchem-harker.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
@@ -1663,7 +1670,7 @@ def plot_harker_diagram(
 def visualize_benchmark_comp_times(
         datafile,
         palette="tab10",
-        fontsize=14,
+        fontsize=12,
         figwidth=6.3,
         figheight=3.54,
         filename="benchmark-times.png",
@@ -1806,7 +1813,7 @@ def visualize_training_PT_range(
         P_unit="GPa",
         T_unit="K",
         palette="tab10",
-        fontsize=14,
+        fontsize=12,
         figwidth=6.3,
         figheight=3.54,
         filename="madnn-training-pt-range.png",
@@ -1910,7 +1917,7 @@ def visualize_training_PT_range(
     for i, (ref, ref_lines) in enumerate(zip(references_410.keys(), lines_410)):
         color = colors[i % len(colors)]
         for j, line in enumerate(ref_lines):
-            label = f"[410] {ref}" if j == 0 else None
+            label = f"{ref}" if j == 0 else None
             plt.plot(
                 T[(T >= 1200) & (T <= 2273)],
                 line[(T >= 1200) & (T <= 2273)],
@@ -1924,7 +1931,7 @@ def visualize_training_PT_range(
     for j, (ref, ref_lines) in enumerate(zip(references_660.keys(), lines_660)):
         color = colors[j+i+1 % len(colors)]
         for j, line in enumerate(ref_lines):
-            label = f"[660] {ref}" if j == 0 else None
+            label = f"{ref}" if j == 0 else None
             plt.plot(
                 T[(T >= 1200) & (T <= 2273)],
                 line[(T >= 1200) & (T <= 2273)],
@@ -1945,24 +1952,29 @@ def visualize_training_PT_range(
     )
 
     # Calculate mantle geotherms
-    geotherm1 = (T - 273) / (0.5 * 35)
-    geotherm2 = (T - 1200 - 273) / (0.5 * 35)
-    geotherm3 = (T - 1500 - 273) / (0.5 * 35)
+    geotherm1 = (T - 273) / (5 * 35)
+    geotherm2 = (T - 273) / (20 * 35)
+    geotherm3 = (T - 1200 - 273) / (0.5 * 35)
+    geotherm4 = (T - 1500 - 273) / (0.5 * 35)
 
     # Plot mantle geotherms
-    plt.plot(T, geotherm1, ":", color="black")
-    plt.plot(T, geotherm2, "--", color="black")
-    plt.plot(T, geotherm3, "-.", color="black")
+    plt.plot(T, geotherm1, "-", color="black")
+    plt.plot(T, geotherm2, ":", color="black")
+    plt.plot(T, geotherm3, "--", color="black")
+    plt.plot(T, geotherm4, "-.", color="black")
 
     # Geotherm legend handles
     geotherm1_handle = mlines.Line2D(
-        [], [], linestyle=":", color="black", label="Geotherm 1"
+        [], [], linestyle="-", color="black", label="Geotherm 1"
     )
     geotherm2_handle = mlines.Line2D(
-        [], [], linestyle="--", color="black", label="Geotherm 2"
+        [], [], linestyle=":", color="black", label="Geotherm 2"
     )
     geotherm3_handle = mlines.Line2D(
-        [], [], linestyle="-.", color="black", label="Geotherm 3"
+        [], [], linestyle="--", color="black", label="Geotherm 3"
+    )
+    geotherm4_handle = mlines.Line2D(
+        [], [], linestyle="-.", color="black", label="Geotherm 4"
     )
 
     # Phase boundaries legend handles
@@ -1972,31 +1984,34 @@ def visualize_training_PT_range(
     ]
 
     # Add geotherms to legend handles
-    ref_line_handles.extend([geotherm1_handle, geotherm2_handle, geotherm3_handle])
+    ref_line_handles.extend(
+        [geotherm1_handle, geotherm2_handle, geotherm3_handle, geotherm4_handle]
+    )
 
     training_data_handle = mpatches.Patch(
         color="gray",
         alpha=0.2,
-        label="Training Data Range"
+        label="Training Data"
     )
 
-    labels_660.add("Training Data Range")
-    label_color_mapping["Training Data Range"] = "gray"
+    labels_660.add("Training Data")
+    label_color_mapping["Training Data"] = "gray"
 
     # Define the desired order of the legend items
     desired_order = [
-        "[410] Akaogi89",
-        "[410] Katsura89",
-        "[410] Morishima94",
-        "[660] Ito82",
-        "[660] Ito89 & Hirose02",
-        "[660] Ito90",
-        "[660] Katsura03",
-        "[660] Akaogi07",
+        "Akaogi89",
+        "Katsura89",
+        "Morishima94",
+        "Ito82",
+        "Ito89 & Hirose02",
+        "Ito90",
+        "Katsura03",
+        "Akaogi07",
         "Geotherm 1",
         "Geotherm 2",
         "Geotherm 3",
-        "Training Data Range"
+        "Geotherm 4",
+        "Training Data"
     ]
 
     # Sort the legend handles based on the desired order
@@ -2010,7 +2025,6 @@ def visualize_training_PT_range(
     plt.title("Mantle Transition Zones")
     plt.xlim(700, 2346)
     plt.ylim(0, 29)
-    plt.yticks([0, 10, 20, 30])
 
     # Move the legend outside the plot to the right
     plt.legend(

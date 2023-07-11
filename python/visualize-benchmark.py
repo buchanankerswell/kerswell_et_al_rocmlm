@@ -59,11 +59,17 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
         # Transform results into 2D numpy arrays
         if parameter == "StableSolutions":
             # Encode unique phase assemblages MAGEMin
-            encoded_mgm, unique_mgm = encode_phases(results_mgm[parameter])
+            encoded_mgm, unique_mgm = encode_phases(
+                results_mgm[parameter],
+                filename=f"assets/benchmark/{sample_id}/{sample_id}_mgm_assemblages.csv"
+            )
             grid_mgm = create_PT_grid(P_mgm, T_mgm, encoded_mgm)
 
             # Encode unique phase assemblages perplex
-            encoded_ppx, unique_ppx = encode_phases(results_ppx[parameter])
+            encoded_ppx, unique_ppx = encode_phases(
+                results_ppx[parameter],
+                filename=f"assets/benchmark/{sample_id}/{sample_id}_ppx_assemblages.csv"
+            )
             grid_ppx = create_PT_grid(P_ppx, T_ppx, encoded_ppx)
         else:
             grid_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
@@ -71,7 +77,7 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
 
         # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
         if parameter == "LiquidFraction":
-            grid_mgm = np.where(grid_mgm == 0, np.nan, grid_mgm)
+            grid_ppx = np.where(np.isnan(grid_ppx), 0, grid_ppx)
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
