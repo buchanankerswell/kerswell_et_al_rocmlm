@@ -12,7 +12,7 @@ HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = $(WORKDIR)/python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
 # Magemin program
-MAGEMIN = $(WORKDIR)/MAGEMin/MAGEMin
+MAGEMIN = $(WORKDIR)/MAGEMin
 # Perplex program
 PERPLEX = $(WORKDIR)/assets/perplex
 # Directories with data and scripts
@@ -174,6 +174,16 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 		mkdir -p $(BENCHMARK); \
 		mkdir -p $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES); \
 		mkdir -p $(WORKDIR)/$(FIGDIR)/benchmark; \
+		if [ "$(UNAMES)" = "Linux" ]; then \
+			echo "Configuring MAGEMin for meso ..." $(LOG); \
+			cp $(CONFIG)/meso-compile MAGEMin/Makefile; \
+		fi; \
+		echo "Configuring MAGEMin for $(SAMPLEID) ..." $(LOG); \
+		cp $(CONFIG)/magemin-init $(MAGEMIN)/src/initialize.h $(LOG); \
+		echo "Compiling MAGEMin ..." $(LOG); \
+		echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG); \
+		(cd MAGEMin && make) $(LOG); \
+		echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG); \
 		echo "Building MAGEMin model ..." $(LOG); \
 		$(CONDAPYTHON) python/benchmark-magemin-perplex.py \
 			--Pmin $(PMIN) \
@@ -210,16 +220,16 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
 		echo "Building perplex model ..." $(LOG); \
 		(cd $(PERPLEX) && \
-			cp $(CONFIG)/perplex-build-config perplex-build-config-$(SAMPLEID) && \
-			cp $(CONFIG)/perplex-grid-config perplex-grid-config-$(SAMPLEID) && \
-			cp $(CONFIG)/perplex-phase-config perplex-phase-config-$(SAMPLEID) && \
-			cp $(CONFIG)/perplex-options-config perplex-options-config-$(SAMPLEID) && \
-			cp $(CONFIG)/perplex-plot-config perplex_plot_option.dat && \
+			cp $(CONFIG)/perplex-build perplex-build-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-grid perplex-grid-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-phase perplex-phase-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-options perplex-options-$(SAMPLEID) && \
+			cp $(CONFIG)/perplex-plot perplex_plot_option.dat && \
 			awk '{ \
 				gsub("{SAMPLEID}", \
 				"$(SAMPLEID)"); print \
-			}' perplex-build-config-$(SAMPLEID) > temp-file && \
-			mv temp-file perplex-build-config-$(SAMPLEID) && \
+			}' perplex-build-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-build-$(SAMPLEID) && \
 			awk \
 				-v tmin="$(TMIN)" \
 				-v tmax="$(TMAX)" \
@@ -231,8 +241,8 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 					gsub("{PMIN}", pmin); \
 					gsub("{PMAX}", pmax); \
 					print \
-				}' perplex-build-config-$(SAMPLEID) > temp-file && \
-			mv temp-file perplex-build-config-$(SAMPLEID) && \
+				}' perplex-build-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-build-$(SAMPLEID) && \
 			awk -F',' -v sample_id="$(SAMPLEID)" 'BEGIN { \
 				found=0 \
 			} $$13 == sample_id { \
@@ -246,19 +256,19 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 				sub(/{SAMPLECOMP}/, sample_comp) \
 			} { \
 				print \
-			}' perplex-build-config-$(SAMPLEID) > temp-file && \
-			mv temp-file perplex-build-config-$(SAMPLEID) && \
+			}' perplex-build-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-build-$(SAMPLEID) && \
 			rm sample-data && \
 			awk '{ \
 				gsub("{SAMPLEID}", \
 				"$(SAMPLEID)"); print \
-			}' perplex-grid-config-$(SAMPLEID) > temp-file && \
-			mv temp-file perplex-grid-config-$(SAMPLEID) && \
+			}' perplex-grid-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-grid-$(SAMPLEID) && \
 			awk '{ \
 				gsub("{SAMPLEID}", \
 				"$(SAMPLEID)"); print \
-			}' perplex-phase-config-$(SAMPLEID) > temp-file && \
-			mv temp-file perplex-phase-config-$(SAMPLEID) && \
+			}' perplex-phase-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-phase-$(SAMPLEID) && \
 			awk -v tres=$(TRES) -v pres=$(PRES) 'BEGIN { \
 				div_tres = tres / 4; \
 				div_pres = pres / 4 \
@@ -266,25 +276,25 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 				sub(/default/, div_tres " " (tres + 1)) \
 			} /y_nodes/ { \
 				sub(/default/, div_pres " " (pres + 1)) \
-			} 1' perplex-options-config-$(SAMPLEID) > temp-file && \
-			mv temp-file perplex-options-config-$(SAMPLEID) && \
-			./build < perplex-build-config-$(SAMPLEID) && \
+			} 1' perplex-options-$(SAMPLEID) > temp-file && \
+			mv temp-file perplex-options-$(SAMPLEID) && \
+			./build < perplex-build-$(SAMPLEID) && \
 			echo "$(SAMPLEID)" | ./vertex && \
-			./werami < perplex-grid-config-$(SAMPLEID) && \
+			./werami < perplex-grid-$(SAMPLEID) && \
 			mv $(SAMPLEID)_1.tab $(SAMPLEID)_grid.tab && \
-			./werami < perplex-phase-config-$(SAMPLEID) && \
+			./werami < perplex-phase-$(SAMPLEID) && \
 			mv $(SAMPLEID)_1.tab $(SAMPLEID)_phases.tab && \
-			echo "$(SAMPLEID)" > pssect-config-$(SAMPLEID) && \
-			echo "N" >> pssect-config-$(SAMPLEID) && \
-			./pssect < pssect-config-$(SAMPLEID) && \
+			echo "$(SAMPLEID)" > pssect-options-$(SAMPLEID) && \
+			echo "N" >> pssect-options-$(SAMPLEID) && \
+			./pssect < pssect-options-$(SAMPLEID) && \
 			ps2pdf $(SAMPLEID).ps $(SAMPLEID).pdf && \
 			rm -rf \
 			perplex_plot_option.dat \
-			perplex-build-config-$(SAMPLEID) \
-			perplex-grid-config-$(SAMPLEID) \
-			perplex-options-config-$(SAMPLEID) \
-			perplex-phase-config-$(SAMPLEID) \
-			pssect-config-$(SAMPLEID) && \
+			perplex-build-$(SAMPLEID) \
+			perplex-grid-$(SAMPLEID) \
+			perplex-options-$(SAMPLEID) \
+			perplex-phase-$(SAMPLEID) \
+			pssect-options-$(SAMPLEID) && \
 			mv $(SAMPLEID)* $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES) \
 		) $(LOG); \
 		(cd $(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES) && \
@@ -332,20 +342,12 @@ build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-$(MAGEMIN): $(LOGFILE) $(PYTHON) $(CONFIG)
+$(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
 		echo "=============================================" $(LOG); \
 		echo "Cloning MAGEMin from $(MAGEMINREPO) ..." $(LOG); \
 		chmod +x python/clone-magemin.py; \
 		$(CONDAPYTHON) python/clone-magemin.py $(LOG); \
-		if [ "$(UNAMES)" = "Linux" ]; then \
-			echo "Configuring MAGEMin for meso ..." $(LOG); \
-			cp $(CONFIG)/meso-config MAGEMin/Makefile; \
-		fi; \
-		echo "Compiling MAGEMin ..." $(LOG); \
-		echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG); \
-		(cd MAGEMin && make) $(LOG); \
-		echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG); \
 	else \
 		echo "MAGEMin found at:" $(LOG); \
 		echo "$(MAGEMIN)" $(LOG); \

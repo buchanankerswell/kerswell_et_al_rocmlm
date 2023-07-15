@@ -1,29 +1,35 @@
 # Introduction
 
-The dominant mineral phases in Earth's upper mantle are olivine, ringwoodite, bridgmanite, and ferropericlase [@ringwood1975; @ringwood1991]. These four phases alone may comprise up to 60–90% of the mantle, depending on the assumed mantle composition [e.g., @stixrude2012]. Work since the 1950's has established that these Mg-Fe-rich minerals form by a series of discrete phase changes, defining critical mantle transition zones (MTZs, @eq:mantle-transitions) near 410 km and 660 km depths---inducing sharp contrasts in the physical properties of the mantle [e.g, density and elasticity, @dziewonski1981; @ita1992].
+The dominant mineral phases in Earth's upper mantle are olivine, ringwoodite, bridgmanite, and ferropericlase [@ringwood1975; @ringwood1991], comprising up to 60–90% of the mantle's volume [e.g., @stixrude2012]. These Mg-Fe-rich phases form by a series of discrete reactions (@eq:mantle-transitions) that define mantle transition zones (MTZs) near 410 km and 660 km depths beneath Earth's surface. MTZs are characterized by relatively sharp boundaries with contrasting physical properties [e.g, density and elasticity, @dziewonski1981; @ita1992] that strongly impact mantle convection, melting, and plate tectonics [@fukao2001; @ringwood1991; @schubert1975; @kuritani2019; @karato2001; @wang2015; @jenkins2016].
 
 \begin{align}
 	\text{olivine} \xrightarrow{\text{410 km}} \text{ringwoodite} &\xrightarrow{\text{660 km}} \text{bridgmanite} + \text{ferropericlase} \label{eq:mantle-transitions} \\
 	\text{(Mg,Fe)}_{2}\text{SiO}_{4} \xrightarrow{\text{410 km}} \text{(Mg,Fe)}_{2}\text{SiO}_{4} &\xrightarrow{\text{660 km}} \text{(Mg,Fe)}\text{SiO}_{3} + \text{(Mg,Fe)}\text{O} \nonumber
 \end{align}
 
-Previous work demonstrates that mantle convection, melting, and plate tectonics are strongly impacted by the sharp contrast in physical properties associated with MTZs [@fukao2001; @ringwood1991; @schubert1975; @kuritani2019; @karato2001; @wang2015; @jenkins2016], although the physio-chemical nature of MTZs remains under vigorous investigation [@goes2022; @pearson2014; @yoshino2008; @waszek2021; @kiseeva2018; @fei2017; @zhou2022]. Notwithstanding, modeling the interplay between plate tectonics and MTZs is possible with numerical geodynamic experiments that approximate pressure-temperature (PT)-dependent phase changes in the upper mantle. This approach has generated many important models and hypotheses regarding how plate motions, viscosity contrasts, and Clapeyron slopes of phase changes (e.g., @eq:mantle-transitions) affect plate velocities and slab stagnation at MTZs [@agrusta2017; @li2019; @torii2007]---with implications towards understanding deep water cycling and flux melting in the deep Earth [e.g., @yang2020]. However, these experiments assume fixed mantle compositions and neglect the effects of compositional changes due to fluid-rock interactions and partial melting. Advancing towards more comprehensive models of plate motions, deep water cycling, and mantle melting at MTZs requires a leap to fully implementing iterative PT-composition-time (PTXt)-dependent phase changes in numerical geodynamic simulations.
+Although the physio-chemical nature of MTZs remains under vigorous investigation [@goes2022; @pearson2014; @yoshino2008; @waszek2021; @kiseeva2018; @fei2017; @zhou2022], modelling the interplay between plate tectonics and MTZs is possible with numerical geodynamic simulations of mantle flow that implement pressure-temperature (PT)-dependent phase changes (e.g., @eq:mantle-transitions). This approach has generated many important hypotheses implicating MTZs as critical features controlling global plate tectonics and water cycling in the deep Earth [e.g., @agrusta2017; @li2019; @torii2007; @yang2020]. However, the tendency to assume fixed mantle compositions that neglect chemical fractionation from fluid-rock interactions and partial melting limit such numerical experiments to rough first-order approximations of true mantle flow.
 
-Even with simple parameterizations, however, implementing fully iterative PTXt-dependent phase changes in large-scale geodynamic simulations is intractable because Gibbs free energy minimization (GFEMs) programs [e.g., @connolly2009; @riel2022] remain too slow to converge on stable solutions for mineral assemblage diagrams (MADs). For example, assuming a large-scale 2D geodynamic simulation has 900 x 300 nodes with a 100-second MAD compute time at each node (exceeds the best-case scenario for current GFEM programs, see [@fig:benchmark-times] and [@tbl:benchmark-times-table]), it would take 7500 hours to predict stable mineral assemblages across the model domain for a single timestep. While recent parallelized GFEM programs [@riel2022] have increased efficiency dramatically (up to 8.9x improvement; [@fig:benchmark-times] and [@tbl:benchmark-times-table]), computing MADs iteratively during geodynamic simulations requires GFEM efficiency on the order of $\leq$ 10 milliseconds to be feasible. A 10$^4$ rate of improvement (10$^2$–10$^{-2}$ s) seems unlikely within the current GFEM paradigm and applying parallelization across thousands of CPU/GPU cores is inaccessible in many cases.
+Advancing towards more comprehensive models of plate interactions at MTZs requires a leap from modelling PT- to PT-composition-time (PTXt)-dependent phase changes in the mantle. This is currently intractable, however, because Gibbs Free Energy minimization (GFEMs) programs [e.g., @connolly2009; @riel2022] used to calculate PTX-dependent phase relations---referred to as mineral assemblage diagrams, or MADs---remain slow (10$^2$–10$^4$ seconds; [@fig:benchmark-times]). While recent parallelized GFEM programs [@riel2022] have increased efficiency dramatically ([@tbl:benchmark-times-table]), computing MADs iteratively during geodynamic simulations requires GFEM efficiency on the order of $\leq$ 10 milliseconds to be feasible. A rate of improvement from 10$^2$ to 10$^{-2}$ seconds seems unlikely within the current GFEM paradigm, however, and applying parallelization across thousands of CPU/GPU cores is inaccessible in many cases.
 
-![Benchmark results for GFEM programs MAGEMin [dashed lines with square, @riel2022] and Perple_X [solid lines with circles, @connolly2009]. Note that MAGEMin was ran in parallel on 6 CPU cores, while Perple_X has no parallel capabilities. In the best case for a 128x128 PT grid, MADs take 171.2 seconds to compute ([@tbl:benchmark-times-table]).](assets/figs/benchmark-times.png){#fig:benchmark-times width=100%}
+![Computational efficieincy for Gibbs Free Energy minimization (GFEM) programs MAGEMin [dashed lines with squares, @riel2022] and Perple_X [solid lines with circles, @connolly2009]. Note that MAGEMin was ran in parallel on 6 CPU cores, while Perple_X has no parallel capabilities. In the best case for a 128x128 resolution PT grid, stable phase relations (i.e., mineral assemblage diagrams, or MADs) take 171.2 seconds to compute ([@tbl:benchmark-times-table]).](assets/figs/benchmark-times.png){#fig:benchmark-times width=100%}
 
-To overcome the intractability of iteratively GFEM programs with large-scale geodynamic simulations, we propose a novel approach for inferring MADs using pre-trained neural networks (referred to here as MADNNs). We hypothesize that MADNNs can improve efficiency by up to 4 orders of magnitude versus incumbent GFEM programs for computing PTXt-dependent phase changes in the mantle. If true, real-time inference of PTXt-dependent phase changes at the individual node-scale in geodynamic simulations will be feasible---enabling new models of tectonic plate behavior, deep water cycling, and mantle melting at MTZs. Moreover, the approach detailed here is generalizable and has potential for adoption to models of other Earth systems. If false, we will demonstrate the practical limitations of applying neural networks to petrological datasets---a critical step for discovering alternative approaches for implementing PTXt-dependent phase changes in numerical geodynamic simulations.
+Here we propose an alternative approach for inferring MADs using pre-trained neural networks (referred to as MADNNs). We hypothesize that MADNNs can improve efficiency by up to 4 orders of magnitude versus incumbent GFEM programs for computing PTXt-dependent phase changes in the mantle. If true, real-time inference of PTXt-dependent phase changes at the individual node-scale in geodynamic simulations will be feasible---enabling new models of global tectonic plate behavior, deep water cycling, and mantle melting at MTZs. If false, we will demonstrate the practical limitations of applying neural networks to petrological datasets---a critical step for discovering alternative approaches for implementing PTXt-dependent phase changes in numerical geodynamic simulations.
 
 # Methods
 
 ## Computing Datasets for MADNN Training
 
-The following sections describe our design decisions for building MADNN training datasets. Our goal is to compute minimal training data for a broad range of upper mantle PT conditions and chemical compositions---ensuring widespread applicability of our MADNN to geodynamic problems. Here we use GFEM programs [MAGEMin](https://github.com/ComputationalThermodynamics/MAGEMin) and [Perple_X](https://github.com/ondrolexa/Perple_X) [@riel2022; @connolly2009] to compute stable mineral assemblages and rock properties (density, melt fraction, and seismic wave velocities), which we then split and use for MADNN training.
+The following sections describe our design decisions for building MADNN training datasets. Our goal is to compute minimal training data for a broad range of upper mantle PT conditions and chemical compositions---ensuring widespread applicability of our MADNN to geodynamic problems. Here we use GFEM programs [MAGEMin](https://github.com/ComputationalThermodynamics/MAGEMin) and [Perple_X](https://github.com/ondrolexa/Perple_X) [@riel2022; @connolly2009] to compute stable mineral assemblages and rock properties for the upper mantle (density, melt fraction, and seismic wave velocities), which we then use for MADNN training.
+
+### PT Conditions
+
+High-pressure experiments constrain the reaction $\text{olivine} \xrightarrow{\text{410 km}} \text{ringwoodite}$ between 14.0 ± 1.0 GPa and 1600 ± 400 K with Clapeyron slopes between 2.4x10$^{-3}$ ± 1.4x10$^{-3}$ GPa/K  [@akaogi1989; @katsura1989; @morishima1994; @li2019]. Likewise, the reaction $\text{ringwoodite} \xrightarrow{\text{660 km}} \text{bridgmanite} + \text{ferropericlase}$ is constrained between 24.0 ± 1.5 GPa and 1600 ± 400 K with negative Clapeyron slopes between -2.0x10$^{-3}$ ± 1.6x10$^{-3}$ GPa/K  [@akaogi2007; @bina1994; @litasov2005; @katsura2003; @ito1990; @ito1982; @ito1989a; @ito1989b; @hirose2002; @ishii2018]. Thus, MADNN training dataset are computed from 1.0–28.0 GPa and 773–2273 K to encompass expected conditions for the entire upper mantle---including colder subduction zone conditions ([@fig:madnn-training-pt-range]).
+
+![PT diagram showing experimentally-derived phase boundaries for the 410 and 660 km MTZs (colored lines) and the range of conditions for computing MADNN training data (shaded grey box). Phase boundaries are calculated after @li2019. Geotherm 1 and 2 (solid and dotted black lines) represent cold (5 K/km) and warm (20 K/km) subduction gradients, while geotherms 3 and 4 (dashed and dashed-dotted black lines) represent 0.5 K/km mantle adiabats with a 1473 and 1773 K mantle potential temperatures, respectively.](assets/figs/madnn-training-pt-range.png){#fig:madnn-training-pt-range width=100%}
 
 ### Bulk Chemical Compositions
 
-Existing estimates for bulk compositions of the upper mantle are based on analyses of high-pressure-high-temperature melting experiments and mantle-derived xenoliths, kimberlites, and alkali basalts [e.g., @allegre1984; @green1979; @ringwood1962; @jagoutz1979; @sun1982; @ringwood1991; @palme2003; @stracke2021]. [@tbl:benchmark-comps] provides some well-referenced examples, including hypothetical mantle compositions with varying degrees of differentiation by partial melting [Primitive Upper Mantle: PUM, and Depleted MORB Mantle: DMM, @sun1989; @workman2005], as well as real and hypothetical products of mantle melting [Iclandic Basalt: RE46 and Normal MORB: NMORB, @gale2013; @yang1996]. MADNN datasets include these compositions as they approximate the range of expected (average) mantle compositions from the seafloor to the lower upper mantle.
+Existing estimates for bulk chemical compositions of the upper mantle are based on analyses of high-pressure-high-temperature melting experiments and mantle-derived xenoliths, kimberlites, and basalts [e.g., @allegre1984; @green1979; @ringwood1962; @jagoutz1979; @sun1982; @ringwood1991; @palme2003; @stracke2021]. [@tbl:benchmark-comps] provides some well-referenced examples, including hypothetical mantle compositions with varying degrees of differentiation by partial melting [Primitive Upper Mantle: PUM, and Depleted MORB Mantle: DMM, @sun1989; @workman2005], as well as real and hypothetical products of mantle melting [Iclandic Basalt: RE46, and Normal MORB: NMORB, @yang1996; @gale2013]. MADNN training data currently includes PUM only, which represents the average bulk (pyrolitic) composition of the upper mantle. Training data will eventually be expanded to all compositions in @tbl:benchmark-comps to approximate the range of expected compositions for the entire upper mantle.
 
 | Name   |   SiO$_2$ |   Al$_2$O$_3$ |   CaO |   MgO |   FeO |   K$_2$O |   Na$_2$O |   TiO$_2$ |   O$_2$ |   Cr$_2$O$_3$ |   H$_2$O |
 |:-------|----------:|--------------:|------:|------:|------:|---------:|----------:|----------:|--------:|--------------:|---------:|
@@ -32,19 +38,37 @@ Existing estimates for bulk compositions of the upper mantle are based on analys
 | PUM    |     44.90 |          4.44 |  3.54 | 37.71 |  8.03 |    0.029 |      0.36 |      0.20 |    0.01 |          0.38 |        0 |
 | RE46   |     50.72 |          9.16 | 15.21 | 16.25 |  7.06 |    0.010 |      1.47 |      0.39 |    0.35 |          0.01 |        0 |
 
-: Estimated bulk compositions (in wt. % oxides) for the mantle. {#tbl:benchmark-comps}
+: Estimated bulk chemical compositions (in wt. % oxides) for the mantle. {#tbl:benchmark-comps}
 
 ### Phase Solutions and Thermodynamic Data
 
-Thermodynamic data for computing MADNN training datasets (tc-ds634.txt from [hpxeosandthermocalc.org](https://hpxeosandthermocalc.org)) are based on end-member properties from @holland2018, with recent updates from @tomlinson2021 and @holland2022. This dataset is specifically formulated for calculating phase relations for a wide array of igneous rocks and melt compositions. All GFEM calculations are computed with equations of state for pure phases: quartz (q), coesite (coe), stishovite (stv), rutile (ru), and sphene (sph) and solution phases: olivine (ol), clinopyroxene (cpx), orthopyroxene (opx), ternary feldspar (pl4T), garnet (g), spinel (spn), ilmenite (ilm), and silicate melt (liq). The same solid solution models are used for MAGEMin and Perple_X calculations---except for ternary-feldspar---for which MAGEMin uses the model of @holland2022 while Perple_X uses the model of @fuhrman1988.
+Thermodynamic data for computing MADNN training datasets are based on end-member thermodynamic properties from @holland2018, with updates from @tomlinson2021 and @holland2022. The database (tc-ds634.txt from [hpxeosandthermocalc.org](https://hpxeosandthermocalc.org)) is specifically formulated for calculating phase relations for a wide array of igneous rocks and melt compositions. @holland2018 itself is an extension of the foundational database from @holland2011, which is calibrated up to 300 GPa and 2000 ˚C. Thus, the dataset tc-ds634.txt is appropriate for building MADNN training datasets for the entire upper mantle ([@fig:madnn-training-pt-range]).
 
-### PT Conditions
+All GFEM calculations are computed with equations of state for pure phases: quartz, coesite, stishovite, kyanite, and rutile, and solution phases: feldspar, spinel, garnet, clinopyroxene, orthopyroxene, olivine, ilmenite, and silicate melt. The same solution models from @holland2018 are used for MAGEMin and Perple_X calculations. The one notable exception is ternary feldspar models, which differ for MAGEMin [after @holland2022] and Perple_X [after @fuhrman1988].
 
-High-pressure experiments constrain the reaction $\text{olivine} \xrightarrow{\text{410 km}} \text{ringwoodite}$ between 14.0 ± 1.0 GPa and 1600 ± 400 K with Clapeyron slopes between 2.4x10$^{-3}$ ± 1.4x10$^{-3}$ GPa/K  [@akaogi1989; @katsura1989; @morishima1994; @li2019] and the reaction $\text{ringwoodite} \xrightarrow{\text{660 km}} \text{bridgmanite} + \text{ferropericlase}$ between 24.0 ± 1.5 GPa and 1600 ± 400 K with negative Clapeyron slopes between -2.0x10$^{-3}$ ± 1.6x10$^{-3}$ GPa/K  [@akaogi2007; @bina1994; @litasov2005; @katsura2003; @ito1990; @ito1982; @ito1989a; @ito1989b; @hirose2002; @ishii2018; @li2019]. MADNN training dataset are therefore computed across 1.0–28.0 GPa and 773–2273 K. This PT range encompasses expected conditions from the Moho to the 660 km MTZ---including cold subduction zone conditions ([@fig:madnn-training-pt-range]).
-
-![PT diagram showing experimentally-derived phase boundaries for the 410 and 660 km MTZs and the range of conditions for computing MADNN training data. Phase boundaries are calculated after @li2019. Geotherm 1 and 2 represent cold (5 ˚C/km) and warm (20 ˚C/km) subduction gradients, while geotherms 3 and 4 represent 0.5 ˚C/km mantle adiabats with a 1473 ˚C and 1773 ˚C mantle potential temperatures, respectively.](assets/figs/madnn-training-pt-range.png){#fig:madnn-training-pt-range width=100%}
+More importantly, Perple_X includes solution models for wadsleyite, ringwoodite, wuestite, perovskite, ferropericlase, and HP clinopyroxene that are not included in the current release of MAGEMin (version 1.3.2, June 6, 2023). To make MAGEMin calculations approximately identical to Perple_X, the pure end-member phases for wadsleyite, ringwoodite, wuestite, perovskite, ferropericlase, and HP clinopyroxene are used without solution models. This issue will be addressed in future releases of MAGEMin software, which will include solution models for deep mantle phases (Riel, [personal communications](https://github.com/ComputationalThermodynamics/MAGEMin/issues/61), July 11, 2023).
 
 # Results
+
+## Comparing GFEM Programs
+
+![Mineral assemblage diagrams (MADs) showing stable phases predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. Greyscale represents integer indices of different mineral assemblages.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-StableSolutions.png){#fig:benchmark-PUM-solutions}
+
+![PT diagrams showing the density (greyscale in g/cm$^3$) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-DensityOfFullAssemblage.png){#fig:benchmark-PUM-density}
+
+![PT diagrams showing the volume fraction of melt (greyscale) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-LiquidFraction.png){#fig:benchmark-PUM-liquid}
+
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-Vp.png){#fig:benchmark-PUM-vp}
+
+\clearpage
+
+# References
+
+<div id="refs"></div>
+
+\clearpage
+
+# Appendix
 
 ## GFEM Benchmarking
 
@@ -75,56 +99,28 @@ Benchmarking GFEM programs was a necessary first step for estimating the time re
 
 : Computation times for various bulk mantle compositions. {#tbl:benchmark-times-table}
 
-## GFEM Comparisons
+## Comparing GFEM Programs
 
-### MADs
+![Mineral assemblage diagrams (MADs) showing stable phases predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Depleted MORB Mantle (DMM) bulk composition from @workman2005. Greyscale represents integer indices of different mineral assemblages.](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-StableSolutions.png){#fig:benchmark-DMM-solutions}
 
-![caption](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-StableSolutions.png){#fig:benchmark-PUM-solutions}
+![PT diagrams showing the density (greyscale in g/cm$^3$) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Depleted MORB Mantle (DMM) bulk composition from @workman2005. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-DensityOfFullAssemblage.png){#fig:benchmark-DMM-density}
 
-### Density
+![PT diagrams showing the volume fraction of melt (greyscale) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Depleted MORB Mantle (DMM) bulk composition from @workman2005. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-LiquidFraction.png){#fig:benchmark-DMM-liquid}
 
-![caption](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-DensityOfFullAssemblage.png){#fig:benchmark-PUM-density}
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Depleted MORB Mantle (DMM) bulk composition from @workman2005. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-Vp.png){#fig:benchmark-DMM-vp}
 
-### Liquid Fraction
+![Mineral assemblage diagrams (MADs) showing stable phases predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. Greyscale represents integer indices of different mineral assemblages.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-StableSolutions.png){#fig:benchmark-NMORB-solutions}
 
-![caption](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-LiquidFraction.png){#fig:benchmark-PUM-liquid}
+![PT diagrams showing the density (greyscale in g/cm$^3$) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-DensityOfFullAssemblage.png){#fig:benchmark-NMORB-density}
 
-### Seismic Wave Velocities
+![PT diagrams showing the volume fraction of melt (greyscale) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-LiquidFraction.png){#fig:benchmark-NMORB-liquid}
 
-![caption](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-Vp.png){#fig:benchmark-PUM-vp}
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-Vp.png){#fig:benchmark-NMORB-vp}
 
-\clearpage
+![Mineral assemblage diagrams (MADs) showing stable phases predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. Greyscale represents integer indices of different mineral assemblages.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-StableSolutions.png){#fig:benchmark-RE46-solutions}
 
-# References
+![PT diagrams showing the density (greyscale in g/cm$^3$) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-DensityOfFullAssemblage.png){#fig:benchmark-RE46-density}
 
-<div id="refs"></div>
+![PT diagrams showing the volume fraction of melt (greyscale) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-LiquidFraction.png){#fig:benchmark-RE46-liquid}
 
-\clearpage
-
-# Appendix
-
-## GFEM Benchmarking Results
-
-![caption](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-StableSolutions.png){#fig:benchmark-DMM-solutions}
-
-![caption](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-DensityOfFullAssemblage.png){#fig:benchmark-DMM-density}
-
-![caption](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-LiquidFraction.png){#fig:benchmark-DMM-liquid}
-
-![caption](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-Vp.png){#fig:benchmark-DMM-vp}
-
-![caption](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-StableSolutions.png){#fig:benchmark-NMORB-solutions}
-
-![caption](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-DensityOfFullAssemblage.png){#fig:benchmark-NMORB-density}
-
-![caption](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-LiquidFraction.png){#fig:benchmark-NMORB-liquid}
-
-![caption](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-Vp.png){#fig:benchmark-NMORB-vp}
-
-![caption](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-StableSolutions.png){#fig:benchmark-RE46-solutions}
-
-![caption](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-DensityOfFullAssemblage.png){#fig:benchmark-RE46-density}
-
-![caption](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-LiquidFraction.png){#fig:benchmark-RE46-liquid}
-
-![caption](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-Vp.png){#fig:benchmark-RE46-vp}
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-Vp.png){#fig:benchmark-RE46-vp}

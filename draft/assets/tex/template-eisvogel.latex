@@ -956,6 +956,10 @@ $else$
   $endif$
   \vskip 2em
   \noindent {\Large \textsf{$for(author)$$author$$sep$, $endfor$}}
+  $if(institute)$
+  \vskip 1em
+  \noindent {\textsf{$for(institute)$$institute$$sep$, $endfor$}}
+  $endif$
   \vfill
 }
 $endif$
@@ -967,7 +971,7 @@ $endif$
 
 $if(titlepage-background)$
 $else$
-\textsf{$date$}
+\Large \textsf{$date$}
 $endif$
 \end{flushleft}
 \end{titlepage}

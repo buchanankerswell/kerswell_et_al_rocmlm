@@ -91,10 +91,16 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             color_discrete = False
 
         # Reverse color scale
-        if parameter in ["StableVariance"]:
-            color_reverse = True
+        if palette in ["grey"]:
+            if parameter in ["StableVariance"]:
+                color_reverse = True
+            else:
+                color_reverse = False
         else:
-            color_reverse = False
+            if parameter in ["StableVariance"]:
+                color_reverse = False
+            else:
+                color_reverse = True
 
         # Set colorbar limits for better comparisons
         if not color_discrete:
