@@ -60,6 +60,8 @@ More importantly, Perple_X includes solution models for wadsleyite, ringwoodite,
 
 ![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-Vp.png){#fig:benchmark-PUM-vp}
 
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-Vs.png){#fig:benchmark-PUM-vs}
+
 \clearpage
 
 # References
@@ -76,26 +78,26 @@ Benchmarking GFEM programs was a necessary first step for estimating the time re
 
 | Name   | P (GPa)   | T (K)    |   Grid Size |   MAGEMin (s) |   Perple_X (s) |   PPX/MGM |
 |:-------|----------:|---------:|------------:|--------------:|---------------:|----------:|
-| DMM    | 1-28      | 773-2273 |          64 |           1.5 |            8.3 |       5.5 |
-| NMORB  | 1-28      | 773-2273 |          64 |           2.3 |           11.6 |       5.0 |
-| PUM    | 1-28      | 773-2273 |          64 |           0.6 |            8.7 |      14.5 |
-| RE46   | 1-28      | 773-2273 |          64 |          11.5 |           12.5 |       1.1 |
-| DMM    | 1-28      | 773-2273 |         256 |           5.5 |           29.5 |       5.4 |
-| NMORB  | 1-28      | 773-2273 |         256 |           5.4 |           43.1 |       8.0 |
-| PUM    | 1-28      | 773-2273 |         256 |           4.8 |           31.3 |       6.5 |
-| RE46   | 1-28      | 773-2273 |         256 |          43.0 |           45.2 |       1.1 |
-| DMM    | 1-28      | 773-2273 |        1024 |          13.6 |          103.1 |       7.6 |
-| NMORB  | 1-28      | 773-2273 |        1024 |          22.7 |          160.1 |       7.1 |
-| PUM    | 1-28      | 773-2273 |        1024 |          12.7 |          108.4 |       8.5 |
-| RE46   | 1-28      | 773-2273 |        1024 |         150.5 |          164.1 |       1.1 |
-| DMM    | 1-28      | 773-2273 |        4096 |          50.1 |          370.5 |       7.4 |
-| NMORB  | 1-28      | 773-2273 |        4096 |          74.4 |          566.6 |       7.6 |
-| PUM    | 1-28      | 773-2273 |        4096 |          44.0 |          390.1 |       8.9 |
-| RE46   | 1-28      | 773-2273 |        4096 |         589.5 |          583.8 |       1.0 |
-| DMM    | 1-28      | 773-2273 |       16384 |         193.4 |         1389.1 |       7.2 |
-| NMORB  | 1-28      | 773-2273 |       16384 |         289.7 |         2033.6 |       7.0 |
-| PUM    | 1-28      | 773-2273 |       16384 |         171.2 |         1467.5 |       8.6 |
-| RE46   | 1-28      | 773-2273 |       16384 |        2261.7 |         2149.4 |       1.0 |
+| DMM    | 1-28      | 773-2273 |          64 |           2.6 |            9.3 |       3.6 |
+| NMORB  | 1-28      | 773-2273 |          64 |           3.6 |           12.6 |       3.5 |
+| PUM    | 1-28      | 773-2273 |          64 |           1.9 |           10.1 |       5.3 |
+| RE46   | 1-28      | 773-2273 |          64 |           8.2 |           13.8 |       1.7 |
+| DMM    | 1-28      | 773-2273 |         256 |           5.2 |           31.7 |       6.1 |
+| NMORB  | 1-28      | 773-2273 |         256 |           7.7 |           43.4 |       5.6 |
+| PUM    | 1-28      | 773-2273 |         256 |           5.8 |           33.4 |       5.8 |
+| RE46   | 1-28      | 773-2273 |         256 |          34.4 |           47.1 |       1.4 |
+| DMM    | 1-28      | 773-2273 |        1024 |          21.2 |          107.6 |       5.1 |
+| NMORB  | 1-28      | 773-2273 |        1024 |          25.3 |          160.8 |       6.4 |
+| PUM    | 1-28      | 773-2273 |        1024 |          19.8 |          116.1 |       5.9 |
+| RE46   | 1-28      | 773-2273 |        1024 |         117.8 |          171.5 |       1.5 |
+| DMM    | 1-28      | 773-2273 |        4096 |          70.5 |          397.2 |       5.6 |
+| NMORB  | 1-28      | 773-2273 |        4096 |          94.6 |          580.0 |       6.1 |
+| PUM    | 1-28      | 773-2273 |        4096 |          68.4 |          429.5 |       6.3 |
+| RE46   | 1-28      | 773-2273 |        4096 |         459.0 |          601.6 |       1.3 |
+| DMM    | 1-28      | 773-2273 |       16384 |         260.3 |         1438.3 |       5.5 |
+| NMORB  | 1-28      | 773-2273 |       16384 |         364.9 |         2030.3 |       5.6 |
+| PUM    | 1-28      | 773-2273 |       16384 |         244.5 |         1587.5 |       6.5 |
+| RE46   | 1-28      | 773-2273 |       16384 |        1826.0 |         2210.3 |       1.2 |
 
 : Computation times for various bulk mantle compositions. {#tbl:benchmark-times-table}
 
@@ -109,6 +111,8 @@ Benchmarking GFEM programs was a necessary first step for estimating the time re
 
 ![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Depleted MORB Mantle (DMM) bulk composition from @workman2005. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-Vp.png){#fig:benchmark-DMM-vp}
 
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Depleted MORB Mantle (DMM) bulk composition from @workman2005. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/DMM-128x128/comp-DMM-128x128-Vs.png){#fig:benchmark-DMM-vs}
+
 ![Mineral assemblage diagrams (MADs) showing stable phases predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. Greyscale represents integer indices of different mineral assemblages.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-StableSolutions.png){#fig:benchmark-NMORB-solutions}
 
 ![PT diagrams showing the density (greyscale in g/cm$^3$) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-DensityOfFullAssemblage.png){#fig:benchmark-NMORB-density}
@@ -117,6 +121,8 @@ Benchmarking GFEM programs was a necessary first step for estimating the time re
 
 ![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-Vp.png){#fig:benchmark-NMORB-vp}
 
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Normal MORB (NMORB) bulk composition from @gale2013. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/NMORB-128x128/comp-NMORB-128x128-Vs.png){#fig:benchmark-NMORB-vs}
+
 ![Mineral assemblage diagrams (MADs) showing stable phases predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. Greyscale represents integer indices of different mineral assemblages.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-StableSolutions.png){#fig:benchmark-RE46-solutions}
 
 ![PT diagrams showing the density (greyscale in g/cm$^3$) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-DensityOfFullAssemblage.png){#fig:benchmark-RE46-density}
@@ -124,3 +130,5 @@ Benchmarking GFEM programs was a necessary first step for estimating the time re
 ![PT diagrams showing the volume fraction of melt (greyscale) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-LiquidFraction.png){#fig:benchmark-RE46-liquid}
 
 ![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-Vp.png){#fig:benchmark-RE46-vp}
+
+![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for an Icelandic basalt sample (RE46) bulk composition from @yang1996. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/RE46-128x128/comp-RE46-128x128-Vs.png){#fig:benchmark-RE46-vs}

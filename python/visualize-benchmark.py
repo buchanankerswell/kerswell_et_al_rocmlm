@@ -8,7 +8,8 @@ from magemin import (
     process_perplex_grid,
     encode_phases,
     create_PT_grid,
-    plot_MAD,
+    visualize_MAD,
+    visualize_PREM,
     combine_plots_horizontally,
     combine_plots_vertically
 )
@@ -75,18 +76,25 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             grid_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
             grid_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter])
 
+        # Geotherm for plotting
+        if parameter in ["Vp", "Vs"]:
+            geotherm = True
+
         # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
         if parameter == "LiquidFraction":
             grid_ppx = np.where(np.isnan(grid_ppx), 0, grid_ppx)
+            geotherm = False
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
             grid_mgm = grid_mgm/1000
             grid_ppx = grid_ppx/1000
+            geotherm = True
 
         # Use discrete colorscale
         if parameter in ["StableSolutions", "StableVariance"]:
             color_discrete = True
+            geotherm = False
         else:
             color_discrete = False
 
@@ -118,8 +126,11 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             vmax = max(num_colors_mgm, num_colors_ppx) + 1
 
         # Plot PT grid MAGEMin
-        plot_MAD(
+        visualize_MAD(
             P_mgm, T_mgm, grid_mgm, parameter,
+            geotherm=geotherm,
+            geotherm_linetype="-.",
+            geotherm_color=0,
             title="MAGEMin",
             palette=palette,
             color_discrete=color_discrete,
@@ -131,8 +142,11 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
         )
 
         # Plot PT grid perplex
-        plot_MAD(
+        visualize_MAD(
             P_ppx, T_ppx, grid_ppx, parameter,
+            geotherm=geotherm,
+            geotherm_linetype="--",
+            geotherm_color=1,
             title="Perple_X",
             palette=palette,
             color_discrete=color_discrete,
@@ -151,7 +165,7 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             diff_norm[~mask] = np.nan
 
             # Plot PT grid normalized diff mgm-ppx
-            plot_MAD(
+            visualize_MAD(
                 P_ppx, T_ppx, diff_norm, parameter,
                 title="Normalized Difference",
                 palette="seismic",
@@ -181,7 +195,7 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
             max_gradient = np.maximum(gradient_rows_padded, gradient_cols_padded)
 
             # Plot PT grid max gradient
-            plot_MAD(
+            visualize_MAD(
                 P_ppx, T_ppx, max_gradient, parameter,
                 title="Difference Gradient",
                 palette=palette,
@@ -191,7 +205,35 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
                 fig_dir=fig_dir
             )
 
+            # Plot PREM comparisons
+            if parameter == "DensityOfFullAssemblage":
+                visualize_PREM(
+                    "assets/data/prem.csv",
+                    results_mgm,
+                    results_ppx,
+                    parameter=parameter,
+                    param_unit="g/cm$^3$",
+                    geotherm_threshold=0.1,
+                    title="PREM Comparison",
+                    filename=f"prem-{sample_id}-{parameter}.png",
+                    fig_dir=fig_dir
+                )
+
+            if parameter in ["Vp", "Vs"]:
+                visualize_PREM(
+                    "assets/data/prem.csv",
+                    results_mgm,
+                    results_ppx,
+                    parameter=parameter,
+                    param_unit="km/s",
+                    geotherm_threshold=0.1,
+                    title="PREM Comparison",
+                    filename=f"prem-{sample_id}-{parameter}.png",
+                    fig_dir=fig_dir
+                )
+
             # Create composition for continuous variables
+
             # First row
             combine_plots_horizontally(
                 f"{fig_dir}/MAGEMin-{sample_id}-{parameter}.png",
@@ -200,14 +242,25 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
                 caption1="a",
                 caption2="b"
             )
+
             # Second row
-            combine_plots_horizontally(
-                f"{fig_dir}/diff-norm-{sample_id}-{parameter}.png",
-                f"{fig_dir}/max-grad-{sample_id}-{parameter}.png",
-                f"{fig_dir}/temp2.png",
-                caption1="c",
-                caption2="d"
-            )
+            if parameter in ["DensityOfFullAssemblage", "Vp", "Vs"]:
+                combine_plots_horizontally(
+                    f"{fig_dir}/diff-norm-{sample_id}-{parameter}.png",
+                    f"{fig_dir}/prem-{sample_id}-{parameter}.png",
+                    f"{fig_dir}/temp2.png",
+                    caption1="c",
+                    caption2="d"
+                )
+            else:
+                combine_plots_horizontally(
+                    f"{fig_dir}/diff-norm-{sample_id}-{parameter}.png",
+                    f"{fig_dir}/max-grad-{sample_id}-{parameter}.png",
+                    f"{fig_dir}/temp2.png",
+                    caption1="c",
+                    caption2="d"
+                )
+
             # Stack rows
             combine_plots_vertically(
                 f"{fig_dir}/temp1.png",

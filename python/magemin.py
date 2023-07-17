@@ -28,6 +28,87 @@ import matplotlib.patches as mpatches
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
 
+# Crop geotherms within PT bounds
+def crop_geotherms(P_array, T_array):
+    """
+    Crop geotherms within PT bounds.
+
+    This function takes two arrays representing pressure and temperature.
+
+    The function then creates four geotherm arrays (geotherm1, geotherm2, geotherm3,
+    and geotherm4) by linearly spacing temperature values between 273 K and T_max.
+
+    The geotherm arrays are calculated using different temperature gradients.
+
+    It proceeds to crop each geotherm array based on the PT bounds.
+    Each geotherm is cropped to retain only the values that fall within the minimum and
+    maximum pressure (P_min and P_max) and temperature (T_min and T_max) bounds obtained
+    earlier.
+
+    The resulting cropped geotherms and their corresponding temperature values are stored in
+    separate lists, cropped_geotherms and cropped_T_values.
+
+    Parameters:
+        P_array (array-like): An array containing pressure values in some units.
+        T_array (array-like): An array containing temperature values in Kelvin.
+
+    Returns:
+        tuple: A tuple containing two lists.
+            - cropped_geotherms (list): A list of cropped geotherm arrays,
+            where each array corresponds to a specific geotherm and contains temperature
+            values that fall within the PT bounds.
+            - cropped_T_values (list): A list of temperature arrays corresponding to the
+            cropped geotherms, where each array contains temperature values that fall within
+            the PT bounds.
+
+    Note:
+        - The function assumes that the units of pressure in P_array are consistent with
+        those in the geotherm arrays. Ensure that the units are compatible for
+        meaningful results.
+        - The function relies on the NumPy library to perform array operations.
+    """
+    # Get min and max PT
+    T_min = np.array(T_array).min()
+    T_max = np.array(T_array).max()
+    P_min = np.array(P_array).min()
+    P_max = np.array(P_array).max()
+
+    # Create geotherm arrays
+    T_values1 = np.linspace(273, T_max, num=100)
+    T_values2 = np.linspace(273, T_max, num=100)
+    T_values3 = np.linspace(1200 + 273, T_max, num=100)
+    T_values4 = np.linspace(1500 + 273, T_max, num=100)
+    geotherm1 = (T_values1 - 273) / (5 * 35)
+    geotherm2 = (T_values2 - 273) / (20 * 35)
+    geotherm3 = (T_values3 - 1200 - 273) / (0.5 * 35)
+    geotherm4 = (T_values4 - 1500 - 273) / (0.5 * 35)
+
+    # Crop each geotherm array based on PT bounds
+    geotherm_arrays = [geotherm1, geotherm2, geotherm3, geotherm4]
+    T_values_arrays = [T_values1, T_values2, T_values3, T_values4]
+
+    cropped_geotherms = []
+    cropped_T_values = []
+
+    for i in range(len(geotherm_arrays)):
+        geotherm = geotherm_arrays[i]
+        T_values = T_values_arrays[i]
+
+        # Crop based on PT bounds
+        mask = np.logical_and(geotherm >= P_min, geotherm <= P_max)
+        T_values = T_values[mask]
+        geotherm = geotherm[mask]
+
+        mask = np.logical_and(T_values >= T_min, T_values <= T_max)
+        T_values = T_values[mask]
+        geotherm = geotherm[mask]
+
+        # Append the cropped geotherm to the list
+        cropped_geotherms.append(geotherm)
+        cropped_T_values.append(T_values)
+
+    return cropped_geotherms, cropped_T_values
+
 # Layout benchmark plots horizontally
 def combine_plots_horizontally(
         image1_path,
@@ -1347,13 +1428,16 @@ def create_PT_grid(P, T, parameter_values):
     return grid
 
 # Plot MAGEMin pseudosection
-def plot_MAD(
+def visualize_MAD(
         P,
         T,
         grid,
         parameter,
-        T_unit = "K",
-        P_unit = "GPa",
+        geotherm=False,
+        geotherm_linetype="--",
+        geotherm_color="white",
+        T_unit="K",
+        P_unit="GPa",
         title=None,
         palette="blues",
         color_discrete=False,
@@ -1459,9 +1543,7 @@ def plot_MAD(
         )
         ax.set_xlabel(f"T ({T_unit})")
         ax.set_ylabel(f"P ({P_unit})")
-        plt.colorbar(im, ax=ax, ticks=np.arange(1, num_colors+1, num_colors // 6), label="")
-        if title:
-            plt.title(title)
+        plt.colorbar(im, ax=ax, ticks=np.arange(1, num_colors+1, num_colors // 4), label="")
     else:
         # Continuous color palette
         if palette == "viridis":
@@ -1530,8 +1612,38 @@ def plot_MAD(
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter('%.1f'))
         else:
             plt.colorbar(im, ax=ax, label="")
-        if title:
-            plt.title(title)
+
+    # Add title
+    if title:
+        plt.title(title)
+
+    # Add geotherms
+    if geotherm:
+        # Colors
+        colormap = cm.get_cmap("tab10")
+
+        # Calculate geotherms
+        geotherm_arrays, T_arrays = crop_geotherms(P, T)
+
+        # Crop each geotherm array based on PT bounds
+        for i in range(len(geotherm_arrays)):
+            # Add geotherm to plot
+            if i == len(geotherm_arrays) - 1:
+                plt.plot(
+                    T_arrays[i],
+                    geotherm_arrays[i],
+                    geotherm_linetype,
+                    color=colormap(geotherm_color),
+                    linewidth=3
+                )
+            else:
+                plt.plot(
+                    T_arrays[i],
+                    geotherm_arrays[i],
+                    geotherm_linetype,
+                    color="white",
+                    linewidth=2
+                )
 
     # Save the plot to a file if a filename is provided
     if filename:
@@ -1542,7 +1654,6 @@ def plot_MAD(
 
     # Close device
     plt.close()
-
 
 # Plot Harker diagram with density contours using seaborn
 def plot_harker_diagram(
@@ -1726,8 +1837,8 @@ def visualize_benchmark_comp_times(
     sample_colors = {
         "DMM": colormap(0),
         "NMORB": colormap(1),
-        "PUM": colormap(3),
-        "RE46": colormap(4)
+        "PUM": colormap(2),
+        "RE46": colormap(3)
     }
 
     # Group the data by sample
@@ -2047,3 +2158,184 @@ def visualize_training_PT_range(
 
     # Close device
     plt.close()
+
+# Visualize MGM and PPX comparisons with PREM model
+def visualize_PREM(
+        datafile,
+        results_mgm,
+        results_ppx,
+        parameter,
+        param_unit,
+        geotherm_threshold=1,
+        P_unit="GPa",
+        palette="tab10",
+        title=None,
+        figwidth=6.3,
+        figheight=4.725,
+        fontsize=22,
+        filename=None,
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    Visualize MGM and PPX comparisons with PREM model.
+
+    This function creates a plot comparing the parameter specified in results_mgm and
+    results_ppx with the PREM (Preliminary Reference Earth Model) data.
+    The function reads data from the provided CSV file, applies transformations to the data
+    and units, and subsets the data based on a geotherm threshold.
+
+    Parameters:
+        datafile (str): The file path to the CSV data containing the PREM model.
+        results_mgm (dict): A dictionary containing the results of the MGM model with
+        pressure (P) and temperature (T) values and the parameter of interest.
+        results_ppx (dict): A dictionary containing the results of the PPX model with
+        pressure (P) and temperature (T) values and the parameter of interest.
+        parameter (str): The parameter of interest to be plotted (e.g.,
+        DensityOfFullAssemblage).
+        param_unit (str): The unit of the parameter to be displayed in the plot
+        (e.g., "kg/m^3").
+        geotherm_threshold (float, optional): The geotherm threshold used to subset the data
+        along the geotherm. Default is 1.
+        P_unit (str, optional): The unit of pressure to be displayed in the plot.
+        Default is "GPa".
+        palette (str, optional): The name of the color palette for plotting.
+        Default is "tab10".
+        title (str, optional): The title of the plot. Default is None.
+        figwidth (float, optional): The width of the plot figure in inches. Default is 6.3.
+        figheight (float, optional): The height of the plot figure in inches.
+        Default is 4.725.
+        fontsize (int, optional): The font size used in the plot. Default is 22.
+        filename (str, optional): The name of the file to save the plot. If None, the plot
+        will be displayed instead of saving. Default is None.
+        fig_dir (str, optional): The directory to save the plot file. Default is
+        "<current working directory>/figs".
+
+    Returns:
+        None: The function generates a plot comparing the MGM and PPX models with the PREM
+        data.
+
+    Note:
+        - The function relies on the matplotlib and pandas libraries for data visualization
+        and manipulation.
+        - Make sure the datafile contains the necessary columns (e.g., "depth", "P") for
+        calculating pressure and depth conversions.
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Read the CSV file into a pandas DataFrame
+    df_prem = pd.read_csv(datafile)
+    df_prem["P"] = df_prem["depth"] / 30
+    df_prem = df_prem[df_prem["P"] >= min(results_mgm["P"]) / 10]
+    df_prem = df_prem[df_prem["P"] <= (max(results_mgm["P"]) / 10) + 1]
+
+    # Get PT values perplex and transform units
+    df_mgm = pd.DataFrame({
+        "P": [P / 10 for P in results_mgm["P"]],
+        "T": [T + 273 for T in results_mgm["T"]],
+        parameter: results_mgm[parameter]
+    })
+
+    # Calculate geotherm
+    df_mgm["geotherm_P"] = (df_mgm["T"] - 1500 - 273) / (0.5 * 35)
+
+    # Subset df along geotherm
+    df_geotherm_mgm = df_mgm[abs(df_mgm["P"] - df_mgm["geotherm_P"]) < geotherm_threshold]
+
+    # Sort by P for plotting
+    df_mgm_geotherm_sorted = df_geotherm_mgm.sort_values(by="P")
+
+    # Get PT values perplex and transform units
+    df_ppx = pd.DataFrame({
+        "P": [P / 10 for P in results_ppx["P"]],
+        "T": [T + 273 for T in results_ppx["T"]],
+        parameter: results_ppx[parameter]
+    })
+
+    # Calculate geotherm
+    df_ppx["geotherm_P"] = (df_ppx["T"] - 1500 - 273) / (0.5 * 35)
+
+    # Subset df along geotherm
+    df_geotherm_ppx = df_ppx[abs(df_ppx["P"] - df_ppx["geotherm_P"]) < geotherm_threshold]
+
+    # Sort by P for plotting
+    df_ppx_geotherm_sorted = df_geotherm_ppx.sort_values(by="P")
+
+    # Transform units
+    if parameter == "DensityOfFullAssemblage":
+        df_mgm_geotherm_sorted[parameter] = [
+            value / 1000 for value in df_mgm_geotherm_sorted[parameter]
+        ]
+        df_ppx_geotherm_sorted[parameter] = [
+            value / 1000 for value in df_ppx_geotherm_sorted[parameter]
+        ]
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Colormap
+    colormap = cm.get_cmap(palette)
+
+    # Plotting
+    fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
+
+    # Plot PREM data on the primary y-axis
+    ax1.plot(
+        df_prem[parameter],
+        df_prem["P"],
+        "-",
+        linewidth=3,
+        color="black",
+        label="PREM"
+    )
+    ax1.plot(
+        df_mgm_geotherm_sorted[parameter],
+        df_mgm_geotherm_sorted["P"],
+        "-.",
+        linewidth=3,
+        color=colormap(0),
+        label="MGM"
+    )
+    ax1.plot(
+        df_ppx_geotherm_sorted[parameter],
+        df_ppx_geotherm_sorted["P"],
+        "--",
+        linewidth=3,
+        color=colormap(1),
+        label="PPX"
+    )
+
+    if parameter == "DensityOfFullAssemblage":
+        parameter = "Density"
+
+    ax1.set_xlabel(f"{parameter } ({param_unit})")
+    ax1.set_ylabel(f"P ({P_unit})")
+
+    # Convert the primary y-axis data (pressure) to depth
+    depth_conversion = lambda P: P * 30
+    depth_values = depth_conversion(df_prem["P"])
+
+    # Create the secondary y-axis and plot depth on it
+    ax2 = ax1.secondary_yaxis("right", functions=(depth_conversion, depth_conversion))
+    ax2.set_yticks([410, 660])
+    ax2.set_ylabel("Depth (km)")
+
+    # Invert the secondary y-axis to have increasing depth from top to bottom
+    plt.ylim(min(df_mgm_geotherm_sorted["P"]) - 1, max(df_mgm_geotherm_sorted["P"]) + 1)
+    plt.legend()
+    if title:
+        plt.title(title)
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}")
+    else:
+        # Print plot
+        plt.show()

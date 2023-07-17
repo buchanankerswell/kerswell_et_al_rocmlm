@@ -123,6 +123,14 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo "=============================================" $(LOG)
 
+visualize_benchmark_all: $(LOGFILE) $(PYTHON)
+	@for run in $$(ls -d $(OUTDIR)/* | sed 's/$(OUTDIR)\/\(.*\)/\1/'); do \
+		echo "Visualizing benchmark $$run" $(LOG); \
+		$(MAKE) visualize_benchmark SAMPLEID=$$run FIGDIR=figs/benchmark/$$run; \
+	done
+	@$(MAKE) visualize_other
+	@echo "=============================================" $(LOG)
+
 visualize_other: $(LOGFILE) $(PYTHON)
 	@echo "Visualizing other figures ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-other.py $(LOG)

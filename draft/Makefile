@@ -34,6 +34,7 @@ agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md
 		--filter pandoc-crossref \
 		--citeproc \
 		$(LOG)
+	@echo "=============================================" $(LOG)
 
 eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md
 	@pandoc $(MS).md \
@@ -49,6 +50,12 @@ eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md
 		--filter pandoc-crossref \
 		--citeproc \
 		$(LOG)
+	@echo "=============================================" $(LOG)
+
+copy_figs: $(LOGFILE)
+	@echo "Copying figs ..." $(LOG)
+	@cp -r ../figs assets/
+	@echo "=============================================" $(LOG)
 
 $(LOGFILE):
 	@if [ ! -e "$(LOGFILE)" ]; then \
