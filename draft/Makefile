@@ -15,10 +15,10 @@ AGUTEMPLATE = assets/tex/template-agu.latex
 EIMETA = assets/pandoc/eisvogel.yaml
 EITEMPLATE = assets/tex/template-eisvogel.latex
 # Make clean
-DATAPURGE = assets/log
+DATAPURGE = assets/log assets/pandoc/benchmark-comps.md assets/pandoc/benchmark-times.md eisvogel-draft-madnn.pdf
 DATACLEAN = 
 FIGSPURGE =
-FIGSCLEAN =
+FIGSCLEAN = assets/figs
 
 agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md
 	@pandoc $(MS).md \
