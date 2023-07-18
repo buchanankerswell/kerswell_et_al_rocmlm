@@ -83,7 +83,7 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
         # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
         if parameter == "LiquidFraction":
             grid_ppx = np.where(np.isnan(grid_ppx), 0, grid_ppx)
-            geotherm = False
+            geotherm = True
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
@@ -94,7 +94,7 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
         # Use discrete colorscale
         if parameter in ["StableSolutions", "StableVariance"]:
             color_discrete = True
-            geotherm = False
+            geotherm = True
         else:
             color_discrete = False
 

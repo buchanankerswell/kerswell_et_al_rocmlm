@@ -53,7 +53,7 @@ OUTDIR ?= runs
 FIGDIR ?= figs
 FIGOX ?= ["MgO", "FeO", "CaO", "Al2O3"]
 PARAMS ?= ["Vp", "Vs", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
-COLORMAP ?= grey
+COLORMAP ?= bone
 # Make clean
 DATAPURGE = python/__pycache__ .job output
 DATACLEAN = assets log MAGEMin runs

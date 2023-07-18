@@ -35,8 +35,8 @@ def crop_geotherms(P_array, T_array):
 
     This function takes two arrays representing pressure and temperature.
 
-    The function then creates four geotherm arrays (geotherm1, geotherm2, geotherm3,
-    and geotherm4) by linearly spacing temperature values between 273 K and T_max.
+    The function then creates four geotherm arrays (geotherm1, geotherm2, and geotherm3) by
+    linearly spacing temperature values between 273 K and T_max.
 
     The geotherm arrays are calculated using different temperature gradients.
 
@@ -73,41 +73,45 @@ def crop_geotherms(P_array, T_array):
     P_min = np.array(P_array).min()
     P_max = np.array(P_array).max()
 
+    # Mantle potential temps
+    T_mantle1 = 0 + 273
+    T_mantle2 = 1500 + 273
+
+    # Thermal gradients
+    grad_mantle1 = 1
+    grad_mantle2 = 0.5
+
     # Create geotherm arrays
-    T_values1 = np.linspace(273, T_max, num=100)
-    T_values2 = np.linspace(273, T_max, num=100)
-    T_values3 = np.linspace(1200 + 273, T_max, num=100)
-    T_values4 = np.linspace(1500 + 273, T_max, num=100)
-    geotherm1 = (T_values1 - 273) / (5 * 35)
-    geotherm2 = (T_values2 - 273) / (20 * 35)
-    geotherm3 = (T_values3 - 1200 - 273) / (0.5 * 35)
-    geotherm4 = (T_values4 - 1500 - 273) / (0.5 * 35)
+    T1 = np.linspace(T_mantle1, T_max, num=100)
+    T2 = np.linspace(T_mantle2, T_max, num=100)
+    geotherm1 = (T1 - T_mantle1) / (grad_mantle1 * 35)
+    geotherm2 = (T2 - T_mantle2) / (grad_mantle2 * 35)
 
     # Crop each geotherm array based on PT bounds
-    geotherm_arrays = [geotherm1, geotherm2, geotherm3, geotherm4]
-    T_values_arrays = [T_values1, T_values2, T_values3, T_values4]
+    geotherm_arrays = [geotherm1, geotherm2]
+    T_arrays = [T1, T2]
 
     cropped_geotherms = []
-    cropped_T_values = []
+    cropped_T = []
 
     for i in range(len(geotherm_arrays)):
         geotherm = geotherm_arrays[i]
-        T_values = T_values_arrays[i]
+        T = T_arrays[i]
 
         # Crop based on PT bounds
         mask = np.logical_and(geotherm >= P_min, geotherm <= P_max)
-        T_values = T_values[mask]
+        T = T[mask]
         geotherm = geotherm[mask]
 
-        mask = np.logical_and(T_values >= T_min, T_values <= T_max)
-        T_values = T_values[mask]
+        mask = np.logical_and(T >= T_min, T <= T_max)
+        T = T[mask]
         geotherm = geotherm[mask]
 
         # Append the cropped geotherm to the list
         cropped_geotherms.append(geotherm)
-        cropped_T_values.append(T_values)
+        cropped_T.append(T)
 
-    return cropped_geotherms, cropped_T_values
+    return cropped_geotherms, cropped_T
 
 # Layout benchmark plots horizontally
 def combine_plots_horizontally(
@@ -1949,6 +1953,7 @@ def visualize_training_PT_range(
 
     # T range
     T = np.arange(0, 3001)
+    T_min, T_max = 773, 2273
 
     # Define P range
     P_min, P_max = 1.0, 28.0
@@ -2030,8 +2035,8 @@ def visualize_training_PT_range(
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
             plt.plot(
-                T[(T >= 1200) & (T <= 2273)],
-                line[(T >= 1200) & (T <= 2273)],
+                T[(T >= 1200) & (T <= T_max)],
+                line[(T >= 1200) & (T <= T_max)],
                 color=color,
                 label=label
             )
@@ -2044,8 +2049,8 @@ def visualize_training_PT_range(
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
             plt.plot(
-                T[(T >= 1200) & (T <= 2273)],
-                line[(T >= 1200) & (T <= 2273)],
+                T[(T >= 1200) & (T <= T_max)],
+                line[(T >= 1200) & (T <= T_max)],
                 color=color,
                 label=label
             )
@@ -2057,35 +2062,76 @@ def visualize_training_PT_range(
         T,
         P_min,
         P_max,
-        where=(T >= 773) & (T <= 2273),
+        where=(T >= T_min) & (T <= T_max),
         color="gray",
         alpha=0.2
     )
 
+    # Mantle potential temps
+    T_mantle1 = 0 + 273
+    T_mantle2 = 1500 + 273
+
+    # Thermal gradients
+    grad_mantle1 = 1
+    grad_mantle2 = 0.5
+
     # Calculate mantle geotherms
-    geotherm1 = (T - 273) / (5 * 35)
-    geotherm2 = (T - 273) / (20 * 35)
-    geotherm3 = (T - 1200 - 273) / (0.5 * 35)
-    geotherm4 = (T - 1500 - 273) / (0.5 * 35)
+    geotherm1 = (T - T_mantle1) / (grad_mantle1 * 35)
+    geotherm2 = (T - T_mantle2) / (grad_mantle2 * 35)
+
+    # Find boundaries
+    T1_Pmax = (P_max * grad_mantle1 * 35) + T_mantle1
+    P1_Tmin = (T_min - T_mantle1) / (grad_mantle1 * 35)
+    T2_Pmin = (P_min * grad_mantle2 * 35) + T_mantle2
+    T2_Pmax = (P_max * grad_mantle2 * 35) + T_mantle2
+
+    # Crop geotherms
+    geotherm1_cropped = geotherm1[geotherm1 >= P1_Tmin]
+    geotherm1_cropped = geotherm1_cropped[geotherm1_cropped <= P_max]
+    geotherm2_cropped = geotherm2[geotherm2 >= P_min]
+    geotherm2_cropped = geotherm2_cropped[geotherm2_cropped <= P_max]
+
+    # Crop T vectors
+    T_cropped_geotherm1= T[T >= T_min]
+    T_cropped_geotherm1 = T_cropped_geotherm1[T_cropped_geotherm1 <= T1_Pmax]
+    T_cropped_geotherm2= T[T >= T2_Pmin]
+    T_cropped_geotherm2 = T_cropped_geotherm2[T_cropped_geotherm2 <= T2_Pmax]
 
     # Plot mantle geotherms
-    plt.plot(T, geotherm1, "-", color="black")
-    plt.plot(T, geotherm2, ":", color="black")
-    plt.plot(T, geotherm3, "--", color="black")
-    plt.plot(T, geotherm4, "-.", color="black")
+    plt.plot(T_cropped_geotherm1, geotherm1_cropped, "-", color="black")
+    plt.plot(T_cropped_geotherm2, geotherm2_cropped, "--", color="black")
+
+    # Interpolate the geotherms to have the same length as temperature vectors
+    geotherm1_interp = np.interp(T_cropped_geotherm1, T, geotherm1)
+    geotherm2_interp = np.interp(T_cropped_geotherm2, T, geotherm2)
+
+    # Define the vertices for the polygon
+    vertices = np.vstack(
+        (
+            np.vstack((T_cropped_geotherm1, geotherm1_interp)).T,
+            (T_cropped_geotherm2[-1], geotherm2_interp[-1]),
+            np.vstack((T_cropped_geotherm2[::-1], geotherm2_interp[::-1])).T,
+            np.array([T_min, P_min]),
+            (T_cropped_geotherm1[0], geotherm1_interp[0])
+        )
+    )
+
+    # Fill the area within the polygon
+    plt.fill(
+        vertices[:, 0],
+        vertices[:, 1],
+        facecolor="blue",
+        edgecolor="grey",
+        hatch="\\",
+        alpha=0.1
+    )
 
     # Geotherm legend handles
     geotherm1_handle = mlines.Line2D(
         [], [], linestyle="-", color="black", label="Geotherm 1"
     )
     geotherm2_handle = mlines.Line2D(
-        [], [], linestyle=":", color="black", label="Geotherm 2"
-    )
-    geotherm3_handle = mlines.Line2D(
-        [], [], linestyle="--", color="black", label="Geotherm 3"
-    )
-    geotherm4_handle = mlines.Line2D(
-        [], [], linestyle="-.", color="black", label="Geotherm 4"
+        [], [], linestyle="--", color="black", label="Geotherm 2"
     )
 
     # Phase boundaries legend handles
@@ -2095,21 +2141,28 @@ def visualize_training_PT_range(
     ]
 
     # Add geotherms to legend handles
-    ref_line_handles.extend(
-        [geotherm1_handle, geotherm2_handle, geotherm3_handle, geotherm4_handle]
-    )
+    ref_line_handles.extend([geotherm1_handle, geotherm2_handle])
+
+    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="MADs")
+
+    labels_660.add("MADs")
+    label_color_mapping["MADs"] = "gray"
 
     training_data_handle = mpatches.Patch(
-        color="gray",
-        alpha=0.2,
-        label="Training Data"
+        facecolor="blue",
+        edgecolor="grey",
+        hatch="\\",
+        alpha=0.1,
+        label="Training Set"
     )
 
-    labels_660.add("Training Data")
-    label_color_mapping["Training Data"] = "gray"
+    labels_660.add("Training Set")
+    label_color_mapping["Training Set"] = "gray"
 
     # Define the desired order of the legend items
     desired_order = [
+        "MADs",
+        "Training Set",
         "Akaogi89",
         "Katsura89",
         "Morishima94",
@@ -2119,21 +2172,18 @@ def visualize_training_PT_range(
         "Katsura03",
         "Akaogi07",
         "Geotherm 1",
-        "Geotherm 2",
-        "Geotherm 3",
-        "Geotherm 4",
-        "Training Data"
+        "Geotherm 2"
     ]
 
     # Sort the legend handles based on the desired order
     legend_handles = sorted(
-        ref_line_handles + [training_data_handle],
+        ref_line_handles + [db_data_handle, training_data_handle],
         key=lambda x: desired_order.index(x.get_label())
     )
 
     plt.xlabel(f"Temperature ({T_unit})")
     plt.ylabel(f"Pressure ({P_unit})")
-    plt.title("Mantle Transition Zones")
+    plt.title("MADNN Traning Dataset")
     plt.xlim(700, 2346)
     plt.ylim(0, 29)
 
