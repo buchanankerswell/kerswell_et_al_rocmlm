@@ -87,8 +87,8 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
-            grid_mgm = grid_mgm/1000
-            grid_ppx = grid_ppx/1000
+            grid_mgm = grid_mgm / 1000
+            grid_ppx = grid_ppx / 1000
             geotherm = True
 
         # Use discrete colorscale
@@ -266,6 +266,8 @@ if (len(os.listdir(f"{out_dir}/{sample_id}")) != 0 and
                 f"{fig_dir}/temp1.png",
                 f"{fig_dir}/temp2.png",
                 f"{fig_dir}/comp-{sample_id}-{parameter}.png",
+                caption1="",
+                caption2=""
             )
 
         # Create composition for discrete variables

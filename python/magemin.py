@@ -21,12 +21,67 @@ from git import Repo
 import urllib.request
 import seaborn as sns
 from scipy import stats
-import matplotlib.cm as cm
+from sklearn.svm import SVR
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+
+# Extract info along a geotherm
+def extract_info_geotherm(
+        results,
+        parameter,
+        thermal_gradient=0.5,
+        mantle_potential_T=1773,
+        threshold=0.1):
+    """
+    """
+    # Get PT and parameter values and transform units
+    df = pd.DataFrame({
+        "P": [P / 10 for P in results["P"]],
+        "T": [T + 273 for T in results["T"]],
+        parameter: results[parameter]
+    })
+
+    # Calculate geotherm
+    df["geotherm_P"] = (df["T"] - mantle_potential_T) / (thermal_gradient * 35)
+
+    # Subset df along geotherm
+    df_geotherm = df[abs(df["P"] - df["geotherm_P"]) < threshold]
+
+    # Sort by P for plotting
+    df_geotherm_sorted = df_geotherm.sort_values(by="P")
+
+    # Extract the three vectors
+    P_values = df_geotherm_sorted["P"].values
+    T_values = df_geotherm_sorted["T"].values
+    parameter_values = df_geotherm_sorted[parameter].values
+
+    return P_values, T_values, parameter_values
+
+# Append info from a dict to csv
+def append_to_csv(file_path, data_dict):
+    # Check if the CSV file already exists
+    if not pd.io.common.file_exists(file_path):
+        df = pd.DataFrame(data_dict)
+    else:
+        df = pd.read_csv(file_path)
+
+        # Append the new data dictionary to the DataFrame
+        new_data = pd.DataFrame(data_dict)
+        df = pd.concat([df, new_data], ignore_index=True)
+
+    # Sort df
+    df = df.sort_values(by=["program", "parameter"])
+
+    # Save the updated DataFrame back to the CSV file
+    df.to_csv(file_path, index=False)
 
 # Crop geotherms within PT bounds
 def crop_geotherms(P_array, T_array):
@@ -84,34 +139,34 @@ def crop_geotherms(P_array, T_array):
     # Create geotherm arrays
     T1 = np.linspace(T_mantle1, T_max, num=100)
     T2 = np.linspace(T_mantle2, T_max, num=100)
-    geotherm1 = (T1 - T_mantle1) / (grad_mantle1 * 35)
-    geotherm2 = (T2 - T_mantle2) / (grad_mantle2 * 35)
+    P1 = (T1 - T_mantle1) / (grad_mantle1 * 35)
+    P2 = (T2 - T_mantle2) / (grad_mantle2 * 35)
 
     # Crop each geotherm array based on PT bounds
-    geotherm_arrays = [geotherm1, geotherm2]
+    P_arrays = [P1, P2]
     T_arrays = [T1, T2]
 
-    cropped_geotherms = []
+    cropped_P = []
     cropped_T = []
 
-    for i in range(len(geotherm_arrays)):
-        geotherm = geotherm_arrays[i]
+    for i in range(len(P_arrays)):
+        P = P_arrays[i]
         T = T_arrays[i]
 
         # Crop based on PT bounds
-        mask = np.logical_and(geotherm >= P_min, geotherm <= P_max)
+        mask = np.logical_and(P >= P_min, P <= P_max)
         T = T[mask]
-        geotherm = geotherm[mask]
+        P = P[mask]
 
         mask = np.logical_and(T >= T_min, T <= T_max)
         T = T[mask]
-        geotherm = geotherm[mask]
+        P = P[mask]
 
-        # Append the cropped geotherm to the list
-        cropped_geotherms.append(geotherm)
+        # Append the cropped P to the list
+        cropped_P.append(P)
         cropped_T.append(T)
 
-    return cropped_geotherms, cropped_T
+    return cropped_P, cropped_T
 
 # Layout benchmark plots horizontally
 def combine_plots_horizontally(
@@ -180,7 +235,15 @@ def combine_plots_horizontally(
     combined_image.save(output_path, dpi=(dpi, dpi))
 
 # Layout benchmark plots vertically
-def combine_plots_vertically(image1_path, image2_path, output_path):
+def combine_plots_vertically(
+        image1_path,
+        image2_path,
+        output_path,
+        caption1,
+        caption2,
+        font_size=100,
+        caption_margin=25,
+        dpi=330):
     """
     Combine two plots vertically.
 
@@ -206,8 +269,30 @@ def combine_plots_vertically(image1_path, image2_path, output_path):
     # Paste the second image below the first
     combined_image.paste(image2, (0, image1.height))
 
-    # Save the combined image
-    combined_image.save(output_path)
+    # Add captions
+    draw = ImageDraw.Draw(combined_image)
+    font = ImageFont.truetype("Arial", font_size)
+    caption_margin = caption_margin
+
+    # Add caption "a"
+    draw.text(
+        (caption_margin, caption_margin),
+        caption1,
+        font=font,
+        fill="black"
+    )
+
+    # Add caption "b"
+    draw.text(
+        (caption_margin, image1.height + caption_margin),
+        caption2,
+        font=font,
+        fill="black"
+    )
+
+    # Save the combined image with captions
+    combined_image.save(output_path, dpi=(dpi, dpi))
+
 # Read conda packages from yaml
 def get_conda_packages(conda_file):
     """
@@ -1624,18 +1709,18 @@ def visualize_MAD(
     # Add geotherms
     if geotherm:
         # Colors
-        colormap = cm.get_cmap("tab10")
+        colormap = plt.cm.get_cmap("tab10")
 
         # Calculate geotherms
-        geotherm_arrays, T_arrays = crop_geotherms(P, T)
+        P_arrays, T_arrays = crop_geotherms(P, T)
 
         # Crop each geotherm array based on PT bounds
-        for i in range(len(geotherm_arrays)):
+        for i in range(len(P_arrays)):
             # Add geotherm to plot
-            if i == len(geotherm_arrays) - 1:
+            if i == len(P_arrays) - 1:
                 plt.plot(
                     T_arrays[i],
-                    geotherm_arrays[i],
+                    P_arrays[i],
                     geotherm_linetype,
                     color=colormap(geotherm_color),
                     linewidth=3
@@ -1643,7 +1728,7 @@ def visualize_MAD(
             else:
                 plt.plot(
                     T_arrays[i],
-                    geotherm_arrays[i],
+                    P_arrays[i],
                     geotherm_linetype,
                     color="white",
                     linewidth=2
@@ -1837,7 +1922,7 @@ def visualize_benchmark_comp_times(
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Create a dictionary to map samples to colors using a colormap
-    colormap = cm.get_cmap(palette)
+    colormap = plt.cm.get_cmap(palette)
     sample_colors = {
         "DMM": colormap(0),
         "NMORB": colormap(1),
@@ -1985,7 +2070,7 @@ def visualize_training_PT_range(
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Legend colors
-    colormap = cm.get_cmap(palette)
+    colormap = plt.cm.get_cmap(palette)
     colors = [
         colormap(0),
         colormap(1),
@@ -2216,7 +2301,7 @@ def visualize_PREM(
         results_ppx,
         parameter,
         param_unit,
-        geotherm_threshold=1,
+        geotherm_threshold=0.1,
         P_unit="GPa",
         palette="tab10",
         title=None,
@@ -2275,50 +2360,30 @@ def visualize_PREM(
 
     # Read the CSV file into a pandas DataFrame
     df_prem = pd.read_csv(datafile)
-    df_prem["P"] = df_prem["depth"] / 30
-    df_prem = df_prem[df_prem["P"] >= min(results_mgm["P"]) / 10]
-    df_prem = df_prem[df_prem["P"] <= (max(results_mgm["P"]) / 10) + 1]
 
-    # Get PT values perplex and transform units
-    df_mgm = pd.DataFrame({
-        "P": [P / 10 for P in results_mgm["P"]],
-        "T": [T + 273 for T in results_mgm["T"]],
-        parameter: results_mgm[parameter]
-    })
+    # Extract depth and parameter values
+    param_prem = df_prem[parameter]
+    depth_prem = df_prem["depth"]
 
-    # Calculate geotherm
-    df_mgm["geotherm_P"] = (df_mgm["T"] - 1500 - 273) / (0.5 * 35)
+    # Transform depth to pressure
+    P_prem = depth_prem / 30
 
-    # Subset df along geotherm
-    df_geotherm_mgm = df_mgm[abs(df_mgm["P"] - df_mgm["geotherm_P"]) < geotherm_threshold]
+    # Crop pressure and parameter values at min max lims of results
+    mask = P_prem >= min(results_mgm["P"]) / 10
+    P_prem = P_prem[mask]
+    param_prem = param_prem[mask]
+    mask = P_prem <= (max(results_mgm["P"]) / 10) + 1
+    P_prem = P_prem[mask]
+    param_prem = param_prem[mask]
 
-    # Sort by P for plotting
-    df_mgm_geotherm_sorted = df_geotherm_mgm.sort_values(by="P")
-
-    # Get PT values perplex and transform units
-    df_ppx = pd.DataFrame({
-        "P": [P / 10 for P in results_ppx["P"]],
-        "T": [T + 273 for T in results_ppx["T"]],
-        parameter: results_ppx[parameter]
-    })
-
-    # Calculate geotherm
-    df_ppx["geotherm_P"] = (df_ppx["T"] - 1500 - 273) / (0.5 * 35)
-
-    # Subset df along geotherm
-    df_geotherm_ppx = df_ppx[abs(df_ppx["P"] - df_ppx["geotherm_P"]) < geotherm_threshold]
-
-    # Sort by P for plotting
-    df_ppx_geotherm_sorted = df_geotherm_ppx.sort_values(by="P")
+    # Extract parameter values along a geotherm
+    P_grad_mgm, T_grad_mgm, param_grad_mgm = extract_info_geotherm(results_mgm, parameter)
+    P_grad_ppx, T_grad_ppx, param_grad_ppx = extract_info_geotherm(results_ppx, parameter)
 
     # Transform units
     if parameter == "DensityOfFullAssemblage":
-        df_mgm_geotherm_sorted[parameter] = [
-            value / 1000 for value in df_mgm_geotherm_sorted[parameter]
-        ]
-        df_ppx_geotherm_sorted[parameter] = [
-            value / 1000 for value in df_ppx_geotherm_sorted[parameter]
-        ]
+        param_grad_mgm = param_grad_mgm / 1000
+        param_grad_ppx = param_grad_ppx / 1000
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2331,36 +2396,15 @@ def visualize_PREM(
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Colormap
-    colormap = cm.get_cmap(palette)
+    colormap = plt.cm.get_cmap(palette)
 
     # Plotting
     fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
 
     # Plot PREM data on the primary y-axis
-    ax1.plot(
-        df_prem[parameter],
-        df_prem["P"],
-        "-",
-        linewidth=3,
-        color="black",
-        label="PREM"
-    )
-    ax1.plot(
-        df_mgm_geotherm_sorted[parameter],
-        df_mgm_geotherm_sorted["P"],
-        "-.",
-        linewidth=3,
-        color=colormap(0),
-        label="MGM"
-    )
-    ax1.plot(
-        df_ppx_geotherm_sorted[parameter],
-        df_ppx_geotherm_sorted["P"],
-        "--",
-        linewidth=3,
-        color=colormap(1),
-        label="PPX"
-    )
+    ax1.plot(param_prem, P_prem, "-", linewidth=3, color="black", label="PREM")
+    ax1.plot(param_grad_mgm, P_grad_mgm, "-.", linewidth=3, color=colormap(0), label="MGM")
+    ax1.plot(param_grad_ppx, P_grad_ppx, "--", linewidth=3, color=colormap(1), label="PPX")
 
     if parameter == "DensityOfFullAssemblage":
         parameter = "Density"
@@ -2370,7 +2414,7 @@ def visualize_PREM(
 
     # Convert the primary y-axis data (pressure) to depth
     depth_conversion = lambda P: P * 30
-    depth_values = depth_conversion(df_prem["P"])
+    depth_values = depth_conversion(P_prem)
 
     # Create the secondary y-axis and plot depth on it
     ax2 = ax1.secondary_yaxis("right", functions=(depth_conversion, depth_conversion))
@@ -2378,7 +2422,7 @@ def visualize_PREM(
     ax2.set_ylabel("Depth (km)")
 
     # Invert the secondary y-axis to have increasing depth from top to bottom
-    plt.ylim(min(df_mgm_geotherm_sorted["P"]) - 1, max(df_mgm_geotherm_sorted["P"]) + 1)
+    plt.ylim(min(P_grad_mgm) - 1, max(P_grad_mgm) + 1)
     plt.legend()
     if title:
         plt.title(title)
@@ -2389,3 +2433,420 @@ def visualize_PREM(
     else:
         # Print plot
         plt.show()
+
+# Support Vector Regression analysis
+def run_svr_regression(
+        features_array,
+        target_array,
+        parameter,
+        units,
+        program,
+        seed=42,
+        kernel="rbf",
+        scaler="minmax",
+        verbose=True,
+        vmin=None,
+        vmax=None,
+        figwidth=6.3,
+        figheight=4.725,
+        fontsize=22,
+        filename=None,
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    Runs Support Vector Regression (SVR) on the provided feature and target arrays.
+
+    Parameters:
+        features_array (ndarray): The feature array with shape (W, W, 2), containing
+                                  pressure and temperature features.
+        target_array (ndarray): The target array with shape (W, W), containing the
+                                corresponding target values.
+        parameter (str): The name of the parameter being predicted.
+        units (str): The units of the predicted target parameter.
+        parameter_units (str): The units of the original target parameter for display
+                               purposes.
+        kernel (str, optional): The type of kernel to be used in SVR. Default is "rbf".
+        scaler (str, optional): The type of scaler to be used for feature normalization.
+                                Options: "minmax" (default) or "standard".
+        seed (int, optional): The random seed for reproducibility. Default is 42.
+        verbose (bool, optional): Whether to print performance metrics. Default is True.
+        figwidth (float, optional): The width of the plot in inches. Default is 6.3.
+        figheight (float, optional): The height of the plot in inches. Default is 4.725.
+        fontsize (int, optional): The base fontsize for text in the plot. Default is 22.
+        filename (str, optional): The filename to save the plot. Default is None.
+        fig_dir (str, optional): The directory to save the plot. Default is "./figs".
+
+    Returns:
+        tuple: A tuple containing the trained SVR model and evaluation metrics (rmse,
+               r2_score).
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Label units
+    if units is None:
+        units_label = ""
+    else:
+        units_label = f"({units})"
+
+    # Label parameters
+    if parameter == "DensityOfFullAssemblage":
+        parameter_label = "Density"
+    elif parameter == "LiquidFraction":
+        parameter_label = "Liquid Fraction"
+    else:
+        parameter_label = parameter
+
+    # Reshape the features_array and target_array for SVR
+    W = features_array.shape[0]
+    X = features_array.reshape(W*W, 2)
+    y = target_array.flatten()
+
+    # Remove nans
+    nan_mask = np.isnan(y)
+    y = y[~nan_mask]
+    X = X[~nan_mask, :]
+
+    # Scale the feature array
+    if scaler == "minmax":
+        scaler_label = scaler
+        scaler = MinMaxScaler()
+    if scaler == "standard":
+        scaler_label = scaler
+        scaler = StandardScaler()
+
+    X_scaled = scaler.fit_transform(X)
+
+    # Scale the target array
+    y_scaled = scaler.fit_transform(y.reshape(-1, 1)).flatten()
+
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_scaled,
+        y_scaled,
+        test_size=0.2,
+        random_state=seed
+    )
+
+    # Create and train the SVR model
+    svr_model = SVR(kernel=kernel, gamma="auto")
+    svr_model.fit(X_train, y_train)
+
+    # Make predictions on the test set
+    y_pred_scaled = svr_model.predict(X_test)
+
+    # Inverse transform the scaled predictions
+    y_pred = scaler.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
+    y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
+
+    # Transform units
+    if parameter == "DensityOfFullAssemblage":
+        y_test_original = y_test_original / 1000
+        y_pred = y_pred / 1000
+
+    # Evaluate the model
+    rmse = math.sqrt(mean_squared_error(y_test_original, y_pred))
+    r2 = r2_score(y_test_original, y_pred)
+
+    # Config and performance info
+    svr_info = {
+        "program": [program],
+        "parameter": [parameter_label],
+        "units": [units_label],
+        "method": ["svr"],
+        "kernel": [kernel],
+        "scaler": [scaler_label],
+        "n_test": [len(y_test)],
+        "n_train": [len(y_train)],
+        "rmse": [round(rmse, 2)],
+        "r-squared": [round(r2, 2)],
+    }
+
+    # Print performance
+    if verbose:
+        print(f"SVR Config: {parameter_label} {units_label}")
+        print(f" kernel: {kernel}")
+        print(f" scaler: {scaler_label}")
+        print(f" n test: {len(y_test)}")
+        print(f"n train: {len(y_train)}")
+        print(f"SVR Performance:")
+        print(f"   rmse: {rmse:.2f}")
+        print(f"     r2: {r2:.2f}")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+    # Targets vs. predictions for test set
+    fig = plt.figure(figsize=(figwidth, figheight))
+    plt.scatter(y_test_original, y_pred, marker=".", s=3, color="black")
+    plt.plot(
+        [min(y_test_original), max(y_test_original)],
+        [min(y_test_original), max(y_test_original)],
+        linestyle="-",
+        color="black",
+        linewidth=1
+    )
+
+    # Add R-squared and RMSE values as text annotations in the plot
+    if fontsize >= 22:
+        fontsize = 14
+
+    # Vertical text spacing
+    text_margin_y = 0.10
+    text_spacing_y = 0.075
+
+    plt.text(
+        0.05,
+        1 - text_margin_y - (text_spacing_y * 0),
+        f"{parameter_label} {units_label}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize
+    )
+    plt.text(
+        0.05,
+        1 - text_margin_y - (text_spacing_y * 1),
+        f"r$^2$: {r2:.2f}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize
+    )
+    plt.text(
+        0.05,
+        1 - text_margin_y - (text_spacing_y * 2),
+        f"rmse: {rmse:.2f}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize
+    )
+    plt.text(
+        0.05,
+        1 - text_margin_y - (text_spacing_y * 3),
+        f"kernel: {kernel}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize
+    )
+    plt.text(
+        0.05,
+        1 - text_margin_y - (text_spacing_y * 4),
+        f"scaler: {scaler_label}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize
+    )
+
+    plt.xlabel(f"Target")
+    plt.ylabel(f"Predicted")
+    plt.xlim(vmin, vmax)
+    plt.ylim(vmin, vmax)
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+    plt.title(f"{program}")
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}")
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
+    return svr_model, svr_info
+
+# Visualize ML input data
+def visualize_input_data(
+        results,
+        features_array,
+        target_array,
+        sample_id,
+        parameter,
+        units,
+        program,
+        palette="bone",
+        vmin=None,
+        vmax=None,
+        figwidth=6.3,
+        figheight=4.725,
+        fontsize=22,
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    Visualizes input data for machine learning using various plots.
+
+    Parameters:
+        features_array (numpy.ndarray): 2D array of features, where each row represents a
+                                        data point and each column represents a feature.
+        target_array (numpy.ndarray): 2D array of target values corresponding to the
+                                      features in 'features_array'.
+        sample_id (str): Identifier for the sample being visualized.
+        parameter (str): Name of the parameter being visualized, e.g.,
+                         "DensityOfFullAssemblage".
+        units (str): Units of the parameter being visualized, e.g., "kg/m^3". If units are
+                     not applicable, use None.
+        program (str): Identifier for the program or experiment generating the data.
+        palette (str, optional): Color palette for the plots. Default is "bone".
+        figwidth (float, optional): Width of the figures. Default is 6.3 inches.
+        figheight (float, optional): Height of the figures. Default is 4.725 inches.
+        fontsize (int, optional): Font size for plot labels. Default is 22.
+        fig_dir (str, optional): Directory where the generated figures will be saved.
+
+    Returns:
+        None: The function saves multiple visualization plots for the input data as image
+              files.
+
+    Raises:
+        None: No specific exceptions are raised.
+
+    Notes:
+        - The function creates scatter plots, histograms, and a 3D surface plot to visualize
+          the relationship between the features and target values.
+        - If the parameter is "DensityOfFullAssemblage", the target values and units will be
+          transformed to a different scale (e.g., dividing by 1000).
+        - The generated figures are saved in the specified 'fig_dir' directory with
+          appropriate names based on the input data and program information.
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Reshape target and feature arrays
+    W = features_array.shape[0]
+    X = features_array.reshape(W*W, 2)
+    y = target_array.flatten()
+
+    # Label units
+    if units is None:
+        units_label = ""
+    else:
+        units_label = f"({units})"
+
+    # Label parameters
+    if parameter == "DensityOfFullAssemblage":
+        parameter_label = "Density"
+    elif parameter == "LiquidFraction":
+        parameter_label = "Liquid Fraction"
+    else:
+        parameter_label = parameter
+
+    # Transform units
+    if parameter == "DensityOfFullAssemblage":
+        target_array = target_array / 1000
+        y = y / 1000
+
+    # Scatter P
+    plt.figure(figsize=(figwidth, figheight))
+    plt.scatter(X[:, 0], y, marker="s", s=0.1, color="black")
+    plt.tight_layout()
+    plt.xlabel("P (GPa)")
+    plt.ylabel(f"{parameter_label} {units_label}")
+    plt.ylim(vmin, vmax)
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+    plt.title(f"{program}")
+    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-scatter-P.png")
+    plt.close()
+
+    # Scatter T
+    plt.figure(figsize=(figwidth, figheight))
+    plt.scatter(X[:, 1], y, marker="s", s=0.1, color="black")
+    plt.tight_layout()
+    plt.xlabel("T (K)")
+    plt.ylabel(f"{parameter_label} {units_label}")
+    plt.ylim(vmin, vmax)
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+    plt.title(f"{program}")
+    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-scatter-T.png")
+    plt.close()
+
+    # Colormap
+    cmap = plt.cm.get_cmap("bone_r")
+    cmap.set_bad(color="white")
+
+    # 3D surface
+    fig = plt.figure(figsize=(figwidth, figheight))
+    ax = fig.add_subplot(111, projection="3d")
+    surf = ax.plot_surface(
+        features_array[:,:,1],
+        features_array[:,:,0],
+        target_array,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax
+    )
+    ax.set_xlabel("T (K)")
+    ax.set_ylabel("P (GPa)")
+    ax.set_zlabel("")
+    ax.set_zlim(vmin, vmax)
+    plt.tick_params(axis="x", which="major", pad=-8)
+    plt.tick_params(axis="y", which="major", pad=-8)
+    plt.title(f"{program}")
+    ax.view_init(20, -110)
+    ax.set_box_aspect((1.5, 1.5, 1))
+    ax.set_facecolor("white")
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+    #    cbar = fig.colorbar(surf, label="")
+    #    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        ax.zaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+    else:
+        fig.colorbar(surf, label="")
+    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-surface.png")
+    plt.close()
+
+    # Histogram with surface inset
+    plt.figure(figsize=(figwidth, figheight))
+    plt.hist(y, bins=50, color="black")
+    plt.xlabel(f"{parameter_label} {units_label}")
+    plt.ylabel("Frequency")
+    plt.xlim(vmin, vmax)
+    plt.yticks([])
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+    plt.title(f"{program}", x=0.8)
+
+    # Create a new set of axes for the inset plot
+    inset_ax = plt.axes([0, 0.55, 0.70, 0.70], projection="3d")
+    inset_ax.plot_surface(
+        features_array[:, :, 1],
+        features_array[:, :, 0],
+        target_array,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax
+    )
+    inset_ax.set_xlabel("T (K)", fontsize=12, labelpad=-6)
+    inset_ax.set_ylabel("P (GPa)", fontsize=12, labelpad=-6)
+    inset_ax.set_zlabel("", fontsize=12)
+    inset_ax.set_zlim(vmin, vmax)
+    inset_ax.view_init(20, -110)
+    inset_ax.set_box_aspect((1.5, 1.5, 1))
+    inset_ax.set_facecolor((1, 1, 1, 0))
+    inset_ax.xaxis.set_tick_params(pad=-6)
+    inset_ax.yaxis.set_tick_params(pad=-6)
+    inset_ax.tick_params(axis="both", which="major", labelsize=10)
+
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        inset_ax.zaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+    else:
+        inset_ax.zaxis.set_major_formatter(plt.NullFormatter())
+
+    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-histogram.png")
+    plt.close()

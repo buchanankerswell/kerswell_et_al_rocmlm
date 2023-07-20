@@ -2,10 +2,11 @@
 SHELL = /bin/bash -o pipefail
 WORKDIR = $(shell pwd)
 UNAMES := $(shell uname -s)
+DATE = $(shell date +"%d-%m-%Y")
+DATELONG = $(shell date +"%d-%B-%Y")
 # Logging
 LOGFILE := $(WORKDIR)/log/log-$(shell date +"%d-%m-%Y")
 LOG := 2>&1 | tee -a $(LOGFILE)
-# Requirements for running study
 # Conda env
 CONDAENVNAME = madnn
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
@@ -19,14 +20,15 @@ PERPLEX = $(WORKDIR)/assets/perplex
 BENCHMARK = $(WORKDIR)/assets/benchmark
 DATA = $(WORKDIR)/assets/data
 CONFIG = $(WORKDIR)/assets/config
-PYTHON = $(WORKDIR)/python/conda-environment.yaml \
-				 $(WORKDIR)/python/magemin.py \
+PYTHON = $(WORKDIR)/python/build-database.py \
 				 $(WORKDIR)/python/clone-magemin.py \
-				 $(WORKDIR)/python/build-database.py \
-				 $(WORKDIR)/python/benchmark-magemin-perplex.py \
+				 $(WORKDIR)/python/download-assets.py \
+				 $(WORKDIR)/python/magemin.py \
+				 $(WORKDIR)/python/session-info.py \
 				 $(WORKDIR)/python/submit-jobs.py \
+				 $(WORKDIR)/python/visualize-benchmark.py \
 				 $(WORKDIR)/python/visualize-database.py \
-				 $(WORKDIR)/python/download-assets.py
+				 $(WORKDIR)/python/visualize-other.py \
 # Other variables
 GITHUBREPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
 MAGEMINREPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
@@ -361,6 +363,10 @@ $(MAGEMIN): $(LOGFILE) $(PYTHON)
 		echo "$(MAGEMIN)" $(LOG); \
 	fi
 
+write_tables: $(LOGFILE)
+	@echo "Writing markdown tables ..." $(LOG)
+	@$(CONDAPYTHON) python/write-markdown-tables.py
+
 remove_conda_env: $(LOGFILE)
 	@echo "Removing conda env $(CONDAENVNAME) ..." $(LOG)
 	@conda remove --name $(CONDAENVNAME) --all --yes $(LOG)
@@ -381,7 +387,7 @@ create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 		echo "Conda env created ..." $(LOG); \
 	fi
 
-find_conda_env:
+find_conda_env: $(LOGFILE)
 	@echo "Looking for conda env ..." $(LOG)
 	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
 

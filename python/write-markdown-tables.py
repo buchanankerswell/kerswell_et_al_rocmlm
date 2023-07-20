@@ -30,7 +30,7 @@ df.columns = [
 markdown_table = df.to_markdown(index=False, floatfmt=".1f")
 
 # Print table
-print(markdown_table)
+#print(markdown_table)
 
 # Write the Markdown table to a file
 with open("draft/assets/pandoc/benchmark-times.md", "w") as file:
@@ -84,7 +84,7 @@ df.rename(columns=col_headers, inplace=True)
 markdown_table = df.to_markdown(index=False)
 
 # Print table
-print(markdown_table)
+#print(markdown_table)
 
 # Write the Markdown table to a file
 with open("draft/assets/pandoc/benchmark-comps.md", "w") as file:

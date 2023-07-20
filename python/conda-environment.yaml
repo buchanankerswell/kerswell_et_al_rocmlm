@@ -5,10 +5,12 @@ channels:
 dependencies:
   - numpy
   - pandas
+  - scikit-learn
   - python
-  - matplotlib
-  - seaborn
   - scipy
-  - gitpython
+  - seaborn
   - pyyaml
+  - matplotlib
+  - gitpython
+  - tabulate
 prefix: /opt/homebrew/Caskroom/miniforge/base/envs/madnn
