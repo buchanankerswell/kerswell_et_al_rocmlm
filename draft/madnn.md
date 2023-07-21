@@ -52,9 +52,7 @@ More importantly, Perple_X includes solution models for wadsleyite, ringwoodite,
 
 ![Mineral assemblage diagrams (MADs) showing stable phases predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. The colors represent integer indices of different mineral assemblages. Straight lines are the bounding geotherms for subsetting MADNN training data from @fig:madnn-training-pt-range.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-StableSolutions.png){#fig:benchmark-PUM-solutions}
 
-# Results
-
-## Comparing GFEM Programs
+### Comparing GFEM Programs
 
 ![PT diagrams showing the density (greyscale in g/cm$^3$) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-DensityOfFullAssemblage.png){#fig:benchmark-PUM-density}
 
@@ -65,6 +63,12 @@ More importantly, Perple_X includes solution models for wadsleyite, ringwoodite,
 ![PT diagrams showing the pressure wave velocity (greyscale, in km/s) predicted by GFEM programs (a) MAGEMin and (b) Perple_X for a Primitive Upper Mantle (PUM) bulk composition from @sun1989. (c) Normalized differences and (d) maximum difference gradients at each pixel highlight discrepancies between the GFEM programs. For example, notice the inconsistent phase transitions above 10 GPa.](assets/figs/benchmark/PUM-128x128/comp-PUM-128x128-Vs.png){#fig:benchmark-PUM-vs}
 
 \clearpage
+
+# Results
+
+## MADSVR
+
+## MADNN
 
 # References
 

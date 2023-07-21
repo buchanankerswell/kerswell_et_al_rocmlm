@@ -33,6 +33,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 
+# Print filepaths
+def print_filepaths(folder_path):
+    """
+    """
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+
+        if os.path.isfile(item_path):
+            print(f"    {item_path}")
+
 # Extract info along a geotherm
 def extract_info_geotherm(
         results,
@@ -199,10 +209,10 @@ def combine_plots_horizontally(
     max_width = max(image1.width, image2.width)
 
     # Create a new image with twice the width and the maximum height
-    combined_image = Image.new('RGB', (max_width*2, max_height), (255, 255, 255))
+    combined_image = Image.new("RGB", (max_width*2, max_height), (255, 255, 255))
 
     # Set the DPI metadata
-    combined_image.info['dpi'] = (dpi, dpi)
+    combined_image.info["dpi"] = (dpi, dpi)
 
     # Paste the first image on the left
     combined_image.paste(image1, (0, 0))
@@ -261,7 +271,7 @@ def combine_plots_vertically(
 
     # Create a new image with the maximum width and the sum of the heights
     combined_height = image1.height + image2.height
-    combined_image = Image.new('RGB', (max_width, combined_height), (255, 255, 255))
+    combined_image = Image.new("RGB", (max_width, combined_height), (255, 255, 255))
 
     # Paste the first image on the top
     combined_image.paste(image1, (0, 0))
@@ -310,9 +320,9 @@ def get_conda_packages(conda_file):
 
     """
     try:
-        with open(conda_file, 'r') as file:
+        with open(conda_file, "r") as file:
             conda_data = yaml.safe_load(file)
-        return conda_data.get('dependencies', [])
+        return conda_data.get("dependencies", [])
     except (IOError, yaml.YAMLError) as e:
         print(f"Error reading Conda file: {e}")
         return []
@@ -320,11 +330,11 @@ def get_conda_packages(conda_file):
 # Read makefile variables
 def read_makefile_variable(makefile, variable):
     try:
-        with open(makefile, 'r') as file:
+        with open(makefile, "r") as file:
             lines = file.readlines()
             for line in lines:
                 if line.strip().startswith(variable):
-                    return line.split('=')[1].strip()
+                    return line.split("=")[1].strip()
     except IOError as e:
         print(f"Error reading Makefile: {e}")
     return None
@@ -340,42 +350,38 @@ def print_session_info(conda_file=None, makefile=None):
 
     """
     print("Session info:")
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     # Print Python version
     python_version = sys.version_info
-    version_string = '.'.join(map(str, python_version))
-    print(f"Python Version: {version_string}")
+    version_string = ".".join(map(str, python_version))
+    print(f"    Python Version: {version_string}")
 
     # Print package versions
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    print("Loaded packages:")
+    print("    Loaded packages:")
     if conda_file:
         conda_packages = get_conda_packages(conda_file)
         for package in conda_packages:
             if isinstance(package, str) and package != "python":
-                package_name = package.split('=')[0]
+                package_name = package.split("=")[0]
                 try:
                     version = pkg_resources.get_distribution(package_name).version
-                    print(f"{package_name} Version: {version}")
+                    print(f"        {package_name} Version: {version}")
                 except pkg_resources.DistributionNotFound:
-                    print(f"{package_name} not found.")
+                    print(f"        {package_name} not found ...")
     else:
-        print("No Conda file provided.")
+        print("    No Conda file provided ...")
 
     # Print operating system information
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     os_info = platform.platform()
-    print(f"Operating System: {os_info}")
+    print(f"    Operating System: {os_info}")
 
     # Print random seed
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     if makefile:
-        seed = read_makefile_variable(makefile, 'SEED')
+        seed = read_makefile_variable(makefile, "SEED")
         if seed:
-            print(f"Random Seed (from Makefile): {seed}")
+            print(f"    Random Seed (from Makefile): {seed}")
         else:
-            print("SEED variable not found in Makefile.")
+            print("    SEED variable not found in Makefile ...")
     else:
         print("No Makefile provided.")
 
@@ -456,15 +462,15 @@ def parse_list_of_strings(arg):
             return str_list
         else:
             raise argparse.ArgumentTypeError(
-                f"Invalid list: {arg} ...\nIt must contain a valid list of strings."
+                f"Invalid list: {arg} ...\nIt must contain a valid list of strings ..."
             )
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"Invalid list: {arg} ...\nIt must contain a valid list of strings."
+            f"Invalid list: {arg} ...\nIt must contain a valid list of strings ..."
         )
 
-# Parse arguments for build-database.py
-def parse_arguments_build_db():
+# Parse arguments for python scripts
+def parse_arguments():
     """
     Parse the command-line arguments for the build-database.py script.
 
@@ -483,109 +489,133 @@ def parse_arguments_build_db():
         "--Pmin",
         type=int,
         help="Specify the Pmin argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--Pmax",
         type=int,
         help="Specify the Pmax argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--Pres",
         type=int,
         help="Specify the Pres argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--Tmin",
         type=int,
         help="Specify the Tmin argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--Tmax",
         type=int,
         help="Specify the Tmax argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--Tres",
         type=int,
         help="Specify the Tres argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--comp",
         type=parse_list_of_numbers,
         help="Specify the comp argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--frac",
         type=str,
         help="Specify the frac argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--sampleid",
         type=str,
         help="Specify the sampleid argument ...",
-        required=True
+        required=False
+    )
+    parser.add_argument(
+        "--params",
+        type=parse_list_of_strings,
+        help="Specify the params argument ...",
+        required=False
     )
     parser.add_argument(
         "--normox",
         type=parse_list_of_strings,
         help="Specify the normox argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--source",
         type=str,
         help="Specify the source argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--strategy",
         type=str,
         help="Specify the strategy argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--n",
         type=int,
         help="Specify the n argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--k",
         type=int,
         help="Specify the k argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--parallel",
         type=str,
         help="Specify the parallel argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--nprocs",
         type=int,
         help="Specify the nprocs argument ...",
-        required=True
+        required=False
     )
     parser.add_argument(
         "--seed",
         type=int,
         help="Specify the seed argument ...",
-        required=True
+        required=False
+    )
+    parser.add_argument(
+        "--colormap",
+        type=str,
+        help="Specify the colormap argument ...",
+        required=False
+    )
+    parser.add_argument(
+        "--figdir",
+        type=str,
+        help="Specify the figdir argument ...",
+        required=False
     )
     parser.add_argument(
         "--outdir",
         type=str,
         help="Specify the outdir argument ...",
-        required=True
+        required=False
+    )
+    parser.add_argument(
+        "--datadir",
+        type=str,
+        help="Specify the datadir argument ...",
+        required=False
     )
 
     # Parse the command-line arguments
@@ -599,61 +629,266 @@ def parse_arguments_build_db():
 
     return args
 
-# Parse arguments for visualize-database.py
-def parse_arguments_visualize_db():
+# Check arguments
+def check_arguments(args, script):
     """
-    Parse the command-line arguments for the visualize-database.py script.
-
-    Returns:
-        argparse.Namespace: An object containing the parsed command-line arguments.
-
-    Raises:
-        argparse.ArgumentTypeError: If any of the required arguments are missing.
-
     """
-    # Create the argument parser
-    parser = argparse.ArgumentParser()
+    # Arguments
+    Pmin = args.Pmin
+    Pmax = args.Pmax
+    Pres = args.Pres
+    Tmin = args.Tmin
+    Tmax = args.Tmax
+    Tres = args.Tres
+    comp = args.comp
+    frac = args.frac
+    sampleid = args.sampleid
+    params = args.params
+    normox = args.normox
+    source = args.source
+    strategy = args.strategy
+    n = args.n
+    k = args.k
+    parallel = args.parallel
+    nprocs = args.nprocs
+    seed = args.seed
+    colormap = args.colormap
+    figdir = args.figdir
+    outdir = args.outdir
+    datadir = args.datadir
 
-    # Add the command-line arguments
-    parser.add_argument(
-        "--sampleid",
-        type=str,
-        help="Specify the sampleid argument ...",
-        required = True
-    )
-    parser.add_argument(
-        "--params",
-        type=parse_list_of_strings,
-        help="Specify the params argument ...",
-        required = True
-    )
-    parser.add_argument(
-        "--figox",
-        type=parse_list_of_strings,
-        help="Specify the figox argument ...",
-        required = True
-    )
-    parser.add_argument(
-        "--colormap",
-        type=str,
-        help="Specify the colormap argument ...",
-        required = True
-    )
-    parser.add_argument(
-        "--outdir",
-        type=str,
-        help="Specify the outdir argument ...",
-        required = True
-    )
-    parser.add_argument(
-        "--figdir",
-        type=str,
-        help="Specify the figdir argument ...",
-        required = True
-    )
+    # MAGEMin oxide options
+    oxide_list_magemin = [
+        "SiO2",
+        "Al2O3",
+        "CaO",
+        "MgO",
+        "FeO",
+        "K2O",
+        "Na2O",
+        "TiO2",
+        "Fe2O3",
+        "Cr2O3",
+        "H2O"
 
-    # Parse the command-line arguments
-    return parser.parse_args()
+    ]
+
+    # Benchmark sample ids
+    benchmark_sample_ids = ["PUM", "DMM", "RE46", "NMORB"]
+
+    # Benchmark sample data
+    datafile = "assets/data/benchmark-comps.csv"
+
+    valid_args = {}
+
+    # Check arguments and print
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print(f"Running {script} with:")
+
+    if Pmin is not None:
+        print(f"    Pmin: {Pmin}")
+
+        valid_args["Pmin"] = Pmin
+
+    if Pmax is not None:
+        print(f"    Pmax: {Pmax}")
+
+        valid_args["Pmax"] = Pmax
+
+    if Pres is not None:
+        if Pres > 128:
+            raise ValueError(
+                "Invalid --Pres argument ...\n"
+                "--Pres must be <= 128"
+            )
+
+        if Pmin is not None and Pmax is not None:
+            print(f"    Prange: [{Pmin}, {Pmax}, {Pres}]")
+        else:
+            print(f"    Pres: {Pres}")
+
+        valid_args["Pres"] = Pres
+
+    if Tmin is not None:
+        print(f"    Tmin: {Tmin}")
+
+        valid_args["Tmin"] = Tmin
+
+    if Tmax is not None:
+        print(f"    Tmax: {Tmax}")
+
+        valid_args["Tmax"] = Tmax
+
+    if Tres is not None:
+        if Tres > 128:
+            raise ValueError(
+                "Invalid --Tres argument ...\n"
+                "--Tres must be <= 128"
+            )
+
+        if Tmin is not None and Tmax is not None:
+            print(f"    Trange: [{Tmin}, {Tmax}, {Tres}]")
+        else:
+            print(f"    Tres: {Tres}")
+
+        valid_args["Tres"] = Tres
+
+    if comp is not None:
+        print(f"    comp: {comp}")
+
+        # Sample composition
+        sample_comp = comp
+
+        valid_args["comp"] = comp
+
+    if frac is not None:
+        if frac not in ["mol", "wt"]:
+            raise ValueError(
+                "Invalid --frac argument ...\n"
+                "Use --frac=mol or --frac=wt"
+            )
+
+        print(f"    frac: {frac}")
+
+        valid_args["frac"] = frac
+
+    if sampleid is not None:
+        if sampleid in benchmark_sample_ids:
+            # Get sample composition
+            sample_comp = get_benchmark_sample_for_MAGEMin(datafile, sampleid)
+
+        print(f"    sampleid: {sampleid}")
+
+        valid_args["sampleid"] = sampleid
+
+    if params is not None:
+        print("    physical properties:")
+
+        for param in params:
+            print(f"        {param}")
+
+        valid_args["params"] = params
+
+    if colormap is not None:
+        if colormap not in ["viridis", "bone", "pink", "seismic", "grey", "blues"]:
+            raise ValueError(
+                "Invalid --colormap argument ...\n"
+                f"Use --colormap=viridis or bone or pink or seismic or grey or blues"
+            )
+
+        print(f"    colormap: {colormap}")
+
+        valid_args["colormap"] = colormap
+
+    if normox is not None:
+        if normox != "all":
+            if check_non_matching_strings(normox, oxide_list_magemin):
+                raise ValueError(
+                    "Invalid --normox argument ...\n"
+                    f"Can only normalize to oxides {oxide_list_magemin}"
+                )
+
+            print(f"    Normalizing composition to:")
+
+            for oxide in normox:
+                print(f"        {oxide}")
+
+        # Normalize composition
+        sample_norm = normalize_sample(sample=sample_comp, components=normox)
+
+        print("    Normalized composition:")
+
+        for component, value in zip(oxide_list_magemin, sample_norm):
+            formatted_value = "{:.2f}".format(value)
+            print(f"        {component}: {formatted_value}")
+
+
+        valid_args["normox"] = normox
+
+    if source is not None:
+        if source not in ["sample", "earthchem"]:
+            raise ValueError(
+                "Invalid --source argument ...\n"
+                "Use --source=earthchem or --source=sample"
+            )
+
+        print(f"    source: {source}")
+
+        valid_args["source"] = source
+
+    if strategy is not None:
+        if strategy not in ["random", "batch"]:
+            raise ValueError(
+                "Invalid --strategy argument ...\n"
+                "Use --source=earthchem or --source=sample"
+            )
+
+        print(f"    strategy: {strategy}")
+
+        valid_args["strategy"] = strategy
+
+    if n is not None:
+        print(f"    n: {n}")
+
+        valid_args["n"] = n
+
+    if k is not None:
+        print(f"    k: {k}")
+
+        valid_args["k"] = k
+
+    if parallel is not None:
+        if not isinstance(parallel, bool):
+            raise ValueError(
+                "Invalid --parallel argument ...\n"
+                "--parallel must be either True or False"
+            )
+
+        print(f"    parallel: {parallel}")
+
+        valid_args["parallel"] = parallel
+
+    if nprocs is not None:
+        if nprocs > os.cpu_count():
+            raise ValueError(
+                "Invalid --nprocs argument ...\n"
+                f"--nprocs cannot be greater than cores on system ({os.cpu_count}) ..."
+            )
+
+        print(f"    nprocs: {nprocs}")
+
+        valid_args["nprocs"] = nprocs
+
+    if seed is not None:
+        print(f"    seed: {seed}")
+
+        valid_args["seed"] = seed
+
+    if outdir is not None:
+        if len(outdir) > 55:
+            raise ValueError(
+                "Invalid --outdir argument ...\n"
+                f"--outdir cannot be greater than 55 characters ..."
+                f"{outdir}"
+            )
+
+        print(f"    outdir: {outdir}")
+
+        valid_args["outdir"] = outdir
+
+    if figdir is not None:
+        print(f"    figdir: {figdir}")
+
+        valid_args["figdir"] = figdir
+
+    if datadir is not None:
+        print(f"    datadir: {datadir}")
+
+        valid_args["datadir"] = datadir
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+    return valid_args
 
 # Download data from repo
 def download_and_unzip(url, destination):
@@ -669,11 +904,10 @@ def download_and_unzip(url, destination):
 
     """
     # Download the file
-    print(f"Downloading assets from:\n{url}")
     urllib.request.urlretrieve(url, "assets.zip")
 
     # Extract the contents of the zip file
-    print(f"Extracting the contents of the zip file to {destination}/ ...")
+    print(f"Extracting assets ...")
     with zipfile.ZipFile("assets.zip", "r") as zip_ref:
         zip_ref.extractall(destination)
 
@@ -771,7 +1005,7 @@ def get_benchmark_sample_for_MAGEMin(datafile, sample_id):
     df = pd.read_csv(datafile)
 
     # Subset the DataFrame based on the sample name
-    subset_df = df[df['NAME'] == sample_id]
+    subset_df = df[df["NAME"] == sample_id]
 
     if subset_df.empty:
         raise ValueError("Sample name not found in the dataset ...")
@@ -844,7 +1078,7 @@ def normalize_sample(sample, components="all"):
         list: Normalized concentrations for each component in the same order.
 
     Raises:
-        ValueError: If the input sample list doesn't have exactly 11 components.
+        ValueError: If the input sample list does not have exactly 11 components.
 
     """
     # No normalizing for all components
@@ -1068,7 +1302,7 @@ def cleanup_ouput_dir(run_name, out_dir="runs"):
 def run_MAGEMin(
         program_path=None,
         run_name="test",
-        comp_type="mol",
+        comp_type="wt",
         database="ig",
         parallel=True,
         nprocs=None,
@@ -1469,10 +1703,10 @@ def process_perplex_assemblage(file_path):
         FileNotFoundError: If the specified assemblage file does not exist.
     """
     phase_dict = {}
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         for line_number, line in enumerate(file, start=1):
-            phases = line.split('-')[1].strip().split()
-            cleaned_phases = [phase.split('(')[0].lower() for phase in phases]
+            phases = line.split("-")[1].strip().split()
+            cleaned_phases = [phase.split("(")[0].lower() for phase in phases]
             phase_dict[line_number] = cleaned_phases
     return phase_dict
 
@@ -1698,7 +1932,7 @@ def visualize_MAD(
         ax.set_ylabel(f"P ({P_unit})")
         if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
             cbar = plt.colorbar(im, ax=ax, label="")
-            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter('%.1f'))
+            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
         else:
             plt.colorbar(im, ax=ax, label="")
 
@@ -1745,10 +1979,10 @@ def visualize_MAD(
     plt.close()
 
 # Plot Harker diagram with density contours using seaborn
-def plot_harker_diagram(
+def visualize_earthchem_data(
         datafile,
         x_oxide="SiO2",
-        y_oxide="MgO",
+        y_oxide=["MgO", "FeO", "CaO", "Al2O3"],
         fontsize=12,
         filename="earthchem-harker.png",
         fig_dir=f"{os.getcwd()}/figs"):
@@ -1769,7 +2003,7 @@ def plot_harker_diagram(
 
     Notes:
         - The function creates a directory named "figs" to save the plots.
-        - The function uses seaborn's "dark" style, palette, and "talk" context for the plots.
+        - The function uses seaborn "dark" style, palette, and "talk" context for the plots.
         - The function creates a grid of subplots based on the number of y-oxides specified.
         - Density contours and scatter plots (Harker diagrams) are added to each subplot.
         - Legends are shown only for the first subplot.
@@ -1809,7 +2043,7 @@ def plot_harker_diagram(
     num_rows = (num_plots + 1) // num_cols
 
     # Total figure size
-    fig_width = 3.15*num_cols
+    fig_width = 3.8*num_cols
     fig_height = 3.15*num_rows
 
     # Draw plots
@@ -2645,8 +2879,8 @@ def run_svr_regression(
     plt.xlim(vmin, vmax)
     plt.ylim(vmin, vmax)
     if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
     plt.title(f"{program}")
 
     # Save the plot to a file if a filename is provided
@@ -2684,7 +2918,7 @@ def visualize_input_data(
         features_array (numpy.ndarray): 2D array of features, where each row represents a
                                         data point and each column represents a feature.
         target_array (numpy.ndarray): 2D array of target values corresponding to the
-                                      features in 'features_array'.
+                                      features in "features_array".
         sample_id (str): Identifier for the sample being visualized.
         parameter (str): Name of the parameter being visualized, e.g.,
                          "DensityOfFullAssemblage".
@@ -2709,7 +2943,7 @@ def visualize_input_data(
           the relationship between the features and target values.
         - If the parameter is "DensityOfFullAssemblage", the target values and units will be
           transformed to a different scale (e.g., dividing by 1000).
-        - The generated figures are saved in the specified 'fig_dir' directory with
+        - The generated figures are saved in the specified "fig_dir" directory with
           appropriate names based on the input data and program information.
     """
     # Check for figs directory
@@ -2759,7 +2993,7 @@ def visualize_input_data(
     plt.ylabel(f"{parameter_label} {units_label}")
     plt.ylim(vmin, vmax)
     if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
     plt.title(f"{program}")
     plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-scatter-P.png")
     plt.close()
@@ -2772,7 +3006,7 @@ def visualize_input_data(
     plt.ylabel(f"{parameter_label} {units_label}")
     plt.ylim(vmin, vmax)
     if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
     plt.title(f"{program}")
     plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-scatter-T.png")
     plt.close()

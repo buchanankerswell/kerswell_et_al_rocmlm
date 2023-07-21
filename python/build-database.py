@@ -1,119 +1,31 @@
 import os
 from magemin import (
-    parse_arguments_build_db,
-    check_non_matching_strings,
-    random_sample_for_MAGEMin,
-    batch_sample_for_MAGEMin,
+    run_MAGEMin,
+    parse_arguments,
+    check_arguments,
     normalize_sample,
     create_MAGEMin_input,
-    run_MAGEMin
+    batch_sample_for_MAGEMin,
+    random_sample_for_MAGEMin
 )
 
-# Parse arguments
-args = parse_arguments_build_db()
+# Parse arguments and check
+args = parse_arguments()
+valid_args = check_arguments(args, "run-benchmark.py")
 
-# Get argument values
-P_min = args.Pmin
-P_max = args.Pmax
-P_res = args.Pres
-T_min = args.Tmin
-T_max = args.Tmax
-T_res = args.Tres
-sample_comp = args.comp
-comp_type = args.frac
-sample_id = args.sampleid
-norm_ox = args.normox
-source = args.source
-strategy = args.strategy
-n = args.n
-k = args.k
-parallel = args.parallel
-nprocs = args.nprocs
-seed = args.seed
-out_dir = args.outdir
+# Load valid arguments
+locals().update(valid_args)
+
+# Transform units
+Pmin, Pmax, Tmin, Tmax = Pmin * 10, Pmax * 10, Tmin - 273, Tmax - 273
+
+# PT grid
+Prange, Trange = [Pmin, Pmax, (Pmax-Pmin)/Pres], [Tmin, Tmax, (Tmax-Tmin)/Tres]
 
 # MAGEMin oxide options
 oxide_list_magemin = [
     "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O", "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
 ]
-
-# Check arguments and print
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-print("Building MAGEMin database with:")
-if P_res > 128 or T_res > 128:
-    raise ValueError(
-        "Invalid --Pres or --Tres argument ...\n"
-        "--Pres and --Tres must be <= 128"
-    )
-print(f"Prange: [{P_min}, {P_max}, {P_res}]")
-print(f"Trange: [{T_min}, {T_max}, {T_res}]")
-if norm_ox != "all":
-    if check_non_matching_strings(norm_ox, oxide_list_magemin):
-        raise ValueError(
-            "Invalid --normox argument ...\n"
-            f"Can only normalize to oxides {oxide_list_magemin}"
-            "Or --normox=all"
-        )
-print(f"Normalizing composition to: {norm_ox}")
-if source == "earthchem":
-    if strategy not in ["random", "batch"]:
-        raise ValueError(
-            "Invalid --strategy argument ...\n"
-            "Use --source=earthchem or --source=sample"
-        )
-    print(f"strategy: {strategy}")
-    print(f"n: {n}")
-    print(f"k: {k}")
-elif source == "sample":
-    print(f"sample_id: {sample_id}")
-    print("-------------")
-    print("sample_comp:")
-    for component, value in zip(oxide_list_magemin, sample_comp):
-        formatted_value = "{:.2f}".format(value)
-        print(f"{component}: {formatted_value}")
-    print("-------------")
-    if comp_type not in ["mol", "wt"]:
-        raise ValueError(
-            "Invalid --frac argument ...\n"
-            "Use --frac=mol or --frac=wt"
-        )
-    print(f"comp_type: {comp_type}")
-else:
-    raise ValueError(
-        "Invalid --source argument ...\n"
-        "Use --source=earthchem"
-    )
-if not isinstance(parallel, bool):
-    raise ValueError(
-        "Invalid --parallel argument ...\n"
-        "--parallel must be either True or False"
-    )
-print(f"parallel: {parallel}")
-if nprocs > os.cpu_count():
-    raise ValueError(
-        "Invalid --nprocs argument ...\n"
-        f"--nprocs cannot be greater than cores on system ({os.cpu_count}) ..."
-    )
-print(f"nprocs: {nprocs}")
-print(f"seed: {seed}")
-if len(out_dir) > 55:
-    raise ValueError(
-        "Invalid --outdir argument ...\n"
-        f"--outdir cannot be greater than 55 characters ..."
-        f"{out_dir}"
-    )
-print(f"out_dir: {out_dir}")
-print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-# Transform units
-P_min = P_min*10
-P_max = P_max*10
-T_min = T_min-273
-T_max = T_max-273
-
-# PT grid
-P_range = [P_min, P_max, (P_max-P_min)/P_res]
-T_range = [T_min, T_max, (T_max-T_min)/T_res]
 
 # Sample database and run MAGEMin to compute stable assemblages
 if source == "earthchem":
@@ -128,7 +40,7 @@ if source == "earthchem":
 
         for sample_id, sample_comp in zip(sample_ids, sample_comps):
             # Normalize composition
-            sample_norm = normalize_sample(sample_comp, components=norm_ox)
+            sample_norm = normalize_sample(sample_comp, components=normox)
 
             # Print sample info
             print(sample_id)
@@ -138,23 +50,10 @@ if source == "earthchem":
             print("---------------------------------------------")
 
             # Write MAGEMin input
-            create_MAGEMin_input(
-                P_range,
-                T_range,
-                sample_norm,
-                run_name=sample_id,
-                out_dir=out_dir
-            )
+            create_MAGEMin_input(Prange, Trange, sample_norm, 0, sample_id, outdir)
 
             # Run MAGEMin
-            run_MAGEMin(
-                "MAGEMin/",
-                run_name=sample_id,
-                comp_type="wt",
-                parallel=parallel,
-                nprocs=nprocs,
-                out_dir=out_dir
-            )
+            run_MAGEMin("MAGEMin/", sample_id, "wt", "ig", parallel, nprocs, outdir)
 
     # Batch sampling from earthchem
     if strategy == "batch":
@@ -173,44 +72,18 @@ if source == "earthchem":
             sample_norm = normalize_sample(sample_comp)
 
             # Write MAGEMin input
-            create_MAGEMin_input(
-                P_range,
-                T_range,
-                sample_norm,
-                run_name=sample_id,
-                out_dir=out_dir
-            )
+            create_MAGEMin_input(Prange, Trange, sample_norm, 0, sample_id, outdir)
 
             # Run MAGEMin
-            run_MAGEMin(
-                "MAGEMin/",
-                run_name=sample_id,
-                comp_type="wt",
-                parallel=parallel,
-                nprocs=nprocs,
-                out_dir=out_dir
-            )
+            run_MAGEMin("MAGEMin/", sample_id, "wt", "ig", parallel, nprocs, outdir)
 
 # Run single sample defined by user
 if source == "sample":
     # Normalize composition
-    sample_norm = normalize_sample(sample=sample_comp, components=norm_ox)
+    sample_norm = normalize_sample(sample=sample_comp, components=normox)
 
     # Write MAGEMin input
-    create_MAGEMin_input(
-        P_range,
-        T_range,
-        sample_norm,
-        run_name=sample_id,
-        out_dir=out_dir
-    )
+    create_MAGEMin_input(Prange, Trange, sample_norm, 0, sample_id, outdir)
 
     # Run MAGEMin
-    run_MAGEMin(
-        "MAGEMin/",
-        run_name=sample_id,
-        comp_type=comp_type,
-        parallel=parallel,
-        nprocs=nprocs,
-        out_dir=out_dir
-    )
+    run_MAGEMin("MAGEMin/", sample_id, "wt", "ig", parallel, nprocs, outdir)

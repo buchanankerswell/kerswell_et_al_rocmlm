@@ -15,18 +15,14 @@ from magemin import (
 )
 
 # Parse arguments
-#args = parse_arguments_visualize_db()
+args = parse_arguments_visualize_db()
 
 # Get argument values
-#sample_id = args.sampleid
-#parameters = args.params
-#out_dir = args.outdir
-#fig_dir = args.figdir
-
-sample_id = "DMM-128x128"
-parameters = ["DensityOfFullAssemblage", "LiquidFraction", "Vp", "Vs"]
-out_dir = "runs"
-fig_dir = f"figs/svr/{sample_id}"
+sample_id = args.sampleid
+parameters = args.params
+palette = args.colormap
+out_dir = args.outdir
+fig_dir = args.figdir
 data_dir = "assets/data"
 
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")

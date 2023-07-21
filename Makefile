@@ -19,11 +19,13 @@ PERPLEX = $(WORKDIR)/assets/perplex
 # Directories with data and scripts
 BENCHMARK = $(WORKDIR)/assets/benchmark
 DATA = $(WORKDIR)/assets/data
+DATAURL = https://files.osf.io/v1/resources/k23tb/providers/osfstorage/649149796513ba03733a3536/?zip=
 CONFIG = $(WORKDIR)/assets/config
 PYTHON = $(WORKDIR)/python/build-database.py \
 				 $(WORKDIR)/python/clone-magemin.py \
 				 $(WORKDIR)/python/download-assets.py \
 				 $(WORKDIR)/python/magemin.py \
+				 $(WORKDIR)/python/run-benchmark.py \
 				 $(WORKDIR)/python/session-info.py \
 				 $(WORKDIR)/python/submit-jobs.py \
 				 $(WORKDIR)/python/visualize-benchmark.py \
@@ -53,7 +55,6 @@ NPROCS ?= $(shell expr $(shell nproc) - 2)
 OUTDIR ?= runs
 # Database visualization options
 FIGDIR ?= figs
-FIGOX ?= ["MgO", "FeO", "CaO", "Al2O3"]
 PARAMS ?= ["Vp", "Vs", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
 COLORMAP ?= bone
 # Make clean
@@ -89,28 +90,40 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo -e \
 		"make benchmark\n\
+		PMIN=     <GPa>\n\
+		PMAX=     <GPa>\n\
 		PRES=     <number of points>\n\
+		TMIN=     <K>\n\
+		TMAX=     <K>\n\
 		TRES=     <number of points>\n\
 		SAMPLEID= <sample name>\n\
+		NORMOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'> or <all>\n\
+		PARALLEL= <True or False>\n\
+		NPROCS=   <number of processors for parallel>\n\
+		OUTDIR=   <directory of MAGEMin output>" $(LOG)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo -e \
+		"make benchmark_all\n\
+		PRES=     <number of points>\n\
+		TRES=     <number of points>\n\
 		PARALLEL= <True or False>\n\
 		NPROCS=   <number of processors for parallel>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo -e \
 		"make visualize_database\n\
+		SAMPLEID= <sample name>\n\
 		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
 			Options:\n\
 			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
 			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
 			DensityOfMixture\n\
-		FIGOX=    <'[\"oxide\", \"oxide\", \"oxide\"]'> for Harker diagrams\n\
-			Options:\n\
-			SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O\n\
 		COLORMAP= <viridis bone pink grey>\n\
 		OUTDIR=   <directory of MAGEMin output>\n\
 		FIGDIR=   <directory for saving plots>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo -e \
 		"make visualize_benchmark\n\
+		SAMPLEID= <sample name>\n\
 		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
 			Options:\n\
 			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
@@ -120,9 +133,43 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 		OUTDIR=   <directory of MAGEMin output>\n\
 		FIGDIR=   <directory for saving plots>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo -e \
+		"make visualize_benchmark_all\n\
+		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
+			Options:\n\
+			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
+			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
+			DensityOfMixture\n\
+		COLORMAP= <viridis bone pink grey>\n\
+		OUTDIR=   <directory of MAGEMin output>" $(LOG)
+	@echo -e \
+		"make train_svr\n\
+		SAMPLEID= <sample name>\n\
+		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
+			Options:\n\
+			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
+			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
+			DensityOfMixture\n\
+		COLORMAP= <viridis bone pink grey>\n\
+		OUTDIR=   <directory of MAGEMin output>\n\
+		FIGDIR=   <directory for saving plots>" $(LOG)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo "make visualize_other" $(LOG)
+	@echo "make write_tables" $(LOG)
 	@echo "make submit_jobs" $(LOG)
 	@echo "make remove_conda_env" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo "=============================================" $(LOG)
+
+train_svr:  $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) support-vector-regression.py \
+		--sampleid '$(SAMPLEID)' \
+		--params '$(PARAMS)' \
+		--colormap $(COLORMAP) \
+		--outdir $(OUTDIR) \
+		--figdir $(FIGDIR) \
+	$(LOG)
 	@echo "=============================================" $(LOG)
 
 visualize_benchmark_all: $(LOGFILE) $(PYTHON)
@@ -134,16 +181,15 @@ visualize_benchmark_all: $(LOGFILE) $(PYTHON)
 	@echo "=============================================" $(LOG)
 
 visualize_other: $(LOGFILE) $(PYTHON)
-	@echo "Visualizing other figures ..." $(LOG)
+	@echo "Visualizing ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-other.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 visualize_benchmark: $(LOGFILE) $(PYTHON)
-	@echo "Visualizing benchmark comparisons ..." $(LOG)
+	@echo "Visualizing ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-benchmark.py \
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMS)' \
-		--figox '$(FIGOX)' \
 		--colormap $(COLORMAP) \
 		--outdir $(OUTDIR) \
 		--figdir $(FIGDIR) \
@@ -151,11 +197,10 @@ visualize_benchmark: $(LOGFILE) $(PYTHON)
 	@echo "=============================================" $(LOG)
 
 visualize_database: $(LOGFILE) $(PYTHON)
-	@echo "Visualizing MAGEMin database ..." $(LOG)
+	@echo "Visualizing ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-database.py \
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMS)' \
-		--figox '$(FIGOX)' \
 		--colormap $(COLORMAP) \
 		--outdir $(OUTDIR) \
 		--figdir $(FIGDIR) \
@@ -195,24 +240,17 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 		(cd MAGEMin && make) $(LOG); \
 		echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG); \
 		echo "Building MAGEMin model ..." $(LOG); \
-		$(CONDAPYTHON) python/benchmark-magemin-perplex.py \
+		$(CONDAPYTHON) python/run-benchmark.py \
 			--Pmin $(PMIN) \
 			--Pmax $(PMAX) \
 			--Pres $(PRES) \
 			--Tmin $(TMIN) \
 			--Tmax $(TMAX) \
 			--Tres $(TRES) \
-			--comp '$(COMP)' \
-			--frac $(FRAC) \
 			--sampleid $(SAMPLEID) \
 			--normox '$(NORMOX)' \
-			--source $(SOURCE) \
-			--strategy $(STRATEGY) \
-			--n $(N) \
-			--k $(K) \
 			--parallel $(PARALLEL) \
 			--nprocs $(NPROCS) \
-			--seed $(SEED) \
 			--outdir $(OUTDIR) \
 			$(LOG); \
 		mv $(OUTDIR)/$(SAMPLEID) $(OUTDIR)/$(SAMPLEID)-$(TRES)x$(PRES); \
@@ -355,12 +393,13 @@ build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
 		echo "=============================================" $(LOG); \
-		echo "Cloning MAGEMin from $(MAGEMINREPO) ..." $(LOG); \
+		echo "Cloning MAGEMin from:" $(LOG); \
+		echo "	$(MAGEMINREPO)" $(LOG); \
 		chmod +x python/clone-magemin.py; \
 		$(CONDAPYTHON) python/clone-magemin.py $(LOG); \
 	else \
 		echo "MAGEMin found at:" $(LOG); \
-		echo "$(MAGEMIN)" $(LOG); \
+		echo "	$(MAGEMIN)" $(LOG); \
 	fi
 
 write_tables: $(LOGFILE)
@@ -380,31 +419,36 @@ create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	fi
 	@if [ -d "$(MY_ENV_DIR)" ]; then \
 		echo "Conda environment \"$(CONDAENVNAME)\" found at:" $(LOG); \
-		echo "$(MY_ENV_DIR)" $(LOG); \
+		echo "	$(MY_ENV_DIR)" $(LOG); \
 	else \
-		echo "Creating env $(CONDAENVNAME) from $(CONDASPECSFILE) ..." $(LOG); \
-		conda env create --file $(CONDASPECSFILE) > /dev/null $(LOG); \
-		echo "Conda env created ..." $(LOG); \
+		echo "Creating environment $(CONDAENVNAME) from:" $(LOG); \
+		echo "	$(CONDASPECSFILE)" $(LOG); \
+		conda env create --file $(CONDASPECSFILE) $(LOG); \
+		echo "Conda environment $(CONDAENVNAME) created ..." $(LOG); \
 	fi
+	@echo "=============================================" $(LOG)
 
 find_conda_env: $(LOGFILE)
-	@echo "Looking for conda env ..." $(LOG)
+	@echo "Looking for conda environment $(CONDAENVNAME)..." $(LOG)
 	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
+	@echo "=============================================" $(LOG)
 
 $(PERPLEX): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATA)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Perplex found at:" $(LOG); \
-		echo "$(PERPLEX)" $(LOG); \
+		echo "	$(PERPLEX)" $(LOG); \
 	fi
 
 $(DATA): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATA)" ]; then \
+		echo "Downloading assets from:" $(LOG); \
+		echo "	$(DATAURL)" $(LOG); \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Data files found at:" $(LOG); \
-		echo "$(DATA)" $(LOG); \
+		echo "	$(DATA)" $(LOG); \
 	fi
 
 $(CONFIG): $(LOGFILE) $(PYTHON)
@@ -413,7 +457,7 @@ $(CONFIG): $(LOGFILE) $(PYTHON)
 		echo "=============================================" $(LOG); \
 	else \
 		echo "Configuration files found at:" $(LOG); \
-		echo "$(CONFIG)" $(LOG); \
+		echo "	$(CONFIG)" $(LOG); \
 	fi
 
 $(LOGFILE):
