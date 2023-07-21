@@ -36,8 +36,21 @@ from sklearn.metrics import mean_squared_error, r2_score
 # Print filepaths
 def print_filepaths(folder_path):
     """
+    Print the filepaths of all files in the specified folder path.
+
+    Parameters:
+        folder_path (str): The path of the folder whose filepaths need to be printed.
+
+    Returns:
+        None
+
+    This function iterates through all items (files and subfolders) in the given folder_path
+    and prints the absolute filepaths of all files found. It skips the special macOS file
+    '.DS_Store' and only considers regular files (excluding subfolders).
     """
     for item in os.listdir(folder_path):
+        if item == ".DS_Store":
+             continue
         item_path = os.path.join(folder_path, item)
 
         if os.path.isfile(item_path):
@@ -51,6 +64,39 @@ def extract_info_geotherm(
         mantle_potential_T=1773,
         threshold=0.1):
     """
+    Extracts relevant data points along a geotherm based on specified parameters.
+
+    Parameters:
+        results (dict): A dictionary containing the results of geothermal data.
+                        It must have keys "P" and "T", representing pressure and temperature
+                        values, respectively, and a key for the specified parameter.
+
+        parameter (str): The name of the parameter for which data will be extracted along
+                         the geotherm.
+
+        thermal_gradient (float, optional): The thermal gradient used to calculate the
+                                            geotherm.  Default is 0.5.
+
+        mantle_potential_T (float, optional): The mantle potential temperature in Kelvin
+                                              used to calculate the geotherm.
+                                              Default is 1773 K.
+
+        threshold (float, optional): The threshold used to determine data points' proximity
+                                     to the geotherm.  Data points with pressure values
+                                     within this threshold of the calculated geotherm_P
+                                     will be extracted. Default is 0.1.
+
+    Returns:
+        tuple: A tuple containing three arrays: P_values, T_values, and parameter_values.
+               - P_values (numpy.ndarray): An array of pressure values along the geotherm.
+               - T_values (numpy.ndarray): An array of temperature values along the geotherm.
+               - parameter_values (numpy.ndarray): An array of the specified parameter's
+                 values along the geotherm.
+
+    This function takes the input geothermal data, calculates the geotherm, and then
+    extracts the relevant data points corresponding to the specified parameter along the
+    geotherm. It performs unit conversions for pressure and temperature as necessary
+    before calculations.
     """
     # Get PT and parameter values and transform units
     df = pd.DataFrame({
@@ -77,6 +123,25 @@ def extract_info_geotherm(
 
 # Append info from a dict to csv
 def append_to_csv(file_path, data_dict):
+    """
+    Append data from a dictionary to a CSV file.
+
+    Parameters:
+        file_path (str): The path to the CSV file where data will be appended or created.
+
+        data_dict (dict): A dictionary containing the data to be appended to the CSV file.
+                          The keys represent column names, and the values are lists or arrays
+                          containing the data to be appended.
+
+    Returns:
+        None
+
+    This function checks if the specified CSV file exists. If it does not, it creates a new
+    DataFrame using the data from the given data_dict and saves it as a new CSV file. If the
+    CSV file already exists, it loads the existing DataFrame, appends the new data from the
+    data_dict, and sorts the DataFrame by the "program" and "parameter" columns. Finally, it
+    saves the updated DataFrame back to the CSV file.
+    """
     # Check if the CSV file already exists
     if not pd.io.common.file_exists(file_path):
         df = pd.DataFrame(data_dict)
@@ -632,6 +697,22 @@ def parse_arguments():
 # Check arguments
 def check_arguments(args, script):
     """
+    Validate and print the arguments for a specific script.
+
+    Parameters:
+        args (argparse.Namespace): The argparse.Namespace object containing parsed
+                                   command-line arguments.
+
+        script (str): The name of the script being executed.
+
+    Returns:
+        dict: A dictionary containing the valid arguments with their corresponding values.
+
+    This function takes the argparse.Namespace object 'args', which contains parsed
+    command-line arguments, and the 'script' name for which the arguments are being checked.
+    It validates the arguments one by one, prints their values, and stores them in a
+    dictionary of valid_args. If any argument is invalid, it raises a ValueError with the
+    corresponding error message.
     """
     # Arguments
     Pmin = args.Pmin
@@ -1320,19 +1401,19 @@ def run_MAGEMin(
         Default is True.
         nprocs (int, optional): The number of processes to use in parallel execution.
         Default is os.cpu_count()-2.
-        verbose (bool, optional): Determines whether to print verbose output. Default is True.
+        verbose (bool, optional): Determines whether to print verbose output.
 
     Returns:
         None
 
     Prints:
         - Information about the execution of MAGEMin, including the command executed
-        and elapsed time.
+          and elapsed time.
         - Prints the elapsed time in seconds.
 
     Calls:
         - cleanup_output_dir(run_name): Moves the output files and cleans up the
-        directory after MAGEMin execution.
+          directory after MAGEMin execution.
     """
     # Check for MAGEMin program
     if program_path is None:
@@ -1756,8 +1837,8 @@ def visualize_MAD(
         T,
         grid,
         parameter,
-        geotherm=False,
-        geotherm_linetype="--",
+        geotherm=True,
+        geotherm_linetype="-.",
         geotherm_color="white",
         T_unit="K",
         P_unit="GPa",
@@ -1942,8 +2023,6 @@ def visualize_MAD(
 
     # Add geotherms
     if geotherm:
-        # Colors
-        colormap = plt.cm.get_cmap("tab10")
 
         # Calculate geotherms
         P_arrays, T_arrays = crop_geotherms(P, T)
@@ -1956,15 +2035,15 @@ def visualize_MAD(
                     T_arrays[i],
                     P_arrays[i],
                     geotherm_linetype,
-                    color=colormap(geotherm_color),
-                    linewidth=3
+                    color=geotherm_color,
+                    linewidth=2
                 )
             else:
                 plt.plot(
                     T_arrays[i],
                     P_arrays[i],
                     geotherm_linetype,
-                    color="white",
+                    color=geotherm_color,
                     linewidth=2
                 )
 
@@ -3084,3 +3163,389 @@ def visualize_input_data(
 
     plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-histogram.png")
     plt.close()
+
+# Plot GFEM results
+def visualize_GFEM(
+        program,
+        sample_id,
+        parameters,
+        palette="bone",
+        out_dir=f"{os.getcwd()}/runs",
+        fig_dir=f"{os.getcwd()}/figs",
+        data_dir=f"{os.getcwd()}/assets/data"):
+    """
+    """
+    # Get GFEM results
+    if program == "MAGEMin":
+        # Get MAGEMin results
+        results = process_MAGEMin_grid(sample_id, out_dir)
+    elif program == "Perple_X":
+        # Get perplex results
+        file_path_results = f"assets/benchmark/{sample_id}/{sample_id}_grid.tab"
+        file_path_assemblage = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
+        results = process_perplex_grid(file_path_results, file_path_assemblage)
+    else:
+        raise ValueError(
+            "Invalid program argument ...\n"
+            "program must be MAGEMin or Perple_X"
+        )
+
+    # Get PT values MAGEMin and transform units
+    P = [P / 10 for P in results["P"]]
+    T = [T + 273 for T in results["T"]]
+
+    for parameter in parameters:
+        # Transform results into 2D numpy arrays
+        if parameter == "StableSolutions":
+            # Encode unique phase assemblages MAGEMin
+            encoded, unique = encode_phases(
+                results[parameter],
+                filename=f"{data_dir}/{sample_id}_{program}_assemblages.csv"
+            )
+            grid = create_PT_grid(P, T, encoded)
+        else:
+            grid = create_PT_grid(P, T, results[parameter])
+
+        # Transform units
+        if parameter == "DensityOfFullAssemblage":
+            grid = grid / 1000
+
+        # Use discrete colorscale
+        if parameter in ["StableSolutions", "StableVariance"]:
+            color_discrete = True
+        else:
+            color_discrete = False
+
+        # Reverse color scale
+        if palette in ["grey"]:
+            if parameter in ["StableVariance"]:
+                color_reverse = True
+            else:
+                color_reverse = False
+        else:
+            if parameter in ["StableVariance"]:
+                color_reverse = False
+            else:
+                color_reverse = True
+
+        # Set colorbar limits for better comparisons
+        if not color_discrete:
+            vmin=np.min(grid[np.logical_not(np.isnan(grid))])
+            vmax=np.max(grid[np.logical_not(np.isnan(grid))])
+        else:
+            num_colors = len(np.unique(grid))
+            vmin = 1
+            vmax = num_colors + 1
+
+        # Plot PT grid MAGEMin
+        visualize_MAD(
+            P, T, grid, parameter,
+            title=program,
+            palette=palette,
+            color_discrete=color_discrete,
+            color_reverse=color_reverse,
+            vmin=vmin,
+            vmax=vmax,
+            filename=f"{program}-{sample_id}-{parameter}.png",
+            fig_dir=fig_dir
+        )
+
+# Plot GFEM results diff
+def visualize_GFEM_diff(
+        sample_id,
+        parameters,
+        palette="bone",
+        out_dir=f"{os.getcwd()}/runs",
+        fig_dir=f"{os.getcwd()}/figs",
+        data_dir=f"{os.getcwd()}/assets/data"):
+    """
+    """
+    # Get MAGEMin results
+    results_mgm = process_MAGEMin_grid(sample_id, out_dir)
+
+    # Get perplex results
+    file_path_results_ppx = f"assets/benchmark/{sample_id}/{sample_id}_grid.tab"
+    file_path_assemblage_ppx = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
+    results_ppx = process_perplex_grid(file_path_results_ppx, file_path_assemblage_ppx)
+
+    # Get PT values MAGEMin and transform units
+    P_mgm = [P / 10 for P in results_mgm["P"]]
+    T_mgm = [T + 273 for T in results_mgm["T"]]
+
+    # Get PT values perplex and transform units
+    P_ppx = [P / 10 for P in results_ppx["P"]]
+    T_ppx = [T + 273 for T in results_ppx["T"]]
+
+    for parameter in parameters:
+        # Transform results into 2D numpy arrays
+        if parameter == "StableSolutions":
+            # Encode unique phase assemblages MAGEMin
+            encoded_mgm, unique_mgm = encode_phases(results_mgm[parameter])
+            grid_mgm = create_PT_grid(P_mgm, T_mgm, encoded_mgm)
+
+            # Encode unique phase assemblages perplex
+            encoded_ppx, unique_ppx = encode_phases(results_ppx[parameter])
+            grid_ppx = create_PT_grid(P_ppx, T_ppx, encoded_ppx)
+        else:
+            grid_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
+            grid_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter])
+
+        # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
+        if parameter == "LiquidFraction":
+            grid_ppx = np.where(np.isnan(grid_ppx), 0, grid_ppx)
+
+        # Transform units
+        if parameter == "DensityOfFullAssemblage":
+            grid_mgm = grid_mgm / 1000
+            grid_ppx = grid_ppx / 1000
+
+        # Use discrete colorscale
+        if parameter in ["StableSolutions", "StableVariance"]:
+            color_discrete = True
+        else:
+            color_discrete = False
+
+        # Reverse color scale
+        if palette in ["grey"]:
+            if parameter in ["StableVariance"]:
+                color_reverse = True
+            else:
+                color_reverse = False
+        else:
+            if parameter in ["StableVariance"]:
+                color_reverse = False
+            else:
+                color_reverse = True
+
+        # Set colorbar limits for better comparisons
+        if not color_discrete:
+            vmin_mgm=np.min(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
+            vmax_mgm=np.max(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
+            vmin_ppx=np.min(grid_ppx[np.logical_not(np.isnan(grid_ppx))])
+            vmax_ppx=np.max(grid_ppx[np.logical_not(np.isnan(grid_ppx))])
+
+            vmin = min(vmin_mgm, vmin_ppx)
+            vmax = max(vmax_mgm, vmax_ppx)
+        else:
+            num_colors_mgm = len(np.unique(grid_mgm))
+            num_colors_ppx = len(np.unique(grid_ppx))
+            vmin = 1
+            vmax = max(num_colors_mgm, num_colors_ppx) + 1
+
+        if not color_discrete:
+            # Compute normalized diff
+            mask = ~np.isnan(grid_mgm) & ~np.isnan(grid_ppx)
+            max_diff = np.max(np.abs(grid_mgm[mask] - grid_ppx[mask]))
+            diff_norm = (grid_mgm - grid_ppx) / max_diff
+            diff_norm[~mask] = np.nan
+
+            # Plot PT grid normalized diff mgm-ppx
+            visualize_MAD(
+                P_ppx, T_ppx, diff_norm, parameter,
+                title="Normalized Difference",
+                palette="seismic",
+                color_discrete=color_discrete,
+                color_reverse=False,
+                filename=f"diff-norm-{sample_id}-{parameter}.png",
+                fig_dir=fig_dir
+            )
+
+            # Compute the absolute gradient along the rows and columns
+            gradient_rows = np.abs(np.diff(diff_norm, axis=0))
+            gradient_cols = np.abs(np.diff(diff_norm, axis=1))
+
+            # Pad the gradients to match the original size
+            gradient_rows_padded = np.pad(
+                gradient_rows, ((0, 1), (0, 0)),
+                mode="constant",
+                constant_values=np.nan
+            )
+            gradient_cols_padded = np.pad(
+                gradient_cols, ((0, 0), (0, 1)),
+                mode="constant",
+                constant_values=np.nan
+            )
+
+            # Compute the maximum gradient between rows and columns
+            max_gradient = np.maximum(gradient_rows_padded, gradient_cols_padded)
+
+            # Plot PT grid max gradient
+            visualize_MAD(
+                P_ppx, T_ppx, max_gradient, parameter,
+                title="Difference Gradient",
+                palette=palette,
+                color_discrete=color_discrete,
+                color_reverse=color_reverse,
+                filename=f"max-grad-{sample_id}-{parameter}.png",
+                fig_dir=fig_dir
+            )
+
+            # Plot PREM comparisons
+            if parameter == "DensityOfFullAssemblage":
+                visualize_PREM(
+                    f"{data_dir}/prem.csv",
+                    results_mgm,
+                    results_ppx,
+                    parameter=parameter,
+                    param_unit="g/cm$^3$",
+                    geotherm_threshold=0.1,
+                    title="PREM Comparison",
+                    filename=f"prem-{sample_id}-{parameter}.png",
+                    fig_dir=fig_dir
+                )
+
+            if parameter in ["Vp", "Vs"]:
+                visualize_PREM(
+                    f"{data_dir}/prem.csv",
+                    results_mgm,
+                    results_ppx,
+                    parameter=parameter,
+                    param_unit="km/s",
+                    geotherm_threshold=0.1,
+                    title="PREM Comparison",
+                    filename=f"prem-{sample_id}-{parameter}.png",
+                    fig_dir=fig_dir
+                )
+
+# Support vector regression with nonlinear kernel
+def run_svr(
+        program,
+        sample_id,
+        parameters,
+        kernels=["rbf"],
+        scalers=["standard", "minmax"],
+        palette="bone",
+        out_dir=f"{os.getcwd()}/runs",
+        fig_dir=f"{os.getcwd()}/figs",
+        data_dir=f"{os.getcwd()}/assets/data"):
+    """
+    """
+    print("=============================================")
+    if program == "MAGEMin":
+        print("Processing MAGEMin results from:")
+        print(f"    MAGEMin: {out_dir}/{sample_id}")
+
+        # Get results
+        results = process_MAGEMin_grid(sample_id, out_dir)
+    elif program == "Perple_X":
+        print("Processing Perple_X results from:")
+        print(f"    Perple_X: assets/benchmark/{sample_id}/{sample_id}_grid.tab")
+        print(f"    Perple_X: assets/benchmark/{sample_id}/{sample_id}_assemblages.txt")
+
+        # Get results
+        file_path_results = f"assets/benchmark/{sample_id}/{sample_id}_grid.tab"
+        file_path_assemblage = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
+        results = process_perplex_grid(file_path_results, file_path_assemblage)
+    else:
+        raise ValueError(
+            "Invalid program argument ...\n"
+            "program must be MAGEMin or Perple_X"
+        )
+
+    print("Preprocessing features array (P and T):")
+    print("    Transforming units to K and GPa")
+
+    # Get PT values MAGEMin and transform units
+    P = [P / 10 for P in results["P"]]
+    T = [T + 273 for T in results["T"]]
+
+    # Reshape into (W, 1) arrays
+    P_array = np.unique(np.array(P)).reshape(-1, 1)
+    T_array = np.unique(np.array(T)).reshape(1, -1)
+
+    # Get array dimensions
+    W = P_array.shape[0]
+
+    print(f"    Reshaping P array to {1, W}")
+    print(f"    Reshaping T array to {W, 1}")
+
+    # Reshape into (W, W) arrays by repeating values
+    P_grid = np.tile(P_array, (1, W))
+    T_grid = np.tile(T_array, (W, 1))
+
+    print(f"    Combining PT arrays into feature array with shape {W, W, 2}")
+
+    # Combine P and T grids into a single feature set with shape (W, W, 2)
+    features_array = np.stack((P_grid, T_grid), axis=-1)
+
+    print("=============================================")
+
+    for parameter in parameters:
+
+        print(f"Preprocessing target array ({parameter}):")
+
+        # Units
+        if parameter == "DensityOfFullAssemblage":
+            print("    Transforming units from Kg/m^3 to g/cm^3")
+            units = "g/cm$^3$"
+        if parameter == "LiquidFraction":
+            units = None
+        if parameter in ["Vp", "Vs"]:
+            units = "km/s"
+
+        print(f"    Creating target array with shape {W, W}")
+
+        # Target array with shape (W, W)
+        target_array = create_PT_grid(P, T, results[parameter])
+
+        # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
+        if parameter == "LiquidFraction":
+            if program == "MAGEMin":
+                print(f" Setting zero liquid fraction to NaN for better comparisons")
+                target_array = np.where(target_array <= 0.05, np.nan, target_array)
+
+        # Get min max of target array to plot colorbars on the same scales
+        vmin = np.min(np.abs(target_array[np.logical_not(np.isnan(target_array))]))
+        vmax = np.max(np.abs(target_array[np.logical_not(np.isnan(target_array))]))
+
+        # Transform units
+        if parameter == "DensityOfFullAssemblage":
+            vmin = vmin / 1000
+            vmax = vmax / 1000
+
+        print(f"    Finding min, max {round(vmin, 2), round(vmax, 2)}")
+
+        print(f"Plotting input data to: {fig_dir}")
+
+        # Visualizations: input data
+        visualize_input_data(
+            results,
+            features_array,
+            target_array,
+            sample_id,
+            parameter,
+            units,
+            program=program,
+            palette=palette,
+            vmin=vmin,
+            vmax=vmax,
+            fig_dir=fig_dir
+        )
+
+        # Run SVR on MAGEMin dataset
+        print("Running SVR ...")
+        print("=============================================")
+
+        for kernel in kernels:
+            for scaler in scalers:
+                # Run SVR for MAGEMin
+                model, info = run_svr_regression(
+                    features_array,
+                    target_array,
+                    parameter,
+                    units=units,
+                    vmin=vmin,
+                    vmax=vmax,
+                    program=program,
+                    kernel=kernel,
+                    scaler=scaler,
+                    filename=f"{program}-{sample_id}-{parameter}-{kernel}-{scaler}.png",
+                    fig_dir=fig_dir
+                )
+
+                # Write SVR config and performance info to csv
+                print(f"Writing SVR results to: {data_dir}/svr-info.csv")
+
+                append_to_csv("assets/data/svr-info.csv", info)
+
+        print("=============================================")

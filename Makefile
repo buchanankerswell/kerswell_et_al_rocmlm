@@ -18,17 +18,17 @@ MAGEMIN = $(WORKDIR)/MAGEMin
 PERPLEX = $(WORKDIR)/assets/perplex
 # Directories with data and scripts
 BENCHMARK = $(WORKDIR)/assets/benchmark
-DATA = $(WORKDIR)/assets/data
+DATADIR = $(WORKDIR)/assets/data
 DATAURL = https://files.osf.io/v1/resources/k23tb/providers/osfstorage/649149796513ba03733a3536/?zip=
 CONFIG = $(WORKDIR)/assets/config
 PYTHON = $(WORKDIR)/python/build-database.py \
 				 $(WORKDIR)/python/clone-magemin.py \
 				 $(WORKDIR)/python/download-assets.py \
 				 $(WORKDIR)/python/magemin.py \
-				 $(WORKDIR)/python/run-benchmark.py \
+				 $(WORKDIR)/python/benchmark.py \
 				 $(WORKDIR)/python/session-info.py \
+				 $(WORKDIR)/python/svr.py \
 				 $(WORKDIR)/python/submit-jobs.py \
-				 $(WORKDIR)/python/visualize-benchmark.py \
 				 $(WORKDIR)/python/visualize-database.py \
 				 $(WORKDIR)/python/visualize-other.py \
 # Other variables
@@ -56,14 +56,15 @@ OUTDIR ?= runs
 # Database visualization options
 FIGDIR ?= figs
 PARAMS ?= ["Vp", "Vs", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
+PARAMSML ?= ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]
 COLORMAP ?= bone
 # Make clean
-DATAPURGE = python/__pycache__ .job output
+DATAPURGE = python/__pycache__ .job output $(DATADIR)/*assemblages.csv
 DATACLEAN = assets log MAGEMin runs
 FIGSPURGE = figs
 FIGSCLEAN = figs
 
-all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
@@ -110,39 +111,6 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 		NPROCS=   <number of processors for parallel>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo -e \
-		"make visualize_database\n\
-		SAMPLEID= <sample name>\n\
-		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
-			Options:\n\
-			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
-			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
-			DensityOfMixture\n\
-		COLORMAP= <viridis bone pink grey>\n\
-		OUTDIR=   <directory of MAGEMin output>\n\
-		FIGDIR=   <directory for saving plots>" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo -e \
-		"make visualize_benchmark\n\
-		SAMPLEID= <sample name>\n\
-		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
-			Options:\n\
-			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
-			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
-			DensityOfMixture\n\
-		COLORMAP= <viridis bone pink grey>\n\
-		OUTDIR=   <directory of MAGEMin output>\n\
-		FIGDIR=   <directory for saving plots>" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo -e \
-		"make visualize_benchmark_all\n\
-		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
-			Options:\n\
-			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
-			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
-			DensityOfMixture\n\
-		COLORMAP= <viridis bone pink grey>\n\
-		OUTDIR=   <directory of MAGEMin output>" $(LOG)
-	@echo -e \
 		"make train_svr\n\
 		SAMPLEID= <sample name>\n\
 		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
@@ -152,30 +120,32 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMI
 			DensityOfMixture\n\
 		COLORMAP= <viridis bone pink grey>\n\
 		OUTDIR=   <directory of MAGEMin output>\n\
-		FIGDIR=   <directory for saving plots>" $(LOG)
+		FIGDIR=   <directory for saving plots>\n\
+		DATADIR=   <directory for reading/saving data>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
+	@echo -e \
+		"make visualize\n\
+		SAMPLEID= <sample name>\n\
+		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
+			Options:\n\
+			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
+			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
+			DensityOfMixture\n\
+		COLORMAP= <viridis bone pink grey>\n\
+		OUTDIR=   <directory of MAGEMin output>\n\
+		FIGDIR=   <directory for saving plots>\n\
+		DATADIR=   <directory for reading/saving data>" $(LOG)
 	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo "make visualize_other" $(LOG)
+	@echo "make visualize" $(LOG)
 	@echo "make write_tables" $(LOG)
 	@echo "make submit_jobs" $(LOG)
 	@echo "make remove_conda_env" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
 	@echo "=============================================" $(LOG)
 
-train_svr:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) support-vector-regression.py \
-		--sampleid '$(SAMPLEID)' \
-		--params '$(PARAMS)' \
-		--colormap $(COLORMAP) \
-		--outdir $(OUTDIR) \
-		--figdir $(FIGDIR) \
-	$(LOG)
-	@echo "=============================================" $(LOG)
-
-visualize_benchmark_all: $(LOGFILE) $(PYTHON)
+visualize: $(LOGFILE) $(PYTHON)
 	@for run in $$(ls -d $(OUTDIR)/* | sed 's/$(OUTDIR)\/\(.*\)/\1/'); do \
 		echo "Visualizing benchmark $$run" $(LOG); \
-		$(MAKE) visualize_benchmark SAMPLEID=$$run FIGDIR=figs/benchmark/$$run; \
+		$(MAKE) visualize_database SAMPLEID=$$run FIGDIR=figs/$$run; \
 	done
 	@$(MAKE) visualize_other
 	@echo "=============================================" $(LOG)
@@ -183,17 +153,6 @@ visualize_benchmark_all: $(LOGFILE) $(PYTHON)
 visualize_other: $(LOGFILE) $(PYTHON)
 	@echo "Visualizing ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-other.py $(LOG)
-	@echo "=============================================" $(LOG)
-
-visualize_benchmark: $(LOGFILE) $(PYTHON)
-	@echo "Visualizing ..." $(LOG)
-	@$(CONDAPYTHON) python/visualize-benchmark.py \
-		--sampleid '$(SAMPLEID)' \
-		--params '$(PARAMS)' \
-		--colormap $(COLORMAP) \
-		--outdir $(OUTDIR) \
-		--figdir $(FIGDIR) \
-	$(LOG)
 	@echo "=============================================" $(LOG)
 
 visualize_database: $(LOGFILE) $(PYTHON)
@@ -204,21 +163,28 @@ visualize_database: $(LOGFILE) $(PYTHON)
 		--colormap $(COLORMAP) \
 		--outdir $(OUTDIR) \
 		--figdir $(FIGDIR) \
+		--datadir $(DATADIR) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-submit_jobs: $(LOGFILE) $(PYTHON) $(DATA)
-	@echo "Submitting job to SLURM ..." $(LOG)
-	@$(CONDAPYTHON) python/submit-jobs.py $(LOG)
+train_svr:  $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) python/svr.py \
+		--sampleid '$(SAMPLEID)' \
+		--params '$(PARAMSML)' \
+		--colormap $(COLORMAP) \
+		--outdir $(OUTDIR) \
+		--figdir $(FIGDIR) \
+		--datadir $(FIGDIR) \
+	$(LOG)
 	@echo "=============================================" $(LOG)
 
-benchmark_all: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+benchmark_all: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=DMM
 	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=NMORB
 	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=PUM
 	@$(MAKE) benchmark TRES=$(TRES) PRES=$(PRES) SAMPLEID=RE46
 
-benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+benchmark: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@if [ -e \
 		"$(BENCHMARK)/$(SAMPLEID)-$(TRES)x$(PRES)/$(SAMPLEID)-$(TRES)x$(PRES)_phases.tab" \
 	]; then \
@@ -240,7 +206,7 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 		(cd MAGEMin && make) $(LOG); \
 		echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG); \
 		echo "Building MAGEMin model ..." $(LOG); \
-		$(CONDAPYTHON) python/run-benchmark.py \
+		$(CONDAPYTHON) python/benchmark.py \
 			--Pmin $(PMIN) \
 			--Pmax $(PMAX) \
 			--Pres $(PRES) \
@@ -262,7 +228,7 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 			grep -oE "MAGEMin comp time: \+([0-9.]+) ms }" $(LOGFILE) | \
 			tail -n 1 | \
 			sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
-			awk '{printf "%.1f", $$NF/1000}')" >> $(DATA)/benchmark-times.csv; \
+			awk '{printf "%.1f", $$NF/1000}')" >> $(DATADIR)/benchmark-times.csv; \
 		chmod +x $(PERPLEX)/build $(PERPLEX)/vertex $(PERPLEX)/pssect $(PERPLEX)/werami; \
 	fi
 	@if [ ! -e "$(PERPLEX)/$(SAMPLEID).dat" ]; then \
@@ -299,7 +265,7 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 			} END { \
 				if (found==0) \
 					print "Sample ID not found" \
-			}' $(DATA)/benchmark-comps.csv > sample-data && \
+			}' $(DATADIR)/benchmark-comps.csv > sample-data && \
 			awk -v sample_comp="$$(cat sample-data)" '/{SAMPLECOMP}/ { \
 				sub(/{SAMPLECOMP}/, sample_comp) \
 			} { \
@@ -353,20 +319,20 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATA) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 			grep -oE "Total elapsed time\s+([0-9.]+)" $(LOGFILE) | \
 			tail -n 1 | \
 			sed -E 's/Total elapsed time\s+([0-9.]+)/\1/' | \
-			awk '{printf "%.1f", $$NF*60}')" >> $(DATA)/benchmark-times.csv; \
+			awk '{printf "%.1f", $$NF*60}')" >> $(DATADIR)/benchmark-times.csv; \
 		echo "=============================================" $(LOG); \
 		echo "Finished perplex model ..." $(LOG); \
 		echo "Finished benchmarking $(SAMPLEID) ..." $(LOG); \
 		echo "=============================================" $(LOG); \
 	fi
 	@echo "To visualize benchmark, run:" $(LOG)
-	@echo "make visualize_benchmark \
+	@echo "make visualize_database \
 	SAMPLEID=$(SAMPLEID)-$(TRES)x$(PRES) \
-	FIGDIR=$(FIGDIR)/benchmark/$(SAMPLEID)-$(TRES)x$(PRES) \
+	FIGDIR=$(FIGDIR)/$(SAMPLEID)-$(TRES)x$(PRES) \
 	COLORMAP=$(COLORMAP)" $(LOG)
 	@echo "=============================================" $(LOG)
 
-build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
+build_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(MAGEMIN)
 	@echo "Building MAGEMin database ..." $(LOG)
 	@$(CONDAPYTHON) python/build-database.py \
 		--Pmin $(PMIN) \
@@ -390,6 +356,15 @@ build_database: $(LOGFILE) $(PYTHON) $(DATA) $(MAGEMIN)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
+write_tables: $(LOGFILE)
+	@echo "Writing markdown tables ..." $(LOG)
+	@$(CONDAPYTHON) python/write-markdown-tables.py
+
+submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
+	@echo "Submitting job to SLURM ..." $(LOG)
+	@$(CONDAPYTHON) python/submit-jobs.py $(LOG)
+	@echo "=============================================" $(LOG)
+
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
 		echo "=============================================" $(LOG); \
@@ -401,10 +376,6 @@ $(MAGEMIN): $(LOGFILE) $(PYTHON)
 		echo "MAGEMin found at:" $(LOG); \
 		echo "	$(MAGEMIN)" $(LOG); \
 	fi
-
-write_tables: $(LOGFILE)
-	@echo "Writing markdown tables ..." $(LOG)
-	@$(CONDAPYTHON) python/write-markdown-tables.py
 
 remove_conda_env: $(LOGFILE)
 	@echo "Removing conda env $(CONDAENVNAME) ..." $(LOG)
@@ -434,21 +405,21 @@ find_conda_env: $(LOGFILE)
 	@echo "=============================================" $(LOG)
 
 $(PERPLEX): $(LOGFILE) $(PYTHON)
-	@if [ ! -d "$(DATA)" ]; then \
+	@if [ ! -d "$(DATADIR)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Perplex found at:" $(LOG); \
 		echo "	$(PERPLEX)" $(LOG); \
 	fi
 
-$(DATA): $(LOGFILE) $(PYTHON)
-	@if [ ! -d "$(DATA)" ]; then \
+$(DATADIR): $(LOGFILE) $(PYTHON)
+	@if [ ! -d "$(DATADIR)" ]; then \
 		echo "Downloading assets from:" $(LOG); \
 		echo "	$(DATAURL)" $(LOG); \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Data files found at:" $(LOG); \
-		echo "	$(DATA)" $(LOG); \
+		echo "	$(DATADIR)" $(LOG); \
 	fi
 
 $(CONFIG): $(LOGFILE) $(PYTHON)
@@ -472,4 +443,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env build_database benchmark_all benchmark submit_jobs visualize_benchmark visualize_database visualize_other all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env write_tables submit_jobs build_database benchmark benchmark_all train_svr visualize_database visualize_other visualize init all purge clean

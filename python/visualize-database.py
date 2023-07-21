@@ -1,13 +1,13 @@
 import os
 import numpy as np
 from magemin import (
-    encode_phases,
-    visualize_MAD,
-    create_PT_grid,
+    visualize_GFEM,
     parse_arguments,
     check_arguments,
     print_filepaths,
-    process_MAGEMin_grid
+    visualize_GFEM_diff,
+    combine_plots_vertically,
+    combine_plots_horizontally
 )
 
 # Parse arguments and check
@@ -17,68 +17,81 @@ valid_args = check_arguments(args, "visualize-database.py")
 # Load valid arguments
 locals().update(valid_args)
 
+# Test for results
+mgm_results = len(os.listdir(outdir + "/" + sampleid)) != 0
+ppx_results = os.path.exists(f"assets/benchmark/{sampleid}/{sampleid}_grid.tab")
+
+print(f"Plotting results for {sampleid}:")
+
 # Plot MAGEMin output
-if len(os.listdir(outdir + "/" + sampleid)) != 0:
-    print(f"Plotting results for {sampleid}:")
+if mgm_results:
+    visualize_GFEM("MAGEMin", sampleid, params, colormap, outdir, figdir, datadir)
 
-    results_mgm = process_MAGEMin_grid(sampleid, outdir)
+# Plot Perple_X output
+if ppx_results:
+    visualize_GFEM("Perple_X", sampleid, params, colormap, outdir, figdir, datadir)
 
-    # Get PT values MAGEMin and transform units
-    P_mgm = [P / 10 for P in results_mgm["P"]]
-    T_mgm = [T + 273 for T in results_mgm["T"]]
+# Plot MAGEMin Perple_X difference
+if (mgm_results and ppx_results):
+    visualize_GFEM_diff(sampleid, params, colormap, outdir, figdir, datadir)
 
+    # Plot MAGEMin Perple_X compositions
     for parameter in params:
-        # Transform results into 2D numpy arrays
-        if parameter == "StableSolutions":
-            # Encode unique phase assemblages MAGEMin
-            encoded_mgm, unique_mgm = encode_phases(results_mgm[parameter])
-            grid_mgm = create_PT_grid(P_mgm, T_mgm, encoded_mgm)
-        else:
-            grid_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
+        # Create composition for continuous variables
+        if parameter not in ["StableSolutions", "StableVariance"]:
 
-        # Transform units
-        if parameter == "DensityOfFullAssemblage":
-            grid_mgm = grid_mgm / 1000
+            # First row
+            combine_plots_horizontally(
+                f"{figdir}/MAGEMin-{sampleid}-{parameter}.png",
+                f"{figdir}/Perple_X-{sampleid}-{parameter}.png",
+                f"{figdir}/temp1.png",
+                caption1="a",
+                caption2="b"
+            )
 
-        # Use discrete colorscale
+            # Second row
+            if parameter in ["DensityOfFullAssemblage", "Vp", "Vs"]:
+                combine_plots_horizontally(
+                    f"{figdir}/diff-norm-{sampleid}-{parameter}.png",
+                    f"{figdir}/prem-{sampleid}-{parameter}.png",
+                    f"{figdir}/temp2.png",
+                    caption1="c",
+                    caption2="d"
+                )
+            else:
+                combine_plots_horizontally(
+                    f"{figdir}/diff-norm-{sampleid}-{parameter}.png",
+                    f"{figdir}/max-grad-{sampleid}-{parameter}.png",
+                    f"{figdir}/temp2.png",
+                    caption1="c",
+                    caption2="d"
+                )
+
+            # Stack rows
+            combine_plots_vertically(
+                f"{figdir}/temp1.png",
+                f"{figdir}/temp2.png",
+                f"{figdir}/comp-{sampleid}-{parameter}.png",
+                caption1="",
+                caption2=""
+            )
+
+        # Create composition for discrete variables
         if parameter in ["StableSolutions", "StableVariance"]:
-            color_discrete = True
-        else:
-            color_discrete = False
+            # First row
+            combine_plots_horizontally(
+                f"{figdir}/MAGEMin-{sampleid}-{parameter}.png",
+                f"{figdir}/Perple_X-{sampleid}-{parameter}.png",
+                f"{figdir}/comp-{sampleid}-{parameter}.png",
+                caption1="a",
+                caption2="b"
+            )
 
-        # Reverse color scale
-        if colormap in ["grey"]:
-            if parameter in ["StableVariance"]:
-                color_reverse = True
-            else:
-                color_reverse = False
-        else:
-            if parameter in ["StableVariance"]:
-                color_reverse = False
-            else:
-                color_reverse = True
+        # Cleanup dir
+        if os.path.exists(f"{figdir}/temp1.png"):
+            os.remove(f"{figdir}/temp1.png")
+        if os.path.exists(f"{figdir}/temp2.png"):
+            os.remove(f"{figdir}/temp2.png")
 
-        # Set colorbar limits for better comparisons
-        if not color_discrete:
-            vmin=np.min(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
-            vmax=np.max(grid_mgm[np.logical_not(np.isnan(grid_mgm))])
-        else:
-            num_colors_mgm = len(np.unique(grid_mgm))
-            vmin = 1
-            vmax = num_colors_mgm + 1
-
-        # Plot PT grid MAGEMin
-        visualize_MAD(
-            P_mgm, T_mgm, grid_mgm, parameter,
-            geotherm=True,
-            geotherm_linetype="-.",
-            geotherm_color=0,
-            title="MAGEMin",
-            palette=colormap,
-            color_discrete=color_discrete,
-            color_reverse=color_reverse,
-            vmin=vmin,
-            vmax=vmax,
-            filename=f"MAGEMin-{sampleid}-{parameter}.png",
-            fig_dir=figdir
-        )
+# Print figure filepaths
+print_filepaths(figdir)
