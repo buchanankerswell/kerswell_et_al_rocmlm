@@ -39,7 +39,7 @@ DATACLEAN = $(DATADIR)
 FIGSPURGE =
 FIGSCLEAN = $(FIGDIRDRAFT)
 
-agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md
+agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md copy_assets
 	@pandoc $(MS).md \
 		-o agu-draft-$(MS).pdf \
 		--verbose \
@@ -55,7 +55,7 @@ agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
-eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md
+eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md copy_assets
 	@pandoc $(MS).md \
 		-o eisvogel-draft-$(MS).pdf \
 		--verbose \

@@ -52,14 +52,15 @@ N ?= 1
 K ?= 0
 PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
+KFOLDS ?= $(NPROCS)
 OUTDIR ?= runs
 # Database visualization options
-FIGDIR ?= figs
+FIGDIR ?= $(WORKDIR)/figs
 PARAMS ?= ["Vp", "Vs", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
-PARAMSML ?= ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]
+PARAMSML ?= ["Vp", "Vs", "DensityOfFullAssemblage"]
 COLORMAP ?= bone
 # Make clean
-DATAPURGE = python/__pycache__ .job output $(DATADIR)/*assemblages.csv
+DATAPURGE = python/__pycache__ .job output $(DATADIR)/*assemblages.csv $(DATADIR)/svr-info.csv
 DATACLEAN = assets log MAGEMin runs
 FIGSPURGE = figs
 FIGSCLEAN = figs
@@ -118,6 +119,7 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
 			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
 			DensityOfMixture\n\
+		KFOLDS=   <number of folds for cross-validation>
 		COLORMAP= <viridis bone pink grey>\n\
 		OUTDIR=   <directory of MAGEMin output>\n\
 		FIGDIR=   <directory for saving plots>\n\
@@ -168,13 +170,18 @@ visualize_database: $(LOGFILE) $(PYTHON)
 	@echo "=============================================" $(LOG)
 
 train_svr:  $(LOGFILE) $(PYTHON)
+	@echo "Training support vector regression ..." $(LOG)
 	@$(CONDAPYTHON) python/svr.py \
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMSML)' \
+		--seed $(SEED) \
+		--kfolds $(KFOLDS) \
+		--parallel $(PARALLEL) \
+		--nprocs $(NPROCS) \
 		--colormap $(COLORMAP) \
 		--outdir $(OUTDIR) \
 		--figdir $(FIGDIR) \
-		--datadir $(FIGDIR) \
+		--datadir $(DATADIR) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
@@ -433,7 +440,7 @@ $(CONFIG): $(LOGFILE) $(PYTHON)
 
 $(LOGFILE):
 	@if [ ! -e "$(LOGFILE)" ]; then \
-		mkdir log; \
+		mkdir -p log; \
 		touch $(LOGFILE); \
 	fi
 

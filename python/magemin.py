@@ -22,10 +22,13 @@ import urllib.request
 import seaborn as sns
 from scipy import stats
 from sklearn.svm import SVR
+import multiprocessing as mp
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
+from sklearn.model_selection import KFold
+from multiprocessing import Pool, cpu_count
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
 from sklearn.preprocessing import MinMaxScaler
@@ -103,7 +106,7 @@ def extract_info_geotherm(
         "P": [P / 10 for P in results["P"]],
         "T": [T + 273 for T in results["T"]],
         parameter: results[parameter]
-    })
+    }).sort_values(by="P")
 
     # Calculate geotherm
     df["geotherm_P"] = (df["T"] - mantle_potential_T) / (thermal_gradient * 35)
@@ -111,13 +114,10 @@ def extract_info_geotherm(
     # Subset df along geotherm
     df_geotherm = df[abs(df["P"] - df["geotherm_P"]) < threshold]
 
-    # Sort by P for plotting
-    df_geotherm_sorted = df_geotherm.sort_values(by="P")
-
     # Extract the three vectors
-    P_values = df_geotherm_sorted["P"].values
-    T_values = df_geotherm_sorted["T"].values
-    parameter_values = df_geotherm_sorted[parameter].values
+    P_values = df_geotherm["P"].values
+    T_values = df_geotherm["T"].values
+    parameter_values = df_geotherm[parameter].values
 
     return P_values, T_values, parameter_values
 
@@ -198,10 +198,8 @@ def crop_geotherms(P_array, T_array):
         - The function relies on the NumPy library to perform array operations.
     """
     # Get min and max PT
-    T_min = np.array(T_array).min()
-    T_max = np.array(T_array).max()
-    P_min = np.array(P_array).min()
-    P_max = np.array(P_array).max()
+    T_min, T_max = np.array(T_array).min(), np.array(T_array).max()
+    P_min, P_max = np.array(P_array).min(), np.array(P_array).max()
 
     # Mantle potential temps
     T_mantle1 = 0 + 273
@@ -218,24 +216,19 @@ def crop_geotherms(P_array, T_array):
     P2 = (T2 - T_mantle2) / (grad_mantle2 * 35)
 
     # Crop each geotherm array based on PT bounds
-    P_arrays = [P1, P2]
-    T_arrays = [T1, T2]
+    P_arrays, T_arrays = [P1, P2], [T1, T2]
 
-    cropped_P = []
-    cropped_T = []
+    cropped_P, cropped_T = [], []
 
     for i in range(len(P_arrays)):
-        P = P_arrays[i]
-        T = T_arrays[i]
+        P, T = P_arrays[i], T_arrays[i]
 
         # Crop based on PT bounds
         mask = np.logical_and(P >= P_min, P <= P_max)
-        T = T[mask]
-        P = P[mask]
+        P, T = P[mask], T[mask]
 
         mask = np.logical_and(T >= T_min, T <= T_max)
-        T = T[mask]
-        P = P[mask]
+        P, T = P[mask], T[mask]
 
         # Append the cropped P to the list
         cropped_P.append(P)
@@ -250,7 +243,7 @@ def combine_plots_horizontally(
         output_path,
         caption1,
         caption2,
-        font_size=100,
+        font_size=150,
         caption_margin=25,
         dpi=330):
     """
@@ -274,7 +267,7 @@ def combine_plots_horizontally(
     max_width = max(image1.width, image2.width)
 
     # Create a new image with twice the width and the maximum height
-    combined_image = Image.new("RGB", (max_width*2, max_height), (255, 255, 255))
+    combined_image = Image.new("RGB", (max_width * 2, max_height), (255, 255, 255))
 
     # Set the DPI metadata
     combined_image.info["dpi"] = (dpi, dpi)
@@ -316,7 +309,7 @@ def combine_plots_vertically(
         output_path,
         caption1,
         caption2,
-        font_size=100,
+        font_size=150,
         caption_margin=25,
         dpi=330):
     """
@@ -653,6 +646,12 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
+        "--kfolds",
+        type=int,
+        help="Specify the kfolds argument ...",
+        required=False
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         help="Specify the seed argument ...",
@@ -732,6 +731,7 @@ def check_arguments(args, script):
     k = args.k
     parallel = args.parallel
     nprocs = args.nprocs
+    kfolds = args.kfolds
     seed = args.seed
     colormap = args.colormap
     figdir = args.figdir
@@ -944,6 +944,11 @@ def check_arguments(args, script):
         print(f"    seed: {seed}")
 
         valid_args["seed"] = seed
+
+    if kfolds is not None:
+        print(f"    kfolds: {kfolds}")
+
+        valid_args["kfolds"] = kfolds
 
     if outdir is not None:
         if len(outdir) > 55:
@@ -1192,7 +1197,7 @@ def normalize_sample(sample, components="all"):
     for c, comp in zip(sample, component_list):
         if comp in components:
             normalized_concentration = (
-                (c / total_subset_concentration)*100 if c != 0.01 else 0.01
+                (c / total_subset_concentration) * 100 if c != 0.01 else 0.01
             )
         else:
             normalized_concentration = 0.01
@@ -1523,9 +1528,9 @@ def read_MAGEMin_pseudosection_data(filename):
             em = []
             if len(data) > 4:
                 n_xeos = int(data[3])
-                comp_var = data[4:4+n_xeos]
-                em = out[4+n_xeos::2]
-                em_frac = data[5+n_xeos::2]
+                comp_var = data[4:4 + n_xeos]
+                em = out[4 + n_xeos::2]
+                em_frac = data[5 + n_xeos::2]
 
             compositional_var.append(comp_var)
             em_fractions.append(em_frac)
@@ -1943,11 +1948,16 @@ def visualize_MAD(
             cmap=cmap,
             origin="lower",
             vmin=1,
-            vmax=num_colors+1
+            vmax=num_colors + 1
         )
         ax.set_xlabel(f"T ({T_unit})")
         ax.set_ylabel(f"P ({P_unit})")
-        plt.colorbar(im, ax=ax, ticks=np.arange(1, num_colors+1, num_colors // 4), label="")
+        plt.colorbar(
+            im,
+            ax=ax,
+            ticks=np.arange(1, num_colors + 1, num_colors // 4),
+            label=""
+        )
     else:
         # Continuous color palette
         if palette == "viridis":
@@ -2011,11 +2021,22 @@ def visualize_MAD(
         )
         ax.set_xlabel(f"T ({T_unit})")
         ax.set_ylabel(f"P ({P_unit})")
-        if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-            cbar = plt.colorbar(im, ax=ax, label="")
-            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        if palette == "seismic":
+            cbar = plt.colorbar(
+                im,
+                ax=ax,
+                ticks=[vmin, 0, vmax],
+                label=""
+            )
         else:
-            plt.colorbar(im, ax=ax, label="")
+            cbar = plt.colorbar(
+                im,
+                ax=ax,
+                ticks=np.linspace(vmin, vmax, num=4),
+                label=""
+            )
+        if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
 
     # Add title
     if title:
@@ -2122,8 +2143,8 @@ def visualize_earthchem_data(
     num_rows = (num_plots + 1) // num_cols
 
     # Total figure size
-    fig_width = 3.8*num_cols
-    fig_height = 3.15*num_rows
+    fig_width = 3.8 * num_cols
+    fig_height = 3.15 * num_rows
 
     # Draw plots
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
@@ -2443,7 +2464,7 @@ def visualize_training_PT_range(
 
     # Ringwoodite --> Bridgmanite + Ferropericlase
     for j, (ref, ref_lines) in enumerate(zip(references_660.keys(), lines_660)):
-        color = colors[j+i+1 % len(colors)]
+        color = colors[j + i + 1 % len(colors)]
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
             plt.plot(
@@ -2610,12 +2631,15 @@ def visualize_training_PT_range(
 # Visualize MGM and PPX comparisons with PREM model
 def visualize_PREM(
         datafile,
-        results_mgm,
-        results_ppx,
         parameter,
         param_unit,
+        results_mgm=None,
+        results_ppx=None,
+        results_ml=None,
+        ml_type=None,
         geotherm_threshold=0.1,
         P_unit="GPa",
+        depth=True,
         palette="tab10",
         title=None,
         figwidth=6.3,
@@ -2681,22 +2705,63 @@ def visualize_PREM(
     # Transform depth to pressure
     P_prem = depth_prem / 30
 
+    # Check valid lists and get minimum and maximum values
+    P_results = [
+        results["P"] for results in
+        [results_mgm, results_ppx, results_ml] if
+        results is not None
+    ]
+
+    if not P_results:
+        raise ValueError(
+            "No valid results lists for MAGEMin, Perple_X, or ML model ...\n"
+            "Please provide at least one list of results"
+        )
+
+    P_min = min(min(lst) for lst in P_results) / 10
+    P_max = max(max(lst) for lst in P_results) / 10
+
+    param_results = [
+        results[parameter] for results in
+        [results_mgm, results_ppx, results_ml] if
+        results is not None
+    ]
+
+    param_min = min(min(lst) for lst in param_results)
+    param_max = max(max(lst) for lst in param_results)
+
     # Crop pressure and parameter values at min max lims of results
-    mask = P_prem >= min(results_mgm["P"]) / 10
+    mask = P_prem >= P_min
     P_prem = P_prem[mask]
     param_prem = param_prem[mask]
-    mask = P_prem <= (max(results_mgm["P"]) / 10) + 1
+
+    mask = P_prem <= P_max + 1
     P_prem = P_prem[mask]
     param_prem = param_prem[mask]
 
     # Extract parameter values along a geotherm
-    P_grad_mgm, T_grad_mgm, param_grad_mgm = extract_info_geotherm(results_mgm, parameter)
-    P_grad_ppx, T_grad_ppx, param_grad_ppx = extract_info_geotherm(results_ppx, parameter)
+    if results_mgm:
+        P_grad_mgm, T_grad_mgm, param_grad_mgm = extract_info_geotherm(results_mgm, parameter)
+
+    if results_ppx:
+        P_grad_ppx, T_grad_ppx, param_grad_ppx = extract_info_geotherm(results_ppx, parameter)
+
+    if results_ml:
+        P_grad_ml, T_grad_ml, param_grad_ml = extract_info_geotherm(results_ml, parameter)
 
     # Transform units
     if parameter == "DensityOfFullAssemblage":
-        param_grad_mgm = param_grad_mgm / 1000
-        param_grad_ppx = param_grad_ppx / 1000
+        param_min = param_min / 1000
+        param_max = param_max / 1000
+
+        if results_mgm:
+            param_grad_mgm = param_grad_mgm / 1000
+
+        if results_ppx:
+            param_grad_ppx = param_grad_ppx / 1000
+
+        if results_ml:
+            param_grad_ml = param_grad_ml / 1000
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2716,26 +2781,57 @@ def visualize_PREM(
 
     # Plot PREM data on the primary y-axis
     ax1.plot(param_prem, P_prem, "-", linewidth=3, color="black", label="PREM")
-    ax1.plot(param_grad_mgm, P_grad_mgm, "-.", linewidth=3, color=colormap(0), label="MGM")
-    ax1.plot(param_grad_ppx, P_grad_ppx, "--", linewidth=3, color=colormap(1), label="PPX")
+    if results_ml:
+        ax1.plot(
+            param_grad_ml,
+            P_grad_ml,
+            "-",
+            linewidth=3,
+            color=colormap(1),
+            label=f"{ml_type}"
+        )
+    if results_mgm:
+        ax1.plot(
+            param_grad_mgm,
+            P_grad_mgm,
+            "-",
+            linewidth=3,
+            color=colormap(0),
+            label="MGM"
+        )
+    if results_ppx:
+        ax1.plot(
+            param_grad_ppx,
+            P_grad_ppx,
+            "-",
+            linewidth=3,
+            color=colormap(2),
+            label="PPX"
+        )
 
     if parameter == "DensityOfFullAssemblage":
-        parameter = "Density"
+        parameter_label = "Density"
+    else:
+        parameter_label = parameter
 
-    ax1.set_xlabel(f"{parameter } ({param_unit})")
+    ax1.set_xlabel(f"{parameter_label } ({param_unit})")
     ax1.set_ylabel(f"P ({P_unit})")
+    ax1.set_xlim(param_min - (param_min * 0.05), param_max + (param_max * 0.05))
+    ax1.set_xticks(np.linspace(param_min, param_max, num=4))
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
-    # Convert the primary y-axis data (pressure) to depth
-    depth_conversion = lambda P: P * 30
-    depth_values = depth_conversion(P_prem)
+    if depth:
+        # Convert the primary y-axis data (pressure) to depth
+        depth_conversion = lambda P: P * 30
+        depth_values = depth_conversion(P_prem)
 
-    # Create the secondary y-axis and plot depth on it
-    ax2 = ax1.secondary_yaxis("right", functions=(depth_conversion, depth_conversion))
-    ax2.set_yticks([410, 660])
-    ax2.set_ylabel("Depth (km)")
+        # Create the secondary y-axis and plot depth on it
+        ax2 = ax1.secondary_yaxis("right", functions=(depth_conversion, depth_conversion))
+        ax2.set_yticks([410, 660])
+        ax2.set_ylabel("Depth (km)")
 
-    # Invert the secondary y-axis to have increasing depth from top to bottom
-    plt.ylim(min(P_grad_mgm) - 1, max(P_grad_mgm) + 1)
     plt.legend()
     if title:
         plt.title(title)
@@ -2747,421 +2843,7 @@ def visualize_PREM(
         # Print plot
         plt.show()
 
-# Support Vector Regression analysis
-def run_svr_regression(
-        features_array,
-        target_array,
-        parameter,
-        units,
-        program,
-        seed=42,
-        kernel="rbf",
-        scaler="minmax",
-        verbose=True,
-        vmin=None,
-        vmax=None,
-        figwidth=6.3,
-        figheight=4.725,
-        fontsize=22,
-        filename=None,
-        fig_dir=f"{os.getcwd()}/figs"):
-    """
-    Runs Support Vector Regression (SVR) on the provided feature and target arrays.
-
-    Parameters:
-        features_array (ndarray): The feature array with shape (W, W, 2), containing
-                                  pressure and temperature features.
-        target_array (ndarray): The target array with shape (W, W), containing the
-                                corresponding target values.
-        parameter (str): The name of the parameter being predicted.
-        units (str): The units of the predicted target parameter.
-        parameter_units (str): The units of the original target parameter for display
-                               purposes.
-        kernel (str, optional): The type of kernel to be used in SVR. Default is "rbf".
-        scaler (str, optional): The type of scaler to be used for feature normalization.
-                                Options: "minmax" (default) or "standard".
-        seed (int, optional): The random seed for reproducibility. Default is 42.
-        verbose (bool, optional): Whether to print performance metrics. Default is True.
-        figwidth (float, optional): The width of the plot in inches. Default is 6.3.
-        figheight (float, optional): The height of the plot in inches. Default is 4.725.
-        fontsize (int, optional): The base fontsize for text in the plot. Default is 22.
-        filename (str, optional): The filename to save the plot. Default is None.
-        fig_dir (str, optional): The directory to save the plot. Default is "./figs".
-
-    Returns:
-        tuple: A tuple containing the trained SVR model and evaluation metrics (rmse,
-               r2_score).
-    """
-    # Check for figs directory
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir, exist_ok=True)
-
-    # Set plot style and settings
-    plt.rcParams["legend.facecolor"] = "0.9"
-    plt.rcParams["legend.loc"] = "upper left"
-    plt.rcParams["legend.fontsize"] = "small"
-    plt.rcParams["legend.frameon"] = "False"
-    plt.rcParams["axes.facecolor"] = "0.9"
-    plt.rcParams["font.size"] = fontsize
-    plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
-    plt.rcParams["savefig.bbox"] = "tight"
-
-    # Label units
-    if units is None:
-        units_label = ""
-    else:
-        units_label = f"({units})"
-
-    # Label parameters
-    if parameter == "DensityOfFullAssemblage":
-        parameter_label = "Density"
-    elif parameter == "LiquidFraction":
-        parameter_label = "Liquid Fraction"
-    else:
-        parameter_label = parameter
-
-    # Reshape the features_array and target_array for SVR
-    W = features_array.shape[0]
-    X = features_array.reshape(W*W, 2)
-    y = target_array.flatten()
-
-    # Remove nans
-    nan_mask = np.isnan(y)
-    y = y[~nan_mask]
-    X = X[~nan_mask, :]
-
-    # Scale the feature array
-    if scaler == "minmax":
-        scaler_label = scaler
-        scaler = MinMaxScaler()
-    if scaler == "standard":
-        scaler_label = scaler
-        scaler = StandardScaler()
-
-    X_scaled = scaler.fit_transform(X)
-
-    # Scale the target array
-    y_scaled = scaler.fit_transform(y.reshape(-1, 1)).flatten()
-
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled,
-        y_scaled,
-        test_size=0.2,
-        random_state=seed
-    )
-
-    # Create and train the SVR model
-    svr_model = SVR(kernel=kernel, gamma="auto")
-    svr_model.fit(X_train, y_train)
-
-    # Make predictions on the test set
-    y_pred_scaled = svr_model.predict(X_test)
-
-    # Inverse transform the scaled predictions
-    y_pred = scaler.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
-    y_test_original = scaler.inverse_transform(y_test.reshape(-1, 1)).flatten()
-
-    # Transform units
-    if parameter == "DensityOfFullAssemblage":
-        y_test_original = y_test_original / 1000
-        y_pred = y_pred / 1000
-
-    # Evaluate the model
-    rmse = math.sqrt(mean_squared_error(y_test_original, y_pred))
-    r2 = r2_score(y_test_original, y_pred)
-
-    # Config and performance info
-    svr_info = {
-        "program": [program],
-        "parameter": [parameter_label],
-        "units": [units_label],
-        "method": ["svr"],
-        "kernel": [kernel],
-        "scaler": [scaler_label],
-        "n_test": [len(y_test)],
-        "n_train": [len(y_train)],
-        "rmse": [round(rmse, 2)],
-        "r-squared": [round(r2, 2)],
-    }
-
-    # Print performance
-    if verbose:
-        print(f"SVR Config: {parameter_label} {units_label}")
-        print(f" kernel: {kernel}")
-        print(f" scaler: {scaler_label}")
-        print(f" n test: {len(y_test)}")
-        print(f"n train: {len(y_train)}")
-        print(f"SVR Performance:")
-        print(f"   rmse: {rmse:.2f}")
-        print(f"     r2: {r2:.2f}")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-    # Targets vs. predictions for test set
-    fig = plt.figure(figsize=(figwidth, figheight))
-    plt.scatter(y_test_original, y_pred, marker=".", s=3, color="black")
-    plt.plot(
-        [min(y_test_original), max(y_test_original)],
-        [min(y_test_original), max(y_test_original)],
-        linestyle="-",
-        color="black",
-        linewidth=1
-    )
-
-    # Add R-squared and RMSE values as text annotations in the plot
-    if fontsize >= 22:
-        fontsize = 14
-
-    # Vertical text spacing
-    text_margin_y = 0.10
-    text_spacing_y = 0.075
-
-    plt.text(
-        0.05,
-        1 - text_margin_y - (text_spacing_y * 0),
-        f"{parameter_label} {units_label}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize
-    )
-    plt.text(
-        0.05,
-        1 - text_margin_y - (text_spacing_y * 1),
-        f"r$^2$: {r2:.2f}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize
-    )
-    plt.text(
-        0.05,
-        1 - text_margin_y - (text_spacing_y * 2),
-        f"rmse: {rmse:.2f}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize
-    )
-    plt.text(
-        0.05,
-        1 - text_margin_y - (text_spacing_y * 3),
-        f"kernel: {kernel}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize
-    )
-    plt.text(
-        0.05,
-        1 - text_margin_y - (text_spacing_y * 4),
-        f"scaler: {scaler_label}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize
-    )
-
-    plt.xlabel(f"Target")
-    plt.ylabel(f"Predicted")
-    plt.xlim(vmin, vmax)
-    plt.ylim(vmin, vmax)
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.title(f"{program}")
-
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
-    else:
-        # Print plot
-        plt.show()
-
     # Close device
-    plt.close()
-
-    return svr_model, svr_info
-
-# Visualize ML input data
-def visualize_input_data(
-        results,
-        features_array,
-        target_array,
-        sample_id,
-        parameter,
-        units,
-        program,
-        palette="bone",
-        vmin=None,
-        vmax=None,
-        figwidth=6.3,
-        figheight=4.725,
-        fontsize=22,
-        fig_dir=f"{os.getcwd()}/figs"):
-    """
-    Visualizes input data for machine learning using various plots.
-
-    Parameters:
-        features_array (numpy.ndarray): 2D array of features, where each row represents a
-                                        data point and each column represents a feature.
-        target_array (numpy.ndarray): 2D array of target values corresponding to the
-                                      features in "features_array".
-        sample_id (str): Identifier for the sample being visualized.
-        parameter (str): Name of the parameter being visualized, e.g.,
-                         "DensityOfFullAssemblage".
-        units (str): Units of the parameter being visualized, e.g., "kg/m^3". If units are
-                     not applicable, use None.
-        program (str): Identifier for the program or experiment generating the data.
-        palette (str, optional): Color palette for the plots. Default is "bone".
-        figwidth (float, optional): Width of the figures. Default is 6.3 inches.
-        figheight (float, optional): Height of the figures. Default is 4.725 inches.
-        fontsize (int, optional): Font size for plot labels. Default is 22.
-        fig_dir (str, optional): Directory where the generated figures will be saved.
-
-    Returns:
-        None: The function saves multiple visualization plots for the input data as image
-              files.
-
-    Raises:
-        None: No specific exceptions are raised.
-
-    Notes:
-        - The function creates scatter plots, histograms, and a 3D surface plot to visualize
-          the relationship between the features and target values.
-        - If the parameter is "DensityOfFullAssemblage", the target values and units will be
-          transformed to a different scale (e.g., dividing by 1000).
-        - The generated figures are saved in the specified "fig_dir" directory with
-          appropriate names based on the input data and program information.
-    """
-    # Check for figs directory
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir, exist_ok=True)
-
-    # Set plot style and settings
-    plt.rcParams["legend.facecolor"] = "0.9"
-    plt.rcParams["legend.loc"] = "upper left"
-    plt.rcParams["legend.fontsize"] = "small"
-    plt.rcParams["legend.frameon"] = "False"
-    plt.rcParams["axes.facecolor"] = "0.9"
-    plt.rcParams["font.size"] = fontsize
-    plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
-    plt.rcParams["savefig.bbox"] = "tight"
-
-    # Reshape target and feature arrays
-    W = features_array.shape[0]
-    X = features_array.reshape(W*W, 2)
-    y = target_array.flatten()
-
-    # Label units
-    if units is None:
-        units_label = ""
-    else:
-        units_label = f"({units})"
-
-    # Label parameters
-    if parameter == "DensityOfFullAssemblage":
-        parameter_label = "Density"
-    elif parameter == "LiquidFraction":
-        parameter_label = "Liquid Fraction"
-    else:
-        parameter_label = parameter
-
-    # Transform units
-    if parameter == "DensityOfFullAssemblage":
-        target_array = target_array / 1000
-        y = y / 1000
-
-    # Scatter P
-    plt.figure(figsize=(figwidth, figheight))
-    plt.scatter(X[:, 0], y, marker="s", s=0.1, color="black")
-    plt.tight_layout()
-    plt.xlabel("P (GPa)")
-    plt.ylabel(f"{parameter_label} {units_label}")
-    plt.ylim(vmin, vmax)
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.title(f"{program}")
-    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-scatter-P.png")
-    plt.close()
-
-    # Scatter T
-    plt.figure(figsize=(figwidth, figheight))
-    plt.scatter(X[:, 1], y, marker="s", s=0.1, color="black")
-    plt.tight_layout()
-    plt.xlabel("T (K)")
-    plt.ylabel(f"{parameter_label} {units_label}")
-    plt.ylim(vmin, vmax)
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.title(f"{program}")
-    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-scatter-T.png")
-    plt.close()
-
-    # Colormap
-    cmap = plt.cm.get_cmap("bone_r")
-    cmap.set_bad(color="white")
-
-    # 3D surface
-    fig = plt.figure(figsize=(figwidth, figheight))
-    ax = fig.add_subplot(111, projection="3d")
-    surf = ax.plot_surface(
-        features_array[:,:,1],
-        features_array[:,:,0],
-        target_array,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax
-    )
-    ax.set_xlabel("T (K)")
-    ax.set_ylabel("P (GPa)")
-    ax.set_zlabel("")
-    ax.set_zlim(vmin, vmax)
-    plt.tick_params(axis="x", which="major", pad=-8)
-    plt.tick_params(axis="y", which="major", pad=-8)
-    plt.title(f"{program}")
-    ax.view_init(20, -110)
-    ax.set_box_aspect((1.5, 1.5, 1))
-    ax.set_facecolor("white")
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-    #    cbar = fig.colorbar(surf, label="")
-    #    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-        ax.zaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    else:
-        fig.colorbar(surf, label="")
-    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-surface.png")
-    plt.close()
-
-    # Histogram with surface inset
-    plt.figure(figsize=(figwidth, figheight))
-    plt.hist(y, bins=50, color="black")
-    plt.xlabel(f"{parameter_label} {units_label}")
-    plt.ylabel("Frequency")
-    plt.xlim(vmin, vmax)
-    plt.yticks([])
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.title(f"{program}", x=0.8)
-
-    # Create a new set of axes for the inset plot
-    inset_ax = plt.axes([0, 0.55, 0.70, 0.70], projection="3d")
-    inset_ax.plot_surface(
-        features_array[:, :, 1],
-        features_array[:, :, 0],
-        target_array,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax
-    )
-    inset_ax.set_xlabel("T (K)", fontsize=12, labelpad=-6)
-    inset_ax.set_ylabel("P (GPa)", fontsize=12, labelpad=-6)
-    inset_ax.set_zlabel("", fontsize=12)
-    inset_ax.set_zlim(vmin, vmax)
-    inset_ax.view_init(20, -110)
-    inset_ax.set_box_aspect((1.5, 1.5, 1))
-    inset_ax.set_facecolor((1, 1, 1, 0))
-    inset_ax.xaxis.set_tick_params(pad=-6)
-    inset_ax.yaxis.set_tick_params(pad=-6)
-    inset_ax.tick_params(axis="both", which="major", labelsize=10)
-
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        inset_ax.zaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    else:
-        inset_ax.zaxis.set_major_formatter(plt.NullFormatter())
-
-    plt.savefig(f"{fig_dir}/{program}-{sample_id}-{parameter}-histogram.png")
     plt.close()
 
 # Plot GFEM results
@@ -3174,6 +2856,33 @@ def visualize_GFEM(
         fig_dir=f"{os.getcwd()}/figs",
         data_dir=f"{os.getcwd()}/assets/data"):
     """
+    Visualize GFEM (Gibbs Free Energy Minimization) results for a given program and sample.
+
+    Parameters:
+        program (str): The GFEM program used for the analysis. Supported values are
+                       "MAGEMin" and "Perple_X".
+        sample_id (str): The identifier of the sample for which GFEM results are to be
+                         visualized.
+        parameters (list): A list of parameters to be visualized. Supported parameters
+                           depend on the GFEM program used.
+        palette (str, optional): The color palette for the plots. Default is "bone".
+        out_dir (str, optional): Directory to store intermediate output files from the GFEM
+                                 program. Default is "./runs".
+        fig_dir (str, optional): Directory to save the generated visualization figures.
+                                 Default is "./figs".
+        data_dir (str, optional): Directory containing data files needed for visualization.
+                                  Default is "./assets/data".
+
+    Raises:
+        ValueError: If an invalid value for 'program' is provided. It must be either
+                    "MAGEMin" or "Perple_X".
+
+    Notes:
+        - This function first processes the GFEM results based on the selected 'program'.
+        - It then transforms the results to appropriate units and creates 2D numpy arrays
+          for visualization.
+        - The visualization is done using the 'visualize_MAD' function, which generates
+          plots of the parameters on a P-T (pressure-temperature) grid for the given sample.
     """
     # Get GFEM results
     if program == "MAGEMin":
@@ -3239,7 +2948,10 @@ def visualize_GFEM(
 
         # Plot PT grid MAGEMin
         visualize_MAD(
-            P, T, grid, parameter,
+            P,
+            T,
+            grid,
+            parameter,
             title=program,
             palette=palette,
             color_discrete=color_discrete,
@@ -3259,6 +2971,32 @@ def visualize_GFEM_diff(
         fig_dir=f"{os.getcwd()}/figs",
         data_dir=f"{os.getcwd()}/assets/data"):
     """
+    Visualize the difference between GFEM results from two programs for a given sample.
+
+    Parameters:
+        sample_id (str): The identifier of the sample for which GFEM results are to be
+                         compared.
+        parameters (list): A list of parameters to be compared. Supported parameters depend
+                           on the GFEM programs used.
+        palette (str, optional): The color palette for the plots. Default is "bone".
+        out_dir (str, optional): Directory to store intermediate output files from the GFEM
+                                 programs. Default is "./runs".
+        fig_dir (str, optional): Directory to save the generated visualization figures.
+                                 Default is "./figs".
+        data_dir (str, optional): Directory containing data files needed for visualization.
+                                  Default is "./assets/data".
+
+    Notes:
+        - This function retrieves GFEM results from two programs, "MAGEMin" and "Perple_X"
+          for the given sample.
+        - It transforms the results to appropriate units and creates 2D numpy arrays for
+          visualization.
+        - The visualization is done using the 'visualize_MAD' function, which generates
+          plots of the differences
+          between the GFEM results on a P-T (pressure-temperature) grid.
+        - The function also computes and visualizes the normalized difference and the
+          maximum gradient between the results of the two programs for a more comprehensive
+          comparison.
     """
     # Get MAGEMin results
     results_mgm = process_MAGEMin_grid(sample_id, out_dir)
@@ -3341,11 +3079,16 @@ def visualize_GFEM_diff(
 
             # Plot PT grid normalized diff mgm-ppx
             visualize_MAD(
-                P_ppx, T_ppx, diff_norm, parameter,
+                P_ppx,
+                T_ppx,
+                diff_norm,
+                parameter,
                 title="Normalized Difference",
                 palette="seismic",
                 color_discrete=color_discrete,
                 color_reverse=False,
+                vmin=vmin,
+                vmax=vmax,
                 filename=f"diff-norm-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
@@ -3371,11 +3114,16 @@ def visualize_GFEM_diff(
 
             # Plot PT grid max gradient
             visualize_MAD(
-                P_ppx, T_ppx, max_gradient, parameter,
+                P_ppx,
+                T_ppx,
+                max_gradient,
+                parameter,
                 title="Difference Gradient",
                 palette=palette,
                 color_discrete=color_discrete,
                 color_reverse=color_reverse,
+                vmin=vmin,
+                vmax=vmax,
                 filename=f"max-grad-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
@@ -3384,10 +3132,10 @@ def visualize_GFEM_diff(
             if parameter == "DensityOfFullAssemblage":
                 visualize_PREM(
                     f"{data_dir}/prem.csv",
-                    results_mgm,
-                    results_ppx,
-                    parameter=parameter,
-                    param_unit="g/cm$^3$",
+                    parameter,
+                    "g/cm$^3$",
+                    results_mgm=results_mgm,
+                    results_ppx=results_ppx,
                     geotherm_threshold=0.1,
                     title="PREM Comparison",
                     filename=f"prem-{sample_id}-{parameter}.png",
@@ -3397,37 +3145,874 @@ def visualize_GFEM_diff(
             if parameter in ["Vp", "Vs"]:
                 visualize_PREM(
                     f"{data_dir}/prem.csv",
-                    results_mgm,
-                    results_ppx,
-                    parameter=parameter,
-                    param_unit="km/s",
+                    parameter,
+                    "km/s",
+                    results_mgm=results_mgm,
+                    results_ppx=results_ppx,
                     geotherm_threshold=0.1,
                     title="PREM Comparison",
                     filename=f"prem-{sample_id}-{parameter}.png",
                     fig_dir=fig_dir
                 )
 
+# Define a function that performs the processing for a single fold
+mp.set_start_method("fork")
+
+def process_fold_svr(fold_data):
+    """
+    Process a single fold of k-fold cross-validation for Support Vector Regression (SVR).
+
+    Parameters:
+        fold_data (tuple): A tuple containing the necessary data for the k-fold cross
+                           validation process. It should include the following elements:
+
+            - fold_idx (int): The index of the current fold.
+            - (train_index, test_index) (tuple): A tuple containing the training and testing
+                                                 indices for the current fold.
+            - kfolds (int): Total number of folds in the cross-validation.
+            - X_scaled (array-like): The scaled feature data (input variables).
+            - y_scaled (array-like): The scaled target data (output variable).
+            - X_valid_scaled (array-like): The scaled validation feature data for evaluation.
+            - svr_model (SVR object): The Support Vector Regression model to be trained and
+                                      evaluated.
+            - scaler_y (Scaler object): The scaler used to normalize the target variable.
+            - scaler_X (Scaler object): The scaler used to normalize the feature variables.
+            - target_array (array-like): The original (non-scaled) target array for the
+                                         entire dataset, used for evaluation.
+            - W (int): The width of the grid used for reshaping predictions for visualization.
+
+    Returns:
+        rmse_test (float): Root Mean Squared Error (RMSE) of the SVR model's predictions on
+                           the test set (non-scaled).
+        rmse_valid (float): Root Mean Squared Error (RMSE) of the SVR model's predictions on
+                            the validation set (non-scaled).
+        r2_test (float): R-squared (coefficient of determination) of the SVR model's
+                         predictions on the test set.
+        r2_valid (float): R-squared (coefficient of determination) of the SVR model's
+                          predictions on the validation set.
+
+    Notes:
+        This function performs the following steps for a single fold of k-fold cross
+        validation for SVR:
+            1. Unpacks the necessary data from the 'fold_data' tuple.
+            2. Trains the SVR model on the training data.
+            3. Makes predictions on the test and validation sets.
+            4. Performs inverse scaling to obtain predictions in their original units.
+            5. Evaluates the model's performance using RMSE and R-squared metrics for both
+               test and validation sets.
+            6. Prints the fold index, number of samples in the test and train sets, RMSE, and
+               R-squared scores.
+    """
+    # Unpack arguments
+    (
+        fold_idx,
+        (train_index, test_index),
+        kfolds,
+        X_scaled,
+        y_scaled,
+        X_valid_scaled,
+        svr_model,
+        scaler_y,
+        scaler_X,
+        target_array,
+        W
+    ) = fold_data
+
+    # Print progress
+    print(f"    ==== k-fold: {fold_idx + 1}/{kfolds} ====")
+
+    # Split the data into training and testing sets
+    X_train, X_test = X_scaled[train_index], X_scaled[test_index]
+    y_train, y_test = y_scaled[train_index], y_scaled[test_index]
+
+    # Train SVR model
+    svr_model.fit(X_train, y_train)
+
+    # Make predictions on the test and validation sets
+    y_pred_scaled = svr_model.predict(X_test)
+    valid_pred_scaled = svr_model.predict(X_valid_scaled)
+
+    # Inverse transform predictions
+    y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
+    valid_pred_original = (
+        scaler_y.inverse_transform(valid_pred_scaled.reshape(-1, 1)).flatten()
+    )
+
+    # Inverse transform test set
+    y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
+
+    # Inverse transform training set
+    X_train_original = scaler_X.inverse_transform(X_train)
+    y_train_original = scaler_y.inverse_transform(y_train.reshape(-1, 1)).flatten()
+
+    # Reshape the predictions to match the grid shape for visualization
+    valid_pred_array_original = valid_pred_original.reshape(W, W)
+
+    # Transpose predictions
+    valid_pred_array_original = np.transpose(valid_pred_array_original)
+
+    # Compute normalized diff
+    mask = np.isnan(target_array)
+    max_diff = np.max(np.abs(target_array[~mask] - valid_pred_array_original[~mask]))
+    diff_norm = (target_array - valid_pred_array_original) / max_diff
+    diff_norm[mask] = np.nan
+
+    # Evaluate the model
+    rmse_test = math.sqrt(mean_squared_error(y_test_original, y_pred_original))
+    rmse_valid = math.sqrt(mean_squared_error(
+        target_array[~mask],
+        valid_pred_array_original[~mask]
+    ))
+
+    r2_test = r2_score(y_test_original, y_pred_original)
+    r2_valid = r2_score(target_array[~mask], valid_pred_array_original[~mask])
+
+    print(f"            n test: {len(y_test)}")
+    print(f"           n train: {len(y_train)}")
+    print(f"         rmse_test: {round(rmse_test, 3)}")
+    print(f"        rmse_valid: {round(rmse_valid, 3)}")
+    print(f"           r2_test: {round(r2_test, 3)}")
+    print(f"          r2_valid: {round(r2_valid, 3)}")
+
+    return rmse_test, rmse_valid, r2_test, r2_valid
+
+# Support Vector Regression analysis
+def svr_regression(
+        features_array,
+        target_array,
+        parameter,
+        units,
+        program,
+        seed=42,
+        kfolds=10,
+        parallel=True,
+        nprocs=cpu_count()-2,
+        kernel="rbf",
+        scaler="minmax",
+        vmin=None,
+        vmax=None,
+        palette="bone",
+        figwidth=6.3,
+        figheight=4.725,
+        fontsize=22,
+        filename=None,
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    Runs Support Vector Regression (SVR) on the provided feature and target arrays.
+
+    Parameters:
+        features_array (ndarray): The feature array with shape (W, W, 2), containing
+                                  pressure and temperature features.
+        target_array (ndarray): The target array with shape (W, W), containing the
+                                corresponding target values.
+        parameter (str): The name of the parameter being predicted.
+        units (str): The units of the predicted target parameter.
+        parameter_units (str): The units of the original target parameter for display
+                               purposes.
+        kernel (str, optional): The type of kernel to be used in SVR. Default is "rbf".
+        scaler (str, optional): The type of scaler to be used for feature normalization.
+                                Options: "minmax" (default) or "standard".
+        seed (int, optional): The random seed for reproducibility. Default is 42.
+        figwidth (float, optional): The width of the plot in inches. Default is 6.3.
+        figheight (float, optional): The height of the plot in inches. Default is 4.725.
+        fontsize (int, optional): The base fontsize for text in the plot. Default is 22.
+        filename (str, optional): The filename to save the plot. Default is None.
+        fig_dir (str, optional): The directory to save the plot. Default is "./figs".
+
+    Returns:
+        tuple: A tuple containing the trained SVR model and evaluation metrics (rmse,
+               r2_score).
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams['figure.constrained_layout.use'] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Transform units
+    if parameter == "DensityOfFullAssemblage":
+        target_array = target_array / 1000
+
+    # Label units
+    if units is None:
+        units_label = ""
+    else:
+        units_label = f"({units})"
+
+    # Label parameters
+    if parameter == "DensityOfFullAssemblage":
+        parameter_label = "Density"
+    elif parameter == "LiquidFraction":
+        parameter_label = "Liquid Fraction"
+    else:
+        parameter_label = parameter
+
+    # Colormap
+    cmap = plt.cm.get_cmap("bone_r")
+    cmap.set_bad(color="white")
+
+    # Reshape the features_array and target_array for SVR
+    W = features_array.shape[0]
+    X = features_array.reshape(W*W, 2)
+    y = target_array.flatten()
+
+    # Get bounds of features array
+    P_min, P_max, T_min, T_max = X[:, 0].min(), X[:, 0].max(), X[:, 1].min(), X[:, 1].max()
+
+    # Create features grid for validation set
+    P_valid, T_valid = np.meshgrid(np.linspace(P_min, P_max, W), np.linspace(T_min, T_max, W))
+
+    # Validation set
+    X_valid = np.c_[P_valid.ravel(), T_valid.ravel()]
+
+    # Remove nans
+    mask = np.isnan(y)
+    X, y = X[~mask, :], y[~mask]
+
+    # Scale the feature array
+    if scaler == "minmax":
+        scaler_label = scaler
+        scaler_X = MinMaxScaler()
+        scaler_y = MinMaxScaler()
+    if scaler == "standard":
+        scaler_label = scaler
+        scaler_X = StandardScaler()
+        scaler_y = StandardScaler()
+
+    # Scale feature and validation arrays
+    X_scaled = scaler_X.fit_transform(X)
+    X_valid_scaled = scaler_X.fit_transform(X_valid)
+
+    # Scale the target array
+    y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).flatten()
+
+    # K-fold cross-validation
+    kf = KFold(n_splits=kfolds, shuffle=True, random_state=seed)
+
+    # Create the SVR model
+    svr_model = SVR(kernel=kernel)
+
+    # Store performance metrics
+    rmse_test_scores = []
+    rmse_valid_scores = []
+    r2_test_scores = []
+    r2_valid_scores = []
+
+    # Print svr model config
+    print("Cross-validating SVR model:")
+    print(f"      program: {program}")
+    print(f"    parameter: {parameter_label} {units_label}")
+    print(f"       kernel: {kernel}")
+    print(f"       scaler: {scaler_label}")
+
+    # Iterate over K-fold cross-validations in parallel
+    # Combine the data and parameters needed for each fold into a list
+    fold_data_list = [
+        (
+            fold_idx,
+            (train_index, test_index),
+            kfolds,
+            X_scaled,
+            y_scaled,
+            X_valid_scaled,
+            svr_model,
+            scaler_y,
+            scaler_X,
+            target_array,
+            W
+        ) for fold_idx, (train_index, test_index) in enumerate(kf.split(X))
+    ]
+
+    # Define number of processors
+    if not parallel:
+        nprocs = 1
+    elif parallel:
+        if nprocs is None:
+            nprocs = cpu_count() - 2
+        else:
+            nprocs = nprocs
+
+    # Initialize the pool of processes
+    with Pool(processes=nprocs) as pool:
+        results = pool.map(process_fold_svr, fold_data_list)
+
+        # Wait for all processes
+        pool.close()
+        pool.join()
+
+    # Unpack the results from the parallel execution
+    for (rmse_test, rmse_valid, r2_test, r2_valid) in results:
+        rmse_test_scores.append(rmse_test)
+        rmse_valid_scores.append(rmse_valid)
+        r2_test_scores.append(r2_test)
+        r2_valid_scores.append(r2_valid)
+
+    # Calculate performance values with uncertainties
+    r2_test_mean = np.mean(r2_test_scores)
+    r2_test_sd = np.std(r2_test_scores)
+    rmse_test_mean = np.mean(rmse_test_scores)
+    rmse_test_sd = np.std(rmse_test_scores)
+    r2_valid_mean = np.mean(r2_valid_scores)
+    r2_valid_sd = np.std(r2_valid_scores)
+    rmse_valid_mean = np.mean(rmse_valid_scores)
+    rmse_valid_sd = np.std(rmse_valid_scores)
+
+    # Config and performance info
+    svr_info = {
+        "program": [program],
+        "parameter": [parameter_label],
+        "units": [units_label],
+        "method": ["svr"],
+        "kernel": [kernel],
+        "scaler": [scaler_label],
+        "k_folds": kfolds,
+        "rmse_test_mean": [round(rmse_test_mean, 3)],
+        "rmse_test_sd": [round(rmse_test_sd, 4)],
+        "rmse_valid_mean": [round(rmse_valid_mean, 3)],
+        "rmse_valid_sd": [round(rmse_valid_sd, 4)],
+        "r2_test_mean": [round(r2_test_mean, 3)],
+        "r2_test_sd": [round(r2_test_sd, 4)],
+        "r2_valid_mean": [round(r2_valid_mean, 3)],
+        "r2_valid_sd": [round(r2_valid_sd, 4)],
+    }
+
+    # Print performance
+    print(f"SVR Model Performance (test set):")
+    print(f"   rmse: {rmse_test_mean:.3f} ± {rmse_test_sd:.4f}")
+    print(f"     r2: {r2_test_mean:.3f} ± {r2_test_sd:.4f}")
+    print(f"SVR Model Performance (validation set):")
+    print(f"   rmse: {rmse_valid_mean:.3f} ± {rmse_valid_sd:.4f}")
+    print(f"     r2: {r2_valid_mean:.3f} ± {r2_valid_sd:.4f}")
+
+    # Normal 80 / 20 train / test split for plotting
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_scaled,
+        y_scaled,
+        test_size=0.2,
+        random_state=seed
+    )
+
+    # Train SVR model
+    svr_model.fit(X_train, y_train)
+
+    # Make predictions on the test and validation sets
+    y_pred_scaled = svr_model.predict(X_test)
+    valid_pred_scaled = svr_model.predict(X_valid_scaled)
+
+    # Inverse transform predictions
+    y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
+    valid_pred_original = (
+        scaler_y.inverse_transform(valid_pred_scaled.reshape(-1, 1)).flatten()
+    )
+
+    # Inverse transform test set
+    y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
+
+    # Inverse transform training set
+    X_train_original = scaler_X.inverse_transform(X_train)
+    y_train_original = scaler_y.inverse_transform(y_train.reshape(-1, 1)).flatten()
+
+    # Reshape the predictions to match the grid shape for visualization
+    valid_pred_array_original = valid_pred_original.reshape(W, W)
+
+    # Transpose predictions
+    valid_pred_array_original = np.transpose(valid_pred_array_original)
+
+    # Compute normalized diff
+    mask = np.isnan(target_array)
+    max_diff = np.max(np.abs(target_array[~mask] - valid_pred_array_original[~mask]))
+    diff_norm = (target_array - valid_pred_array_original) / max_diff
+    diff_norm[mask] = np.nan
+
+    # Plot training data distribution and SVR predictions
+    colormap = plt.cm.get_cmap("tab10")
+
+    # Reverse color scale
+    if palette in ["grey"]:
+        if parameter in ["StableVariance"]:
+            color_reverse = True
+        else:
+            color_reverse = False
+    else:
+        if parameter in ["StableVariance"]:
+            color_reverse = False
+        else:
+            color_reverse = True
+
+    # Plot target array
+    visualize_MAD(
+        features_array[:,:,0],
+        features_array[:,:,1],
+        target_array,
+        parameter,
+        title=f"{program}",
+        palette=palette,
+        color_discrete=False,
+        color_reverse=color_reverse,
+        vmin=vmin,
+        vmax=vmax,
+        filename=f"{filename}-targets.png",
+        fig_dir=fig_dir
+    )
+
+    # 3D surface
+    fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
+    ax = fig.add_subplot(111, projection="3d")
+    surf = ax.plot_surface(
+        features_array[:,:,1],
+        features_array[:,:,0],
+        target_array,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax
+    )
+    ax.set_xlabel("T (K)", labelpad=18)
+    ax.set_ylabel("P (GPa)", labelpad=18)
+    ax.set_zlabel("")
+    ax.set_zlim(vmin - (vmin * 0.05), vmax + (vmax * 0.05))
+    ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+    plt.tick_params(axis="x", which="major")
+    plt.tick_params(axis="y", which="major")
+    plt.title(f"{program}", y=0.95)
+    ax.view_init(20, -145)
+    ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
+    ax.set_facecolor("white")
+    cbar = fig.colorbar(
+        surf,
+        ax=ax,
+        ticks=np.linspace(vmin, vmax, num=4),
+        label="",
+        shrink=0.6
+    )
+    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+    cbar.ax.set_ylim(vmin, vmax)
+    plt.savefig(f"{fig_dir}/{filename}-targets-surf.png")
+    plt.close()
+
+    # Plot SVR predictions array
+    visualize_MAD(
+        P_valid,
+        T_valid,
+        valid_pred_array_original,
+        parameter,
+        title="SVR Predictions",
+        palette=palette,
+        color_discrete=False,
+        color_reverse=color_reverse,
+        vmin=vmin,
+        vmax=vmax,
+        filename=f"{filename}-svr.png",
+        fig_dir=fig_dir
+    )
+
+    # 3D surface
+    fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
+    ax = fig.add_subplot(111, projection="3d")
+    surf = ax.plot_surface(
+        P_valid,
+        T_valid,
+        valid_pred_array_original,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax
+    )
+    ax.set_xlabel("T (K)", labelpad=18)
+    ax.set_ylabel("P (GPa)", labelpad=18)
+    ax.set_zlabel("")
+    ax.set_zlim(vmin - (vmin * 0.05), vmax + (vmax * 0.05))
+    ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+    plt.tick_params(axis="x", which="major")
+    plt.tick_params(axis="y", which="major")
+    plt.title(f"SVR Predictions", y=0.95)
+    ax.view_init(20, -145)
+    ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
+    ax.set_facecolor("white")
+    cbar = fig.colorbar(
+        surf,
+        ax=ax,
+        ticks=np.linspace(vmin, vmax, num=4),
+        label="",
+        shrink=0.6
+    )
+    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+    cbar.ax.set_ylim(vmin, vmax)
+    plt.savefig(f"{fig_dir}/{filename}-svr-surf.png")
+    plt.close()
+
+    # Plot PT normalized diff targets vs. SVR predictions
+    visualize_MAD(
+        features_array[:,:,0],
+        features_array[:,:,1],
+        diff_norm,
+        parameter,
+        title="Normalized Difference",
+        palette="seismic",
+        color_discrete=False,
+        color_reverse=False,
+        vmin=vmin,
+        vmax=vmax,
+        filename=f"{filename}-diff.png",
+        fig_dir=fig_dir
+    )
+
+    # 3D surface
+    vmin_diff = -np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
+    vmax_diff = np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
+    fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
+    ax = fig.add_subplot(111, projection="3d")
+    surf = ax.plot_surface(
+        features_array[:,:,1],
+        features_array[:,:,0],
+        diff_norm,
+        cmap="seismic",
+        vmin=vmin_diff,
+        vmax=vmax_diff
+    )
+    ax.set_xlabel("T (K)", labelpad=18)
+    ax.set_ylabel("P (GPa)", labelpad=18)
+    ax.set_zlabel("")
+    ax.set_zlim(vmin_diff - (vmin_diff * 0.05), vmax_diff + (vmax_diff * 0.05))
+    ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+    plt.tick_params(axis="x", which="major")
+    plt.tick_params(axis="y", which="major")
+    plt.title(f"Normalized Difference", y=0.95)
+    ax.view_init(20, -145)
+    ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
+    ax.set_facecolor("white")
+    cbar = fig.colorbar(
+        surf,
+        ax=ax,
+        ticks=[vmin_diff, 0, vmax_diff],
+        label="",
+        shrink=0.6
+    )
+    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+    cbar.ax.set_ylim(vmin_diff, vmax_diff)
+    plt.savefig(f"{fig_dir}/{filename}-diff-surf.png")
+    plt.close()
+
+    # Transpose predictions
+    valid_pred_array_original = np.transpose(valid_pred_array_original)
+
+    # Visualize P
+    fig = plt.figure(figsize=(figwidth, figheight))
+    plt.scatter(
+        X_train_original[:, 0],
+        y_train_original,
+        facecolor="black",
+        edgecolor=None,
+        marker=".",
+        s=3
+    )
+    plt.scatter(
+        X_valid[:, 0],
+        valid_pred_array_original,
+        facecolor=colormap(0),
+        edgecolor=None,
+        marker=".",
+        s=1,
+        alpha = 0.3,
+    )
+    plt.fill_between(
+        P_valid[0],
+        np.min(valid_pred_array_original, axis=0),
+        np.max(valid_pred_array_original, axis=0),
+        facecolor=colormap(0),
+        edgecolor=None,
+        alpha=0.3,
+        label="SVR Predictions"
+    )
+    plt.ylim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+    plt.xlabel("P (GPa)")
+    plt.ylabel(f"{parameter_label} {units_label}")
+    plt.title(f"{program}")
+    legend = plt.legend()
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}-P.png")
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
+    # Visualize T
+    fig = plt.figure(figsize=(figwidth, figheight))
+    plt.scatter(
+        X_train_original[:, 1],
+        y_train_original,
+        facecolor="black",
+        edgecolor=None,
+        marker=".",
+        s=3
+    )
+    plt.scatter(
+        X_valid[:, 1],
+        valid_pred_array_original,
+        facecolor=colormap(1),
+        edgecolor=None,
+        marker=".",
+        s=1,
+        alpha = 0.3
+    )
+    plt.fill_between(
+        T_valid[1],
+        np.min(valid_pred_array_original, axis=1),
+        np.max(valid_pred_array_original, axis=1),
+        facecolor=colormap(1),
+        edgecolor=None,
+        alpha=0.3,
+        label="SVR Predictions"
+    )
+    plt.ylim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+    plt.xlabel("T (K)")
+    plt.ylabel(f"{parameter_label} {units_label}")
+    plt.title(f"{program}")
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}-T.png")
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
+    # Targets vs. predictions for test set
+    fig = plt.figure(figsize=(figwidth, figheight))
+    plt.scatter(y_test_original, y_pred_original, marker=".", s=3, color="black")
+    plt.plot(
+        [min(y_test_original), max(y_test_original)],
+        [min(y_test_original), max(y_test_original)],
+        linestyle="-",
+        color="black",
+        linewidth=1
+    )
+
+    # Vertical text spacing
+    text_margin_x = 0.04
+    text_margin_y = 0.1
+    text_spacing_y = 0.1
+
+    # Add R-squared and RMSE values as text annotations in the plot
+    plt.text(
+        text_margin_x,
+        1 - text_margin_y - (text_spacing_y * 0),
+        f"scaler: {scaler_label}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize * 0.833
+    )
+    plt.text(
+        text_margin_x,
+        1 - text_margin_y - (text_spacing_y * 1),
+        f"kernel: {kernel}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize * 0.833
+    )
+    plt.text(
+        text_margin_x,
+        1 - text_margin_y - (text_spacing_y * 2),
+        f"rmse: {rmse_test_mean:.2f}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize * 0.833
+    )
+    plt.text(
+        text_margin_x,
+        1 - text_margin_y - (text_spacing_y * 3),
+        f"r$^2$: {r2_test_mean:.2f}",
+        transform=plt.gca().transAxes,
+        fontsize=fontsize * 0.833
+    )
+
+    plt.xlabel(f"Target")
+    plt.ylabel(f"Predicted")
+    plt.xlim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
+    plt.ylim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
+    plt.xticks(np.linspace(vmin, vmax, num=4))
+    plt.yticks(np.linspace(vmin, vmax, num=4))
+    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+    plt.title(f"{program}")
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}")
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
+    # Reshape results and transform units for MAGEMin
+    if program == "MAGEMin":
+        results_mgm = {
+            "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
+            "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
+            parameter: target_array.ravel().tolist()
+        }
+
+        results_ppx = None
+
+        if parameter == "DensityOfFullAssemblage":
+            results_mgm[parameter] = [x * 1000 for x in results_mgm[parameter]]
+
+    # Reshape results and transform units for Perple_X
+    if program == "Perple_X":
+        results_ppx = {
+            "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
+            "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
+            parameter: target_array.ravel().tolist()
+        }
+
+        results_mgm = None
+
+        if parameter == "DensityOfFullAssemblage":
+            results_ppx[parameter] = [x * 1000 for x in results_ppx[parameter]]
+
+    # Reshape results and transform units for SVR model
+    results_svr = {
+        "P": [P * 10 for P in P_valid.ravel().tolist()],
+        "T": [T - 273 for T in T_valid.ravel().tolist()],
+        parameter: valid_pred_array_original.ravel().tolist()
+    }
+
+    if parameter == "DensityOfFullAssemblage":
+        results_svr[parameter] = [x * 1000 for x in results_svr[parameter]]
+
+    # Plot PREM comparisons
+    if parameter == "DensityOfFullAssemblage":
+        visualize_PREM(
+            "assets/data/prem.csv",
+            parameter,
+            "g/cm$^3$",
+            results_mgm=results_mgm,
+            results_ppx=results_ppx,
+            results_ml=results_svr,
+            ml_type="SVR",
+            geotherm_threshold=0.1,
+            depth=False,
+            title="PREM Comparison",
+            figwidth=figwidth,
+            filename=f"{filename}-prem.png",
+            fig_dir=fig_dir
+        )
+
+    if parameter in ["Vp", "Vs"]:
+        visualize_PREM(
+            "assets/data/prem.csv",
+            parameter,
+            "km/s",
+            results_mgm=results_mgm,
+            results_ppx=results_ppx,
+            results_ml=results_svr,
+            ml_type="SVR",
+            geotherm_threshold=0.1,
+            depth=False,
+            title="PREM Comparison",
+            figwidth=figwidth,
+            filename=f"{filename}-prem.png",
+            fig_dir=fig_dir
+        )
+
+    return svr_model, svr_info
+
 # Support vector regression with nonlinear kernel
 def run_svr(
-        program,
         sample_id,
         parameters,
+        MAGEMin=True,
+        Perple_X=True,
         kernels=["rbf"],
         scalers=["standard", "minmax"],
+        kfolds=10,
+        parallel=True,
+        nprocs=cpu_count()-2,
+        seed=42,
         palette="bone",
         out_dir=f"{os.getcwd()}/runs",
         fig_dir=f"{os.getcwd()}/figs",
         data_dir=f"{os.getcwd()}/assets/data"):
     """
+    Perform Support Vector Regression (SVR) with nonlinear kernels on GFEM results.
+
+    Parameters:
+        sample_id (str): The identifier of the sample for which GFEM results are to be
+                         analyzed.
+        parameters (list): A list of parameters for which SVR will be performed. Supported
+                           parameters depend on the GFEM program used.
+        kernels (list, optional): A list of kernel functions to use in SVR. Default is
+                                  ["rbf"] (Radial Basis Function).
+        scalers (list, optional): A list of data scaling methods to apply before SVR.
+                                  Default is ["standard", "minmax"]
+                                  (StandardScaler and MinMaxScaler).
+        seed (int, optional): Random seed for reproducibility. Default is 42.
+        palette (str, optional): The color palette for the plots. Default is "bone".
+        out_dir (str, optional): Directory to store intermediate output files from the GFEM
+                                 program. Default is "./runs".
+        fig_dir (str, optional): Directory to save the generated visualization figures.
+                                 Default is "./figs".
+        data_dir (str, optional): Directory containing data files needed for visualization.
+                                  Default is "./assets/data".
+
+    Raises:
+        ValueError: If an invalid value for 'program' is provided. It must be either
+                    "MAGEMin" or "Perple_X".
+
+    Notes:
+        - This function retrieves GFEM results from the specified program and sample.
+        - It preprocesses the feature array (P and T) and the target array for SVR analysis.
+        - SVR is run with different kernel functions and data scaling methods for each
+          specified parameter.
+        - The results of SVR, including plots and performance information, are saved to
+          appropriate files.
     """
-    print("=============================================")
-    if program == "MAGEMin":
+    if MAGEMin:
         print("Processing MAGEMin results from:")
         print(f"    MAGEMin: {out_dir}/{sample_id}")
 
         # Get results
-        results = process_MAGEMin_grid(sample_id, out_dir)
-    elif program == "Perple_X":
+        results_mgm = process_MAGEMin_grid(sample_id, out_dir)
+
+        # Get PT values and transform units
+        P_mgm = [P / 10 for P in results_mgm["P"]]
+        T_mgm = [T + 273 for T in results_mgm["T"]]
+
+        # Reshape into (W, 1) arrays
+        P_array_mgm = np.unique(np.array(P_mgm)).reshape(-1, 1)
+        T_array_mgm = np.unique(np.array(T_mgm)).reshape(1, -1)
+
+        # Get array dimensions
+        W_mgm = P_array_mgm.shape[0]
+
+        # Reshape into (W, W) arrays by repeating values
+        P_grid_mgm = np.tile(P_array_mgm, (1, W_mgm))
+        T_grid_mgm = np.tile(T_array_mgm, (W_mgm, 1))
+
+        # Combine P and T grids into a single feature set with shape (W, W, 2)
+        features_array_mgm = np.stack((P_grid_mgm, T_grid_mgm), axis=-1)
+
+    if Perple_X:
         print("Processing Perple_X results from:")
         print(f"    Perple_X: assets/benchmark/{sample_id}/{sample_id}_grid.tab")
         print(f"    Perple_X: assets/benchmark/{sample_id}/{sample_id}_assemblages.txt")
@@ -3435,45 +4020,27 @@ def run_svr(
         # Get results
         file_path_results = f"assets/benchmark/{sample_id}/{sample_id}_grid.tab"
         file_path_assemblage = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
-        results = process_perplex_grid(file_path_results, file_path_assemblage)
-    else:
-        raise ValueError(
-            "Invalid program argument ...\n"
-            "program must be MAGEMin or Perple_X"
-        )
+        results_ppx = process_perplex_grid(file_path_results, file_path_assemblage)
 
-    print("Preprocessing features array (P and T):")
-    print("    Transforming units to K and GPa")
+        # Get PT values and transform units
+        P_ppx = [P / 10 for P in results_ppx["P"]]
+        T_ppx = [T + 273 for T in results_ppx["T"]]
 
-    # Get PT values MAGEMin and transform units
-    P = [P / 10 for P in results["P"]]
-    T = [T + 273 for T in results["T"]]
+        # Reshape into (W, 1) arrays
+        P_array_ppx = np.unique(np.array(P_ppx)).reshape(-1, 1)
+        T_array_ppx = np.unique(np.array(T_ppx)).reshape(1, -1)
 
-    # Reshape into (W, 1) arrays
-    P_array = np.unique(np.array(P)).reshape(-1, 1)
-    T_array = np.unique(np.array(T)).reshape(1, -1)
+        # Get array dimensions
+        W_ppx = P_array_ppx.shape[0]
 
-    # Get array dimensions
-    W = P_array.shape[0]
+        # Reshape into (W, W) arrays by repeating values
+        P_grid_ppx = np.tile(P_array_ppx, (1, W_ppx))
+        T_grid_ppx = np.tile(T_array_ppx, (W_ppx, 1))
 
-    print(f"    Reshaping P array to {1, W}")
-    print(f"    Reshaping T array to {W, 1}")
-
-    # Reshape into (W, W) arrays by repeating values
-    P_grid = np.tile(P_array, (1, W))
-    T_grid = np.tile(T_array, (W, 1))
-
-    print(f"    Combining PT arrays into feature array with shape {W, W, 2}")
-
-    # Combine P and T grids into a single feature set with shape (W, W, 2)
-    features_array = np.stack((P_grid, T_grid), axis=-1)
-
-    print("=============================================")
+        # Combine P and T grids into a single feature set with shape (W, W, 2)
+        features_array_ppx = np.stack((P_grid_ppx, T_grid_ppx), axis=-1)
 
     for parameter in parameters:
-
-        print(f"Preprocessing target array ({parameter}):")
-
         # Units
         if parameter == "DensityOfFullAssemblage":
             print("    Transforming units from Kg/m^3 to g/cm^3")
@@ -3483,69 +4050,114 @@ def run_svr(
         if parameter in ["Vp", "Vs"]:
             units = "km/s"
 
-        print(f"    Creating target array with shape {W, W}")
+        if MAGEMin:
+            # Target array with shape (W, W)
+            target_array_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
 
-        # Target array with shape (W, W)
-        target_array = create_PT_grid(P, T, results[parameter])
+        if Perple_X:
+            # Target array with shape (W, W)
+            target_array_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter])
 
         # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
         if parameter == "LiquidFraction":
             if program == "MAGEMin":
                 print(f" Setting zero liquid fraction to NaN for better comparisons")
-                target_array = np.where(target_array <= 0.05, np.nan, target_array)
+                if MAGEMin:
+                    target_array_mgm = np.where(
+                        target_array_mgm <= 0.05,
+                        np.nan,
+                        target_array_mgm
+                    )
+                if Perple_X:
+                    target_array_ppx = np.where(
+                        target_array_ppx <= 0.05,
+                        np.nan,
+                        target_array_ppx
+                    )
 
         # Get min max of target array to plot colorbars on the same scales
-        vmin = np.min(np.abs(target_array[np.logical_not(np.isnan(target_array))]))
-        vmax = np.max(np.abs(target_array[np.logical_not(np.isnan(target_array))]))
+        if MAGEMin:
+            vmin = np.min(np.abs(
+                target_array_mgm[np.logical_not(np.isnan(target_array_mgm))]
+            ))
+            vmax = np.max(np.abs(
+                target_array_mgm[np.logical_not(np.isnan(target_array_mgm))]
+            ))
+
+        if Perple_X:
+            vmin = np.min(np.abs(
+                target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]
+            ))
+            vmax = np.max(np.abs(
+                target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]
+            ))
+
+        if MAGEMin and Perple_X:
+            vmin = min(
+                np.min(np.abs(target_array_mgm[np.logical_not(np.isnan(target_array_mgm))])),
+                np.min(np.abs(target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]))
+            )
+            vmax = max(
+                np.max(np.abs(target_array_mgm[np.logical_not(np.isnan(target_array_mgm))])),
+                np.max(np.abs(target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]))
+            )
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
             vmin = vmin / 1000
             vmax = vmax / 1000
 
-        print(f"    Finding min, max {round(vmin, 2), round(vmax, 2)}")
-
-        print(f"Plotting input data to: {fig_dir}")
-
-        # Visualizations: input data
-        visualize_input_data(
-            results,
-            features_array,
-            target_array,
-            sample_id,
-            parameter,
-            units,
-            program=program,
-            palette=palette,
-            vmin=vmin,
-            vmax=vmax,
-            fig_dir=fig_dir
-        )
-
         # Run SVR on MAGEMin dataset
-        print("Running SVR ...")
-        print("=============================================")
-
         for kernel in kernels:
             for scaler in scalers:
-                # Run SVR for MAGEMin
-                model, info = run_svr_regression(
-                    features_array,
-                    target_array,
-                    parameter,
-                    units=units,
-                    vmin=vmin,
-                    vmax=vmax,
-                    program=program,
-                    kernel=kernel,
-                    scaler=scaler,
-                    filename=f"{program}-{sample_id}-{parameter}-{kernel}-{scaler}.png",
-                    fig_dir=fig_dir
-                )
+                if MAGEMin:
+                    # Run SVR MAGEMin
+                    model_mgm, info_mgm = svr_regression(
+                        features_array_mgm,
+                        target_array_mgm,
+                        parameter,
+                        units,
+                        "MAGEMin",
+                        seed,
+                        kfolds,
+                        parallel,
+                        nprocs,
+                        kernel,
+                        scaler,
+                        vmin,
+                        vmax,
+                        filename=f"MAGEMin-{parameter}-{kernel}-{scaler}",
+                        fig_dir=fig_dir
+                    )
 
-                # Write SVR config and performance info to csv
-                print(f"Writing SVR results to: {data_dir}/svr-info.csv")
+                    # Write SVR config and performance info to csv
+                    append_to_csv("assets/data/svr-info.csv", info_mgm)
 
-                append_to_csv("assets/data/svr-info.csv", info)
+                    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+                if Perple_X:
+                    # Run SVR Perple_X
+                    model_ppx, info_ppx = svr_regression(
+                        features_array_ppx,
+                        target_array_ppx,
+                        parameter,
+                        units,
+                        "Perple_X",
+                        seed,
+                        kfolds,
+                        parallel,
+                        nprocs,
+                        kernel,
+                        scaler,
+                        vmin,
+                        vmax,
+                        filename=f"Perple_X-{parameter}-{kernel}-{scaler}",
+                        fig_dir=fig_dir
+                    )
+
+                    # Write SVR config and performance info to csv
+                    append_to_csv("assets/data/svr-info.csv", info_ppx)
+
+                    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         print("=============================================")
