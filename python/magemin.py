@@ -32,9 +32,14 @@ from sklearn.model_selection import KFold
 from multiprocessing import Pool, cpu_count
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
 # Print filepaths
@@ -605,6 +610,12 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
+        "--models",
+        type=parse_list_of_strings,
+        help="Specify the models argument ...",
+        required=False
+    )
+    parser.add_argument(
         "--normox",
         type=parse_list_of_strings,
         help="Specify the normox argument ...",
@@ -725,6 +736,7 @@ def check_arguments(args, script):
     frac = args.frac
     sampleid = args.sampleid
     params = args.params
+    models = args.models
     normox = args.normox
     source = args.source
     strategy = args.strategy
@@ -850,6 +862,14 @@ def check_arguments(args, script):
             print(f"        {param}")
 
         valid_args["params"] = params
+
+    if models is not None:
+        print("    ML models:")
+
+        for model in models:
+            print(f"        {model}")
+
+        valid_args["models"] = models
 
     if colormap is not None:
         if colormap not in ["viridis", "bone", "pink", "seismic", "grey", "blues"]:
@@ -1842,7 +1862,7 @@ def visualize_MAD(
         T,
         grid,
         parameter,
-        geotherm=True,
+        geotherm=False,
         geotherm_linetype="-.",
         geotherm_color="white",
         T_unit="K",
@@ -2025,7 +2045,7 @@ def visualize_MAD(
             cbar = plt.colorbar(
                 im,
                 ax=ax,
-                ticks=[vmin, vmin/2, 0, vmax/2, vmax],
+                ticks=[vmin, 0, vmax],
                 label=""
             )
         else:
@@ -2638,7 +2658,7 @@ def visualize_PREM(
         results_mgm=None,
         results_ppx=None,
         results_ml=None,
-        ml_type=None,
+        model=None,
         geotherm_threshold=0.1,
         P_unit="GPa",
         depth=True,
@@ -2779,11 +2799,15 @@ def visualize_PREM(
     # Colormap
     colormap = plt.cm.get_cmap(palette)
 
+    # Change model string for filename
+    model_label = model
+
     # Plotting
     fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
 
     # Plot PREM data on the primary y-axis
     ax1.plot(param_prem, P_prem, "-", linewidth=3, color="black", label="PREM")
+
     if results_mgm:
         ax1.plot(
             param_grad_mgm,
@@ -2809,7 +2833,7 @@ def visualize_PREM(
             "-",
             linewidth=3,
             color=colormap(1),
-            label=f"{ml_type}"
+            label="Model"
         )
 
     if parameter == "DensityOfFullAssemblage":
@@ -2828,17 +2852,17 @@ def visualize_PREM(
     if metrics is not None:
         # Vertical text spacing
         text_margin_x = 0.04
-        text_margin_y = 0.35
+        text_margin_y = 0.25
         text_spacing_y = 0.1
 
         # Get metrics
-        scaler_label, kernel, rmse_test_mean, r2_test_mean = metrics
+        model, rmse_test_mean, r2_test_mean = metrics
 
         # Add R-squared and RMSE values as text annotations in the plot
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 0),
-            f"r$^2$: {r2_test_mean:.2f}",
+            f"R$^2$: {r2_test_mean:.2f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2847,7 +2871,7 @@ def visualize_PREM(
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 1),
-            f"rmse: {rmse_test_mean:.2f}",
+            f"RMSE: {rmse_test_mean:.2f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2856,16 +2880,7 @@ def visualize_PREM(
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 2),
-            f"kernel: {kernel}",
-            transform=plt.gca().transAxes,
-            fontsize=fontsize * 0.833,
-            horizontalalignment="right",
-            verticalalignment="bottom"
-        )
-        plt.text(
-            1 - text_margin_x,
-            text_margin_y - (text_spacing_y * 3),
-            f"scaler: {scaler_label}",
+            f"{model_label}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -3213,9 +3228,9 @@ def visualize_GFEM_diff(
 # Define a function that performs the processing for a single fold
 mp.set_start_method("fork")
 
-def process_fold_svr(fold_data):
+def process_fold(fold_data):
     """
-    Process a single fold of k-fold cross-validation for Support Vector Regression (SVR).
+    Process a single fold of k-fold cross-validation for ML model.
 
     Parameters:
         fold_data (tuple): A tuple containing the necessary data for the k-fold cross
@@ -3228,29 +3243,29 @@ def process_fold_svr(fold_data):
             - X_scaled (array-like): The scaled feature data (input variables).
             - y_scaled (array-like): The scaled target data (output variable).
             - X_valid_scaled (array-like): The scaled validation feature data for evaluation.
-            - svr_model (SVR object): The Support Vector Regression model to be trained and
-                                      evaluated.
+            - model (model object): The ML model to be trained and evaluated.
             - scaler_y (Scaler object): The scaler used to normalize the target variable.
             - scaler_X (Scaler object): The scaler used to normalize the feature variables.
             - target_array (array-like): The original (non-scaled) target array for the
                                          entire dataset, used for evaluation.
-            - W (int): The width of the grid used for reshaping predictions for visualization.
+            - W (int): The width of the grid used for reshaping predictions for
+                       visualization.
 
     Returns:
-        rmse_test (float): Root Mean Squared Error (RMSE) of the SVR model's predictions on
+        rmse_test (float): Root Mean Squared Error (RMSE) of the ML model's predictions on
                            the test set (non-scaled).
-        rmse_valid (float): Root Mean Squared Error (RMSE) of the SVR model's predictions on
+        rmse_valid (float): Root Mean Squared Error (RMSE) of the ML model's predictions on
                             the validation set (non-scaled).
-        r2_test (float): R-squared (coefficient of determination) of the SVR model's
+        r2_test (float): R-squared (coefficient of determination) of the ML model's
                          predictions on the test set.
-        r2_valid (float): R-squared (coefficient of determination) of the SVR model's
+        r2_valid (float): R-squared (coefficient of determination) of the ML model's
                           predictions on the validation set.
 
     Notes:
         This function performs the following steps for a single fold of k-fold cross
-        validation for SVR:
+        validation for ML models:
             1. Unpacks the necessary data from the 'fold_data' tuple.
-            2. Trains the SVR model on the training data.
+            2. Trains the ML model on the training data.
             3. Makes predictions on the test and validation sets.
             4. Performs inverse scaling to obtain predictions in their original units.
             5. Evaluates the model's performance using RMSE and R-squared metrics for both
@@ -3266,7 +3281,7 @@ def process_fold_svr(fold_data):
         X_scaled,
         y_scaled,
         X_valid_scaled,
-        svr_model,
+        model,
         scaler_y,
         scaler_X,
         target_array,
@@ -3280,12 +3295,21 @@ def process_fold_svr(fold_data):
     X_train, X_test = X_scaled[train_index], X_scaled[test_index]
     y_train, y_test = y_scaled[train_index], y_scaled[test_index]
 
-    # Train SVR model
-    svr_model.fit(X_train, y_train)
+    # Train ML model
+    training_start_time = time.time()
+    model.fit(X_train, y_train)
+    training_end_time = time.time()
+
+    training_time = training_end_time - training_start_time
 
     # Make predictions on the test and validation sets
-    y_pred_scaled = svr_model.predict(X_test)
-    valid_pred_scaled = svr_model.predict(X_valid_scaled)
+    y_pred_scaled = model.predict(X_test)
+
+    inference_start_time = time.time()
+    valid_pred_scaled = model.predict(X_valid_scaled)
+    inference_end_time = time.time()
+
+    inference_time = inference_end_time - inference_start_time
 
     # Inverse transform predictions
     y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
@@ -3318,6 +3342,8 @@ def process_fold_svr(fold_data):
     r2_test = r2_score(y_test_original, y_pred_original)
     r2_valid = r2_score(target_array[~mask], valid_pred_array_original[~mask])
 
+    print(f"     training time: {round(training_time, 3)}")
+    print(f"    inference time: {round(inference_time, 3)}")
     print(f"            n test: {len(y_test)}")
     print(f"           n train: {len(y_train)}")
     print(f"         rmse_test: {round(rmse_test, 3)}")
@@ -3325,21 +3351,20 @@ def process_fold_svr(fold_data):
     print(f"           r2_test: {round(r2_test, 3)}")
     print(f"          r2_valid: {round(r2_valid, 3)}")
 
-    return rmse_test, rmse_valid, r2_test, r2_valid
+    return rmse_test, rmse_valid, r2_test, r2_valid, training_time, inference_time
 
 # Support Vector Regression analysis
-def svr_regression(
+def ml_regression(
         features_array,
         target_array,
         parameter,
         units,
         program,
+        model="SVR RBF",
         seed=42,
         kfolds=10,
         parallel=True,
         nprocs=cpu_count()-2,
-        kernel="rbf",
-        scaler="minmax",
         vmin=None,
         vmax=None,
         palette="bone",
@@ -3349,7 +3374,7 @@ def svr_regression(
         filename=None,
         fig_dir=f"{os.getcwd()}/figs"):
     """
-    Runs Support Vector Regression (SVR) on the provided feature and target arrays.
+    Runs ML model regression on the provided feature and target arrays.
 
     Parameters:
         features_array (ndarray): The feature array with shape (W, W, 2), containing
@@ -3360,9 +3385,6 @@ def svr_regression(
         units (str): The units of the predicted target parameter.
         parameter_units (str): The units of the original target parameter for display
                                purposes.
-        kernel (str, optional): The type of kernel to be used in SVR. Default is "rbf".
-        scaler (str, optional): The type of scaler to be used for feature normalization.
-                                Options: "minmax" (default) or "standard".
         seed (int, optional): The random seed for reproducibility. Default is 42.
         figwidth (float, optional): The width of the plot in inches. Default is 6.3.
         figheight (float, optional): The height of the plot in inches. Default is 4.725.
@@ -3371,7 +3393,7 @@ def svr_regression(
         fig_dir (str, optional): The directory to save the plot. Default is "./figs".
 
     Returns:
-        tuple: A tuple containing the trained SVR model and evaluation metrics (rmse,
+        tuple: A tuple containing the trained ML model and evaluation metrics (rmse,
                r2_score).
     """
     # Check for figs directory
@@ -3412,7 +3434,7 @@ def svr_regression(
     cmap = plt.cm.get_cmap("bone_r")
     cmap.set_bad(color="white")
 
-    # Reshape the features_array and target_array for SVR
+    # Reshape the features_array and target_array
     W = features_array.shape[0]
     X = features_array.reshape(W*W, 2)
     y = target_array.flatten()
@@ -3421,7 +3443,9 @@ def svr_regression(
     P_min, P_max, T_min, T_max = X[:, 0].min(), X[:, 0].max(), X[:, 1].min(), X[:, 1].max()
 
     # Create features grid for validation set
-    P_valid, T_valid = np.meshgrid(np.linspace(P_min, P_max, W), np.linspace(T_min, T_max, W))
+    P_valid, T_valid = np.meshgrid(
+        np.linspace(P_min, P_max, W), np.linspace(T_min, T_max, W)
+    )
 
     # Validation set
     X_valid = np.c_[P_valid.ravel(), T_valid.ravel()]
@@ -3431,14 +3455,8 @@ def svr_regression(
     X, y = X[~mask, :], y[~mask]
 
     # Scale the feature array
-    if scaler == "minmax":
-        scaler_label = scaler
-        scaler_X = MinMaxScaler()
-        scaler_y = MinMaxScaler()
-    if scaler == "standard":
-        scaler_label = scaler
-        scaler_X = StandardScaler()
-        scaler_y = StandardScaler()
+    scaler_X = StandardScaler()
+    scaler_y = StandardScaler()
 
     # Scale feature and validation arrays
     X_scaled = scaler_X.fit_transform(X)
@@ -3450,21 +3468,35 @@ def svr_regression(
     # K-fold cross-validation
     kf = KFold(n_splits=kfolds, shuffle=True, random_state=seed)
 
-    # Create the SVR model
-    svr_model = SVR(kernel=kernel)
+    # Save model label string
+    model_label = model
 
-    # Store performance metrics
-    rmse_test_scores = []
-    rmse_valid_scores = []
-    r2_test_scores = []
-    r2_valid_scores = []
+    # Create the ML model
+    if model == "Support Vector":
+        model = SVR(kernel="rbf")
+    elif model == "Random Forest":
+        model = RandomForestRegressor(random_state=seed)
+    elif model == "Gradient Boost":
+        model = GradientBoostingRegressor(random_state=seed)
+    elif model == "K Nearest":
+        model = KNeighborsRegressor(weights="distance")
+    elif model == "Neural Network 1L":
+        layer_sizes = [y.shape[0] // 100]
+        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
+    elif model == "Neural Network 2L":
+        layer_sizes = [y.shape[0] // 100, y.shape[0] // 100]
+        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
+    elif model == "Neural Network 3L":
+        layer_sizes = [y.shape[0] // 100, y.shape[0] // 100, y.shape[0] // 100]
+        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
+    elif model == "Decision Tree":
+        model = DecisionTreeRegressor(random_state=seed)
 
-    # Print svr model config
-    print("Cross-validating SVR model:")
+    # Print model config
+    print("Cross-validating ML model:")
+    print(f"        model: {model_label}")
     print(f"      program: {program}")
     print(f"    parameter: {parameter_label} {units_label}")
-    print(f"       kernel: {kernel}")
-    print(f"       scaler: {scaler_label}")
 
     # Iterate over K-fold cross-validations in parallel
     # Combine the data and parameters needed for each fold into a list
@@ -3476,7 +3508,7 @@ def svr_regression(
             X_scaled,
             y_scaled,
             X_valid_scaled,
-            svr_model,
+            model,
             scaler_y,
             scaler_X,
             target_array,
@@ -3495,55 +3527,72 @@ def svr_regression(
 
     # Initialize the pool of processes
     with Pool(processes=nprocs) as pool:
-        results = pool.map(process_fold_svr, fold_data_list)
+        results = pool.map(process_fold, fold_data_list)
 
         # Wait for all processes
         pool.close()
         pool.join()
 
-    # Unpack the results from the parallel execution
-    for (rmse_test, rmse_valid, r2_test, r2_valid) in results:
+    # Unpack the results from the parallel kfolds
+    rmse_test_scores = []
+    rmse_valid_scores = []
+    r2_test_scores = []
+    r2_valid_scores = []
+    training_times = []
+    inference_times = []
+
+    for (rmse_test, rmse_valid, r2_test, r2_valid, training_time, inference_time) in results:
         rmse_test_scores.append(rmse_test)
         rmse_valid_scores.append(rmse_valid)
         r2_test_scores.append(r2_test)
         r2_valid_scores.append(r2_valid)
+        training_times.append(training_time)
+        inference_times.append(inference_time)
 
     # Calculate performance values with uncertainties
     r2_test_mean = np.mean(r2_test_scores)
-    r2_test_sd = np.std(r2_test_scores)
+    r2_test_std = np.std(r2_test_scores)
     rmse_test_mean = np.mean(rmse_test_scores)
-    rmse_test_sd = np.std(rmse_test_scores)
+    rmse_test_std = np.std(rmse_test_scores)
     r2_valid_mean = np.mean(r2_valid_scores)
-    r2_valid_sd = np.std(r2_valid_scores)
+    r2_valid_std = np.std(r2_valid_scores)
     rmse_valid_mean = np.mean(rmse_valid_scores)
-    rmse_valid_sd = np.std(rmse_valid_scores)
+    rmse_valid_std = np.std(rmse_valid_scores)
+    training_time_mean = np.mean(training_times)
+    training_time_std = np.std(training_times)
+    inference_time_mean = np.mean(inference_times)
+    inference_time_std = np.std(inference_times)
 
     # Config and performance info
-    svr_info = {
+    model_info = {
+        "model": [model_label],
         "program": [program],
         "parameter": [parameter_label],
         "units": [units],
-        "method": ["svr"],
-        "kernel": [kernel],
-        "scaler": [scaler_label],
         "k_folds": kfolds,
+        "training_time_mean": [round(training_time_mean, 3)],
+        "training_time_std": [round(training_time_std, 3)],
+        "inference_time_mean": [round(inference_time_mean, 3)],
+        "inference_time_std": [round(inference_time_std, 3)],
         "rmse_test_mean": [round(rmse_test_mean, 2)],
-        "rmse_test_sd": [round(rmse_test_sd, 3)],
+        "rmse_test_std": [round(rmse_test_std, 3)],
         "rmse_valid_mean": [round(rmse_valid_mean, 2)],
-        "rmse_valid_sd": [round(rmse_valid_sd, 3)],
+        "rmse_valid_std": [round(rmse_valid_std, 3)],
         "r2_test_mean": [round(r2_test_mean, 2)],
-        "r2_test_sd": [round(r2_test_sd, 3)],
+        "r2_test_std": [round(r2_test_std, 3)],
         "r2_valid_mean": [round(r2_valid_mean, 2)],
-        "r2_valid_sd": [round(r2_valid_sd, 3)],
+        "r2_valid_std": [round(r2_valid_std, 3)],
     }
 
     # Print performance
-    print(f"SVR Model Performance (test set):")
-    print(f"   rmse: {rmse_test_mean:.2f} ± {rmse_test_sd:.3f}")
-    print(f"     r2: {r2_test_mean:.2f} ± {r2_test_sd:.3f}")
-    print(f"SVR Model Performance (validation set):")
-    print(f"   rmse: {rmse_valid_mean:.2f} ± {rmse_valid_sd:.3f}")
-    print(f"     r2: {r2_valid_mean:.2f} ± {r2_valid_sd:.3f}")
+    print(f"{model_label} Performance (test set):")
+    print(f"   rmse: {rmse_test_mean:.2f} ± {rmse_test_std:.3f}")
+    print(f"     r2: {r2_test_mean:.2f} ± {r2_test_std:.3f}")
+    print(f"{model_label} Performance (validation set):")
+    print(f"   rmse: {rmse_valid_mean:.2f} ± {rmse_valid_std:.3f}")
+    print(f"     r2: {r2_valid_mean:.2f} ± {r2_valid_std:.3f}")
+    print(f"Training Time: {training_time_mean:.3f} ± {training_time_std:.3f}")
+    print(f"Inference Time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
 
     # Normal 80 / 20 train / test split for plotting
     X_train, X_test, y_train, y_test = train_test_split(
@@ -3553,12 +3602,12 @@ def svr_regression(
         random_state=seed
     )
 
-    # Train SVR model
-    svr_model.fit(X_train, y_train)
+    # Train ML model
+    model.fit(X_train, y_train)
 
     # Make predictions on the test and validation sets
-    y_pred_scaled = svr_model.predict(X_test)
-    valid_pred_scaled = svr_model.predict(X_valid_scaled)
+    y_pred_scaled = model.predict(X_test)
+    valid_pred_scaled = model.predict(X_valid_scaled)
 
     # Inverse transform predictions
     y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
@@ -3587,7 +3636,7 @@ def svr_regression(
     )
     diff_norm[mask] = np.nan
 
-    # Plot training data distribution and SVR predictions
+    # Plot training data distribution and ML model predictions
     colormap = plt.cm.get_cmap("tab10")
 
     # Reverse color scale
@@ -3652,19 +3701,19 @@ def svr_regression(
     plt.savefig(f"{fig_dir}/{filename}-targets-surf.png")
     plt.close()
 
-    # Plot SVR predictions array
+    # Plot ML model predictions array
     visualize_MAD(
         P_valid,
         T_valid,
         valid_pred_array_original,
         parameter,
-        title="SVR Predictions",
+        title=f"{model_label}",
         palette=palette,
         color_discrete=False,
         color_reverse=color_reverse,
         vmin=vmin,
         vmax=vmax,
-        filename=f"{filename}-svr.png",
+        filename=f"{filename}-predictions.png",
         fig_dir=fig_dir
     )
 
@@ -3686,7 +3735,7 @@ def svr_regression(
     ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
     plt.tick_params(axis="x", which="major")
     plt.tick_params(axis="y", which="major")
-    plt.title(f"SVR Predictions", y=0.95)
+    plt.title(f"{model_label}", y=0.95)
     ax.view_init(20, -145)
     ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
     ax.set_facecolor("white")
@@ -3699,10 +3748,10 @@ def svr_regression(
     )
     cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
     cbar.ax.set_ylim(vmin, vmax)
-    plt.savefig(f"{fig_dir}/{filename}-svr-surf.png")
+    plt.savefig(f"{fig_dir}/{filename}-surf.png")
     plt.close()
 
-    # Plot PT normalized diff targets vs. SVR predictions
+    # Plot PT normalized diff targets vs. ML model predictions
     visualize_MAD(
         features_array[:,:,0],
         features_array[:,:,1],
@@ -3757,99 +3806,6 @@ def svr_regression(
     # Transpose predictions
     valid_pred_array_original = np.transpose(valid_pred_array_original)
 
-    # Visualize P
-    fig = plt.figure(figsize=(figwidth, figheight))
-    plt.scatter(
-        X_train_original[:, 0],
-        y_train_original,
-        facecolor="black",
-        edgecolor=None,
-        marker=".",
-        s=3
-    )
-    plt.scatter(
-        X_valid[:, 0],
-        valid_pred_array_original,
-        facecolor=colormap(0),
-        edgecolor=None,
-        marker=".",
-        s=1,
-        alpha = 0.3,
-    )
-    plt.fill_between(
-        P_valid[0],
-        np.min(valid_pred_array_original, axis=0),
-        np.max(valid_pred_array_original, axis=0),
-        facecolor=colormap(0),
-        edgecolor=None,
-        alpha=0.3,
-        label="SVR Predictions"
-    )
-    plt.ylim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.xlabel("P (GPa)")
-    plt.ylabel(f"{parameter_label} {units_label}")
-    plt.title(f"{program}")
-    legend = plt.legend()
-
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}-P.png")
-    else:
-        # Print plot
-        plt.show()
-
-    # Close device
-    plt.close()
-
-    # Visualize T
-    fig = plt.figure(figsize=(figwidth, figheight))
-    plt.scatter(
-        X_train_original[:, 1],
-        y_train_original,
-        facecolor="black",
-        edgecolor=None,
-        marker=".",
-        s=3
-    )
-    plt.scatter(
-        X_valid[:, 1],
-        valid_pred_array_original,
-        facecolor=colormap(1),
-        edgecolor=None,
-        marker=".",
-        s=1,
-        alpha = 0.3
-    )
-    plt.fill_between(
-        T_valid[1],
-        np.min(valid_pred_array_original, axis=1),
-        np.max(valid_pred_array_original, axis=1),
-        facecolor=colormap(1),
-        edgecolor=None,
-        alpha=0.3,
-        label="SVR Predictions"
-    )
-    plt.ylim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.xlabel("T (K)")
-    plt.ylabel(f"{parameter_label} {units_label}")
-    plt.title(f"{program}")
-
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}-T.png")
-    else:
-        # Print plot
-        plt.show()
-
-    # Close device
-    plt.close()
-
     # Targets vs. predictions for test set
     fig = plt.figure(figsize=(figwidth, figheight))
     plt.scatter(y_test_original, y_pred_original, marker=".", s=3, color="black")
@@ -3870,14 +3826,7 @@ def svr_regression(
     plt.text(
         text_margin_x,
         1 - text_margin_y - (text_spacing_y * 0),
-        f"scaler: {scaler_label}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize * 0.833
-    )
-    plt.text(
-        text_margin_x,
-        1 - text_margin_y - (text_spacing_y * 1),
-        f"kernel: {kernel}",
+        f"{model_label}",
         transform=plt.gca().transAxes,
         fontsize=fontsize * 0.833
     )
@@ -3909,7 +3858,7 @@ def svr_regression(
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
+        plt.savefig(f"{fig_dir}/{filename}-performance")
     else:
         # Print plot
         plt.show()
@@ -3943,18 +3892,18 @@ def svr_regression(
         if parameter == "DensityOfFullAssemblage":
             results_ppx[parameter] = [x * 1000 for x in results_ppx[parameter]]
 
-    # Reshape results and transform units for SVR model
-    results_svr = {
+    # Reshape results and transform units for ML model
+    results_model = {
         "P": [P * 10 for P in P_valid.ravel().tolist()],
         "T": [T - 273 for T in T_valid.ravel().tolist()],
         parameter: valid_pred_array_original.ravel().tolist()
     }
 
     if parameter == "DensityOfFullAssemblage":
-        results_svr[parameter] = [x * 1000 for x in results_svr[parameter]]
+        results_model[parameter] = [x * 1000 for x in results_model[parameter]]
 
     # Plot PREM comparisons
-    metrics = [scaler_label, kernel, rmse_test_mean, r2_test_mean]
+    metrics = [model, rmse_test_mean, r2_test_mean]
 
     if parameter == "DensityOfFullAssemblage":
         visualize_PREM(
@@ -3963,8 +3912,8 @@ def svr_regression(
             "g/cm$^3$",
             results_mgm=results_mgm,
             results_ppx=results_ppx,
-            results_ml=results_svr,
-            ml_type="SVR",
+            results_ml=results_model,
+            model=f"{model_label}",
             geotherm_threshold=0.1,
             depth=True,
             metrics=metrics,
@@ -3981,8 +3930,8 @@ def svr_regression(
             "km/s",
             results_mgm=results_mgm,
             results_ppx=results_ppx,
-            results_ml=results_svr,
-            ml_type="SVR",
+            results_ml=results_model,
+            model=f"{model_label}",
             geotherm_threshold=0.1,
             depth=True,
             metrics=metrics,
@@ -3992,16 +3941,15 @@ def svr_regression(
             fig_dir=fig_dir
         )
 
-    return svr_model, svr_info
+    return model, model_info
 
 # Support vector regression with nonlinear kernel
-def run_svr(
+def run_ml_regression(
         sample_id,
         parameters,
         MAGEMin=True,
         Perple_X=True,
-        kernels=["rbf"],
-        scalers=["standard", "minmax"],
+        model="SVR RBF",
         kfolds=10,
         parallel=True,
         nprocs=cpu_count()-2,
@@ -4011,18 +3959,13 @@ def run_svr(
         fig_dir=f"{os.getcwd()}/figs",
         data_dir=f"{os.getcwd()}/assets/data"):
     """
-    Perform Support Vector Regression (SVR) with nonlinear kernels on GFEM results.
+    Perform ML model regression.
 
     Parameters:
         sample_id (str): The identifier of the sample for which GFEM results are to be
                          analyzed.
-        parameters (list): A list of parameters for which SVR will be performed. Supported
-                           parameters depend on the GFEM program used.
-        kernels (list, optional): A list of kernel functions to use in SVR. Default is
-                                  ["rbf"] (Radial Basis Function).
-        scalers (list, optional): A list of data scaling methods to apply before SVR.
-                                  Default is ["standard", "minmax"]
-                                  (StandardScaler and MinMaxScaler).
+        parameters (list): A list of parameters for which ML models will be performed.
+                           Supported parameters depend on the GFEM program used.
         seed (int, optional): Random seed for reproducibility. Default is 42.
         palette (str, optional): The color palette for the plots. Default is "bone".
         out_dir (str, optional): Directory to store intermediate output files from the GFEM
@@ -4038,10 +3981,10 @@ def run_svr(
 
     Notes:
         - This function retrieves GFEM results from the specified program and sample.
-        - It preprocesses the feature array (P and T) and the target array for SVR analysis.
-        - SVR is run with different kernel functions and data scaling methods for each
+        - It preprocesses the feature array (P and T) and the target array for ML model
+          analysis.
           specified parameter.
-        - The results of SVR, including plots and performance information, are saved to
+        - The results of ML model, including plots and performance information, are saved to
           appropriate files.
     """
     if MAGEMin:
@@ -4162,57 +4105,174 @@ def run_svr(
             vmin = vmin / 1000
             vmax = vmax / 1000
 
-        # Run SVR on MAGEMin dataset
-        for kernel in kernels:
-            for scaler in scalers:
-                if MAGEMin:
-                    # Run SVR MAGEMin
-                    model_mgm, info_mgm = svr_regression(
-                        features_array_mgm,
-                        target_array_mgm,
-                        parameter,
-                        units,
-                        "MAGEMin",
-                        seed,
-                        kfolds,
-                        parallel,
-                        nprocs,
-                        kernel,
-                        scaler,
-                        vmin,
-                        vmax,
-                        filename=f"MAGEMin-{sample_id}-{parameter}-{kernel}-{scaler}",
-                        fig_dir=fig_dir
-                    )
+        # Change model string for filename
+        model_label = model.replace(" ", "-")
 
-                    # Write SVR config and performance info to csv
-                    append_to_csv("assets/data/svr-info.csv", info_mgm)
+        # Train models, predict, analyze
+        if MAGEMin:
+            model_mgm, info_mgm = ml_regression(
+                features_array_mgm, target_array_mgm, parameter, units,
+                "MAGEMin", model, seed, kfolds, parallel, nprocs, vmin, vmax,
+                filename=f"MAGEMin-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
+            )
 
-                    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            # Write ML model config and performance info to csv
+            append_to_csv("assets/data/regression-info.csv", info_mgm)
 
-                if Perple_X:
-                    # Run SVR Perple_X
-                    model_ppx, info_ppx = svr_regression(
-                        features_array_ppx,
-                        target_array_ppx,
-                        parameter,
-                        units,
-                        "Perple_X",
-                        seed,
-                        kfolds,
-                        parallel,
-                        nprocs,
-                        kernel,
-                        scaler,
-                        vmin,
-                        vmax,
-                        filename=f"Perple_X-{sample_id}-{parameter}-{kernel}-{scaler}",
-                        fig_dir=fig_dir
-                    )
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        if Perple_X:
+            model_ppx, info_ppx = ml_regression(
+                features_array_ppx, target_array_ppx, parameter, units,
+                "Perple_X", model, seed, kfolds, parallel, nprocs, vmin, vmax,
+                filename=f"Perple_X-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
+            )
 
-                    # Write SVR config and performance info to csv
-                    append_to_csv("assets/data/svr-info.csv", info_ppx)
+            # Write ML model config and performance info to csv
+            append_to_csv("assets/data/regression-info.csv", info_ppx)
 
-                    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         print("=============================================")
+
+# Visualize regression metrics
+def visualize_regression_metrics(
+        datafile,
+        palette="tab10",
+        fontsize=12,
+        figwidth=8.3,
+        figheight=3.8,
+        filename="regression-metrics.png",
+        fig_dir=f"{os.getcwd()}/figs"):
+    """
+    Visualize regression metrics using a facet barplot.
+
+    Parameters:
+        datafile (str): The path to the CSV file containing the data to be visualized.
+        palette (str, optional): The color palette to use for plotting the bars. Default is
+                                 "tab10".
+        fontsize (int, optional): The font size for the plot's text. Default is 12.
+        figwidth (float, optional): The width of the plot figure in inches. Default is 8.3.
+        figheight (float, optional): The height of the plot figure in inches. Default is 3.8.
+        filename (str, optional): The filename to save the plot as an image. Default is
+                                  "regression-metrics.png".
+        fig_dir (str, optional): The directory path to save the plot image. Default is a
+                                 "figs" directory within the current working directory.
+
+    Returns:
+        None: The function saves the plot as an image file or displays it if `filename` is
+              not provided.
+
+    Note:
+        This function reads the data from a CSV file, extracts specific regression metrics,
+        and creates a facet barplot for side-by-side comparison of the metrics across
+        different models and programs.
+
+        The CSV file should contain columns "model", "program", "training_time_mean",
+        "inference_time_mean", "rmse_valid_mean", and "units". The "units" column is used to
+        label the y-axis of the RMSE plot.
+
+        The function uses Matplotlib for plotting and sets various plot style and settings to
+        enhance the visualization.
+
+        The color palette, font size, and plot dimensions can be customized using the
+        respective parameters.
+
+        The y-axis limits for each metric can also be customized in the `y_limits` dictionary
+        within the function.
+
+        If the `filename` parameter is provided, the plot will be saved as an image file with
+        the specified name in the `fig_dir` directory. Otherwise, the plot will be displayed
+        directly on the screen.
+    """
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Read data
+    data = pd.read_csv(datafile)
+
+    # Define the metrics to plot
+    metrics = ["training_time_mean", "inference_time_mean", "rmse_valid_mean"]
+    metric_names = ["Training Time", "Inference Time", "RMSE"]
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = False
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = True
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Define the colors for the programs
+    colormap = plt.cm.get_cmap(palette)
+    colors = {"MAGEMin": colormap(0), "Perple_X": colormap(1)}
+
+    # Create the facet barplot
+    plt.figure(figsize=(figwidth, figheight))
+
+    # Define the offset for side-by-side bars
+    bar_width = 0.45
+
+    # List of letters for captions
+    captions = ["a)", "b)", "c)"]
+
+    # Define y-axis limits for each metric (you can customize these limits as needed)
+    y_limits = {
+        "training_time_mean": (0, 3),
+        "inference_time_mean": (0, 0.2),
+        "rmse_valid_mean": (0, 0.042)
+    }
+
+    # Loop through each metric and create a subplot
+    for i, metric in enumerate(metrics):
+        plt.subplot(1, 3, i+1)
+
+        # Pivot the data to ensure consistent data alignment
+        pivot_data = data.pivot(index="model", columns="program", values=metric)
+
+        # Sorted bars
+        order = data.groupby("model")[metric].mean().sort_values().index
+
+        # Calculate the x positions for the bars
+        x_positions = np.arange(len(pivot_data))
+
+        # Plot the bars for each program
+        for idx, program in enumerate(colors.keys()):
+            plt.bar(
+                x_positions + idx * bar_width,
+                pivot_data.loc[order][program],
+                color=colors[program],
+                label=program if i == 0 else "",
+                width=bar_width
+            )
+
+        plt.ylim(y_limits[metric])
+        plt.gca().set_xticks(x_positions + bar_width / 2)
+        plt.gca().set_xticklabels(order, rotation=90, ha="center")
+
+        plt.text(
+            -0.2, 1.08, captions[i], transform=plt.gca().transAxes, fontsize=fontsize*1.2
+        )
+
+        if i in [0, 1]:
+            plt.title(f"{metric_names[i]} (s)")
+        else:
+            plt.title(f"{metric_names[i]} ({data['units'][0]})")
+
+        if i == 0:
+            plt.legend()
+
+        if i == 0:
+            plt.gca().set_xlim()
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}")
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()

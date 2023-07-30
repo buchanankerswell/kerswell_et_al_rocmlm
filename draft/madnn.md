@@ -54,18 +54,16 @@ In practice, minimization algorithms implemented in MAGEMin and Perple_X converg
 
 ![PT diagrams in (a, b) show density (in g/cm$^3$) calculated by GFEM programs MAGEMin and Perple_X. The PT diagram in (c) shows the percent difference between MAGEMin and Perple_X density models. Density vs. pressure diagram in (d) shows density changes along a warm mantle geotherm. White lines are the bounding geotherms for subsetting MADNN training data from @fig:madnn-training-pt-range. GFEM programs assume a PUM bulk composition from @tbl:benchmark-comps. The PREM model is from @dziewonski1981.](assets/figs/image-PUM-128x128-DensityOfFullAssemblage.png){#fig:benchmark-PUM-density}
 
-## MADSVR
+## Comparing MADML Density Models
 
 ![Correlation diagrams in (a, b) show error rates between GFEM (targets) and SVR (predictions) models. Density vs. pressure diagrams in (b, c) show density changes along a warm mantle geotherm. GFEM programs assume a PUM bulk composition from @tbl:benchmark-comps. The PREM model is from @dziewonski1981.](assets/figs/prem-PUM-128x128-DensityOfFullAssemblage-rbf-standard.png)
 
 {{ svr-info.md }}
 : Support vector regression performance metrics for 30-fold cross-validation. {#tbl:svr-info}
 
-## MADNN
-
 # Discussion
 
-## Validating MADSVR and MADNN Predictions
+## Validating MADML Density Models
 
 # References
 
@@ -82,6 +80,6 @@ Benchmarking GFEM programs was a necessary first step for estimating the time re
 {{ benchmark-times.md }}
 : MAD computation times (in seconds) for various bulk mantle compositions. {#tbl:benchmark-times-table}
 
-## MADSVR
+## Comparing MADML Density Models
 
 ![PT-density diagrams in (a, b) show density surfaces (in g/cm$^3$) calulated by GFEM programs MAGEMin and Perplex. Density surfaces in (c, d) are SVR models trained on the GFEM models in (a, b). The surfaces in (e, f) show the percent difference between GFEM and SVR models. GFEM programs assume a PUM bulk composition from @tbl:benchmark-comps.](assets/figs/surf-PUM-128x128-DensityOfFullAssemblage-rbf-standard.png)

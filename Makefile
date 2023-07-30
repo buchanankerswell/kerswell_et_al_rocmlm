@@ -21,13 +21,13 @@ BENCHMARK = $(WORKDIR)/assets/benchmark
 DATADIR = $(WORKDIR)/assets/data
 DATAURL = https://files.osf.io/v1/resources/k23tb/providers/osfstorage/649149796513ba03733a3536/?zip=
 CONFIG = $(WORKDIR)/assets/config
-PYTHON = $(WORKDIR)/python/build-database.py \
+PYTHON = $(WORKDIR)/python/benchmark.py \
+				 $(WORKDIR)/python/build-database.py \
 				 $(WORKDIR)/python/clone-magemin.py \
 				 $(WORKDIR)/python/download-assets.py \
 				 $(WORKDIR)/python/magemin.py \
-				 $(WORKDIR)/python/benchmark.py \
+				 $(WORKDIR)/python/regression.py \
 				 $(WORKDIR)/python/session-info.py \
-				 $(WORKDIR)/python/svr.py \
 				 $(WORKDIR)/python/submit-jobs.py \
 				 $(WORKDIR)/python/visualize-database.py \
 				 $(WORKDIR)/python/visualize-other.py \
@@ -52,11 +52,13 @@ N ?= 1
 K ?= 0
 PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
-KFOLDS ?= 30
+KFOLDS ?= 6
 OUTDIR ?= runs
+# Machine Learning Regression Options
+MLMODS = ["Support Vector", "K Nearest", "Random Forest", "Gradient Boost", "Neural Network 1L", "Neural Network 2L", "Neural Network 3L", "Decision Tree"]
 # Database visualization options
 FIGDIR ?= $(WORKDIR)/figs
-PARAMS ?= ["StableSolutions", "StableVariance", "DensityOfFullAssemblage", "LiquidFraction", "Vp", "Vs"]
+PARAMS ?= ["StableSolutions", "StableVariance"]
 PARAMSML ?= ["DensityOfFullAssemblage"]
 COLORMAP ?= bone
 # Make clean
@@ -64,7 +66,7 @@ DATAPURGE = python/__pycache__ \
 						.job \
 						output \
 						$(DATADIR)/*assemblages.csv \
-						$(DATADIR)/svr-info.csv
+						$(DATADIR)/regression-info.csv
 DATACLEAN = assets \
 						log \
 						MAGEMin \
@@ -77,7 +79,7 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAG
 	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
 	@$(MAKE) benchmark SAMPLEID=PUM TRES=128 PRES=128
-	@$(MAKE) svr SAMPLEID=PUM-128x128 FIGDIR=figs/svr/PUM-128x128
+	@$(MAKE) regression SAMPLEID=PUM-128x128 FIGDIR=figs/regression/PUM-128x128
 	@$(MAKE) visualize  SAMPLEID=PUM-128x128 FIGDIR=figs/PUM-128x128
 
 init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
@@ -86,7 +88,7 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 	@echo "=============================================" $(LOG)
 	@echo "Run the following in order:" $(LOG)
 	@echo "    make benchmark SAMPLEID=PUM TRES=128 PRES=128" $(LOG)
-	@echo "    make svr SAMPLEID=PUM-128x128 FIGDIR=figs/svr/PUM-128x128" $(LOG)
+	@echo "    make regression SAMPLEID=PUM-128x128 FIGDIR=figs/regression/PUM-128x128" $(LOG)
 	@echo "    make visualize  SAMPLEID=PUM-128x128 FIGDIR=figs/PUM-128x128" $(LOG)
 	@echo "To clean up the directory:" $(LOG)
 	@echo "    make purge" $(LOG)
@@ -102,12 +104,10 @@ visualize: $(LOGFILE) $(PYTHON)
 	@echo "=============================================" $(LOG)
 
 visualize_other: $(LOGFILE) $(PYTHON)
-	@echo "Visualizing ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-other.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 visualize_database: $(LOGFILE) $(PYTHON)
-	@echo "Visualizing ..." $(LOG)
 	@$(CONDAPYTHON) python/visualize-database.py \
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMS)' \
@@ -118,11 +118,11 @@ visualize_database: $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-svr:  $(LOGFILE) $(PYTHON)
-	@echo "Training support vector regression ..." $(LOG)
-	@$(CONDAPYTHON) python/svr.py \
+regression:  $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) python/regression.py \
 		--sampleid '$(SAMPLEID)' \
 		--params '$(PARAMSML)' \
+		--models '$(MLMODS)' \
 		--seed $(SEED) \
 		--kfolds $(KFOLDS) \
 		--parallel $(PARALLEL) \
@@ -289,7 +289,6 @@ benchmark: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 
 build_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(MAGEMIN)
-	@echo "Building MAGEMin database ..." $(LOG)
 	@$(CONDAPYTHON) python/build-database.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
@@ -399,4 +398,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env write_tables submit_jobs build_database benchmark benchmark_all svr visualize_database visualize_other visualize init all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env write_tables submit_jobs build_database benchmark benchmark_all regression visualize_database visualize_other visualize init all purge clean
