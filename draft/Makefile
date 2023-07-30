@@ -29,17 +29,23 @@ CSL = $(BIBDIR)/agu.csl
 PANDIR = $(ASSETSDIR)/pandoc
 AGUMETA = $(PANDIR)/agu.yaml
 EIMETA = $(PANDIR)/eisvogel.yaml
+TABLES = \
+	$(PANDIR)/benchmark-comps.md \
+	$(PANDIR)/benchmark-times.md \
+	$(PANDIR)/svr-info.md \
 # Purging and cleaning
 DATAPURGE = \
 	$(LOGDIR) \
 	$(PANDIR)/benchmark-comps.md \
 	$(PANDIR)/benchmark-times.md \
+	$(PANDIR)/svr-info.md \
+	tmp.md \
 	eisvogel-draft-madnn.pdf
 DATACLEAN = $(DATADIR)
 FIGSPURGE =
 FIGSCLEAN = $(FIGDIRDRAFT)
 
-agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md copy_assets
+agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md copy_assets $(TABLES)
 	@pandoc $(MS).md \
 		-o agu-draft-$(MS).pdf \
 		--verbose \
@@ -55,8 +61,27 @@ agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md copy_assets
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
-eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md copy_assets
-	@pandoc $(MS).md \
+eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md copy_assets $(TABLES)
+	@awk -v pandir="$(PANDIR)" '{ \
+		while (match($$0, /{{ ([^}]+) }}/)) { \
+			file = substr($$0, RSTART + 3, RLENGTH - 6); \
+			replacement = ""; \
+			if (file in filenames) { \
+				replacement = filenames[file]; \
+			} else { \
+				cmd = "cat \047" pandir "/" file "\047"; \
+				while ((cmd | getline line) > 0) { \
+					replacement = replacement line "\\n"; \
+				} \
+				close(cmd); \
+				filenames[file] = replacement; \
+			} \
+			gsub(/\\n/, "\n", replacement); \
+			sub(/{{ [^}]+ }}/, replacement); \
+		} \
+		print; \
+	}' $(MS).md > tmp.md
+	@pandoc tmp.md \
 		-o eisvogel-draft-$(MS).pdf \
 		--verbose \
 		--from markdown \

@@ -11,6 +11,7 @@ import shutil
 import zipfile
 import fnmatch
 import argparse
+import warnings
 import platform
 import itertools
 import subprocess
@@ -993,7 +994,6 @@ def download_and_unzip(url, destination):
     urllib.request.urlretrieve(url, "assets.zip")
 
     # Extract the contents of the zip file
-    print(f"Extracting assets ...")
     with zipfile.ZipFile("assets.zip", "r") as zip_ref:
         zip_ref.extractall(destination)
 
@@ -2025,7 +2025,7 @@ def visualize_MAD(
             cbar = plt.colorbar(
                 im,
                 ax=ax,
-                ticks=[vmin, 0, vmax],
+                ticks=[vmin, vmin/2, 0, vmax/2, vmax],
                 label=""
             )
         else:
@@ -2037,6 +2037,8 @@ def visualize_MAD(
             )
         if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        if palette == "seismic":
+            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
 
     # Add title
     if title:
@@ -2540,9 +2542,9 @@ def visualize_training_PT_range(
         vertices[:, 0],
         vertices[:, 1],
         facecolor="blue",
-        edgecolor="grey",
+        edgecolor="black",
         hatch="\\",
-        alpha=0.1
+        alpha=0.2
     )
 
     # Geotherm legend handles
@@ -2569,9 +2571,9 @@ def visualize_training_PT_range(
 
     training_data_handle = mpatches.Patch(
         facecolor="blue",
-        edgecolor="grey",
+        edgecolor="black",
         hatch="\\",
-        alpha=0.1,
+        alpha=0.2,
         label="Training Set"
     )
 
@@ -2640,6 +2642,7 @@ def visualize_PREM(
         geotherm_threshold=0.1,
         P_unit="GPa",
         depth=True,
+        metrics=None,
         palette="tab10",
         title=None,
         figwidth=6.3,
@@ -2781,15 +2784,6 @@ def visualize_PREM(
 
     # Plot PREM data on the primary y-axis
     ax1.plot(param_prem, P_prem, "-", linewidth=3, color="black", label="PREM")
-    if results_ml:
-        ax1.plot(
-            param_grad_ml,
-            P_grad_ml,
-            "-",
-            linewidth=3,
-            color=colormap(1),
-            label=f"{ml_type}"
-        )
     if results_mgm:
         ax1.plot(
             param_grad_mgm,
@@ -2808,6 +2802,15 @@ def visualize_PREM(
             color=colormap(2),
             label="PPX"
         )
+    if results_ml:
+        ax1.plot(
+            param_grad_ml,
+            P_grad_ml,
+            "-",
+            linewidth=3,
+            color=colormap(1),
+            label=f"{ml_type}"
+        )
 
     if parameter == "DensityOfFullAssemblage":
         parameter_label = "Density"
@@ -2821,6 +2824,53 @@ def visualize_PREM(
     if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
         ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+
+    if metrics is not None:
+        # Vertical text spacing
+        text_margin_x = 0.04
+        text_margin_y = 0.35
+        text_spacing_y = 0.1
+
+        # Get metrics
+        scaler_label, kernel, rmse_test_mean, r2_test_mean = metrics
+
+        # Add R-squared and RMSE values as text annotations in the plot
+        plt.text(
+            1 - text_margin_x,
+            text_margin_y - (text_spacing_y * 0),
+            f"r$^2$: {r2_test_mean:.2f}",
+            transform=plt.gca().transAxes,
+            fontsize=fontsize * 0.833,
+            horizontalalignment="right",
+            verticalalignment="bottom"
+        )
+        plt.text(
+            1 - text_margin_x,
+            text_margin_y - (text_spacing_y * 1),
+            f"rmse: {rmse_test_mean:.2f}",
+            transform=plt.gca().transAxes,
+            fontsize=fontsize * 0.833,
+            horizontalalignment="right",
+            verticalalignment="bottom"
+        )
+        plt.text(
+            1 - text_margin_x,
+            text_margin_y - (text_spacing_y * 2),
+            f"kernel: {kernel}",
+            transform=plt.gca().transAxes,
+            fontsize=fontsize * 0.833,
+            horizontalalignment="right",
+            verticalalignment="bottom"
+        )
+        plt.text(
+            1 - text_margin_x,
+            text_margin_y - (text_spacing_y * 3),
+            f"scaler: {scaler_label}",
+            transform=plt.gca().transAxes,
+            fontsize=fontsize * 0.833,
+            horizontalalignment="right",
+            verticalalignment="bottom"
+        )
 
     if depth:
         # Convert the primary y-axis data (pressure) to depth
@@ -3030,7 +3080,8 @@ def visualize_GFEM_diff(
 
         # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
         if parameter == "LiquidFraction":
-            grid_ppx = np.where(np.isnan(grid_ppx), 0, grid_ppx)
+            grid_mgm = np.where(grid_mgm <= 0.05, np.nan, grid_mgm)
+            grid_ppx = np.where(grid_ppx <= 0.05, np.nan, grid_ppx)
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
@@ -3071,10 +3122,14 @@ def visualize_GFEM_diff(
             vmax = max(num_colors_mgm, num_colors_ppx) + 1
 
         if not color_discrete:
+            # Compute diff
+
+            # Define a filter to ignore the specific warning
+            warnings.filterwarnings("ignore", message="invalid value encountered in divide")
+
             # Compute normalized diff
             mask = ~np.isnan(grid_mgm) & ~np.isnan(grid_ppx)
-            max_diff = np.max(np.abs(grid_mgm[mask] - grid_ppx[mask]))
-            diff_norm = (grid_mgm - grid_ppx) / max_diff
+            diff_norm = (grid_mgm - grid_ppx) / ((grid_mgm + grid_ppx) / 2) * 100
             diff_norm[~mask] = np.nan
 
             # Plot PT grid normalized diff mgm-ppx
@@ -3083,13 +3138,13 @@ def visualize_GFEM_diff(
                 T_ppx,
                 diff_norm,
                 parameter,
-                title="Normalized Difference",
+                title="Percent Difference",
                 palette="seismic",
                 color_discrete=color_discrete,
                 color_reverse=False,
                 vmin=vmin,
                 vmax=vmax,
-                filename=f"diff-norm-{sample_id}-{parameter}.png",
+                filename=f"diff-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
 
@@ -3124,7 +3179,7 @@ def visualize_GFEM_diff(
                 color_reverse=color_reverse,
                 vmin=vmin,
                 vmax=vmax,
-                filename=f"max-grad-{sample_id}-{parameter}.png",
+                filename=f"grad-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
 
@@ -3251,13 +3306,9 @@ def process_fold_svr(fold_data):
     # Transpose predictions
     valid_pred_array_original = np.transpose(valid_pred_array_original)
 
-    # Compute normalized diff
-    mask = np.isnan(target_array)
-    max_diff = np.max(np.abs(target_array[~mask] - valid_pred_array_original[~mask]))
-    diff_norm = (target_array - valid_pred_array_original) / max_diff
-    diff_norm[mask] = np.nan
-
     # Evaluate the model
+    mask = np.isnan(target_array)
+
     rmse_test = math.sqrt(mean_squared_error(y_test_original, y_pred_original))
     rmse_valid = math.sqrt(mean_squared_error(
         target_array[~mask],
@@ -3471,28 +3522,28 @@ def svr_regression(
     svr_info = {
         "program": [program],
         "parameter": [parameter_label],
-        "units": [units_label],
+        "units": [units],
         "method": ["svr"],
         "kernel": [kernel],
         "scaler": [scaler_label],
         "k_folds": kfolds,
-        "rmse_test_mean": [round(rmse_test_mean, 3)],
-        "rmse_test_sd": [round(rmse_test_sd, 4)],
-        "rmse_valid_mean": [round(rmse_valid_mean, 3)],
-        "rmse_valid_sd": [round(rmse_valid_sd, 4)],
-        "r2_test_mean": [round(r2_test_mean, 3)],
-        "r2_test_sd": [round(r2_test_sd, 4)],
-        "r2_valid_mean": [round(r2_valid_mean, 3)],
-        "r2_valid_sd": [round(r2_valid_sd, 4)],
+        "rmse_test_mean": [round(rmse_test_mean, 2)],
+        "rmse_test_sd": [round(rmse_test_sd, 3)],
+        "rmse_valid_mean": [round(rmse_valid_mean, 2)],
+        "rmse_valid_sd": [round(rmse_valid_sd, 3)],
+        "r2_test_mean": [round(r2_test_mean, 2)],
+        "r2_test_sd": [round(r2_test_sd, 3)],
+        "r2_valid_mean": [round(r2_valid_mean, 2)],
+        "r2_valid_sd": [round(r2_valid_sd, 3)],
     }
 
     # Print performance
     print(f"SVR Model Performance (test set):")
-    print(f"   rmse: {rmse_test_mean:.3f} ± {rmse_test_sd:.4f}")
-    print(f"     r2: {r2_test_mean:.3f} ± {r2_test_sd:.4f}")
+    print(f"   rmse: {rmse_test_mean:.2f} ± {rmse_test_sd:.3f}")
+    print(f"     r2: {r2_test_mean:.2f} ± {r2_test_sd:.3f}")
     print(f"SVR Model Performance (validation set):")
-    print(f"   rmse: {rmse_valid_mean:.3f} ± {rmse_valid_sd:.4f}")
-    print(f"     r2: {r2_valid_mean:.3f} ± {r2_valid_sd:.4f}")
+    print(f"   rmse: {rmse_valid_mean:.2f} ± {rmse_valid_sd:.3f}")
+    print(f"     r2: {r2_valid_mean:.2f} ± {r2_valid_sd:.3f}")
 
     # Normal 80 / 20 train / test split for plotting
     X_train, X_test, y_train, y_test = train_test_split(
@@ -3530,8 +3581,10 @@ def svr_regression(
 
     # Compute normalized diff
     mask = np.isnan(target_array)
-    max_diff = np.max(np.abs(target_array[~mask] - valid_pred_array_original[~mask]))
-    diff_norm = (target_array - valid_pred_array_original) / max_diff
+    diff_norm = (
+        (target_array - valid_pred_array_original) /
+        ((target_array + valid_pred_array_original) / 2) * 100
+    )
     diff_norm[mask] = np.nan
 
     # Plot training data distribution and SVR predictions
@@ -3685,18 +3738,18 @@ def svr_regression(
     ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
     plt.tick_params(axis="x", which="major")
     plt.tick_params(axis="y", which="major")
-    plt.title(f"Normalized Difference", y=0.95)
+    plt.title(f"Percent Difference", y=0.95)
     ax.view_init(20, -145)
     ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
     ax.set_facecolor("white")
     cbar = fig.colorbar(
         surf,
         ax=ax,
-        ticks=[vmin_diff, 0, vmax_diff],
+        ticks=[vmin_diff, vmin_diff/2, 0, vmax_diff/2, vmax_diff],
         label="",
         shrink=0.6
     )
-    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
     cbar.ax.set_ylim(vmin_diff, vmax_diff)
     plt.savefig(f"{fig_dir}/{filename}-diff-surf.png")
     plt.close()
@@ -3901,6 +3954,8 @@ def svr_regression(
         results_svr[parameter] = [x * 1000 for x in results_svr[parameter]]
 
     # Plot PREM comparisons
+    metrics = [scaler_label, kernel, rmse_test_mean, r2_test_mean]
+
     if parameter == "DensityOfFullAssemblage":
         visualize_PREM(
             "assets/data/prem.csv",
@@ -3911,8 +3966,9 @@ def svr_regression(
             results_ml=results_svr,
             ml_type="SVR",
             geotherm_threshold=0.1,
-            depth=False,
-            title="PREM Comparison",
+            depth=True,
+            metrics=metrics,
+            title=f"{program}",
             figwidth=figwidth,
             filename=f"{filename}-prem.png",
             fig_dir=fig_dir
@@ -3928,8 +3984,9 @@ def svr_regression(
             results_ml=results_svr,
             ml_type="SVR",
             geotherm_threshold=0.1,
-            depth=False,
-            title="PREM Comparison",
+            depth=True,
+            metrics=metrics,
+            title=f"{program}",
             figwidth=figwidth,
             filename=f"{filename}-prem.png",
             fig_dir=fig_dir
@@ -4043,7 +4100,6 @@ def run_svr(
     for parameter in parameters:
         # Units
         if parameter == "DensityOfFullAssemblage":
-            print("    Transforming units from Kg/m^3 to g/cm^3")
             units = "g/cm$^3$"
         if parameter == "LiquidFraction":
             units = None
@@ -4061,7 +4117,6 @@ def run_svr(
         # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
         if parameter == "LiquidFraction":
             if program == "MAGEMin":
-                print(f" Setting zero liquid fraction to NaN for better comparisons")
                 if MAGEMin:
                     target_array_mgm = np.where(
                         target_array_mgm <= 0.05,
@@ -4126,7 +4181,7 @@ def run_svr(
                         scaler,
                         vmin,
                         vmax,
-                        filename=f"MAGEMin-{parameter}-{kernel}-{scaler}",
+                        filename=f"MAGEMin-{sample_id}-{parameter}-{kernel}-{scaler}",
                         fig_dir=fig_dir
                     )
 
@@ -4151,7 +4206,7 @@ def run_svr(
                         scaler,
                         vmin,
                         vmax,
-                        filename=f"Perple_X-{parameter}-{kernel}-{scaler}",
+                        filename=f"Perple_X-{sample_id}-{parameter}-{kernel}-{scaler}",
                         fig_dir=fig_dir
                     )
 

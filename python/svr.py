@@ -20,7 +20,9 @@ mgm_results = len(os.listdir(outdir + "/" + sampleid)) != 0
 ppx_results = os.path.exists(f"assets/benchmark/{sampleid}/{sampleid}_grid.tab")
 
 # SVR kernels and scalers
-kernels = ["linear", "rbf"]
+#kernels = ["rbf", "linear"]
+#scalers = ["standard", "minmax"]
+kernels = ["rbf", "linear"]
 scalers = ["standard", "minmax"]
 
 if (mgm_results and ppx_results):
@@ -33,90 +35,71 @@ if (mgm_results and ppx_results):
     # Create compositions
     print(f"Plotting SVR composition for: {sampleid}:")
 
-    for parameter in params:
-        for kernel in kernels:
-            for scaler in scalers:
-                if parameter in ["DensityOfFullAssemblage", "Vp", "Vs"]:
+    for p in params:
+        for k in kernels:
+            for s in scalers:
+                if p in ["DensityOfFullAssemblage", "Vp", "Vs"]:
                     # First row
                     combine_plots_horizontally(
-                        f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}.png",
-                        f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}.png",
-                        f"{figdir}/temp1.png",
+                        f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-prem.png",
+                        f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-prem.png",
+                        f"{figdir}/prem-{sampleid}-{p}-{k}-{s}.png",
                         caption1="a)",
-                        caption2="c)"
+                        caption2="b)"
                     )
 
-                    os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}.png")
-                    os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}.png")
-
-                    # Second row
-                    combine_plots_horizontally(
-                        f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-prem.png",
-                        f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-prem.png",
-                        f"{figdir}/temp2.png",
-                        caption1="b)",
-                        caption2="d)"
-                    )
-
-                    os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-prem.png")
-                    os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-prem.png")
-
-                    # Stack rows
-                    combine_plots_vertically(
-                        f"{figdir}/temp1.png",
-                        f"{figdir}/temp2.png",
-                        f"{figdir}/performance-{parameter}-{kernel}-{scaler}.png",
-                        caption1="",
-                        caption2=""
-                    )
+                    os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-prem.png")
+                    os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-prem.png")
+                    os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}.png")
+                    os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}.png")
                 else:
                     # First row
                     combine_plots_horizontally(
-                        f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}.png",
-                        f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}.png",
-                        f"{figdir}/performance-{parameter}-{kernel}-{scaler}.png",
-                        caption1="a)",
-                        caption2="c)"
+                        f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}.png",
+                        f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}.png",
+                        f"{figdir}/performance-{sampleid}-{p}-{k}-{s}.png",
+                        caption1="e)",
+                        caption2="f)"
                     )
 
-                    os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}.png")
-                    os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}.png")
+                    os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}.png")
+                    os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}.png")
 
                 # First row
                 combine_plots_horizontally(
-                    f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-targets-surf.png",
-                    f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-targets-surf.png",
+                    f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-targets-surf.png",
+                    f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-targets-surf.png",
                     f"{figdir}/temp1.png",
                     caption1="a)",
-                    caption2="d)"
+                    caption2="b)"
                 )
 
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-targets-surf.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-targets-surf.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-targets-surf.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-targets-surf.png")
 
                 # Second row
                 combine_plots_horizontally(
-                    f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-svr-surf.png",
-                    f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-svr-surf.png",
+                    f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-svr-surf.png",
+                    f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-svr-surf.png",
                     f"{figdir}/temp2.png",
-                    caption1="b)",
-                    caption2="e)"
+                    caption1="c)",
+                    caption2="d)"
                 )
 
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-svr-surf.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-svr-surf.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-svr-surf.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-svr-surf.png")
 
                 # Third row
                 combine_plots_horizontally(
-                    f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-diff-surf.png",
-                    f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-diff-surf.png",
+                    f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-diff-surf.png",
+                    f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-diff-surf.png",
                     f"{figdir}/temp4.png",
-                    caption1="c)",
+                    caption1="e)",
                     caption2="f)"
                 )
 
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-diff-surf.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-diff-surf.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-diff-surf.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-diff-surf.png")
 
                 # Stack rows
                 combine_plots_vertically(
@@ -134,7 +117,7 @@ if (mgm_results and ppx_results):
                 combine_plots_vertically(
                     f"{figdir}/temp3.png",
                     f"{figdir}/temp4.png",
-                    f"{figdir}/surf-{parameter}-{kernel}-{scaler}.png",
+                    f"{figdir}/surf-{sampleid}-{p}-{k}-{s}.png",
                     caption1="",
                     caption2=""
                 )
@@ -144,39 +127,39 @@ if (mgm_results and ppx_results):
 
                 # First row
                 combine_plots_horizontally(
-                    f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-targets.png",
-                    f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-targets.png",
+                    f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-targets.png",
+                    f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-targets.png",
                     f"{figdir}/temp1.png",
                     caption1="a)",
-                    caption2="d)"
+                    caption2="b)"
                 )
 
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-targets.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-targets.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-targets.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-targets.png")
 
                 # Second row
                 combine_plots_horizontally(
-                    f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-svr.png",
-                    f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-svr.png",
+                    f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-svr.png",
+                    f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-svr.png",
                     f"{figdir}/temp2.png",
-                    caption1="b)",
-                    caption2="e)"
+                    caption1="c)",
+                    caption2="d)"
                 )
 
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-svr.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-svr.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-svr.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-svr.png")
 
                 # Third row
                 combine_plots_horizontally(
-                    f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-diff.png",
-                    f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-diff.png",
+                    f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-diff.png",
+                    f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-diff.png",
                     f"{figdir}/temp4.png",
-                    caption1="c)",
+                    caption1="e)",
                     caption2="f)"
                 )
 
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-diff.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-diff.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-diff.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-diff.png")
 
                 # Stack rows
                 combine_plots_vertically(
@@ -194,7 +177,7 @@ if (mgm_results and ppx_results):
                 combine_plots_vertically(
                     f"{figdir}/temp3.png",
                     f"{figdir}/temp4.png",
-                    f"{figdir}/image-{parameter}-{kernel}-{scaler}.png",
+                    f"{figdir}/image-{sampleid}-{p}-{k}-{s}.png",
                     caption1="",
                     caption2=""
                 )
@@ -202,10 +185,10 @@ if (mgm_results and ppx_results):
                 os.remove(f"{figdir}/temp3.png")
                 os.remove(f"{figdir}/temp4.png")
 
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-P.png")
-                os.remove(f"{figdir}/MAGEMin-{parameter}-{kernel}-{scaler}-T.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-P.png")
-                os.remove(f"{figdir}/Perple_X-{parameter}-{kernel}-{scaler}-T.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-P.png")
+                os.remove(f"{figdir}/MAGEMin-{sampleid}-{p}-{k}-{s}-T.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-P.png")
+                os.remove(f"{figdir}/Perple_X-{sampleid}-{p}-{k}-{s}-T.png")
 
 
 # Print figure filepaths

@@ -8,6 +8,7 @@ titlepage: true
 titlepage-logo: "assets/images/erc-logo.jpg"
 logo-width: "120mm"
 titlepage-rule-color: "5F5F5F"
+caption-justification: "justified"
 lang: "en"
 toc: true
 toc-own-page: true
@@ -25,6 +26,9 @@ tblPrefix:
 eqnPrefix:
   - "Equation"
   - "Equations"
+secPrefix:
+  - "Section"
+  - "Sections"
 header-includes:
   - \usepackage{caption}
   - \captionsetup[figure]{font={stretch=1}}

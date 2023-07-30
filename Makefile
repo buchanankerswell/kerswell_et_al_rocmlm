@@ -52,96 +52,45 @@ N ?= 1
 K ?= 0
 PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
-KFOLDS ?= $(NPROCS)
+KFOLDS ?= 30
 OUTDIR ?= runs
 # Database visualization options
 FIGDIR ?= $(WORKDIR)/figs
-PARAMS ?= ["Vp", "Vs", "LiquidFraction", "StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
-PARAMSML ?= ["Vp", "Vs", "DensityOfFullAssemblage"]
+PARAMS ?= ["StableSolutions", "StableVariance", "DensityOfFullAssemblage", "LiquidFraction", "Vp", "Vs"]
+PARAMSML ?= ["DensityOfFullAssemblage"]
 COLORMAP ?= bone
 # Make clean
-DATAPURGE = python/__pycache__ .job output $(DATADIR)/*assemblages.csv $(DATADIR)/svr-info.csv
-DATACLEAN = assets log MAGEMin runs
-FIGSPURGE = figs
+DATAPURGE = python/__pycache__ \
+						.job \
+						output \
+						$(DATADIR)/*assemblages.csv \
+						$(DATADIR)/svr-info.csv
+DATACLEAN = assets \
+						log \
+						MAGEMin \
+						runs
+FIGSPURGE =
 FIGSCLEAN = figs
+
+all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+	@echo "=============================================" $(LOG)
+	@$(CONDAPYTHON) python/session-info.py $(LOG)
+	@echo "=============================================" $(LOG)
+	@$(MAKE) benchmark SAMPLEID=PUM TRES=128 PRES=128
+	@$(MAKE) svr SAMPLEID=PUM-128x128 FIGDIR=figs/svr/PUM-128x128
+	@$(MAKE) visualize  SAMPLEID=PUM-128x128 FIGDIR=figs/PUM-128x128
 
 init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
-	@echo "Run any of the following:" $(LOG)
-	@echo -e \
-		"make build_database\n\
-		PMIN=     <GPa>\n\
-		PMAX=     <GPa>\n\
-		PRES=     <number of points>\n\
-		TMIN=     <K>\n\
-		TMAX=     <K>\n\
-		TRES=     <number of points>\n\
-		COMP=     <'[SiO2, Al2O3, CaO, MgO, FeO, K2O, Na2O, TiO2, Fe2O3, Cr2O3, H2O]'>\n\
-		FRAC=     <mol or wt>\n\
-		SAMPLEID= <sample name>\n\
-		NORMOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'> or <all>\n\
-		SOURCE=   <earthchem or sample>\n\
-		STRATEGY= <batch or random>\n\
-		N=        <number of samples>\n\
-		K=        <batch number>\n\
-		PARALLEL= <True or False>\n\
-		NPROCS=   <number of processors for parallel>\n\
-		SEED=     <number for random state>" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo -e \
-		"make benchmark\n\
-		PMIN=     <GPa>\n\
-		PMAX=     <GPa>\n\
-		PRES=     <number of points>\n\
-		TMIN=     <K>\n\
-		TMAX=     <K>\n\
-		TRES=     <number of points>\n\
-		SAMPLEID= <sample name>\n\
-		NORMOX=   <'[\"oxide\", \"oxide\", \"oxide\"]'> or <all>\n\
-		PARALLEL= <True or False>\n\
-		NPROCS=   <number of processors for parallel>\n\
-		OUTDIR=   <directory of MAGEMin output>" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo -e \
-		"make benchmark_all\n\
-		PRES=     <number of points>\n\
-		TRES=     <number of points>\n\
-		PARALLEL= <True or False>\n\
-		NPROCS=   <number of processors for parallel>" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo -e \
-		"make train_svr\n\
-		SAMPLEID= <sample name>\n\
-		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
-			Options:\n\
-			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
-			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
-			DensityOfMixture\n\
-		KFOLDS=   <number of folds for cross-validation>
-		COLORMAP= <viridis bone pink grey>\n\
-		OUTDIR=   <directory of MAGEMin output>\n\
-		FIGDIR=   <directory for saving plots>\n\
-		DATADIR=   <directory for reading/saving data>" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo -e \
-		"make visualize\n\
-		SAMPLEID= <sample name>\n\
-		PARAMS=   <'[\"param\", \"param\", \"param\"]'>\n\
-			Options:\n\
-			Point, Status, Gibbs, BrNorm, Vp, Vs, Entropy, StableSolutions\n\
-			LiquidFraction, DensityOfFullAssemblage, DensityOfLiquid, DensityOfSolid\n\
-			DensityOfMixture\n\
-		COLORMAP= <viridis bone pink grey>\n\
-		OUTDIR=   <directory of MAGEMin output>\n\
-		FIGDIR=   <directory for saving plots>\n\
-		DATADIR=   <directory for reading/saving data>" $(LOG)
-	@echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" $(LOG)
-	@echo "make visualize" $(LOG)
-	@echo "make write_tables" $(LOG)
-	@echo "make submit_jobs" $(LOG)
-	@echo "make remove_conda_env" $(LOG)
+	@echo "Run the following in order:" $(LOG)
+	@echo "    make benchmark SAMPLEID=PUM TRES=128 PRES=128" $(LOG)
+	@echo "    make svr SAMPLEID=PUM-128x128 FIGDIR=figs/svr/PUM-128x128" $(LOG)
+	@echo "    make visualize  SAMPLEID=PUM-128x128 FIGDIR=figs/PUM-128x128" $(LOG)
+	@echo "To clean up the directory:" $(LOG)
+	@echo "    make purge" $(LOG)
+	@echo "    make remove_conda_env" $(LOG)
 	@echo "=============================================" $(LOG)
 
 visualize: $(LOGFILE) $(PYTHON)
@@ -169,7 +118,7 @@ visualize_database: $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-train_svr:  $(LOGFILE) $(PYTHON)
+svr:  $(LOGFILE) $(PYTHON)
 	@echo "Training support vector regression ..." $(LOG)
 	@$(CONDAPYTHON) python/svr.py \
 		--sampleid '$(SAMPLEID)' \
@@ -402,7 +351,7 @@ create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 		echo "Creating environment $(CONDAENVNAME) from:" $(LOG); \
 		echo "	$(CONDASPECSFILE)" $(LOG); \
 		conda env create --file $(CONDASPECSFILE) $(LOG); \
-		echo "Conda environment $(CONDAENVNAME) created ..." $(LOG); \
+		echo "	Conda environment $(CONDAENVNAME) created ..." $(LOG); \
 	fi
 	@echo "=============================================" $(LOG)
 
@@ -450,4 +399,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env write_tables submit_jobs build_database benchmark benchmark_all train_svr visualize_database visualize_other visualize init all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env write_tables submit_jobs build_database benchmark benchmark_all svr visualize_database visualize_other visualize init all purge clean

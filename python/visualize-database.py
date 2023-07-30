@@ -45,36 +45,50 @@ if (mgm_results and ppx_results):
                 f"{figdir}/MAGEMin-{sampleid}-{parameter}.png",
                 f"{figdir}/Perple_X-{sampleid}-{parameter}.png",
                 f"{figdir}/temp1.png",
-                caption1="a",
-                caption2="b"
+                caption1="a)",
+                caption2="b)"
             )
+
+            os.remove(f"{figdir}/MAGEMin-{sampleid}-{parameter}.png")
+            os.remove(f"{figdir}/Perple_X-{sampleid}-{parameter}.png")
 
             # Second row
             if parameter in ["DensityOfFullAssemblage", "Vp", "Vs"]:
                 combine_plots_horizontally(
-                    f"{figdir}/diff-norm-{sampleid}-{parameter}.png",
+                    f"{figdir}/diff-{sampleid}-{parameter}.png",
                     f"{figdir}/prem-{sampleid}-{parameter}.png",
                     f"{figdir}/temp2.png",
-                    caption1="c",
-                    caption2="d"
+                    caption1="c)",
+                    caption2="d)"
                 )
+
+                os.remove(f"{figdir}/diff-{sampleid}-{parameter}.png")
+                os.remove(f"{figdir}/prem-{sampleid}-{parameter}.png")
+                os.remove(f"{figdir}/grad-{sampleid}-{parameter}.png")
+
             else:
                 combine_plots_horizontally(
-                    f"{figdir}/diff-norm-{sampleid}-{parameter}.png",
-                    f"{figdir}/max-grad-{sampleid}-{parameter}.png",
+                    f"{figdir}/diff-{sampleid}-{parameter}.png",
+                    f"{figdir}/grad-{sampleid}-{parameter}.png",
                     f"{figdir}/temp2.png",
-                    caption1="c",
-                    caption2="d"
+                    caption1="c)",
+                    caption2="d)"
                 )
+
+                os.remove(f"{figdir}/diff-{sampleid}-{parameter}.png")
+                os.remove(f"{figdir}/grad-{sampleid}-{parameter}.png")
 
             # Stack rows
             combine_plots_vertically(
                 f"{figdir}/temp1.png",
                 f"{figdir}/temp2.png",
-                f"{figdir}/comp-{sampleid}-{parameter}.png",
+                f"{figdir}/image-{sampleid}-{parameter}.png",
                 caption1="",
                 caption2=""
             )
+
+            os.remove(f"{figdir}/temp1.png")
+            os.remove(f"{figdir}/temp2.png")
 
         # Create composition for discrete variables
         if parameter in ["StableSolutions", "StableVariance"]:
@@ -82,16 +96,13 @@ if (mgm_results and ppx_results):
             combine_plots_horizontally(
                 f"{figdir}/MAGEMin-{sampleid}-{parameter}.png",
                 f"{figdir}/Perple_X-{sampleid}-{parameter}.png",
-                f"{figdir}/comp-{sampleid}-{parameter}.png",
-                caption1="a",
-                caption2="b"
+                f"{figdir}/image-{sampleid}-{parameter}.png",
+                caption1="a)",
+                caption2="b)"
             )
 
-        # Cleanup dir
-        if os.path.exists(f"{figdir}/temp1.png"):
-            os.remove(f"{figdir}/temp1.png")
-        if os.path.exists(f"{figdir}/temp2.png"):
-            os.remove(f"{figdir}/temp2.png")
+            os.remove(f"{figdir}/MAGEMin-{sampleid}-{parameter}.png")
+            os.remove(f"{figdir}/Perple_X-{sampleid}-{parameter}.png")
 
 # Print figure filepaths
 print_filepaths(figdir)
