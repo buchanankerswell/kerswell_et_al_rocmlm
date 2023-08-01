@@ -3,6 +3,7 @@ from magemin import (
     print_filepaths,
     visualize_earthchem_data,
     visualize_training_PT_range,
+    visualize_regression_metrics,
     visualize_benchmark_comp_times
 )
 

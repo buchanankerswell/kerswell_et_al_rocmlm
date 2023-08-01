@@ -32,13 +32,13 @@ EIMETA = $(PANDIR)/eisvogel.yaml
 TABLES = \
 	$(PANDIR)/benchmark-comps.md \
 	$(PANDIR)/benchmark-times.md \
-	$(PANDIR)/svr-info.md \
+	$(PANDIR)/regression-info.md \
 # Purging and cleaning
 DATAPURGE = \
 	$(LOGDIR) \
 	$(PANDIR)/benchmark-comps.md \
 	$(PANDIR)/benchmark-times.md \
-	$(PANDIR)/svr-info.md \
+	$(PANDIR)/regression-info.md \
 	tmp.md \
 	eisvogel-draft-madnn.pdf
 DATACLEAN = $(DATADIR)

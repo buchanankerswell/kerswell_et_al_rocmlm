@@ -2372,7 +2372,7 @@ def visualize_training_PT_range(
         fontsize=12,
         figwidth=6.3,
         figheight=3.54,
-        filename="madnn-training-pt-range.png",
+        filename="training-pt-range.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Generate a plot to visualize the training data PT range and Clapeyron slopes.
@@ -2584,26 +2584,26 @@ def visualize_training_PT_range(
     # Add geotherms to legend handles
     ref_line_handles.extend([geotherm1_handle, geotherm2_handle])
 
-    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="MADs")
+    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Training Data")
 
-    labels_660.add("MADs")
-    label_color_mapping["MADs"] = "gray"
+    labels_660.add("Training Data")
+    label_color_mapping["Training Data"] = "gray"
 
     training_data_handle = mpatches.Patch(
         facecolor="blue",
         edgecolor="black",
         hatch="\\",
         alpha=0.2,
-        label="Training Set"
+        label="Mantle Conditions"
     )
 
-    labels_660.add("Training Set")
-    label_color_mapping["Training Set"] = "gray"
+    labels_660.add("Mantle Conditions")
+    label_color_mapping["Mantle Conditions"] = "gray"
 
     # Define the desired order of the legend items
     desired_order = [
-        "MADs",
-        "Training Set",
+        "Training Data",
+        "Mantle Conditions",
         "Akaogi89",
         "Katsura89",
         "Morishima94",
@@ -2624,7 +2624,7 @@ def visualize_training_PT_range(
 
     plt.xlabel(f"Temperature ({T_unit})")
     plt.ylabel(f"Pressure ({P_unit})")
-    plt.title("MADNN Traning Dataset")
+    plt.title("MADMLM Traning Dataset")
     plt.xlim(700, 2346)
     plt.ylim(0, 29)
 
@@ -2815,7 +2815,7 @@ def visualize_PREM(
             "-",
             linewidth=3,
             color=colormap(0),
-            label="MGM"
+            label="MAGEMin"
         )
     if results_ppx:
         ax1.plot(
@@ -2824,7 +2824,7 @@ def visualize_PREM(
             "-",
             linewidth=3,
             color=colormap(2),
-            label="PPX"
+            label="Perple_X"
         )
     if results_ml:
         ax1.plot(
@@ -2852,17 +2852,23 @@ def visualize_PREM(
     if metrics is not None:
         # Vertical text spacing
         text_margin_x = 0.04
-        text_margin_y = 0.25
+        text_margin_y = 0.35
         text_spacing_y = 0.1
 
         # Get metrics
-        model, rmse_test_mean, r2_test_mean = metrics
+        (
+            model,
+            rmse_valid_mean,
+            r2_valid_mean,
+            training_time_mean,
+            inference_time_mean
+        ) = metrics
 
         # Add R-squared and RMSE values as text annotations in the plot
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 0),
-            f"R$^2$: {r2_test_mean:.2f}",
+            f"R$^2$: {r2_valid_mean:.2f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2871,7 +2877,7 @@ def visualize_PREM(
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 1),
-            f"RMSE: {rmse_test_mean:.2f}",
+            f"RMSE: {rmse_valid_mean:.2f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2880,7 +2886,16 @@ def visualize_PREM(
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 2),
-            f"{model_label}",
+            f"Train: {training_time_mean:.3f} s",
+            transform=plt.gca().transAxes,
+            fontsize=fontsize * 0.833,
+            horizontalalignment="right",
+            verticalalignment="bottom"
+        )
+        plt.text(
+            1 - text_margin_x,
+            text_margin_y - (text_spacing_y * 3),
+            f"Predict: {inference_time_mean:.3f} s",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -3289,7 +3304,9 @@ def process_fold(fold_data):
     ) = fold_data
 
     # Print progress
-    print(f"    ==== k-fold: {fold_idx + 1}/{kfolds} ====")
+    print(f"    ======================")
+    print(f"    ==== k-fold:  {fold_idx + 1}/{kfolds} ====")
+    print(f"    ======================")
 
     # Split the data into training and testing sets
     X_train, X_test = X_scaled[train_index], X_scaled[test_index]
@@ -3473,7 +3490,7 @@ def ml_regression(
 
     # Create the ML model
     if model == "Support Vector":
-        model = SVR(kernel="rbf")
+        model = SVR()
     elif model == "Random Forest":
         model = RandomForestRegressor(random_state=seed)
     elif model == "Gradient Boost":
@@ -3826,20 +3843,20 @@ def ml_regression(
     plt.text(
         text_margin_x,
         1 - text_margin_y - (text_spacing_y * 0),
-        f"{model_label}",
+        f"{program}",
         transform=plt.gca().transAxes,
         fontsize=fontsize * 0.833
     )
     plt.text(
         text_margin_x,
-        1 - text_margin_y - (text_spacing_y * 2),
+        1 - text_margin_y - (text_spacing_y * 1),
         f"rmse: {rmse_test_mean:.2f}",
         transform=plt.gca().transAxes,
         fontsize=fontsize * 0.833
     )
     plt.text(
         text_margin_x,
-        1 - text_margin_y - (text_spacing_y * 3),
+        1 - text_margin_y - (text_spacing_y * 2),
         f"r$^2$: {r2_test_mean:.2f}",
         transform=plt.gca().transAxes,
         fontsize=fontsize * 0.833
@@ -3854,7 +3871,7 @@ def ml_regression(
     if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
         plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.title(f"{program}")
+    plt.title(f"{model_label}")
 
     # Save the plot to a file if a filename is provided
     if filename:
@@ -3903,7 +3920,7 @@ def ml_regression(
         results_model[parameter] = [x * 1000 for x in results_model[parameter]]
 
     # Plot PREM comparisons
-    metrics = [model, rmse_test_mean, r2_test_mean]
+    metrics = [model, rmse_valid_mean, r2_valid_mean, training_time_mean, inference_time_mean]
 
     if parameter == "DensityOfFullAssemblage":
         visualize_PREM(
@@ -3917,7 +3934,7 @@ def ml_regression(
             geotherm_threshold=0.1,
             depth=True,
             metrics=metrics,
-            title=f"{program}",
+            title=f"{model_label}",
             figwidth=figwidth,
             filename=f"{filename}-prem.png",
             fig_dir=fig_dir
@@ -3935,7 +3952,7 @@ def ml_regression(
             geotherm_threshold=0.1,
             depth=True,
             metrics=metrics,
-            title=f"{program}",
+            title=f"{model_label}",
             figwidth=figwidth,
             filename=f"{filename}-prem.png",
             fig_dir=fig_dir

@@ -52,13 +52,13 @@ N ?= 1
 K ?= 0
 PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
-KFOLDS ?= 6
+KFOLDS ?= 30
 OUTDIR ?= runs
 # Machine Learning Regression Options
 MLMODS = ["Support Vector", "K Nearest", "Random Forest", "Gradient Boost", "Neural Network 1L", "Neural Network 2L", "Neural Network 3L", "Decision Tree"]
 # Database visualization options
 FIGDIR ?= $(WORKDIR)/figs
-PARAMS ?= ["StableSolutions", "StableVariance"]
+PARAMS ?= ["StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
 PARAMSML ?= ["DensityOfFullAssemblage"]
 COLORMAP ?= bone
 # Make clean
@@ -101,7 +101,6 @@ visualize: $(LOGFILE) $(PYTHON)
 		$(MAKE) visualize_database SAMPLEID=$$run FIGDIR=figs/$$run; \
 	done
 	@$(MAKE) visualize_other
-	@echo "=============================================" $(LOG)
 
 visualize_other: $(LOGFILE) $(PYTHON)
 	@$(CONDAPYTHON) python/visualize-other.py $(LOG)
