@@ -1,6 +1,6 @@
 ![](draft/assets/images/repo-banner.png)
 
-***Figure:*** *P-wave velocity models for a rock with fixed composition. Models are computed with the Gibbs free energy minimizer programs MAGEMin ([Riel et al., 2022](https://doi.org/10.1029/2022GC010427)) and Perple_X ([Connolly, 2009](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2009GC002540)).*
+***Figure:*** *Density models for a rock with fixed composition. Models are computed with the Gibbs free energy minimizer programs MAGEMin ([Riel et al., 2022](https://doi.org/10.1029/2022GC010427)) and Perple_X ([Connolly, 2009](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2009GC002540)).*
 
 # Kerswell et al. (2023; in prep.)
 
@@ -8,7 +8,7 @@ This work is in progress---stay tuned for updates.
 
 ## Repository
 
-This repository provides all materials for the manuscript *MADNN: Predicting changing pysical properties of rocks in the mantle with AI* (Kerswell et al., 2023; in prep.).
+This repository provides all materials for the manuscript *Using Artificial Intellegence to Model Phase Changes in the Upper Mantle* (Kerswell et al., 2023; in prep.).
 
 This repository includes:
 
