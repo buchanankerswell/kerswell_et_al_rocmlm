@@ -1,4 +1,4 @@
-name: madnn
+name: madmlm
 channels:
   - conda-forge
   - defaults

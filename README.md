@@ -39,10 +39,10 @@ brew install miniforge
 
 ```
 # Clone this repository
-git clone https://github.com/buchanankerswell/kerswell_et_al_madnn.git
+git clone https://github.com/buchanankerswell/kerswell_et_al_madmlm.git
 
 # Change into the directory
-cd kerswell_et_al_madnn
+cd kerswell_et_al_madmlm
 
 # Use Makefile to compile
 make
@@ -56,7 +56,7 @@ This will build the required python environment and proceed to run the study. Th
 
 ## Open Research
 
-All data, code, and relevant information for reproducing this work can be found at [https://github.com/buchanankerswell/kerswell_et_al_madnn](https://github.com/buchanankerswell/kerswell_et_al_madnn), and at [https://doi.org/10.17605/OSF.IO/K23TB](https://doi.org/10.17605/OSF.IO/K23TB), the official Open Science Framework data repository ([Kerswell et al., 2023](https://doi.org/10.17605/OSF.IO/K23TB)). All code is MIT Licensed and free for use and distribution (see license details).
+All data, code, and relevant information for reproducing this work can be found at [https://github.com/buchanankerswell/kerswell_et_al_madmlm](https://github.com/buchanankerswell/kerswell_et_al_madmlm), and at [https://doi.org/10.17605/OSF.IO/K23TB](https://doi.org/10.17605/OSF.IO/K23TB), the official Open Science Framework data repository ([Kerswell et al., 2023](https://doi.org/10.17605/OSF.IO/K23TB)). All code is MIT Licensed and free for use and distribution (see license details).
 
 ## Abstract
 

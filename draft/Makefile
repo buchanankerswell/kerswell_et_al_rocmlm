@@ -11,7 +11,7 @@ LOGDIR = $(ASSETSDIR)/log
 LOGFILE := $(LOGDIR)/log-$(shell date +"%d-%m-%Y")
 LOG := 2>&1 | tee -a $(LOGFILE)
 # Manuscript
-MS = madnn
+MS = madmlm
 # Figures
 FIGDIRMAIN = $(MAINDIR)/figs
 FIGDIRDRAFT = $(ASSETSDIR)/figs
@@ -40,7 +40,8 @@ DATAPURGE = \
 	$(PANDIR)/benchmark-times.md \
 	$(PANDIR)/regression-info.md \
 	tmp.md \
-	eisvogel-draft-madnn.pdf
+	eisvogel-draft-madmlm.pdf \
+	agu-draft-madmlm.pdf
 DATACLEAN = $(DATADIR)
 FIGSPURGE =
 FIGSCLEAN = $(FIGDIRDRAFT)

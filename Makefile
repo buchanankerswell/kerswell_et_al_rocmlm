@@ -8,7 +8,7 @@ DATELONG = $(shell date +"%d-%B-%Y")
 LOGFILE := $(WORKDIR)/log/log-$(shell date +"%d-%m-%Y")
 LOG := 2>&1 | tee -a $(LOGFILE)
 # Conda env
-CONDAENVNAME = madnn
+CONDAENVNAME = madmlm
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = $(WORKDIR)/python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
@@ -32,7 +32,7 @@ PYTHON = $(WORKDIR)/python/benchmark.py \
 				 $(WORKDIR)/python/visualize-database.py \
 				 $(WORKDIR)/python/visualize-other.py \
 # Other variables
-GITHUBREPO = https://github.com/buchanankerswell/kerswell_et_al_madnn
+GITHUBREPO = https://github.com/buchanankerswell/kerswell_et_al_madmlm
 MAGEMINREPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
 # Database build and benchmarking options
 SEED = 32

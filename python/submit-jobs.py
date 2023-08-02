@@ -65,7 +65,7 @@ for k in range(batches):
         fh.write(f"echo 'SLURM_CPUS_PER_TASK=$SLURM_CPUS_PER_TASK'\n")
         fh.write(f"echo 'SLURM_NNODES=$SLURM_NNODES'\n")
         fh.write(f"echo 'SLURM_CPUS_ON_NODE=$SLURM_CPUS_ON_NODE'\n")
-        fh.write(f"cd kerswell_et_al_madnn\n")
+        fh.write(f"cd kerswell_et_al_madmlm\n")
         fh.write(
             f"make build_database "
             f"PRANGE=\"{P_range}\" "
