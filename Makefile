@@ -89,7 +89,7 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 	@echo "Run the following in order:" $(LOG)
 	@echo "    make benchmark SAMPLEID=PUM TRES=128 PRES=128" $(LOG)
 	@echo "    make regression SAMPLEID=PUM-128x128 FIGDIR=figs/regression/PUM-128x128" $(LOG)
-	@echo "    make visualize  SAMPLEID=PUM-128x128 FIGDIR=figs/PUM-128x128" $(LOG)
+	@echo "    make visualize SAMPLEID=PUM-128x128 FIGDIR=figs/PUM-128x128" $(LOG)
 	@echo "To clean up the directory:" $(LOG)
 	@echo "    make purge" $(LOG)
 	@echo "    make remove_conda_env" $(LOG)

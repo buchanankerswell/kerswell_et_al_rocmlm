@@ -70,7 +70,7 @@ def extract_info_geotherm(
         results,
         parameter,
         thermal_gradient=0.5,
-        mantle_potential_T=1773,
+        mantle_potential_T=1573,
         threshold=0.1):
     """
     Extracts relevant data points along a geotherm based on specified parameters.
@@ -242,7 +242,7 @@ def crop_geotherms(P_array, T_array):
 
     return cropped_P, cropped_T
 
-# Layout benchmark plots horizontally
+# Layout plots horizontally
 def combine_plots_horizontally(
         image1_path,
         image2_path,
@@ -253,7 +253,7 @@ def combine_plots_horizontally(
         caption_margin=25,
         dpi=330):
     """
-    Combine benchmark plots horizontally and add captions in the upper left corner.
+    Combine plots horizontally and add captions in the upper left corner.
 
     Args:
         image1_path (str): Path to the first image.
@@ -308,7 +308,7 @@ def combine_plots_horizontally(
     # Save the combined image with captions
     combined_image.save(output_path, dpi=(dpi, dpi))
 
-# Layout benchmark plots vertically
+# Layout plots vertically
 def combine_plots_vertically(
         image1_path,
         image2_path,
@@ -1817,7 +1817,7 @@ def process_perplex_assemblage(file_path):
     return phase_dict
 
 # Transform results into 2D numpy array across PT space
-def create_PT_grid(P, T, parameter_values):
+def create_PT_grid(P, T, parameter_values, mask=False):
     """
     Create a 2D NumPy array representing a grid of parameter values across PT space.
 
@@ -1840,6 +1840,31 @@ def create_PT_grid(P, T, parameter_values):
     unique_P = np.unique(P)
     unique_T = np.unique(T)
 
+    if mask:
+        # Define T range
+        T_min, T_max = min(unique_T), max(unique_T)
+
+        # Define P range
+        P_min, P_max = min(unique_P), max(unique_P)
+
+        # Mantle potential temps
+        T_mantle1 = 0 + 273
+        T_mantle2 = 1500 + 273
+
+        # Thermal gradients
+        grad_mantle1 = 1
+        grad_mantle2 = 0.5
+
+        # Calculate mantle geotherms
+        geotherm1 = (unique_T - T_mantle1) / (grad_mantle1 * 35)
+        geotherm2 = (unique_T - T_mantle2) / (grad_mantle2 * 35)
+
+        # Find boundaries
+        T1_Pmax = (P_max * grad_mantle1 * 35) + T_mantle1
+        P1_Tmin = (T_min - T_mantle1) / (grad_mantle1 * 35)
+        T2_Pmin = (P_min * grad_mantle2 * 35) + T_mantle2
+        T2_Pmax = (P_max * grad_mantle2 * 35) + T_mantle2
+
     # Determine the grid dimensions
     rows = len(unique_P)
     cols = len(unique_T)
@@ -1850,9 +1875,18 @@ def create_PT_grid(P, T, parameter_values):
     # Reshape the parameter_values to match the grid dimensions
     for i, p in enumerate(unique_P):
         for j, t in enumerate(unique_T):
-            index = np.where((P == p) & (T == t))[0]
-            if len(index) > 0:
+            if (
+                   ((t <= T1_Pmax) and (p >= geotherm1[j])) or
+                   ((t >= T2_Pmin) and (p <= geotherm2[j]))
+            ):
+                index = None
+            else:
+                index = np.where((P == p) & (T == t))[0]
+
+            if index is not None:
                 grid[i, j] = parameter_values[index[0]]
+            else:
+                grid[i, j] = np.nan
 
     return grid
 
@@ -2055,7 +2089,7 @@ def visualize_MAD(
                 ticks=np.linspace(vmin, vmax, num=4),
                 label=""
             )
-        if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+        if parameter in ["Vp", "Vs", "DensityOfFullAssemblage"]:
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
         if palette == "seismic":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
@@ -2228,7 +2262,7 @@ def visualize_benchmark_comp_times(
         palette="tab10",
         fontsize=12,
         figwidth=6.3,
-        figheight=3.54,
+        figheight=4.725,
         filename="benchmark-times.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
@@ -2340,6 +2374,7 @@ def visualize_benchmark_comp_times(
     plt.ylabel("Time (s)")
     plt.title("GFEM Efficiency")
     plt.xticks([16, 32, 64, 128])
+    plt.yscale("log")
 
     # Create the legend with the desired order
     plt.legend(
@@ -2584,10 +2619,10 @@ def visualize_training_PT_range(
     # Add geotherms to legend handles
     ref_line_handles.extend([geotherm1_handle, geotherm2_handle])
 
-    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Training Data")
+    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Training Data Range")
 
-    labels_660.add("Training Data")
-    label_color_mapping["Training Data"] = "gray"
+    labels_660.add("Training Data Range")
+    label_color_mapping["Training Data Range"] = "gray"
 
     training_data_handle = mpatches.Patch(
         facecolor="blue",
@@ -2602,7 +2637,7 @@ def visualize_training_PT_range(
 
     # Define the desired order of the legend items
     desired_order = [
-        "Training Data",
+        "Training Data Range",
         "Mantle Conditions",
         "Akaogi89",
         "Katsura89",
@@ -2845,30 +2880,24 @@ def visualize_PREM(
     ax1.set_ylabel(f"P ({P_unit})")
     ax1.set_xlim(param_min - (param_min * 0.05), param_max + (param_max * 0.05))
     ax1.set_xticks(np.linspace(param_min, param_max, num=4))
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
+    if parameter in ["Vp", "Vs", "DensityOfFullAssemblage"]:
         ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
     if metrics is not None:
         # Vertical text spacing
         text_margin_x = 0.04
-        text_margin_y = 0.35
+        text_margin_y = 0.15
         text_spacing_y = 0.1
 
         # Get metrics
-        (
-            model,
-            rmse_valid_mean,
-            r2_valid_mean,
-            training_time_mean,
-            inference_time_mean
-        ) = metrics
+        rmse_mean, r2_mean = metrics
 
         # Add R-squared and RMSE values as text annotations in the plot
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 0),
-            f"R$^2$: {r2_valid_mean:.2f}",
+            f"R$^2$: {r2_mean:.2f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2877,25 +2906,7 @@ def visualize_PREM(
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 1),
-            f"RMSE: {rmse_valid_mean:.2f}",
-            transform=plt.gca().transAxes,
-            fontsize=fontsize * 0.833,
-            horizontalalignment="right",
-            verticalalignment="bottom"
-        )
-        plt.text(
-            1 - text_margin_x,
-            text_margin_y - (text_spacing_y * 2),
-            f"Train: {training_time_mean:.3f} s",
-            transform=plt.gca().transAxes,
-            fontsize=fontsize * 0.833,
-            horizontalalignment="right",
-            verticalalignment="bottom"
-        )
-        plt.text(
-            1 - text_margin_x,
-            text_margin_y - (text_spacing_y * 3),
-            f"Predict: {inference_time_mean:.3f} s",
+            f"RMSE: {rmse_mean:.2f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2931,6 +2942,7 @@ def visualize_GFEM(
         program,
         sample_id,
         parameters,
+        mask_geotherm=False,
         palette="bone",
         out_dir=f"{os.getcwd()}/runs",
         fig_dir=f"{os.getcwd()}/figs",
@@ -2991,9 +3003,9 @@ def visualize_GFEM(
                 results[parameter],
                 filename=f"{data_dir}/{sample_id}_{program}_assemblages.csv"
             )
-            grid = create_PT_grid(P, T, encoded)
+            grid = create_PT_grid(P, T, encoded, mask_geotherm)
         else:
-            grid = create_PT_grid(P, T, results[parameter])
+            grid = create_PT_grid(P, T, results[parameter], mask_geotherm)
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
@@ -3046,6 +3058,7 @@ def visualize_GFEM(
 def visualize_GFEM_diff(
         sample_id,
         parameters,
+        mask_geotherm=False,
         palette="bone",
         out_dir=f"{os.getcwd()}/runs",
         fig_dir=f"{os.getcwd()}/figs",
@@ -3099,19 +3112,14 @@ def visualize_GFEM_diff(
         if parameter == "StableSolutions":
             # Encode unique phase assemblages MAGEMin
             encoded_mgm, unique_mgm = encode_phases(results_mgm[parameter])
-            grid_mgm = create_PT_grid(P_mgm, T_mgm, encoded_mgm)
+            grid_mgm = create_PT_grid(P_mgm, T_mgm, encoded_mgm, mask_geotherm)
 
             # Encode unique phase assemblages perplex
             encoded_ppx, unique_ppx = encode_phases(results_ppx[parameter])
-            grid_ppx = create_PT_grid(P_ppx, T_ppx, encoded_ppx)
+            grid_ppx = create_PT_grid(P_ppx, T_ppx, encoded_ppx, mask_geotherm)
         else:
-            grid_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
-            grid_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter])
-
-        # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
-        if parameter == "LiquidFraction":
-            grid_mgm = np.where(grid_mgm <= 0.05, np.nan, grid_mgm)
-            grid_ppx = np.where(grid_ppx <= 0.05, np.nan, grid_ppx)
+            grid_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter], mask_geotherm)
+            grid_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter], mask_geotherm)
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
@@ -3152,8 +3160,6 @@ def visualize_GFEM_diff(
             vmax = max(num_colors_mgm, num_colors_ppx) + 1
 
         if not color_discrete:
-            # Compute diff
-
             # Define a filter to ignore the specific warning
             warnings.filterwarnings("ignore", message="invalid value encountered in divide")
 
@@ -3175,41 +3181,6 @@ def visualize_GFEM_diff(
                 vmin=vmin,
                 vmax=vmax,
                 filename=f"diff-{sample_id}-{parameter}.png",
-                fig_dir=fig_dir
-            )
-
-            # Compute the absolute gradient along the rows and columns
-            gradient_rows = np.abs(np.diff(diff_norm, axis=0))
-            gradient_cols = np.abs(np.diff(diff_norm, axis=1))
-
-            # Pad the gradients to match the original size
-            gradient_rows_padded = np.pad(
-                gradient_rows, ((0, 1), (0, 0)),
-                mode="constant",
-                constant_values=np.nan
-            )
-            gradient_cols_padded = np.pad(
-                gradient_cols, ((0, 0), (0, 1)),
-                mode="constant",
-                constant_values=np.nan
-            )
-
-            # Compute the maximum gradient between rows and columns
-            max_gradient = np.maximum(gradient_rows_padded, gradient_cols_padded)
-
-            # Plot PT grid max gradient
-            visualize_MAD(
-                P_ppx,
-                T_ppx,
-                max_gradient,
-                parameter,
-                title="Difference Gradient",
-                palette=palette,
-                color_discrete=color_discrete,
-                color_reverse=color_reverse,
-                vmin=vmin,
-                vmax=vmax,
-                filename=f"grad-{sample_id}-{parameter}.png",
                 fig_dir=fig_dir
             )
 
@@ -3295,7 +3266,6 @@ def process_fold(fold_data):
         kfolds,
         X_scaled,
         y_scaled,
-        X_valid_scaled,
         model,
         scaler_y,
         scaler_X,
@@ -3317,22 +3287,22 @@ def process_fold(fold_data):
     model.fit(X_train, y_train)
     training_end_time = time.time()
 
-    training_time = training_end_time - training_start_time
+    training_time = (training_end_time - training_start_time) * 1000
 
-    # Make predictions on the test and validation sets
+    # Make predictions on the test set
     y_pred_scaled = model.predict(X_test)
 
+    # Test inference time on single random PT datapoint from the test set
+    rand_PT_point = X_test[np.random.choice(X_test.shape[0], 1, replace=False)]
+
     inference_start_time = time.time()
-    valid_pred_scaled = model.predict(X_valid_scaled)
+    single_PT_pred = model.predict(rand_PT_point)
     inference_end_time = time.time()
 
-    inference_time = inference_end_time - inference_start_time
+    inference_time = (inference_end_time - inference_start_time) * 1000
 
     # Inverse transform predictions
     y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
-    valid_pred_original = (
-        scaler_y.inverse_transform(valid_pred_scaled.reshape(-1, 1)).flatten()
-    )
 
     # Inverse transform test set
     y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
@@ -3341,34 +3311,18 @@ def process_fold(fold_data):
     X_train_original = scaler_X.inverse_transform(X_train)
     y_train_original = scaler_y.inverse_transform(y_train.reshape(-1, 1)).flatten()
 
-    # Reshape the predictions to match the grid shape for visualization
-    valid_pred_array_original = valid_pred_original.reshape(W, W)
-
-    # Transpose predictions
-    valid_pred_array_original = np.transpose(valid_pred_array_original)
-
     # Evaluate the model
-    mask = np.isnan(target_array)
-
-    rmse_test = math.sqrt(mean_squared_error(y_test_original, y_pred_original))
-    rmse_valid = math.sqrt(mean_squared_error(
-        target_array[~mask],
-        valid_pred_array_original[~mask]
-    ))
-
-    r2_test = r2_score(y_test_original, y_pred_original)
-    r2_valid = r2_score(target_array[~mask], valid_pred_array_original[~mask])
+    rmse = math.sqrt(mean_squared_error(y_test_original, y_pred_original))
+    r2 = r2_score(y_test_original, y_pred_original)
 
     print(f"     training time: {round(training_time, 3)}")
     print(f"    inference time: {round(inference_time, 3)}")
     print(f"            n test: {len(y_test)}")
     print(f"           n train: {len(y_train)}")
-    print(f"         rmse_test: {round(rmse_test, 3)}")
-    print(f"        rmse_valid: {round(rmse_valid, 3)}")
-    print(f"           r2_test: {round(r2_test, 3)}")
-    print(f"          r2_valid: {round(r2_valid, 3)}")
+    print(f"              rmse: {round(rmse, 3)}")
+    print(f"                r2: {round(r2, 3)}")
 
-    return rmse_test, rmse_valid, r2_test, r2_valid, training_time, inference_time
+    return rmse, r2, training_time, inference_time
 
 # Support Vector Regression analysis
 def ml_regression(
@@ -3442,8 +3396,6 @@ def ml_regression(
     # Label parameters
     if parameter == "DensityOfFullAssemblage":
         parameter_label = "Density"
-    elif parameter == "LiquidFraction":
-        parameter_label = "Liquid Fraction"
     else:
         parameter_label = parameter
 
@@ -3524,7 +3476,6 @@ def ml_regression(
             kfolds,
             X_scaled,
             y_scaled,
-            X_valid_scaled,
             model,
             scaler_y,
             scaler_X,
@@ -3551,30 +3502,22 @@ def ml_regression(
         pool.join()
 
     # Unpack the results from the parallel kfolds
-    rmse_test_scores = []
-    rmse_valid_scores = []
-    r2_test_scores = []
-    r2_valid_scores = []
+    rmse_scores = []
+    r2_scores = []
     training_times = []
     inference_times = []
 
-    for (rmse_test, rmse_valid, r2_test, r2_valid, training_time, inference_time) in results:
-        rmse_test_scores.append(rmse_test)
-        rmse_valid_scores.append(rmse_valid)
-        r2_test_scores.append(r2_test)
-        r2_valid_scores.append(r2_valid)
+    for (rmse, r2, training_time, inference_time) in results:
+        rmse_scores.append(rmse)
+        r2_scores.append(r2)
         training_times.append(training_time)
         inference_times.append(inference_time)
 
     # Calculate performance values with uncertainties
-    r2_test_mean = np.mean(r2_test_scores)
-    r2_test_std = np.std(r2_test_scores)
-    rmse_test_mean = np.mean(rmse_test_scores)
-    rmse_test_std = np.std(rmse_test_scores)
-    r2_valid_mean = np.mean(r2_valid_scores)
-    r2_valid_std = np.std(r2_valid_scores)
-    rmse_valid_mean = np.mean(rmse_valid_scores)
-    rmse_valid_std = np.std(rmse_valid_scores)
+    r2_mean = np.mean(r2_scores)
+    r2_std = np.std(r2_scores)
+    rmse_mean = np.mean(rmse_scores)
+    rmse_std = np.std(rmse_scores)
     training_time_mean = np.mean(training_times)
     training_time_std = np.std(training_times)
     inference_time_mean = np.mean(inference_times)
@@ -3591,23 +3534,16 @@ def ml_regression(
         "training_time_std": [round(training_time_std, 3)],
         "inference_time_mean": [round(inference_time_mean, 3)],
         "inference_time_std": [round(inference_time_std, 3)],
-        "rmse_test_mean": [round(rmse_test_mean, 2)],
-        "rmse_test_std": [round(rmse_test_std, 3)],
-        "rmse_valid_mean": [round(rmse_valid_mean, 2)],
-        "rmse_valid_std": [round(rmse_valid_std, 3)],
-        "r2_test_mean": [round(r2_test_mean, 2)],
-        "r2_test_std": [round(r2_test_std, 3)],
-        "r2_valid_mean": [round(r2_valid_mean, 2)],
-        "r2_valid_std": [round(r2_valid_std, 3)],
+        "rmse_mean": [round(rmse_mean, 2)],
+        "rmse_std": [round(rmse_std, 3)],
+        "r2_mean": [round(r2_mean, 2)],
+        "r2_std": [round(r2_std, 3)],
     }
 
     # Print performance
     print(f"{model_label} Performance (test set):")
-    print(f"   rmse: {rmse_test_mean:.2f} ± {rmse_test_std:.3f}")
-    print(f"     r2: {r2_test_mean:.2f} ± {r2_test_std:.3f}")
-    print(f"{model_label} Performance (validation set):")
-    print(f"   rmse: {rmse_valid_mean:.2f} ± {rmse_valid_std:.3f}")
-    print(f"     r2: {r2_valid_mean:.2f} ± {r2_valid_std:.3f}")
+    print(f"   rmse: {rmse_mean:.2f} ± {rmse_std:.3f}")
+    print(f"     r2: {r2_mean:.2f} ± {r2_std:.3f}")
     print(f"Training Time: {training_time_mean:.3f} ± {training_time_std:.3f}")
     print(f"Inference Time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
 
@@ -3622,22 +3558,13 @@ def ml_regression(
     # Train ML model
     model.fit(X_train, y_train)
 
-    # Make predictions on the test and validation sets
-    y_pred_scaled = model.predict(X_test)
+    # Make predictions on validation set
     valid_pred_scaled = model.predict(X_valid_scaled)
 
     # Inverse transform predictions
-    y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
     valid_pred_original = (
         scaler_y.inverse_transform(valid_pred_scaled.reshape(-1, 1)).flatten()
     )
-
-    # Inverse transform test set
-    y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
-
-    # Inverse transform training set
-    X_train_original = scaler_X.inverse_transform(X_train)
-    y_train_original = scaler_y.inverse_transform(y_train.reshape(-1, 1)).flatten()
 
     # Reshape the predictions to match the grid shape for visualization
     valid_pred_array_original = valid_pred_original.reshape(W, W)
@@ -3647,10 +3574,14 @@ def ml_regression(
 
     # Compute normalized diff
     mask = np.isnan(target_array)
+
+    valid_pred_array_original[mask] = np.nan
+
     diff_norm = (
         (target_array - valid_pred_array_original) /
         ((target_array + valid_pred_array_original) / 2) * 100
     )
+
     diff_norm[mask] = np.nan
 
     # Plot training data distribution and ML model predictions
@@ -3823,66 +3754,6 @@ def ml_regression(
     # Transpose predictions
     valid_pred_array_original = np.transpose(valid_pred_array_original)
 
-    # Targets vs. predictions for test set
-    fig = plt.figure(figsize=(figwidth, figheight))
-    plt.scatter(y_test_original, y_pred_original, marker=".", s=3, color="black")
-    plt.plot(
-        [min(y_test_original), max(y_test_original)],
-        [min(y_test_original), max(y_test_original)],
-        linestyle="-",
-        color="black",
-        linewidth=1
-    )
-
-    # Vertical text spacing
-    text_margin_x = 0.04
-    text_margin_y = 0.1
-    text_spacing_y = 0.1
-
-    # Add R-squared and RMSE values as text annotations in the plot
-    plt.text(
-        text_margin_x,
-        1 - text_margin_y - (text_spacing_y * 0),
-        f"{program}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize * 0.833
-    )
-    plt.text(
-        text_margin_x,
-        1 - text_margin_y - (text_spacing_y * 1),
-        f"rmse: {rmse_test_mean:.2f}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize * 0.833
-    )
-    plt.text(
-        text_margin_x,
-        1 - text_margin_y - (text_spacing_y * 2),
-        f"r$^2$: {r2_test_mean:.2f}",
-        transform=plt.gca().transAxes,
-        fontsize=fontsize * 0.833
-    )
-
-    plt.xlabel(f"Target")
-    plt.ylabel(f"Predicted")
-    plt.xlim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
-    plt.ylim(vmin - (0.05 * vmin), vmax + (0.05 * vmax))
-    plt.xticks(np.linspace(vmin, vmax, num=4))
-    plt.yticks(np.linspace(vmin, vmax, num=4))
-    if parameter in ["Vp", "Vs", "LiquidFraction", "DensityOfFullAssemblage"]:
-        plt.gca().xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-        plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-    plt.title(f"{model_label}")
-
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}-performance")
-    else:
-        # Print plot
-        plt.show()
-
-    # Close device
-    plt.close()
-
     # Reshape results and transform units for MAGEMin
     if program == "MAGEMin":
         results_mgm = {
@@ -3920,7 +3791,7 @@ def ml_regression(
         results_model[parameter] = [x * 1000 for x in results_model[parameter]]
 
     # Plot PREM comparisons
-    metrics = [model, rmse_valid_mean, r2_valid_mean, training_time_mean, inference_time_mean]
+    metrics = [rmse_mean, r2_mean]
 
     if parameter == "DensityOfFullAssemblage":
         visualize_PREM(
@@ -3964,6 +3835,7 @@ def ml_regression(
 def run_ml_regression(
         sample_id,
         parameters,
+        mask_geotherm=False,
         MAGEMin=True,
         Perple_X=True,
         model="SVR RBF",
@@ -4061,34 +3933,26 @@ def run_ml_regression(
         # Units
         if parameter == "DensityOfFullAssemblage":
             units = "g/cm$^3$"
-        if parameter == "LiquidFraction":
-            units = None
         if parameter in ["Vp", "Vs"]:
             units = "km/s"
 
         if MAGEMin:
             # Target array with shape (W, W)
-            target_array_mgm = create_PT_grid(P_mgm, T_mgm, results_mgm[parameter])
+            target_array_mgm = create_PT_grid(
+                P_mgm,
+                T_mgm,
+                results_mgm[parameter],
+                mask_geotherm
+            )
 
         if Perple_X:
             # Target array with shape (W, W)
-            target_array_ppx = create_PT_grid(P_ppx, T_ppx, results_ppx[parameter])
-
-        # Change zero liquid fraction to nan in MAGEMin predictions for better comparison
-        if parameter == "LiquidFraction":
-            if program == "MAGEMin":
-                if MAGEMin:
-                    target_array_mgm = np.where(
-                        target_array_mgm <= 0.05,
-                        np.nan,
-                        target_array_mgm
-                    )
-                if Perple_X:
-                    target_array_ppx = np.where(
-                        target_array_ppx <= 0.05,
-                        np.nan,
-                        target_array_ppx
-                    )
+            target_array_ppx = create_PT_grid(
+                P_ppx,
+                T_ppx,
+                results_ppx[parameter],
+                mask_geotherm
+            )
 
         # Get min max of target array to plot colorbars on the same scales
         if MAGEMin:
@@ -4153,12 +4017,13 @@ def run_ml_regression(
 
 # Visualize regression metrics
 def visualize_regression_metrics(
-        datafile,
+        datafile="assets/data/regression-info.csv",
+        benchmark_times="assets/data/benchmark-times.csv",
         palette="tab10",
-        fontsize=12,
-        figwidth=8.3,
-        figheight=3.8,
-        filename="regression-metrics.png",
+        fontsize=22,
+        figwidth=6.3,
+        figheight=4.725,
+        filename="regression",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Visualize regression metrics using a facet barplot.
@@ -4205,12 +4070,35 @@ def visualize_regression_metrics(
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
 
-    # Read data
+    # Read regression data
     data = pd.read_csv(datafile)
+    data["inference_time_std"] = data["inference_time_std"] * 2
+
+    # Summarize data
+    numeric_columns = data.select_dtypes(include=[float, int]).columns
+    summary_df = data.groupby("model")[numeric_columns].mean().reset_index()
+
+    # Get MAGEMin and Perple_X benchmark times
+    benchmark_times = pd.read_csv(benchmark_times)
+
+    filtered_times = benchmark_times[
+        (benchmark_times["sample"] == "PUM") &
+        (benchmark_times["grid"] == 16384)
+    ]
+
+    time_mgm = filtered_times["mgm"].values / filtered_times["grid"].values * 1000
+    time_ppx = filtered_times["ppx"].values / filtered_times["grid"].values * 1000
 
     # Define the metrics to plot
-    metrics = ["training_time_mean", "inference_time_mean", "rmse_valid_mean"]
-    metric_names = ["Training Time", "Inference Time", "RMSE"]
+    metrics = [
+        "training_time_mean", "inference_time_mean", "inference_time_std", "rmse_mean"
+    ]
+    metric_names = [
+        "Training Time",
+        "Mean Efficiency",
+        "$2\sigma$ Efficiency",
+        "Model Error"
+    ]
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -4224,72 +4112,87 @@ def visualize_regression_metrics(
 
     # Define the colors for the programs
     colormap = plt.cm.get_cmap(palette)
-    colors = {"MAGEMin": colormap(0), "Perple_X": colormap(1)}
-
-    # Create the facet barplot
-    plt.figure(figsize=(figwidth, figheight))
-
-    # Define the offset for side-by-side bars
-    bar_width = 0.45
-
-    # List of letters for captions
-    captions = ["a)", "b)", "c)"]
-
-    # Define y-axis limits for each metric (you can customize these limits as needed)
-    y_limits = {
-        "training_time_mean": (0, 3),
-        "inference_time_mean": (0, 0.2),
-        "rmse_valid_mean": (0, 0.042)
-    }
+    models = [
+        "K Nearest",
+        "Decision Tree",
+        "Gradient Boost",
+        "Support Vector",
+        "Random Forest",
+        "Neural Network 1L",
+        "Neural Network 2L",
+        "Neural Network 3L"
+    ]
+    colors = [colormap(i) for i in range(len(models))]
 
     # Loop through each metric and create a subplot
     for i, metric in enumerate(metrics):
-        plt.subplot(1, 3, i+1)
+        # Create the facet barplot
+        plt.figure(figsize=(figwidth, figheight))
 
-        # Pivot the data to ensure consistent data alignment
-        pivot_data = data.pivot(index="model", columns="program", values=metric)
+        # Define the offset for side-by-side bars
+        bar_width = 0.45
 
-        # Sorted bars
-        order = data.groupby("model")[metric].mean().sort_values().index
+        # Get order of sorted bars
+        order = summary_df[metric].sort_values().index
 
-        # Calculate the x positions for the bars
-        x_positions = np.arange(len(pivot_data))
+        # Bar positions
+        x_positions = np.arange(len(summary_df[metric]))
 
         # Plot the bars for each program
-        for idx, program in enumerate(colors.keys()):
-            plt.bar(
-                x_positions + idx * bar_width,
-                pivot_data.loc[order][program],
-                color=colors[program],
-                label=program if i == 0 else "",
-                width=bar_width
-            )
-
-        plt.ylim(y_limits[metric])
-        plt.gca().set_xticks(x_positions + bar_width / 2)
-        plt.gca().set_xticklabels(order, rotation=90, ha="center")
-
-        plt.text(
-            -0.2, 1.08, captions[i], transform=plt.gca().transAxes, fontsize=fontsize*1.2
+        plt.bar(
+            x_positions * bar_width,
+            summary_df.loc[order][metric],
+            edgecolor="black",
+            color=colors,
+            label=models if i == 2 else "",
+            width=bar_width
         )
 
-        if i in [0, 1]:
-            plt.title(f"{metric_names[i]} (s)")
+        # Show MAGEMin and Perple_X compute times
+        if metric == "inference_time_mean":
+            plt.axhline(time_mgm, color="black", linestyle="-", label="")
+            plt.axhline(time_ppx, color="black", linestyle="--", label="")
+            plt.text(
+                0,
+                time_mgm - (0.2 * time_mgm),
+                "MAGEMin",
+                verticalalignment="top",
+                fontsize=fontsize * 0.833
+            )
+            plt.text(
+                0,
+                time_ppx - (0.2 * time_ppx),
+                "Perple_X",
+                verticalalignment="top",
+                fontsize=fontsize * 0.833
+            )
+
+        plt.gca().set_xticks([])
+        plt.gca().set_xticklabels([])
+
+        # Plot titles
+        if i == 0:
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel(f"Elapsed Time (ms)")
+            plt.yscale("log")
+            plt.ylim([10e-2, 5e+6])
+        elif i in [1, 2]:
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel(f"Elapsed Time (ms)")
+            plt.yscale("log")
+            plt.ylim([2e-2, 2e+2])
         else:
-            plt.title(f"{metric_names[i]} ({data['units'][0]})")
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel(f"RMSE ({data['units'][0]})")
 
-        if i == 0:
-            plt.legend()
+        plt.legend(fontsize="x-small")
 
-        if i == 0:
-            plt.gca().set_xlim()
+        # Save the plot to a file if a filename is provided
+        if filename:
+            plt.savefig(f"{fig_dir}/{filename}-{metric.replace('_', '-')}.png")
+        else:
+            # Print plot
+            plt.show()
 
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
-    else:
-        # Print plot
-        plt.show()
-
-    # Close device
-    plt.close()
+        # Close device
+        plt.close()

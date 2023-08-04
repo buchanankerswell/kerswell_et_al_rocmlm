@@ -11,7 +11,7 @@ from magemin import (
 
 # Parse arguments and check
 args = parse_arguments()
-valid_args = check_arguments(args, "svr.py")
+valid_args = check_arguments(args, "regression.py")
 
 # Load valid arguments
 locals().update(valid_args)
@@ -22,11 +22,11 @@ ppx_results = os.path.exists(f"assets/benchmark/{sampleid}/{sampleid}_grid.tab")
 
 if (mgm_results and ppx_results):
     for m in models:
-#        # Run support vector regression
-#        run_ml_regression(
-#            sampleid, params, True, True, m, kfolds, parallel, nprocs, seed, colormap,
-#            outdir, figdir, datadir
-#        )
+        # Run support vector regression
+        run_ml_regression(
+            sampleid, params, True, True, True, m, kfolds, parallel, nprocs, seed, colormap,
+            outdir, figdir, datadir
+        )
 
         # Create compositions
         print(f"Plotting results for: {sampleid} {m}:")
@@ -552,148 +552,13 @@ if (mgm_results and ppx_results):
             caption2=""
         )
 
-        # First row
-        combine_plots_horizontally(
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[0]}-performance.png",
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[1]}-performance.png",
-            f"{figdir}/temp1.png",
-            caption1="a)",
-            caption2="b)"
-        )
+    # Clean up directory
+    tmp_files = glob.glob(f"{figdir}/temp*.png")
+    mgm_files = glob.glob(f"{figdir}/MAGEMin*.png")
+    ppx_files = glob.glob(f"{figdir}/Perple_X*.png")
 
-        # Second row
-        combine_plots_horizontally(
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[2]}-performance.png",
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[3]}-performance.png",
-            f"{figdir}/temp2.png",
-            caption1="e)",
-            caption2="f)"
-        )
-
-        # Stack rows
-        combine_plots_vertically(
-            f"{figdir}/temp1.png",
-            f"{figdir}/temp2.png",
-            f"{figdir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
-
-        # Third row
-        combine_plots_horizontally(
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[4]}-performance.png",
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[5]}-performance.png",
-            f"{figdir}/temp4.png",
-            caption1="c)",
-            caption2="d)"
-        )
-
-        # Fourth row
-        combine_plots_horizontally(
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[6]}-performance.png",
-            f"{figdir}/MAGEMin-{sampleid}-{p}-{mlabs[7]}-performance.png",
-            f"{figdir}/temp5.png",
-            caption1="g)",
-            caption2="h)"
-        )
-
-        # Stack rows
-        combine_plots_vertically(
-            f"{figdir}/temp4.png",
-            f"{figdir}/temp5.png",
-            f"{figdir}/temp6.png",
-            caption1="",
-            caption2=""
-        )
-
-        # Stack columns
-        combine_plots_horizontally(
-            f"{figdir}/temp3.png",
-            f"{figdir}/temp6.png",
-            f"{figdir}/MAGEMin-{sampleid}-{p}-model-comp-performance.png",
-            caption1="",
-            caption2=""
-        )
-
-        # First row
-        combine_plots_horizontally(
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[0]}-performance.png",
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[1]}-performance.png",
-            f"{figdir}/temp1.png",
-            caption1="i)",
-            caption2="j)"
-        )
-
-        # Second row
-        combine_plots_horizontally(
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[2]}-performance.png",
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[3]}-performance.png",
-            f"{figdir}/temp2.png",
-            caption1="m)",
-            caption2="n)"
-        )
-
-        # Stack rows
-        combine_plots_vertically(
-            f"{figdir}/temp1.png",
-            f"{figdir}/temp2.png",
-            f"{figdir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
-
-        # Third row
-        combine_plots_horizontally(
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[4]}-performance.png",
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[5]}-performance.png",
-            f"{figdir}/temp4.png",
-            caption1="k)",
-            caption2="l)"
-        )
-
-        # Fourth row
-        combine_plots_horizontally(
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[6]}-performance.png",
-            f"{figdir}/Perple_X-{sampleid}-{p}-{mlabs[7]}-performance.png",
-            f"{figdir}/temp5.png",
-            caption1="o)",
-            caption2="p)"
-        )
-
-        # Stack rows
-        combine_plots_vertically(
-            f"{figdir}/temp4.png",
-            f"{figdir}/temp5.png",
-            f"{figdir}/temp6.png",
-            caption1="",
-            caption2=""
-        )
-
-        # Stack columns
-        combine_plots_horizontally(
-            f"{figdir}/temp3.png",
-            f"{figdir}/temp6.png",
-            f"{figdir}/Perple_X-{sampleid}-{p}-model-comp-performance.png",
-            caption1="",
-            caption2=""
-        )
-
-        # Stack rows
-        combine_plots_vertically(
-            f"{figdir}/MAGEMin-{sampleid}-{p}-model-comp-performance.png",
-            f"{figdir}/Perple_X-{sampleid}-{p}-model-comp-performance.png",
-            f"{figdir}/all-performance-{sampleid}-{p}.png",
-            caption1="",
-            caption2=""
-        )
-
-        # Clean up directory
-        tmp_files = glob.glob(f"{figdir}/temp*.png")
-        mgm_files = glob.glob(f"{figdir}/MAGEMin*.png")
-        ppx_files = glob.glob(f"{figdir}/Perple_X*.png")
-
-        for file in tmp_files + mgm_files + ppx_files:
-            os.remove(file)
+    for file in tmp_files + mgm_files + ppx_files:
+        os.remove(file)
 
 # Print figure filepaths
 print_filepaths(figdir)

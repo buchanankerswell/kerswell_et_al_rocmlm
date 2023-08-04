@@ -25,15 +25,15 @@ print(f"Plotting results for {sampleid}:")
 
 # Plot MAGEMin output
 if mgm_results:
-    visualize_GFEM("MAGEMin", sampleid, params, colormap, outdir, figdir, datadir)
+    visualize_GFEM("MAGEMin", sampleid, params, True, colormap, outdir, figdir, datadir)
 
 # Plot Perple_X output
 if ppx_results:
-    visualize_GFEM("Perple_X", sampleid, params, colormap, outdir, figdir, datadir)
+    visualize_GFEM("Perple_X", sampleid, params, True, colormap, outdir, figdir, datadir)
 
 # Plot MAGEMin Perple_X difference
 if (mgm_results and ppx_results):
-    visualize_GFEM_diff(sampleid, params, colormap, outdir, figdir, datadir)
+    visualize_GFEM_diff(sampleid, params, True, colormap, outdir, figdir, datadir)
 
     # Plot MAGEMin Perple_X compositions
     for parameter in params:
@@ -64,19 +64,6 @@ if (mgm_results and ppx_results):
 
                 os.remove(f"{figdir}/diff-{sampleid}-{parameter}.png")
                 os.remove(f"{figdir}/prem-{sampleid}-{parameter}.png")
-                os.remove(f"{figdir}/grad-{sampleid}-{parameter}.png")
-
-            else:
-                combine_plots_horizontally(
-                    f"{figdir}/diff-{sampleid}-{parameter}.png",
-                    f"{figdir}/grad-{sampleid}-{parameter}.png",
-                    f"{figdir}/temp2.png",
-                    caption1="c)",
-                    caption2="d)"
-                )
-
-                os.remove(f"{figdir}/diff-{sampleid}-{parameter}.png")
-                os.remove(f"{figdir}/grad-{sampleid}-{parameter}.png")
 
             # Stack rows
             combine_plots_vertically(
