@@ -2,14 +2,17 @@ import pandas as pd
 
 # ML model parameters and performance metrics
 df = pd.read_csv("assets/data/regression-info.csv")
+df["inference_time_std"] = df["inference_time_std"] * 2
+numeric_columns = df.select_dtypes(include=[float, int]).columns
+df = df.groupby("model")[numeric_columns].mean().reset_index()
 df.drop(
-    ["parameter", "units", "k_folds", "r2_test_mean", "r2_test_std", "r2_valid_std", "rmse_test_mean", "rmse_test_std", "rmse_valid_std", "training_time_std", "inference_time_std"],
+    ["k_folds",  "r2_mean", "r2_std", "training_time_mean", "training_time_std"],
     axis=1,
     inplace=True
 )
 df = df.sort_values(by=["inference_time_mean"])
-df.columns = ["Model", "Program", "Training (s)", "Inference (s)", "RMSE", "R$^2$"]
-markdown_table = df.to_markdown(index=False)
+df.columns = ["Model", "Efficiency (ms)", "$2\sigma$", "RMSE (g/cm$^3$)", "$2\sigma$"]
+markdown_table = df.to_markdown(index=False, floatfmt=".3f")
 
 with open("draft/assets/pandoc/regression-info.md", "w") as file:
     file.write(markdown_table)

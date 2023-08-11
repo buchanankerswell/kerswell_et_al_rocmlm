@@ -2436,18 +2436,18 @@ def visualize_training_PT_range(
 
     # Olivine --> Ringwoodite Clapeyron slopes
     references_410 = {
-        "Akaogi89": [0.001, 0.002],
-        "Katsura89": [0.0025],
-        "Morishima94": [0.0034, 0.0038]
+        "[410] Akaogi89": [0.001, 0.002],
+        "[410] Katsura89": [0.0025],
+        "[410] Morishima94": [0.0034, 0.0038]
     }
 
     # Ringwoodite --> Bridgmanite + Ferropericlase Clapeyron slopes
     references_660 = {
-        "Ito82": [-0.002],
-        "Ito89 & Hirose02": [-0.0028],
-        "Ito90": [-0.002, -0.006],
-        "Katsura03": [-0.0004, -0.002],
-        "Akaogi07": [-0.0024, -0.0028]
+        "[660] Ito82": [-0.002],
+        "[660] Ito89 & Hirose02": [-0.0028],
+        "[660] Ito90": [-0.002, -0.006],
+        "[660] Katsura03": [-0.0004, -0.002],
+        "[660] Akaogi07": [-0.0024, -0.0028]
     }
 
     # Set plot style and settings
@@ -2511,8 +2511,8 @@ def visualize_training_PT_range(
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
             plt.plot(
-                T[(T >= 1200) & (T <= T_max)],
-                line[(T >= 1200) & (T <= T_max)],
+                T[(T >= 1200) & (T <= 2000)],
+                line[(T >= 1200) & (T <= 2000)],
                 color=color,
                 label=label
             )
@@ -2525,8 +2525,8 @@ def visualize_training_PT_range(
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
             plt.plot(
-                T[(T >= 1200) & (T <= T_max)],
-                line[(T >= 1200) & (T <= T_max)],
+                T[(T >= 1200) & (T <= 2000)],
+                line[(T >= 1200) & (T <= 2000)],
                 color=color,
                 label=label
             )
@@ -2639,14 +2639,14 @@ def visualize_training_PT_range(
     desired_order = [
         "Training Data Range",
         "Mantle Conditions",
-        "Akaogi89",
-        "Katsura89",
-        "Morishima94",
-        "Ito82",
-        "Ito89 & Hirose02",
-        "Ito90",
-        "Katsura03",
-        "Akaogi07",
+        "[410] Akaogi89",
+        "[410] Katsura89",
+        "[410] Morishima94",
+        "[660] Ito82",
+        "[660] Ito89 & Hirose02",
+        "[660] Ito90",
+        "[660] Katsura03",
+        "[660] Akaogi07",
         "Geotherm 1",
         "Geotherm 2"
     ]
@@ -3705,7 +3705,7 @@ def ml_regression(
         features_array[:,:,1],
         diff_norm,
         parameter,
-        title="Normalized Difference",
+        title="Percent Difference",
         palette="seismic",
         color_discrete=False,
         color_reverse=False,
@@ -4095,7 +4095,7 @@ def visualize_regression_metrics(
     ]
     metric_names = [
         "Training Time",
-        "Mean Efficiency",
+        "Efficiency",
         "$2\sigma$ Efficiency",
         "Model Error"
     ]
@@ -4122,7 +4122,21 @@ def visualize_regression_metrics(
         "Neural Network 2L",
         "Neural Network 3L"
     ]
-    colors = [colormap(i) for i in range(len(models))]
+
+    # Create a dictionary to map each model to a specific color
+    color_mapping = {
+        "K Nearest": colormap(0),
+        "Decision Tree": colormap(1),
+        "Gradient Boost": colormap(2),
+        "Support Vector": colormap(3),
+        "Random Forest": colormap(4),
+        "Neural Network 1L": colormap(5),
+        "Neural Network 2L": colormap(6),
+        "Neural Network 3L": colormap(7),
+    }
+
+    # Get the corresponding colors for each model
+    colors = [color_mapping[model] for model in models]
 
     # Loop through each metric and create a subplot
     for i, metric in enumerate(metrics):
@@ -4134,6 +4148,7 @@ def visualize_regression_metrics(
 
         # Get order of sorted bars
         order = summary_df[metric].sort_values().index
+        models_order = summary_df.loc[order]["model"].tolist()
 
         # Bar positions
         x_positions = np.arange(len(summary_df[metric]))
@@ -4143,8 +4158,8 @@ def visualize_regression_metrics(
             x_positions * bar_width,
             summary_df.loc[order][metric],
             edgecolor="black",
-            color=colors,
-            label=models if i == 2 else "",
+            color=[color_mapping[model] for model in models_order],
+            label=models_order if i == 2 else "",
             width=bar_width
         )
 

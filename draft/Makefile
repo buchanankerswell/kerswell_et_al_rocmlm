@@ -95,6 +95,7 @@ eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md copy_assets $(TABLES)
 		--filter pandoc-crossref \
 		--citeproc \
 		$(LOG)
+	@rm -rf tmp.md
 	@echo "=============================================" $(LOG)
 
 copy_assets: $(LOGFILE) copy_data copy_figs
