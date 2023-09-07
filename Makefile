@@ -66,7 +66,9 @@ DATAPURGE = python/__pycache__ \
 						.job \
 						output \
 						$(DATADIR)/*assemblages.csv \
-						$(DATADIR)/benchmark-mlms-metrics.csv
+						$(DATADIR)/benchmark-mlms-metrics.csv \
+						$(DATADIR)/benchmark-gfem-efficiency-$(DATE).csv \
+
 DATACLEAN = assets \
 						log \
 						MAGEMin \
@@ -103,8 +105,7 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 
 visualize: $(LOGFILE) $(PYTHON)
 	@for run in $$(ls -d $(OUTDIR)/* | sed 's/$(OUTDIR)\/\(.*\)/\1/'); do \
-		echo "Visualizing $$run" $(LOG); \
-		$(MAKE) visualize_database SAMPLEID=$$run FIGDIR=figs/$$run; \
+		$(MAKE) visualize_database SAMPLEID=$$run; \
 	done
 	@$(MAKE) visualize_other
 
@@ -142,15 +143,15 @@ benchmark_mlms:  $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-all_benchmark_mlms: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
+benchmark_all_mlms: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
 	@for sample in PUM; do \
-		for res in 8; do \
+		for res in 64; do \
 			for dataset in train valid; do \
 				$(MAKE) magemin_database SAMPLEID=$$sample RES=$$res DATASET=$$dataset; \
 				$(MAKE) perplex_database SAMPLEID=$$sample RES=$$res DATASET=$$dataset; \
 			done; \
-			$(MAKE) benchmark_mlms SAMPLEID=$$sample RES=$$res
-			$(MAKE) visualize SAMPLEID=$$sample RES=$$res
+			$(MAKE) benchmark_mlms SAMPLEID=$$sample RES=$$res; \
+			$(MAKE) visualize SAMPLEID=$$sample RES=$$res; \
 		done; \
   done
 
@@ -167,10 +168,9 @@ magemin_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN)
 		PSTEP=1; \
 		TSTEP=25; \
 		PMIN_TRANS=$$(echo "$(PMIN) + $$PSTEP" | bc); \
-		PMAX_TRANS=$$(echo "$(PMAX) + $$PSTEP" | bc); \
+		PMAX_TRANS=$$(echo "$(PMAX) - $$PSTEP" | bc); \
 		TMIN_TRANS=$$(echo "$(TMIN) + $$TSTEP" | bc); \
-		TMAX_TRANS=$$(echo "$(TMAX) + $$TSTEP" | bc); \
-		RES_TRANS=$$(echo "$(RES) + 1" | bc); \
+		TMAX_TRANS=$$(echo "$(TMAX) - $$TSTEP" | bc); \
 		echo "Shifting training dataset by a small amount:" $(LOG); \
 		echo "Pstep: $$PSTEP" $(LOG); \
 		echo "Tstep: $$TSTEP" $(LOG); \
@@ -184,7 +184,7 @@ magemin_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN)
 			--Pmax $$PMAX_TRANS \
 			--Tmin $$TMIN_TRANS \
 			--Tmax $$TMAX_TRANS \
-			--res $$RES_TRANS \
+			--res $(RES) \
 			--sampleid $(SAMPLEID) \
 			--normox '$(NORMOX)' \
 			--parallel $(PARALLEL) \
@@ -216,7 +216,7 @@ magemin_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN)
 		tail -n 1 | \
 		sed -E 's/MAGEMin comp time: \+([0-9.]+) ms }/\1/' | \
 		awk '{printf "%.1f", $$NF/1000*$(NPROCS)}')" >> \
-		$(DATADIR)/benchmark-mlms-efficiency-$(shell date +"%d-%m-%Y").csv
+		$(DATADIR)/benchmark-gfem-efficiency-$(DATE).csv
 	@echo "Finished MAGEMin model ..." $(LOG)
 	@echo "=============================================" $(LOG)
 	@echo "To visualize benchmark, run:" $(LOG)
@@ -232,10 +232,9 @@ perplex_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX)
 		PSTEP=1; \
 		TSTEP=25; \
 		PMIN_TRANS=$$(echo "$(PMIN) + $$PSTEP" | bc); \
-		PMAX_TRANS=$$(echo "$(PMAX) + $$PSTEP" | bc); \
+		PMAX_TRANS=$$(echo "$(PMAX) - $$PSTEP" | bc); \
 		TMIN_TRANS=$$(echo "$(TMIN) + $$TSTEP" | bc); \
-		TMAX_TRANS=$$(echo "$(TMAX) + $$TSTEP" | bc); \
-		RES_TRANS=$$(echo "$(RES) + 1" | bc); \
+		TMAX_TRANS=$$(echo "$(TMAX) - $$TSTEP" | bc); \
 		echo "Shifting training dataset by a small amount:" $(LOG); \
 		echo "Pstep: $$PSTEP" $(LOG); \
 		echo "Tstep: $$TSTEP" $(LOG); \
@@ -295,7 +294,7 @@ perplex_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX)
 				"$(SAMPLEID)"); print \
 			}' perplex-phase-$(SAMPLEID) > temp-file && \
 			mv temp-file perplex-phase-$(SAMPLEID) && \
-			awk -v tres=$$RES_TRANS -v pres=$$RES_TRANS 'BEGIN { \
+			awk -v tres=$(RES) -v pres=$(RES) 'BEGIN { \
 				div_tres = tres / 4; \
 				div_pres = pres / 4 \
 			} /x_nodes/ { \
@@ -411,7 +410,7 @@ perplex_database: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX)
 		tail -n 1 | \
 		sed -E 's/Total elapsed time\s+([0-9.]+)/\1/' | \
 		awk '{printf "%.1f", $$NF*60}')" >> \
-		$(DATADIR)/benchmark-mlms-efficiency-$(shell date +"%d-%m-%Y").csv
+		$(DATADIR)/benchmark-gfem-efficiency-$(DATE).csv
 	@echo "Finished perplex model ..." $(LOG)
 	@echo "=============================================" $(LOG)
 	@echo "To visualize benchmark, run:" $(LOG)

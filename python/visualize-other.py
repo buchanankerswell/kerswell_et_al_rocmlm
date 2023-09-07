@@ -6,7 +6,7 @@ from magemin import (
     combine_plots_horizontally,
     visualize_training_PT_range,
     visualize_regression_metrics,
-    visualize_benchmark_comp_times
+    visualize_benchmark_gfem_times
 )
 
 if os.path.exists("assets/data"):
@@ -19,40 +19,40 @@ if os.path.exists("assets/data"):
     visualize_training_PT_range()
 
     # Visualize benchmark computation times
-    visualize_benchmark_comp_times("assets/data/benchmark-model-efficiency.csv")
+    visualize_benchmark_gfem_times("assets/data/benchmark-gfem-efficiency.csv")
 
     # Visualize regression metrics
-    visualize_regression_metrics("assets/data/benchmark-model-metrics.csv")
+    visualize_regression_metrics("assets/data/benchmark-mlms-metrics.csv")
 
     # First row
     combine_plots_horizontally(
         "figs/regression-inference-time-mean.png",
-        "figs/regression-inference-time-std.png",
+        "figs/regression-training-time-mean.png",
         "figs/temp1.png",
         caption1="a)",
         caption2="b)"
     )
 
     os.remove("figs/regression-inference-time-mean.png")
-    os.remove("figs/regression-inference-time-std.png")
+    os.remove("figs/regression-training-time-mean.png")
 
     # Second row
     combine_plots_horizontally(
-        "figs/regression-training-time-mean.png",
-        "figs/regression-rmse-mean.png",
+        "figs/regression-rmse-test-mean.png",
+        "figs/regression-rmse-valid-mean.png",
         "figs/temp2.png",
         caption1="c)",
         caption2="d)"
     )
 
-    os.remove("figs/regression-training-time-mean.png")
-    os.remove("figs/regression-rmse-mean.png")
+    os.remove("figs/regression-rmse-test-mean.png")
+    os.remove("figs/regression-rmse-valid-mean.png")
 
     # Stack rows
     combine_plots_vertically(
         "figs/temp1.png",
         "figs/temp2.png",
-        "figs/benchmark-model-metrics.png",
+        "figs/benchmark-mlms-metrics.png",
         caption1="",
         caption2=""
     )

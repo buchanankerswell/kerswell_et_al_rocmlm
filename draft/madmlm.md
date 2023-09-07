@@ -161,7 +161,7 @@ Model performance can be assessed qualitatively by comparing the density surface
 
 Benchmarking GFEM programs was a necessary first step for estimating the time required for building MADMLM training datasets and quantifying the efficiency of incumbent GFEM programs (@fig:benchmark-times), which our MADMLMs will need to beat to be considered an advancement beyond the status-quo. Estimated bulk compositions for primitive and depleted mantle-derived rocks ([@tbl:benchmark-comps]) were used for benchmarking MAGEMin and Perple_X. [@tbl:benchmark-times-table] shows the computation times with respect to various PT grid resolutions (8x8, 16x16, 32x32, 64x64, 128x128). All computations were made on a Macbook Pro (2022; M2 chip) with macOS 13.4 and Python 3.11.4. Note that MAGEMin was ran on 6 CPU cores in parallel, while Perple_X does not have parallel capabilities.
 
-{{ benchmark-mlms-efficiency.md }}
+{{ benchmark-gfem-efficiency.md }}
 : MAD computation times (in seconds) for various bulk mantle compositions. {#tbl:benchmark-times-table}
 -->
 

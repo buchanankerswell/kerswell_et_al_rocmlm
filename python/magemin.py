@@ -2251,13 +2251,13 @@ def visualize_earthchem_data(
     plt.close()
 
 # Visualize benchmark comp times
-def visualize_benchmark_comp_times(
+def visualize_benchmark_gfem_times(
         datafile,
         palette="tab10",
         fontsize=12,
         figwidth=6.3,
         figheight=3.54,
-        filename="benchmark-mlms-efficiency.png",
+        filename="benchmark-gfem-efficiency.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Visualize benchmark computation times.
@@ -2294,7 +2294,6 @@ def visualize_benchmark_comp_times(
 
     # Arrange data by grid resolution and sample
     data.sort_values(by=["grid", "sample", "program"], inplace=True)
-    print(data)
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2324,19 +2323,17 @@ def visualize_benchmark_comp_times(
 
     # Plot the data for MAGEMin lines
     for group, group_data in grouped_data:
-        print(group)
-        print(group_data)
         sample_val = group[0]
         color_val = sample_colors[sample_val]
 
         # Filter out rows with missing time values for mgm column
         mgm_data = group_data[group_data["program"] == "magemin"]
-        mgm_x = np.sqrt(mgm_data["grid"])
+        mgm_x = mgm_data["grid"]
         mgm_y = mgm_data["time"]
 
         # Filter out rows with missing time values for ppx column
         ppx_data = group_data[group_data["program"] == "perplex"]
-        ppx_x = np.sqrt(ppx_data["grid"])
+        ppx_x = ppx_data["grid"]
         ppx_y = ppx_data["time"]
 
         # Plot mgm data points and connect them with lines
@@ -2362,10 +2359,10 @@ def visualize_benchmark_comp_times(
         legend_labels.append(f"[Perple_X] {sample_val}")
 
     # Set labels and title
-    plt.xlabel("PT Grid Resolution")
+    plt.xlabel("Number of Minimizations (PT Grid Size)")
     plt.ylabel("Time (s)")
-    plt.title("GFEM Efficiency")
-    plt.xticks([16, 32, 64, 128])
+    plt.title("GFEM Prediction Efficiency")
+    plt.xscale("log")
     plt.yscale("log")
 
     # Create the legend with the desired order
@@ -2590,7 +2587,6 @@ def visualize_training_PT_range(
         vertices[:, 1],
         facecolor="blue",
         edgecolor="black",
-        hatch="\\",
         alpha=0.2
     )
 
@@ -2619,7 +2615,6 @@ def visualize_training_PT_range(
     training_data_handle = mpatches.Patch(
         facecolor="blue",
         edgecolor="black",
-        hatch="\\",
         alpha=0.2,
         label="Mantle Conditions"
     )
@@ -2791,10 +2786,14 @@ def visualize_PREM(
 
     # Extract parameter values along a geotherm
     if results_mgm:
-        P_grad_mgm, T_grad_mgm, param_grad_mgm = extract_info_geotherm(results_mgm, parameter)
+        P_grad_mgm, T_grad_mgm, param_grad_mgm = extract_info_geotherm(
+            results_mgm, parameter
+        )
 
     if results_ppx:
-        P_grad_ppx, T_grad_ppx, param_grad_ppx = extract_info_geotherm(results_ppx, parameter)
+        P_grad_ppx, T_grad_ppx, param_grad_ppx = extract_info_geotherm(
+            results_ppx, parameter
+        )
 
     if results_ml:
         P_grad_ml, T_grad_ml, param_grad_ml = extract_info_geotherm(results_ml, parameter)
@@ -2976,9 +2975,10 @@ def visualize_GFEM(
         results = process_MAGEMin_grid(sample_id, dataset, res, out_dir)
     elif program == "Perple_X":
         # Get perplex results
-        file_path_results = f"{out_dir}/{sample_id}/perplex/{sample_id}_grid.tab"
-        file_path_assemblage = f"{out_dir}/{sample_id}/perplex/{sample_id}_assemblages.txt"
-        results = process_perplex_grid(file_path_results, file_path_assemblage)
+        results = process_perplex_grid(
+            f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_grid.tab",
+            f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_assemblages.txt"
+        )
     else:
         raise ValueError(
             "Invalid program argument ...\n"
@@ -3044,7 +3044,7 @@ def visualize_GFEM(
             color_reverse=color_reverse,
             vmin=vmin,
             vmax=vmax,
-            filename=f"{program}-{sample_id}-{parameter}.png",
+            filename=f"{program}-{sample_id}-{dataset}-{parameter}.png",
             fig_dir=fig_dir
         )
 
@@ -3091,9 +3091,10 @@ def visualize_GFEM_diff(
     results_mgm = process_MAGEMin_grid(sample_id, dataset, res, out_dir)
 
     # Get perplex results
-    file_path_results_ppx = f"{out_dir}/{sample_id}/perplex/{sample_id}_grid.tab"
-    file_path_assemblage_ppx = f"{out_dir}/{sample_id}/perplex/{sample_id}_assemblages.txt"
-    results_ppx = process_perplex_grid(file_path_results_ppx, file_path_assemblage_ppx)
+    results_ppx = process_perplex_grid(
+        f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_grid.tab",
+        f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_assemblages.txt"
+    )
 
     # Get PT values MAGEMin and transform units
     P_mgm = [P / 10 for P in results_mgm["P"]]
@@ -3176,7 +3177,7 @@ def visualize_GFEM_diff(
                 color_reverse=False,
                 vmin=vmin,
                 vmax=vmax,
-                filename=f"diff-{sample_id}-{parameter}.png",
+                filename=f"diff-{sample_id}-{dataset}-{parameter}.png",
                 fig_dir=fig_dir
             )
 
@@ -3190,7 +3191,7 @@ def visualize_GFEM_diff(
                     results_ppx=results_ppx,
                     geotherm_threshold=0.1,
                     title="PREM Comparison",
-                    filename=f"prem-{sample_id}-{parameter}.png",
+                    filename=f"prem-{sample_id}-{dataset}-{parameter}.png",
                     fig_dir=fig_dir
                 )
 
@@ -3203,7 +3204,7 @@ def visualize_GFEM_diff(
                     results_ppx=results_ppx,
                     geotherm_threshold=0.1,
                     title="PREM Comparison",
-                    filename=f"prem-{sample_id}-{parameter}.png",
+                    filename=f"prem-{sample_id}-{dataset}-{parameter}.png",
                     fig_dir=fig_dir
                 )
 
@@ -3555,22 +3556,22 @@ def ml_regression(
         "training_time_std": [round(training_time_std, 3)],
         "inference_time_mean": [round(inference_time_mean, 3)],
         "inference_time_std": [round(inference_time_std, 3)],
-        "rmse_test_mean": [round(rmse_test_mean, 2)],
+        "rmse_test_mean": [round(rmse_test_mean, 3)],
         "rmse_test_std": [round(rmse_test_std, 3)],
-        "r2_test_mean": [round(r2_test_mean, 2)],
+        "r2_test_mean": [round(r2_test_mean, 3)],
         "r2_test_std": [round(r2_test_std, 3)],
-        "rmse_valid_mean": [round(rmse_valid_mean, 2)],
+        "rmse_valid_mean": [round(rmse_valid_mean, 3)],
         "rmse_valid_std": [round(rmse_valid_std, 3)],
-        "r2_valid_mean": [round(r2_valid_mean, 2)],
+        "r2_valid_mean": [round(r2_valid_mean, 3)],
         "r2_valid_std": [round(r2_valid_std, 3)]
     }
 
     # Print performance
     print(f"{model_label} performance:")
-    print(f"     rmse test: {rmse_test_mean:.2f} ± {rmse_test_std:.3f}")
-    print(f"       r2 test: {r2_test_mean:.2f} ± {r2_test_std:.3f}")
-    print(f"     rmse valid: {rmse_valid_mean:.2f} ± {rmse_valid_std:.3f}")
-    print(f"       r2 valid: {r2_valid_mean:.2f} ± {r2_valid_std:.3f}")
+    print(f"     rmse test: {rmse_test_mean:.3f} ± {rmse_test_std:.3f}")
+    print(f"       r2 test: {r2_test_mean:.3f} ± {r2_test_std:.3f}")
+    print(f"     rmse valid: {rmse_valid_mean:.3f} ± {rmse_valid_std:.3f}")
+    print(f"       r2 valid: {r2_valid_mean:.3f} ± {r2_valid_std:.3f}")
     print(f" training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
     print(f"inference time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
 
@@ -4113,7 +4114,7 @@ def run_ml_regression(
 # Visualize regression metrics
 def visualize_regression_metrics(
         datafile="assets/data/benchmark-mlms-metrics.csv",
-        benchmark_times="assets/data/benchmark-mlms-efficiency.csv",
+        benchmark_times="assets/data/benchmark-gfem-efficiency.csv",
         palette="tab10",
         fontsize=22,
         figwidth=6.3,
@@ -4181,18 +4182,29 @@ def visualize_regression_metrics(
         (benchmark_times["grid"] == 16384)
     ]
 
-    time_mgm = filtered_times["mgm"].values / filtered_times["grid"].values * 1000
-    time_ppx = filtered_times["ppx"].values / filtered_times["grid"].values * 1000
+    time_mgm = np.mean(
+        filtered_times[filtered_times["program"] == "magemin"]["time"].values /
+        filtered_times[filtered_times["program"] == "magemin"]["grid"].values *
+        1000
+    )
+    time_ppx = np.mean(
+        filtered_times[filtered_times["program"] == "perplex"]["time"].values /
+        filtered_times[filtered_times["program"] == "perplex"]["grid"].values *
+        1000
+    )
 
     # Define the metrics to plot
     metrics = [
-        "training_time_mean", "inference_time_mean", "inference_time_std", "rmse_mean"
+        "training_time_mean",
+        "inference_time_mean",
+        "rmse_test_mean",
+        "rmse_valid_mean"
     ]
     metric_names = [
-        "Training Time",
-        "Efficiency",
-        "$2\sigma$ Efficiency",
-        "Model Error"
+        "MLM Training Efficiency",
+        "MLM Prediction Efficiency",
+        "MLM Training Error",
+        "MLM Validation Error"
     ]
 
     # Set plot style and settings
@@ -4271,21 +4283,14 @@ def visualize_regression_metrics(
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"Elapsed Time (ms)")
             plt.yscale("log")
-            plt.ylim([10e-2, 2e+3])
         elif i == 1:
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"Elapsed Time (ms)")
             plt.yscale("log")
-            plt.ylim([2e-2, 2e+2])
             handles = [mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
-            legend.set_bbox_to_anchor((0.0, 0.8))
-        elif i == 2:
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"Elapsed Time (ms)")
-            plt.yscale("log")
-            plt.ylim([2e-2, 2e+2])
+            legend.set_bbox_to_anchor((0, 0.9))
         else:
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"RMSE ({data['units'][0]})")

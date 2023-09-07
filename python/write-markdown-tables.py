@@ -18,12 +18,12 @@ with open("draft/assets/pandoc/benchmark-mlms-metrics.md", "w") as file:
     file.write(markdown_table)
 
 # Benchmark comp times
-df = pd.read_csv("assets/data/benchmark-mlms-efficiency.csv")
+df = pd.read_csv("assets/data/benchmark-gfem-efficiency.csv")
 df.drop(["pmin", "pmax", "tmin", "tmax"], axis=1, inplace=True)
 df.columns = ["Name", "Grid Size", "MAGEMin", "Perple_X"]
 markdown_table = df.to_markdown(index=False, floatfmt=".1f")
 
-with open("draft/assets/pandoc/benchmark-mlms-efficiency.md", "w") as file:
+with open("draft/assets/pandoc/benchmark-gfem-efficiency.md", "w") as file:
     file.write(markdown_table)
 
 # Benchmark compositions
