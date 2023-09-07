@@ -9,13 +9,13 @@ from magemin import (
 
 # Parse arguments and check
 args = parse_arguments()
-valid_args = check_arguments(args, "benchmark.py")
+valid_args = check_arguments(args, "build-magemin-database.py")
 
 # Load valid arguments
 locals().update(valid_args)
 
 # Get benchmarking composition
-datafile = "assets/data/benchmark-comps.csv"
+datafile = "assets/data/benchmark-samples.csv"
 sample = get_benchmark_sample_for_MAGEMin(datafile, sampleid)
 
 # Normalize composition
@@ -25,7 +25,7 @@ norm = normalize_sample(sample, normox)
 Pmin, Pmax, Tmin, Tmax = Pmin * 10, Pmax * 10, Tmin - 273, Tmax - 273
 
 # PT grid
-Prange, Trange = [Pmin, Pmax, (Pmax-Pmin)/Pres], [Tmin, Tmax, (Tmax-Tmin)/Tres]
+Prange, Trange = [Pmin, Pmax, (Pmax-Pmin)/res], [Tmin, Tmax, (Tmax-Tmin)/res]
 
 # Write MAGEMin input
 create_MAGEMin_input(Prange, Trange, norm, 0, sampleid, outdir)

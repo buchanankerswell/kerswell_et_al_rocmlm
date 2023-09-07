@@ -11,27 +11,29 @@ from magemin import (
 
 # Parse arguments and check
 args = parse_arguments()
-valid_args = check_arguments(args, "regression.py")
+valid_args = check_arguments(args, "benchmark-models.py")
 
 # Load valid arguments
 locals().update(valid_args)
 
 # Test for results
-mgm_results = len(os.listdir(outdir + "/" + sampleid)) != 0
-ppx_results = os.path.exists(f"assets/benchmark/{sampleid}/{sampleid}_grid.tab")
+mgm_results_train = len(os.listdir(f"{outdir}/{sampleid}/magemin_train_{res}")) != 0
+mgm_results_valid = len(os.listdir(f"{outdir}/{sampleid}/magemin_valid_{res}")) != 0
+ppx_results_train = len(os.listdir(f"{outdir}/{sampleid}/perplex_train_{res}")) != 0
+ppx_results_valid = len(os.listdir(f"{outdir}/{sampleid}/perplex_valid_{res}")) != 0
 
-if (mgm_results and ppx_results):
+if (mgm_results_train and ppx_results_train and mgm_results_valid and ppx_results_valid):
     for m in models:
         # Run support vector regression
         run_ml_regression(
-            sampleid, params, True, True, True, m, kfolds, parallel, nprocs, seed, colormap,
-            outdir, figdir, datadir
+            sampleid, res, params, True, True, True, m, kfolds,
+            parallel, nprocs, seed, colormap, outdir, figdir, datadir
         )
 
         # Create compositions
-        print(f"Plotting results for: {sampleid} {m}:")
-        print(f"    sample: {sampleid}")
+        print(f"Plotting results for:")
         print(f"     model: {m}")
+        print(f"    sample: {sampleid}")
 
         # Change model string for filename
         mlab = m.replace(" ", "-")

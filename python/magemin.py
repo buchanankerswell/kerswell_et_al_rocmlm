@@ -22,7 +22,6 @@ from git import Repo
 import urllib.request
 import seaborn as sns
 from scipy import stats
-from sklearn.svm import SVR
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
@@ -562,12 +561,6 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
-        "--Pres",
-        type=int,
-        help="Specify the Pres argument ...",
-        required=False
-    )
-    parser.add_argument(
         "--Tmin",
         type=int,
         help="Specify the Tmin argument ...",
@@ -580,9 +573,9 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
-        "--Tres",
+        "--res",
         type=int,
-        help="Specify the Tres argument ...",
+        help="Specify the res argument ...",
         required=False
     )
     parser.add_argument(
@@ -693,6 +686,12 @@ def parse_arguments():
         help="Specify the datadir argument ...",
         required=False
     )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        help="Specify the dataset argument ...",
+        required=False
+    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -728,10 +727,10 @@ def check_arguments(args, script):
     # Arguments
     Pmin = args.Pmin
     Pmax = args.Pmax
-    Pres = args.Pres
     Tmin = args.Tmin
     Tmax = args.Tmax
-    Tres = args.Tres
+    res = args.res
+    dataset = args.dataset
     comp = args.comp
     frac = args.frac
     sampleid = args.sampleid
@@ -771,7 +770,7 @@ def check_arguments(args, script):
     benchmark_sample_ids = ["PUM", "DMM", "RE46", "NMORB"]
 
     # Benchmark sample data
-    datafile = "assets/data/benchmark-comps.csv"
+    datafile = "assets/data/benchmark-samples.csv"
 
     valid_args = {}
 
@@ -789,20 +788,6 @@ def check_arguments(args, script):
 
         valid_args["Pmax"] = Pmax
 
-    if Pres is not None:
-        if Pres > 128:
-            raise ValueError(
-                "Invalid --Pres argument ...\n"
-                "--Pres must be <= 128"
-            )
-
-        if Pmin is not None and Pmax is not None:
-            print(f"    Prange: [{Pmin}, {Pmax}, {Pres}]")
-        else:
-            print(f"    Pres: {Pres}")
-
-        valid_args["Pres"] = Pres
-
     if Tmin is not None:
         print(f"    Tmin: {Tmin}")
 
@@ -813,19 +798,20 @@ def check_arguments(args, script):
 
         valid_args["Tmax"] = Tmax
 
-    if Tres is not None:
-        if Tres > 128:
+    if res is not None:
+        if res > 128:
             raise ValueError(
-                "Invalid --Tres argument ...\n"
-                "--Tres must be <= 128"
+                "Invalid --res argument ...\n"
+                "--res must be <= 128"
             )
 
         if Tmin is not None and Tmax is not None:
-            print(f"    Trange: [{Tmin}, {Tmax}, {Tres}]")
-        else:
-            print(f"    Tres: {Tres}")
+            print(f"    Trange: [{Tmin}, {Tmax}, {res}]")
 
-        valid_args["Tres"] = Tres
+        if Pmin is not None and Pmax is not None:
+            print(f"    Prange: [{Pmin}, {Pmax}, {res}]")
+
+        valid_args["res"] = res
 
     if comp is not None:
         print(f"    comp: {comp}")
@@ -992,6 +978,11 @@ def check_arguments(args, script):
         print(f"    datadir: {datadir}")
 
         valid_args["datadir"] = datadir
+
+    if dataset is not None:
+        print(f"    dataset: {dataset}")
+
+        valid_args["dataset"] = dataset
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
@@ -1619,12 +1610,12 @@ def read_MAGEMin_pseudosection_data(filename):
     return results
 
 # Process all MAGEMin output files in a directory
-def process_MAGEMin_grid(run_name, out_dir="runs"):
+def process_MAGEMin_grid(sample_id, dataset, res, out_dir="runs"):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
     Args:
-        run_name (str): The name of the MAGEMin run.
+        sample_id (str): The name of the MAGEMin run.
 
     Returns:
         dict: A single dictionary with merged key-value pairs from all files.
@@ -1636,12 +1627,12 @@ def process_MAGEMin_grid(run_name, out_dir="runs"):
     # Check for MAGEMin output files
     if not os.path.exists(f"{os.getcwd()}/{out_dir}"):
         sys.exit("No MAGEMin output files to process ...")
-    if not os.path.exists(f"{os.getcwd()}/{out_dir}/{run_name}"):
+    if not os.path.exists(f"{os.getcwd()}/{out_dir}/{sample_id}/magemin_{dataset}_{res}"):
         sys.exit("No MAGEMin output files to process ...")
 
     # Get filenames directory for files
-    directory = f"{os.getcwd()}/{out_dir}/{run_name}"
-    pattern = f"_{run_name}*.txt"
+    directory = f"{os.getcwd()}/{out_dir}/{sample_id}/magemin_{dataset}_{res}"
+    pattern = f"_{sample_id}*.txt"
 
     results = []
 
@@ -2140,7 +2131,7 @@ def visualize_earthchem_data(
         x_oxide="SiO2",
         y_oxide=["MgO", "FeO", "CaO", "Al2O3"],
         fontsize=12,
-        filename="earthchem-harker.png",
+        filename="earthchem-samples-harker-diagram.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Plot Harker diagrams with density contours using seaborn.
@@ -2165,6 +2156,9 @@ def visualize_earthchem_data(
         - Legends are shown only for the first subplot.
         - The plot can be saved to a file if a filename is provided.
     """
+    # Ignore warnings
+    warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
+
     # Read geochemical data
     data = read_geochemical_data(datafile)
     data = data.rename(columns={"COMPOSITION": "Rock Type"})
@@ -2262,8 +2256,8 @@ def visualize_benchmark_comp_times(
         palette="tab10",
         fontsize=12,
         figwidth=6.3,
-        figheight=4.725,
-        filename="benchmark-times.png",
+        figheight=3.54,
+        filename="benchmark-mlms-efficiency.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Visualize benchmark computation times.
@@ -2273,7 +2267,7 @@ def visualize_benchmark_comp_times(
         palette (str, optional): The color palette for sample colors. Default is "tab10".
         fontsize (int, optional): The font size for text elements in the plot. Default is 12.
         filename (str, optional): The filename to save the plot. If not provided,
-            the plot will be displayed interactively. Default is "benchmark-times.png".
+            the plot will be displayed interactively. Default is "efficiency.png".
         fig_dir (str, optional): The directory to save the plot. Default is "./figs".
 
     Returns:
@@ -2299,7 +2293,8 @@ def visualize_benchmark_comp_times(
     data = pd.read_csv(datafile)
 
     # Arrange data by grid resolution and sample
-    data.sort_values(by=["grid", "sample"], inplace=True)
+    data.sort_values(by=["grid", "sample", "program"], inplace=True)
+    print(data)
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2329,13 +2324,20 @@ def visualize_benchmark_comp_times(
 
     # Plot the data for MAGEMin lines
     for group, group_data in grouped_data:
+        print(group)
+        print(group_data)
         sample_val = group[0]
         color_val = sample_colors[sample_val]
 
         # Filter out rows with missing time values for mgm column
-        mgm_data = group_data.dropna(subset=["mgm"])
+        mgm_data = group_data[group_data["program"] == "magemin"]
         mgm_x = np.sqrt(mgm_data["grid"])
-        mgm_y = mgm_data["mgm"]
+        mgm_y = mgm_data["time"]
+
+        # Filter out rows with missing time values for ppx column
+        ppx_data = group_data[group_data["program"] == "perplex"]
+        ppx_x = np.sqrt(ppx_data["grid"])
+        ppx_y = ppx_data["time"]
 
         # Plot mgm data points and connect them with lines
         line_mgm, = plt.plot(
@@ -2347,16 +2349,6 @@ def visualize_benchmark_comp_times(
         )
         legend_handles.append(line_mgm)
         legend_labels.append(f"[MAGEMin] {sample_val}")
-
-    # Plot the data for Perple_X lines
-    for group, group_data in grouped_data:
-        sample_val = group[0]
-        color_val = sample_colors[sample_val]
-
-        # Filter out rows with missing time values for ppx column
-        ppx_data = group_data.dropna(subset=["ppx"])
-        ppx_x = np.sqrt(ppx_data["grid"])
-        ppx_y = ppx_data["ppx"]
 
         # Plot ppx data points and connect them with lines
         line_ppx, = plt.plot(
@@ -2407,7 +2399,7 @@ def visualize_training_PT_range(
         fontsize=12,
         figwidth=6.3,
         figheight=3.54,
-        filename="training-pt-range.png",
+        filename="training-dataset-design.png",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Generate a plot to visualize the training data PT range and Clapeyron slopes.
@@ -2941,6 +2933,8 @@ def visualize_PREM(
 def visualize_GFEM(
         program,
         sample_id,
+        res,
+        dataset,
         parameters,
         mask_geotherm=False,
         palette="bone",
@@ -2979,11 +2973,11 @@ def visualize_GFEM(
     # Get GFEM results
     if program == "MAGEMin":
         # Get MAGEMin results
-        results = process_MAGEMin_grid(sample_id, out_dir)
+        results = process_MAGEMin_grid(sample_id, dataset, res, out_dir)
     elif program == "Perple_X":
         # Get perplex results
-        file_path_results = f"assets/benchmark/{sample_id}/{sample_id}_grid.tab"
-        file_path_assemblage = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
+        file_path_results = f"{out_dir}/{sample_id}/perplex/{sample_id}_grid.tab"
+        file_path_assemblage = f"{out_dir}/{sample_id}/perplex/{sample_id}_assemblages.txt"
         results = process_perplex_grid(file_path_results, file_path_assemblage)
     else:
         raise ValueError(
@@ -3057,6 +3051,8 @@ def visualize_GFEM(
 # Plot GFEM results diff
 def visualize_GFEM_diff(
         sample_id,
+        res,
+        dataset,
         parameters,
         mask_geotherm=False,
         palette="bone",
@@ -3092,11 +3088,11 @@ def visualize_GFEM_diff(
           comparison.
     """
     # Get MAGEMin results
-    results_mgm = process_MAGEMin_grid(sample_id, out_dir)
+    results_mgm = process_MAGEMin_grid(sample_id, dataset, res, out_dir)
 
     # Get perplex results
-    file_path_results_ppx = f"assets/benchmark/{sample_id}/{sample_id}_grid.tab"
-    file_path_assemblage_ppx = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
+    file_path_results_ppx = f"{out_dir}/{sample_id}/perplex/{sample_id}_grid.tab"
+    file_path_assemblage_ppx = f"{out_dir}/{sample_id}/perplex/{sample_id}_assemblages.txt"
     results_ppx = process_perplex_grid(file_path_results_ppx, file_path_assemblage_ppx)
 
     # Get PT values MAGEMin and transform units
@@ -3239,13 +3235,13 @@ def process_fold(fold_data):
 
     Returns:
         rmse_test (float): Root Mean Squared Error (RMSE) of the ML model's predictions on
-                           the test set (non-scaled).
+                           the test dataset (non-scaled).
         rmse_valid (float): Root Mean Squared Error (RMSE) of the ML model's predictions on
-                            the validation set (non-scaled).
+                            the validation dataset (non-scaled).
         r2_test (float): R-squared (coefficient of determination) of the ML model's
-                         predictions on the test set.
+                         predictions on the test dataset.
         r2_valid (float): R-squared (coefficient of determination) of the ML model's
-                          predictions on the validation set.
+                          predictions on the validation dataset.
 
     Notes:
         This function performs the following steps for a single fold of k-fold cross
@@ -3266,21 +3262,26 @@ def process_fold(fold_data):
         kfolds,
         X_scaled,
         y_scaled,
+        X_scaled_valid,
+        y_scaled_valid,
         model,
-        scaler_y,
         scaler_X,
+        scaler_y,
+        scaler_X_valid,
+        scaler_y_valid,
         target_array,
         W
     ) = fold_data
 
     # Print progress
     print(f"    ======================")
-    print(f"    ==== k-fold:  {fold_idx + 1}/{kfolds} ====")
+    print(f"        k-fold:  {fold_idx + 1}/{kfolds}    ")
     print(f"    ======================")
 
     # Split the data into training and testing sets
     X_train, X_test = X_scaled[train_index], X_scaled[test_index]
     y_train, y_test = y_scaled[train_index], y_scaled[test_index]
+    X_valid, y_valid = X_scaled_valid, y_scaled_valid
 
     # Train ML model
     training_start_time = time.time()
@@ -3289,10 +3290,11 @@ def process_fold(fold_data):
 
     training_time = (training_end_time - training_start_time) * 1000
 
-    # Make predictions on the test set
+    # Make predictions on the test dataset
     y_pred_scaled = model.predict(X_test)
+    y_pred_scaled_valid = model.predict(X_valid)
 
-    # Test inference time on single random PT datapoint from the test set
+    # Test inference time on single random PT datapoint from the test dataset
     rand_PT_point = X_test[np.random.choice(X_test.shape[0], 1, replace=False)]
 
     inference_start_time = time.time()
@@ -3303,35 +3305,41 @@ def process_fold(fold_data):
 
     # Inverse transform predictions
     y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
+    y_pred_original_valid = scaler_y_valid.inverse_transform(
+        y_pred_scaled_valid.reshape(-1, 1)).flatten()
 
-    # Inverse transform test set
+    # Inverse transform test dataset
     y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
-
-    # Inverse transform training set
-    X_train_original = scaler_X.inverse_transform(X_train)
-    y_train_original = scaler_y.inverse_transform(y_train.reshape(-1, 1)).flatten()
+    y_valid_original = scaler_y_valid.inverse_transform(y_valid.reshape(-1, 1)).flatten()
 
     # Evaluate the model
-    rmse = math.sqrt(mean_squared_error(y_test_original, y_pred_original))
-    r2 = r2_score(y_test_original, y_pred_original)
+    rmse_test = math.sqrt(mean_squared_error(y_test_original, y_pred_original))
+    rmse_valid = math.sqrt(mean_squared_error(y_valid_original, y_pred_original_valid))
+    r2_test = r2_score(y_test_original, y_pred_original)
+    r2_valid = r2_score(y_valid_original, y_pred_original_valid)
 
     print(f"     training time: {round(training_time, 3)}")
     print(f"    inference time: {round(inference_time, 3)}")
     print(f"            n test: {len(y_test)}")
     print(f"           n train: {len(y_train)}")
-    print(f"              rmse: {round(rmse, 3)}")
-    print(f"                r2: {round(r2, 3)}")
+    print(f"           n valid: {len(y_valid)}")
+    print(f"         rmse test: {round(rmse_test, 3)}")
+    print(f"           r2 test: {round(r2_test, 3)}")
+    print(f"        rmse valid: {round(rmse_valid, 3)}")
+    print(f"          r2 valid: {round(r2_valid, 3)}")
 
-    return rmse, r2, training_time, inference_time
+    return rmse_test, r2_test, rmse_valid, r2_valid, training_time, inference_time
 
 # Support Vector Regression analysis
 def ml_regression(
         features_array,
         target_array,
+        features_array_valid,
+        target_array_valid,
         parameter,
         units,
         program,
-        model="SVR RBF",
+        model="Decision Tree",
         seed=42,
         kfolds=10,
         parallel=True,
@@ -3386,6 +3394,7 @@ def ml_regression(
     # Transform units
     if parameter == "DensityOfFullAssemblage":
         target_array = target_array / 1000
+        target_array_valid = target_array_valid / 1000
 
     # Label units
     if units is None:
@@ -3407,32 +3416,28 @@ def ml_regression(
     W = features_array.shape[0]
     X = features_array.reshape(W*W, 2)
     y = target_array.flatten()
-
-    # Get bounds of features array
-    P_min, P_max, T_min, T_max = X[:, 0].min(), X[:, 0].max(), X[:, 1].min(), X[:, 1].max()
-
-    # Create features grid for validation set
-    P_valid, T_valid = np.meshgrid(
-        np.linspace(P_min, P_max, W), np.linspace(T_min, T_max, W)
-    )
-
-    # Validation set
-    X_valid = np.c_[P_valid.ravel(), T_valid.ravel()]
+    X_valid = features_array_valid.reshape(W*W, 2)
+    y_valid = target_array_valid.flatten()
 
     # Remove nans
     mask = np.isnan(y)
     X, y = X[~mask, :], y[~mask]
+    mask = np.isnan(y_valid)
+    X_valid, y_valid = X_valid[~mask, :], y_valid[~mask]
 
     # Scale the feature array
     scaler_X = StandardScaler()
     scaler_y = StandardScaler()
+    scaler_X_valid = StandardScaler()
+    scaler_y_valid = StandardScaler()
 
     # Scale feature and validation arrays
     X_scaled = scaler_X.fit_transform(X)
-    X_valid_scaled = scaler_X.fit_transform(X_valid)
+    X_scaled_valid = scaler_X_valid.fit_transform(X_valid)
 
     # Scale the target array
     y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).flatten()
+    y_scaled_valid = scaler_y_valid.fit_transform(y_valid.reshape(-1, 1)).flatten()
 
     # K-fold cross-validation
     kf = KFold(n_splits=kfolds, shuffle=True, random_state=seed)
@@ -3441,25 +3446,28 @@ def ml_regression(
     model_label = model
 
     # Create the ML model
-    if model == "Support Vector":
-        model = SVR()
+    if model == "K Nearest":
+        model = KNeighborsRegressor(weights="distance")
     elif model == "Random Forest":
         model = RandomForestRegressor(random_state=seed)
-    elif model == "Gradient Boost":
-        model = GradientBoostingRegressor(random_state=seed)
-    elif model == "K Nearest":
-        model = KNeighborsRegressor(weights="distance")
-    elif model == "Neural Network 1L":
-        layer_sizes = [y.shape[0] // 100]
-        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
-    elif model == "Neural Network 2L":
-        layer_sizes = [y.shape[0] // 100, y.shape[0] // 100]
-        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
-    elif model == "Neural Network 3L":
-        layer_sizes = [y.shape[0] // 100, y.shape[0] // 100, y.shape[0] // 100]
-        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
     elif model == "Decision Tree":
         model = DecisionTreeRegressor(random_state=seed)
+    elif model == "Neural Network 1L":
+        layer_sizes = [int(y.shape[0] * 0.3)]
+        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
+    elif model == "Neural Network 2L":
+        layer_sizes = [
+            int(y.shape[0] * 0.3),
+            int(y.shape[0] * 0.2)
+        ]
+        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
+    elif model == "Neural Network 3L":
+        layer_sizes = [
+            int(y.shape[0] * 0.3),
+            int(y.shape[0] * 0.2),
+            int(y.shape[0] * 0.1)
+        ]
+        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
 
     # Print model config
     print("Cross-validating ML model:")
@@ -3476,9 +3484,13 @@ def ml_regression(
             kfolds,
             X_scaled,
             y_scaled,
+            X_scaled_valid,
+            y_scaled_valid,
             model,
-            scaler_y,
             scaler_X,
+            scaler_y,
+            scaler_X_valid,
+            scaler_y_valid,
             target_array,
             W
         ) for fold_idx, (train_index, test_index) in enumerate(kf.split(X))
@@ -3502,22 +3514,30 @@ def ml_regression(
         pool.join()
 
     # Unpack the results from the parallel kfolds
-    rmse_scores = []
-    r2_scores = []
+    rmse_test_scores = []
+    r2_test_scores = []
+    rmse_valid_scores = []
+    r2_valid_scores = []
     training_times = []
     inference_times = []
 
-    for (rmse, r2, training_time, inference_time) in results:
-        rmse_scores.append(rmse)
-        r2_scores.append(r2)
+    for (rmse_test, r2_test, rmse_valid, r2_valid, training_time, inference_time) in results:
+        rmse_test_scores.append(rmse_test)
+        r2_test_scores.append(r2_test)
+        rmse_valid_scores.append(rmse_valid)
+        r2_valid_scores.append(r2_valid)
         training_times.append(training_time)
         inference_times.append(inference_time)
 
     # Calculate performance values with uncertainties
-    r2_mean = np.mean(r2_scores)
-    r2_std = np.std(r2_scores)
-    rmse_mean = np.mean(rmse_scores)
-    rmse_std = np.std(rmse_scores)
+    r2_test_mean = np.mean(r2_test_scores)
+    r2_test_std = np.std(r2_test_scores)
+    rmse_test_mean = np.mean(rmse_test_scores)
+    rmse_test_std = np.std(rmse_test_scores)
+    r2_valid_mean = np.mean(r2_valid_scores)
+    r2_valid_std = np.std(r2_valid_scores)
+    rmse_valid_mean = np.mean(rmse_valid_scores)
+    rmse_valid_std = np.std(rmse_valid_scores)
     training_time_mean = np.mean(training_times)
     training_time_std = np.std(training_times)
     inference_time_mean = np.mean(inference_times)
@@ -3527,25 +3547,32 @@ def ml_regression(
     model_info = {
         "model": [model_label],
         "program": [program],
+        "grid": [(W-1)*(W-1)],
         "parameter": [parameter_label],
         "units": [units],
-        "k_folds": kfolds,
+        "k_folds": [kfolds],
         "training_time_mean": [round(training_time_mean, 3)],
         "training_time_std": [round(training_time_std, 3)],
         "inference_time_mean": [round(inference_time_mean, 3)],
         "inference_time_std": [round(inference_time_std, 3)],
-        "rmse_mean": [round(rmse_mean, 2)],
-        "rmse_std": [round(rmse_std, 3)],
-        "r2_mean": [round(r2_mean, 2)],
-        "r2_std": [round(r2_std, 3)],
+        "rmse_test_mean": [round(rmse_test_mean, 2)],
+        "rmse_test_std": [round(rmse_test_std, 3)],
+        "r2_test_mean": [round(r2_test_mean, 2)],
+        "r2_test_std": [round(r2_test_std, 3)],
+        "rmse_valid_mean": [round(rmse_valid_mean, 2)],
+        "rmse_valid_std": [round(rmse_valid_std, 3)],
+        "r2_valid_mean": [round(r2_valid_mean, 2)],
+        "r2_valid_std": [round(r2_valid_std, 3)]
     }
 
     # Print performance
-    print(f"{model_label} Performance (test set):")
-    print(f"   rmse: {rmse_mean:.2f} ± {rmse_std:.3f}")
-    print(f"     r2: {r2_mean:.2f} ± {r2_std:.3f}")
-    print(f"Training Time: {training_time_mean:.3f} ± {training_time_std:.3f}")
-    print(f"Inference Time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
+    print(f"{model_label} performance:")
+    print(f"     rmse test: {rmse_test_mean:.2f} ± {rmse_test_std:.3f}")
+    print(f"       r2 test: {r2_test_mean:.2f} ± {r2_test_std:.3f}")
+    print(f"     rmse valid: {rmse_valid_mean:.2f} ± {rmse_valid_std:.3f}")
+    print(f"       r2 valid: {r2_valid_mean:.2f} ± {r2_valid_std:.3f}")
+    print(f" training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
+    print(f"inference time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
 
     # Normal 80 / 20 train / test split for plotting
     X_train, X_test, y_train, y_test = train_test_split(
@@ -3555,31 +3582,31 @@ def ml_regression(
         random_state=seed
     )
 
+    X_valid = features_array_valid.reshape(W*W, 2)
+    X_scaled_valid = scaler_X_valid.fit_transform(X_valid)
+
     # Train ML model
     model.fit(X_train, y_train)
 
-    # Make predictions on validation set
-    valid_pred_scaled = model.predict(X_valid_scaled)
+    # Make predictions on validation dataset
+    valid_pred_scaled = model.predict(X_scaled_valid)
 
     # Inverse transform predictions
     valid_pred_original = (
-        scaler_y.inverse_transform(valid_pred_scaled.reshape(-1, 1)).flatten()
+        scaler_y_valid.inverse_transform(valid_pred_scaled.reshape(-1, 1)).flatten()
     )
 
     # Reshape the predictions to match the grid shape for visualization
     valid_pred_array_original = valid_pred_original.reshape(W, W)
 
-    # Transpose predictions
-    valid_pred_array_original = np.transpose(valid_pred_array_original)
-
     # Compute normalized diff
-    mask = np.isnan(target_array)
+    mask = np.isnan(target_array_valid)
 
     valid_pred_array_original[mask] = np.nan
 
     diff_norm = (
-        (target_array - valid_pred_array_original) /
-        ((target_array + valid_pred_array_original) / 2) * 100
+        (target_array_valid - valid_pred_array_original) /
+        ((target_array_valid + valid_pred_array_original) / 2) * 100
     )
 
     diff_norm[mask] = np.nan
@@ -3651,8 +3678,8 @@ def ml_regression(
 
     # Plot ML model predictions array
     visualize_MAD(
-        P_valid,
-        T_valid,
+        features_array_valid[:,:,0],
+        features_array_valid[:,:,1],
         valid_pred_array_original,
         parameter,
         title=f"{model_label}",
@@ -3669,8 +3696,8 @@ def ml_regression(
     fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
     ax = fig.add_subplot(111, projection="3d")
     surf = ax.plot_surface(
-        P_valid,
-        T_valid,
+        features_array_valid[:,:,1],
+        features_array_valid[:,:,0],
         valid_pred_array_original,
         cmap=cmap,
         vmin=vmin,
@@ -3701,8 +3728,8 @@ def ml_regression(
 
     # Plot PT normalized diff targets vs. ML model predictions
     visualize_MAD(
-        features_array[:,:,0],
-        features_array[:,:,1],
+        features_array_valid[:,:,0],
+        features_array_valid[:,:,1],
         diff_norm,
         parameter,
         title="Percent Difference",
@@ -3718,11 +3745,12 @@ def ml_regression(
     # 3D surface
     vmin_diff = -np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
     vmax_diff = np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
+
     fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
     ax = fig.add_subplot(111, projection="3d")
     surf = ax.plot_surface(
-        features_array[:,:,1],
-        features_array[:,:,0],
+        features_array_valid[:,:,1],
+        features_array_valid[:,:,0],
         diff_norm,
         cmap="seismic",
         vmin=vmin_diff,
@@ -3750,9 +3778,6 @@ def ml_regression(
     cbar.ax.set_ylim(vmin_diff, vmax_diff)
     plt.savefig(f"{fig_dir}/{filename}-diff-surf.png")
     plt.close()
-
-    # Transpose predictions
-    valid_pred_array_original = np.transpose(valid_pred_array_original)
 
     # Reshape results and transform units for MAGEMin
     if program == "MAGEMin":
@@ -3782,8 +3807,8 @@ def ml_regression(
 
     # Reshape results and transform units for ML model
     results_model = {
-        "P": [P * 10 for P in P_valid.ravel().tolist()],
-        "T": [T - 273 for T in T_valid.ravel().tolist()],
+        "P": [P * 10 for P in features_array_valid[:,:,0].ravel().tolist()],
+        "T": [T - 273 for T in features_array_valid[:,:,1].ravel().tolist()],
         parameter: valid_pred_array_original.ravel().tolist()
     }
 
@@ -3791,7 +3816,7 @@ def ml_regression(
         results_model[parameter] = [x * 1000 for x in results_model[parameter]]
 
     # Plot PREM comparisons
-    metrics = [rmse_mean, r2_mean]
+    metrics = [rmse_valid_mean, r2_valid_mean]
 
     if parameter == "DensityOfFullAssemblage":
         visualize_PREM(
@@ -3831,15 +3856,16 @@ def ml_regression(
 
     return model, model_info
 
-# Support vector regression with nonlinear kernel
+# MLM regression
 def run_ml_regression(
         sample_id,
+        res,
         parameters,
         mask_geotherm=False,
         MAGEMin=True,
         Perple_X=True,
-        model="SVR RBF",
-        kfolds=10,
+        model="Decision Tree",
+        kfolds=cpu_count()-2,
         parallel=True,
         nprocs=cpu_count()-2,
         seed=42,
@@ -3878,56 +3904,79 @@ def run_ml_regression(
     """
     if MAGEMin:
         print("Processing MAGEMin results from:")
-        print(f"    MAGEMin: {out_dir}/{sample_id}")
+        print(f"      training set: {out_dir}/{sample_id}/magemin_train_{res}")
+        print(f"    validation set: {out_dir}/{sample_id}/magemin_valid_{res}")
 
         # Get results
-        results_mgm = process_MAGEMin_grid(sample_id, out_dir)
+        results_mgm = process_MAGEMin_grid(sample_id, "train", res, out_dir)
+        results_mgm_valid = process_MAGEMin_grid(sample_id, "valid", res, out_dir)
 
         # Get PT values and transform units
         P_mgm = [P / 10 for P in results_mgm["P"]]
         T_mgm = [T + 273 for T in results_mgm["T"]]
+        P_mgm_valid = [P / 10 for P in results_mgm_valid["P"]]
+        T_mgm_valid = [T + 273 for T in results_mgm_valid["T"]]
 
         # Reshape into (W, 1) arrays
         P_array_mgm = np.unique(np.array(P_mgm)).reshape(-1, 1)
         T_array_mgm = np.unique(np.array(T_mgm)).reshape(1, -1)
+        P_array_mgm_valid = np.unique(np.array(P_mgm_valid)).reshape(-1, 1)
+        T_array_mgm_valid = np.unique(np.array(T_mgm_valid)).reshape(1, -1)
 
         # Get array dimensions
         W_mgm = P_array_mgm.shape[0]
+        W_mgm_valid = P_array_mgm_valid.shape[0]
 
         # Reshape into (W, W) arrays by repeating values
         P_grid_mgm = np.tile(P_array_mgm, (1, W_mgm))
         T_grid_mgm = np.tile(T_array_mgm, (W_mgm, 1))
+        P_grid_mgm_valid = np.tile(P_array_mgm_valid, (1, W_mgm_valid))
+        T_grid_mgm_valid = np.tile(T_array_mgm_valid, (W_mgm_valid, 1))
 
-        # Combine P and T grids into a single feature set with shape (W, W, 2)
+        # Combine P and T grids into a single feature dataset with shape (W, W, 2)
         features_array_mgm = np.stack((P_grid_mgm, T_grid_mgm), axis=-1)
+        features_array_mgm_valid = np.stack((P_grid_mgm_valid, T_grid_mgm_valid), axis=-1)
 
     if Perple_X:
         print("Processing Perple_X results from:")
-        print(f"    Perple_X: assets/benchmark/{sample_id}/{sample_id}_grid.tab")
-        print(f"    Perple_X: assets/benchmark/{sample_id}/{sample_id}_assemblages.txt")
+        print(f"      training set: {out_dir}/{sample_id}/perplex_train_{res}")
+        print(f"    validation set: {out_dir}/{sample_id}/perplex_valid_{res}")
 
         # Get results
-        file_path_results = f"assets/benchmark/{sample_id}/{sample_id}_grid.tab"
-        file_path_assemblage = f"assets/benchmark/{sample_id}/{sample_id}_assemblages.txt"
-        results_ppx = process_perplex_grid(file_path_results, file_path_assemblage)
+        results_ppx = process_perplex_grid(
+            f"{out_dir}/{sample_id}/perplex_train_{res}/{sample_id}_grid.tab",
+            f"{out_dir}/{sample_id}/perplex_train_{res}/{sample_id}_assemblages.txt"
+        )
+        results_ppx_valid = process_perplex_grid(
+            f"{out_dir}/{sample_id}/perplex_valid_{res}/{sample_id}_grid.tab",
+            f"{out_dir}/{sample_id}/perplex_valid_{res}/{sample_id}_assemblages.txt"
+        )
 
         # Get PT values and transform units
         P_ppx = [P / 10 for P in results_ppx["P"]]
         T_ppx = [T + 273 for T in results_ppx["T"]]
+        P_ppx_valid = [P / 10 for P in results_ppx_valid["P"]]
+        T_ppx_valid = [T + 273 for T in results_ppx_valid["T"]]
 
         # Reshape into (W, 1) arrays
         P_array_ppx = np.unique(np.array(P_ppx)).reshape(-1, 1)
         T_array_ppx = np.unique(np.array(T_ppx)).reshape(1, -1)
+        P_array_ppx_valid = np.unique(np.array(P_ppx_valid)).reshape(-1, 1)
+        T_array_ppx_valid = np.unique(np.array(T_ppx_valid)).reshape(1, -1)
 
         # Get array dimensions
         W_ppx = P_array_ppx.shape[0]
+        W_ppx_valid = P_array_ppx_valid.shape[0]
 
         # Reshape into (W, W) arrays by repeating values
         P_grid_ppx = np.tile(P_array_ppx, (1, W_ppx))
         T_grid_ppx = np.tile(T_array_ppx, (W_ppx, 1))
+        P_grid_ppx_valid = np.tile(P_array_ppx_valid, (1, W_ppx_valid))
+        T_grid_ppx_valid = np.tile(T_array_ppx_valid, (W_ppx_valid, 1))
 
-        # Combine P and T grids into a single feature set with shape (W, W, 2)
+        # Combine P and T grids into a single feature dataset with shape (W, W, 2)
         features_array_ppx = np.stack((P_grid_ppx, T_grid_ppx), axis=-1)
+        features_array_ppx_valid = np.stack((P_grid_ppx_valid, T_grid_ppx_valid), axis=-1)
 
     for parameter in parameters:
         # Units
@@ -3944,6 +3993,12 @@ def run_ml_regression(
                 results_mgm[parameter],
                 mask_geotherm
             )
+            target_array_mgm_valid = create_PT_grid(
+                P_mgm_valid,
+                T_mgm_valid,
+                results_mgm_valid[parameter],
+                mask_geotherm
+            )
 
         if Perple_X:
             # Target array with shape (W, W)
@@ -3951,6 +4006,13 @@ def run_ml_regression(
                 P_ppx,
                 T_ppx,
                 results_ppx[parameter],
+                mask_geotherm
+            )
+            # Target array with shape (W, W)
+            target_array_ppx_valid = create_PT_grid(
+                P_ppx_valid,
+                T_ppx_valid,
+                results_ppx_valid[parameter],
                 mask_geotherm
             )
 
@@ -3962,6 +4024,12 @@ def run_ml_regression(
             vmax = np.max(np.abs(
                 target_array_mgm[np.logical_not(np.isnan(target_array_mgm))]
             ))
+            vmin_valid = np.min(np.abs(
+                target_array_mgm_valid[np.logical_not(np.isnan(target_array_mgm_valid))]
+            ))
+            vmax_valid = np.max(np.abs(
+                target_array_mgm_valid[np.logical_not(np.isnan(target_array_mgm_valid))]
+            ))
 
         if Perple_X:
             vmin = np.min(np.abs(
@@ -3969,6 +4037,12 @@ def run_ml_regression(
             ))
             vmax = np.max(np.abs(
                 target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]
+            ))
+            vmin_valid = np.min(np.abs(
+                target_array_ppx_valid[np.logical_not(np.isnan(target_array_ppx_valid))]
+            ))
+            vmax_valid = np.max(np.abs(
+                target_array_ppx_valid[np.logical_not(np.isnan(target_array_ppx_valid))]
             ))
 
         if MAGEMin and Perple_X:
@@ -3980,11 +4054,29 @@ def run_ml_regression(
                 np.max(np.abs(target_array_mgm[np.logical_not(np.isnan(target_array_mgm))])),
                 np.max(np.abs(target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]))
             )
+            vmin_valid = min(
+                np.min(np.abs(target_array_mgm_valid[
+                    np.logical_not(np.isnan(target_array_mgm_valid))
+                ])),
+                np.min(np.abs(target_array_ppx_valid[
+                    np.logical_not(np.isnan(target_array_ppx_valid))
+                ]))
+            )
+            vmax_valid = max(
+                np.max(np.abs(target_array_mgm_valid[
+                    np.logical_not(np.isnan(target_array_mgm_valid))
+                ])),
+                np.max(np.abs(target_array_ppx_valid[
+                    np.logical_not(np.isnan(target_array_ppx_valid))
+                ]))
+            )
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
             vmin = vmin / 1000
             vmax = vmax / 1000
+            vmin_valid = vmin_valid / 1000
+            vmax_valid = vmax_valid / 1000
 
         # Change model string for filename
         model_label = model.replace(" ", "-")
@@ -3992,24 +4084,27 @@ def run_ml_regression(
         # Train models, predict, analyze
         if MAGEMin:
             model_mgm, info_mgm = ml_regression(
-                features_array_mgm, target_array_mgm, parameter, units,
-                "MAGEMin", model, seed, kfolds, parallel, nprocs, vmin, vmax,
+                features_array_mgm, target_array_mgm, features_array_mgm_valid,
+                target_array_mgm_valid, parameter, units, "MAGEMin",
+                model, seed, kfolds, parallel, nprocs, vmin, vmax,
                 filename=f"MAGEMin-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
             )
 
             # Write ML model config and performance info to csv
-            append_to_csv("assets/data/regression-info.csv", info_mgm)
+            append_to_csv("assets/data/benchmark-mlms-metrics.csv", info_mgm)
 
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
         if Perple_X:
             model_ppx, info_ppx = ml_regression(
-                features_array_ppx, target_array_ppx, parameter, units,
-                "Perple_X", model, seed, kfolds, parallel, nprocs, vmin, vmax,
+                features_array_ppx, target_array_ppx, features_array_ppx_valid,
+                target_array_ppx_valid, parameter, units, "Perple_X",
+                model, seed, kfolds, parallel, nprocs, vmin, vmax,
                 filename=f"Perple_X-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
             )
 
             # Write ML model config and performance info to csv
-            append_to_csv("assets/data/regression-info.csv", info_ppx)
+            append_to_csv("assets/data/benchmark-mlms-metrics.csv", info_ppx)
 
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
@@ -4017,8 +4112,8 @@ def run_ml_regression(
 
 # Visualize regression metrics
 def visualize_regression_metrics(
-        datafile="assets/data/regression-info.csv",
-        benchmark_times="assets/data/benchmark-times.csv",
+        datafile="assets/data/benchmark-mlms-metrics.csv",
+        benchmark_times="assets/data/benchmark-mlms-efficiency.csv",
         palette="tab10",
         fontsize=22,
         figwidth=6.3,
@@ -4115,9 +4210,9 @@ def visualize_regression_metrics(
     models = [
         "K Nearest",
         "Decision Tree",
+        "Random Forest",
         "Gradient Boost",
         "Support Vector",
-        "Random Forest",
         "Neural Network 1L",
         "Neural Network 2L",
         "Neural Network 3L"
@@ -4125,12 +4220,12 @@ def visualize_regression_metrics(
 
     # Create a dictionary to map each model to a specific color
     color_mapping = {
-        "K Nearest": colormap(0),
-        "Decision Tree": colormap(1),
-        "Gradient Boost": colormap(2),
-        "Support Vector": colormap(3),
-        "Random Forest": colormap(4),
-        "Neural Network 1L": colormap(5),
+        "K Nearest": colormap(2),
+        "Decision Tree": colormap(0),
+        "Random Forest": colormap(3),
+        "Gradient Boost": colormap(5),
+        "Support Vector": colormap(4),
+        "Neural Network 1L": colormap(1),
         "Neural Network 2L": colormap(6),
         "Neural Network 3L": colormap(7),
     }
@@ -4154,33 +4249,19 @@ def visualize_regression_metrics(
         x_positions = np.arange(len(summary_df[metric]))
 
         # Plot the bars for each program
-        plt.bar(
+        bars = plt.bar(
             x_positions * bar_width,
             summary_df.loc[order][metric],
             edgecolor="black",
             color=[color_mapping[model] for model in models_order],
-            label=models_order if i == 2 else "",
+            label=models_order if i == 1 else "",
             width=bar_width
         )
 
         # Show MAGEMin and Perple_X compute times
         if metric == "inference_time_mean":
-            plt.axhline(time_mgm, color="black", linestyle="-", label="")
-            plt.axhline(time_ppx, color="black", linestyle="--", label="")
-            plt.text(
-                0,
-                time_mgm - (0.2 * time_mgm),
-                "MAGEMin",
-                verticalalignment="top",
-                fontsize=fontsize * 0.833
-            )
-            plt.text(
-                0,
-                time_ppx - (0.2 * time_ppx),
-                "Perple_X",
-                verticalalignment="top",
-                fontsize=fontsize * 0.833
-            )
+            mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin")
+            ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X")
 
         plt.gca().set_xticks([])
         plt.gca().set_xticklabels([])
@@ -4190,8 +4271,17 @@ def visualize_regression_metrics(
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"Elapsed Time (ms)")
             plt.yscale("log")
-            plt.ylim([10e-2, 5e+6])
-        elif i in [1, 2]:
+            plt.ylim([10e-2, 2e+3])
+        elif i == 1:
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel(f"Elapsed Time (ms)")
+            plt.yscale("log")
+            plt.ylim([2e-2, 2e+2])
+            handles = [mgm_line, ppx_line]
+            labels = [handle.get_label() for handle in handles]
+            legend = plt.legend(fontsize="x-small")
+            legend.set_bbox_to_anchor((0.0, 0.8))
+        elif i == 2:
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"Elapsed Time (ms)")
             plt.yscale("log")
@@ -4199,8 +4289,6 @@ def visualize_regression_metrics(
         else:
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"RMSE ({data['units'][0]})")
-
-        plt.legend(fontsize="x-small")
 
         # Save the plot to a file if a filename is provided
         if filename:

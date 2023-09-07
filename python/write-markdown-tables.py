@@ -1,7 +1,7 @@
 import pandas as pd
 
 # ML model parameters and performance metrics
-df = pd.read_csv("assets/data/regression-info.csv")
+df = pd.read_csv("assets/data/benchmark-mlms-metrics.csv")
 df["inference_time_std"] = df["inference_time_std"] * 2
 numeric_columns = df.select_dtypes(include=[float, int]).columns
 df = df.groupby("model")[numeric_columns].mean().reset_index()
@@ -14,20 +14,20 @@ df = df.sort_values(by=["inference_time_mean"])
 df.columns = ["Model", "Efficiency (ms)", "$2\sigma$", "RMSE (g/cm$^3$)", "$2\sigma$"]
 markdown_table = df.to_markdown(index=False, floatfmt=".3f")
 
-with open("draft/assets/pandoc/regression-info.md", "w") as file:
+with open("draft/assets/pandoc/benchmark-mlms-metrics.md", "w") as file:
     file.write(markdown_table)
 
 # Benchmark comp times
-df = pd.read_csv("assets/data/benchmark-times.csv")
+df = pd.read_csv("assets/data/benchmark-mlms-efficiency.csv")
 df.drop(["pmin", "pmax", "tmin", "tmax"], axis=1, inplace=True)
 df.columns = ["Name", "Grid Size", "MAGEMin", "Perple_X"]
 markdown_table = df.to_markdown(index=False, floatfmt=".1f")
 
-with open("draft/assets/pandoc/benchmark-times.md", "w") as file:
+with open("draft/assets/pandoc/benchmark-mlms-efficiency.md", "w") as file:
     file.write(markdown_table)
 
 # Benchmark compositions
-df = pd.read_csv("assets/data/benchmark-comps.csv")
+df = pd.read_csv("assets/data/benchmark-samples.csv")
 new_order = [
     "NAME", "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O",
     "TIO2", "FE2O3", "CR2O3", "H2O", "MGNUM", "REF"
@@ -42,5 +42,5 @@ col_headers = {
 df.rename(columns=col_headers, inplace=True)
 markdown_table = df.to_markdown(index=False)
 
-with open("draft/assets/pandoc/benchmark-comps.md", "w") as file:
+with open("draft/assets/pandoc/benchmark-samples.md", "w") as file:
     file.write(markdown_table)

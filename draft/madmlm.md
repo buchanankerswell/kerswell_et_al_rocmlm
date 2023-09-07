@@ -41,7 +41,7 @@ More importantly, Perple_X includes solution models for wadsleyite, ringwoodite,
 
 Existing estimates for the bulk chemical composition of the upper mantle are based on analyses of high-pressure-high-temperature melting experiments and mantle-derived xenoliths, kimberlites, and basalts [e.g., @allegre1984; @green1979; @ringwood1962; @jagoutz1979; @sun1982; @ringwood1991; @palme2003; @stracke2021]. [@tbl:benchmark-comps] provides some well-referenced examples, including hypothetical mantle compositions with varying degrees of differentiation by partial melting [Primitive Upper Mantle: PUM, and Depleted MORB Mantle: DMM, @sun1989; @workman2005], as well as real and hypothetical products of mantle melting [Iclandic Basalt: RE46, and Normal MORB: NMORB, @gale2013; @yang1996]. MADMLM training data are currently fixed at PUM, which represents the average bulk (pyrolitic) composition of the upper mantle. Eventually, training data will include all compositions in @tbl:benchmark-comps to approximate a more complete range of expected mantle compositions.
 
-{{ benchmark-comps.md }}
+{{ benchmark-samples.md }}
 : Composition (in wt. % oxides) for the Primitive Upper Mantle from @sun1989 {#tbl:benchmark-comps}
 
 ## Computing MADMLM Training Datasets {#sec:build-training-data}
@@ -133,7 +133,7 @@ Model performance can be assessed qualitatively by comparing the density surface
 
 ### Quantitative Comparison
 
-{{ regression-info.md }}
+{{ benchmark-mlms-metrics.md }}
 : MADMLM training performance measured by 30-fold cross-validation. {#tbl:regression-info}
 
 ![caption](assets/figs/regression-info.png)
@@ -161,7 +161,7 @@ Model performance can be assessed qualitatively by comparing the density surface
 
 Benchmarking GFEM programs was a necessary first step for estimating the time required for building MADMLM training datasets and quantifying the efficiency of incumbent GFEM programs (@fig:benchmark-times), which our MADMLMs will need to beat to be considered an advancement beyond the status-quo. Estimated bulk compositions for primitive and depleted mantle-derived rocks ([@tbl:benchmark-comps]) were used for benchmarking MAGEMin and Perple_X. [@tbl:benchmark-times-table] shows the computation times with respect to various PT grid resolutions (8x8, 16x16, 32x32, 64x64, 128x128). All computations were made on a Macbook Pro (2022; M2 chip) with macOS 13.4 and Python 3.11.4. Note that MAGEMin was ran on 6 CPU cores in parallel, while Perple_X does not have parallel capabilities.
 
-{{ benchmark-times.md }}
+{{ benchmark-mlms-efficiency.md }}
 : MAD computation times (in seconds) for various bulk mantle compositions. {#tbl:benchmark-times-table}
 -->
 

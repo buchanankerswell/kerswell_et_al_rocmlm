@@ -30,15 +30,15 @@ PANDIR = $(ASSETSDIR)/pandoc
 AGUMETA = $(PANDIR)/agu.yaml
 EIMETA = $(PANDIR)/eisvogel.yaml
 TABLES = \
-	$(PANDIR)/benchmark-comps.md \
-	$(PANDIR)/benchmark-times.md \
-	$(PANDIR)/regression-info.md \
+	$(PANDIR)/benchmark-samples.md \
+	$(PANDIR)/benchmark-model-efficiency.md \
+	$(PANDIR)/benchmark-model-metrics.md \
 # Purging and cleaning
 DATAPURGE = \
 	$(LOGDIR) \
-	$(PANDIR)/benchmark-comps.md \
-	$(PANDIR)/benchmark-times.md \
-	$(PANDIR)/regression-info.md \
+	$(PANDIR)/benchmark-samples.md \
+	$(PANDIR)/benchmark-model-efficiency.md \
+	$(PANDIR)/benchmark-model-metrics.md \
 	tmp.md \
 	eisvogel-draft-madmlm.pdf \
 	agu-draft-madmlm.pdf

@@ -19,10 +19,10 @@ if os.path.exists("assets/data"):
     visualize_training_PT_range()
 
     # Visualize benchmark computation times
-    visualize_benchmark_comp_times("assets/data/benchmark-times.csv")
+    visualize_benchmark_comp_times("assets/data/benchmark-model-efficiency.csv")
 
     # Visualize regression metrics
-    visualize_regression_metrics("assets/data/regression-info.csv")
+    visualize_regression_metrics("assets/data/benchmark-model-metrics.csv")
 
     # First row
     combine_plots_horizontally(
@@ -52,7 +52,7 @@ if os.path.exists("assets/data"):
     combine_plots_vertically(
         "figs/temp1.png",
         "figs/temp2.png",
-        "figs/regression-info.png",
+        "figs/benchmark-model-metrics.png",
         caption1="",
         caption2=""
     )
