@@ -26,7 +26,7 @@ if (mgm_results_train and ppx_results_train and mgm_results_valid and ppx_result
     for m in models:
         # Run support vector regression
         train_rocml(
-            sampleid, res, params, True, True, True, m, False, kfolds,
+            sampleid, res, params, True, True, True, m, tune, kfolds,
             parallel, nprocs, seed, colormap, outdir, figdir, datadir
         )
 

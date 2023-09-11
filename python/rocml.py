@@ -691,6 +691,12 @@ def parse_arguments():
         help="Specify the dataset argument ...",
         required=False
     )
+    parser.add_argument(
+        "--tune",
+        type=str,
+        help="Specify the tune argument ...",
+        required=False
+    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -735,6 +741,7 @@ def check_arguments(args, script):
     sampleid = args.sampleid
     params = args.params
     models = args.models
+    tune = args.tune
     normox = args.normox
     source = args.source
     strategy = args.strategy
@@ -855,6 +862,16 @@ def check_arguments(args, script):
             print(f"        {model}")
 
         valid_args["models"] = models
+
+    if tune is not None:
+        print(f"    tune: {tune}")
+
+        if tune == "False":
+            tune = False
+        else:
+            tune = True
+
+        valid_args["tune"] = tune
 
     if colormap is not None:
         if colormap not in ["viridis", "bone", "pink", "seismic", "grey", "blues"]:

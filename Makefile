@@ -49,7 +49,8 @@ KFOLDS ?= $(shell expr $(shell nproc) - 2)
 OUTDIR ?= runs
 # RocML options
 PARAMSML ?= ["DensityOfFullAssemblage"]
-MLMODS = ["K Nearest", "Random Forest", "Decision Tree", "NN 1L", "NN 2L", "NN 3L"]
+MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
+MLTUNE ?= False
 # Bulk rock composition sampling options
 COMP ?= [44.9, 4.44, 3.54, 37.71, 8.03, 0.029, 0.36, 0.2, 0.01, 0.38, 0]
 FRAC ?= wt
@@ -128,6 +129,7 @@ train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
 		--res $(RES) \
 		--params '$(PARAMSML)' \
 		--models '$(MLMODS)' \
+		--tune $(MLTUNE) \
 		--seed $(SEED) \
 		--kfolds $(KFOLDS) \
 		--parallel $(PARALLEL) \
