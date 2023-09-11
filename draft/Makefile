@@ -11,7 +11,7 @@ LOGDIR = $(ASSETSDIR)/log
 LOGFILE := $(LOGDIR)/log-$(shell date +"%d-%m-%Y")
 LOG := 2>&1 | tee -a $(LOGFILE)
 # Manuscript
-MS = madmlm
+MS = rocml
 # Figures
 FIGDIRMAIN = $(MAINDIR)/figs
 FIGDIRDRAFT = $(ASSETSDIR)/figs
@@ -37,11 +37,11 @@ TABLES = \
 DATAPURGE = \
 	$(LOGDIR) \
 	$(PANDIR)/benchmark-samples.md \
-	$(PANDIR)/benchmark-model-efficiency.md \
-	$(PANDIR)/benchmark-model-metrics.md \
+	$(PANDIR)/benchmark-gfem-efficiency.md \
+	$(PANDIR)/benchmark-rocmls-performance.md \
 	tmp.md \
-	eisvogel-draft-madmlm.pdf \
-	agu-draft-madmlm.pdf
+	eisvogel-draft-rocml.pdf \
+	agu-draft-rocml.pdf
 DATACLEAN = $(DATADIR)
 FIGSPURGE =
 FIGSCLEAN = $(FIGDIRDRAFT)

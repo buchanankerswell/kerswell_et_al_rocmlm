@@ -1,7 +1,7 @@
 ---
 journal: "Geochemistry, Geophysics, Geosystems"
 classoption: "draft,linenumbers"
-title: "Using Artificial Intellegence to Model Phase Changes in the Mantle"
+title: "RocML: Rock Properties Prediction through Computational Machine Learning"
 authors:
   - name: "Buchanan Kerswell"
     affil: 1

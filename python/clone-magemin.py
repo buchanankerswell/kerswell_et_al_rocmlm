@@ -1,4 +1,4 @@
-from magemin import download_github_submodule
+from rocml import download_github_submodule
 
 # MAGEMin repo
 repository_url = "https://github.com/ComputationalThermodynamics/MAGEMin.git"

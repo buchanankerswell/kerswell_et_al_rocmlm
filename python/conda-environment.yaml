@@ -1,4 +1,4 @@
-name: madmlm
+name: rocml
 channels:
   - conda-forge
   - defaults
@@ -13,4 +13,4 @@ dependencies:
   - matplotlib
   - gitpython
   - tabulate
-prefix: /opt/homebrew/Caskroom/miniforge/base/envs/madnn
+prefix: /opt/homebrew/Caskroom/miniforge/base/envs/rocml

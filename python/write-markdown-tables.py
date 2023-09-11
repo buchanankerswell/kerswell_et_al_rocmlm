@@ -1,7 +1,7 @@
 import pandas as pd
 
 # ML model parameters and performance metrics
-df = pd.read_csv("assets/data/benchmark-mlms-metrics.csv")
+df = pd.read_csv("assets/data/benchmark-rocmls-performance.csv")
 df["inference_time_std"] = df["inference_time_std"] * 2
 numeric_columns = df.select_dtypes(include=[float, int]).columns
 df = df.groupby("model")[numeric_columns].mean().reset_index()
@@ -14,7 +14,7 @@ df = df.sort_values(by=["inference_time_mean"])
 df.columns = ["Model", "Efficiency (ms)", "$2\sigma$", "RMSE (g/cm$^3$)", "$2\sigma$"]
 markdown_table = df.to_markdown(index=False, floatfmt=".3f")
 
-with open("draft/assets/pandoc/benchmark-mlms-metrics.md", "w") as file:
+with open("draft/assets/pandoc/benchmark-rocmls-performance.md", "w") as file:
     file.write(markdown_table)
 
 # Benchmark comp times

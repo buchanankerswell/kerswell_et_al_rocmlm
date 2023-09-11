@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from magemin import (
+from rocml import (
     visualize_GFEM,
     parse_arguments,
     check_arguments,
@@ -133,4 +133,6 @@ if (mgm_results_train and mgm_results_valid and ppx_results_train and ppx_result
             os.remove(f"{figdir}/temp2.png")
 
 # Print figure filepaths
+print("Figures:")
 print_filepaths(figdir)
+print("visualize-database.py done!")

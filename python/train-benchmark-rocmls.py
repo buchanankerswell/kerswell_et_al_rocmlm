@@ -1,17 +1,17 @@
 import os
 import glob
-from magemin import (
+from rocml import (
     parse_arguments,
     check_arguments,
     print_filepaths,
-    run_ml_regression,
+    train_rocml,
     combine_plots_vertically,
     combine_plots_horizontally
 )
 
 # Parse arguments and check
 args = parse_arguments()
-valid_args = check_arguments(args, "benchmark-models.py")
+valid_args = check_arguments(args, "train-benchmark-rocmls.py")
 
 # Load valid arguments
 locals().update(valid_args)
@@ -25,15 +25,10 @@ ppx_results_valid = len(os.listdir(f"{outdir}/{sampleid}/perplex_valid_{res}")) 
 if (mgm_results_train and ppx_results_train and mgm_results_valid and ppx_results_valid):
     for m in models:
         # Run support vector regression
-        run_ml_regression(
-            sampleid, res, params, True, True, True, m, kfolds,
+        train_rocml(
+            sampleid, res, params, True, True, True, m, False, kfolds,
             parallel, nprocs, seed, colormap, outdir, figdir, datadir
         )
-
-        # Create compositions
-        print(f"Plotting results for:")
-        print(f"     model: {m}")
-        print(f"    sample: {sampleid}")
 
         # Change model string for filename
         mlab = m.replace(" ", "-")
@@ -564,3 +559,4 @@ if (mgm_results_train and ppx_results_train and mgm_results_valid and ppx_result
 
 # Print figure filepaths
 print_filepaths(figdir)
+print("train-benchmark-rocmls.py done!")

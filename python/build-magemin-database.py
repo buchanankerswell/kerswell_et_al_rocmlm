@@ -1,4 +1,4 @@
-from magemin import (
+from rocml import (
     run_MAGEMin,
     parse_arguments,
     check_arguments,

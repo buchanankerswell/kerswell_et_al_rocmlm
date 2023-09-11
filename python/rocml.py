@@ -27,7 +27,6 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
-from sklearn.model_selection import KFold
 from multiprocessing import Pool, cpu_count
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
@@ -38,7 +37,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.metrics import mean_squared_error, r2_score
 
 # Print filepaths
@@ -158,7 +157,7 @@ def append_to_csv(file_path, data_dict):
         df = pd.concat([df, new_data], ignore_index=True)
 
     # Sort df
-    df = df.sort_values(by=["program", "parameter"])
+    df = df.sort_values(by=["sample", "model", "program", "grid"])
 
     # Save the updated DataFrame back to the CSV file
     df.to_csv(file_path, index=False)
@@ -835,7 +834,7 @@ def check_arguments(args, script):
     if sampleid is not None:
         if sampleid in benchmark_sample_ids:
             # Get sample composition
-            sample_comp = get_benchmark_sample_for_MAGEMin(datafile, sampleid)
+            sample_comp = get_benchmark_sample_for_magemin(datafile, sampleid)
 
         print(f"    sampleid: {sampleid}")
 
@@ -887,7 +886,7 @@ def check_arguments(args, script):
         print("    Normalized composition:")
 
         for component, value in zip(oxide_list_magemin, sample_norm):
-            formatted_value = "{:.2f}".format(value)
+            formatted_value = "{:.3f}".format(value)
             print(f"        {component}: {formatted_value}")
 
 
@@ -1027,7 +1026,7 @@ def read_geochemical_data(file_path):
     return data
 
 # Sample batches from the earthchem database
-def batch_sample_for_MAGEMin(datafile, batch_size=1, k=0):
+def batch_sample_for_magemin(datafile, batch_size=1, k=0):
     """
     Splits the data from the given datafile into batches of size `batch_size`
     and returns the k-th batch.
@@ -1076,7 +1075,7 @@ def batch_sample_for_MAGEMin(datafile, batch_size=1, k=0):
     return sample_ids, compositions
 
 # Get composition of a single benchmark mantle samples
-def get_benchmark_sample_for_MAGEMin(datafile, sample_id):
+def get_benchmark_sample_for_magemin(datafile, sample_id):
     """
     Extracts the oxide compositions needed for the "MAGEMin" analysis
     for a single sample specified by name from the given datafile.
@@ -1118,7 +1117,7 @@ def get_benchmark_sample_for_MAGEMin(datafile, sample_id):
     return composition
 
 # Sample randomly from the earthchem database
-def random_sample_for_MAGEMin(datafile, n=1, seed=None):
+def random_sample_for_magemin(datafile, n=1, seed=None):
     """
     Randomly samples n rows from the given datafile and
     extracts the oxide compositions needed for the "MAGEMin" analysis.
@@ -1296,7 +1295,7 @@ def merge_dictionaries(dictionaries):
     return merged_dict
 
 # Create MAGEMin input
-def create_MAGEMin_input(
+def create_magemin_input(
         P_range,
         T_range,
         composition,
@@ -1332,7 +1331,7 @@ def create_MAGEMin_input(
     os.makedirs(directory, exist_ok=True)
 
     # Setup PT vectors
-    MAGEMin_input = ""
+    magemin_input = ""
     pressure_values = np.arange(
         float(P_range[0]),
         float(P_range[1]) + float(P_range[2]),
@@ -1347,7 +1346,7 @@ def create_MAGEMin_input(
     # Expand PT vectors into grid
     combinations = list(itertools.product(pressure_values, temperature_values))
     for p, t in combinations:
-        MAGEMin_input += (
+        magemin_input += (
             f"{mode} {p} {t} {composition[0]} {composition[1]} {composition[2]} "
             f"{composition[3]} {composition[4]} {composition[5]} {composition[6]} "
             f"{composition[7]} {composition[8]} {composition[9]} {composition[10]}\n"
@@ -1355,7 +1354,7 @@ def create_MAGEMin_input(
 
     # Write input file
     with open(f"{directory}/{run_name}.dat", "w") as f:
-        f.write(MAGEMin_input)
+        f.write(magemin_input)
 
 # Move files from MAGEMin output dir
 def cleanup_ouput_dir(run_name, out_dir="runs"):
@@ -1396,7 +1395,7 @@ def cleanup_ouput_dir(run_name, out_dir="runs"):
     shutil.rmtree("output")
 
 # Run MAGEMin
-def run_MAGEMin(
+def run_magemin(
         program_path=None,
         run_name="test",
         comp_type="wt",
@@ -1472,7 +1471,7 @@ def run_MAGEMin(
     cleanup_ouput_dir(run_name, out_dir)
 
 # Read pseudosection info from MAGEMin output file
-def read_MAGEMin_pseudosection_data(filename):
+def read_magemin_pseudosection_data(filename):
     """
     Read and process pseudosection data from a file.
 
@@ -1610,7 +1609,7 @@ def read_MAGEMin_pseudosection_data(filename):
     return results
 
 # Process all MAGEMin output files in a directory
-def process_MAGEMin_grid(sample_id, dataset, res, out_dir="runs"):
+def process_magemin_grid(sample_id, dataset, res, out_dir="runs"):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
@@ -1640,7 +1639,7 @@ def process_MAGEMin_grid(sample_id, dataset, res, out_dir="runs"):
     for root, dirs, files in os.walk(directory):
         for filename in fnmatch.filter(files, pattern):
             filepath = os.path.join(root, filename)
-            file_results = read_MAGEMin_pseudosection_data(filepath)
+            file_results = read_magemin_pseudosection_data(filepath)
             results.extend(file_results)
 
     merged_results = merge_dictionaries(results)
@@ -1881,8 +1880,8 @@ def create_PT_grid(P, T, parameter_values, mask=False):
 
     return grid
 
-# Plot MAGEMin pseudosection
-def visualize_MAD(
+# Plot MAGEMin PT Diagram
+def visualize_2d_pt_grid(
         P,
         T,
         grid,
@@ -2360,8 +2359,8 @@ def visualize_benchmark_gfem_times(
 
     # Set labels and title
     plt.xlabel("Number of Minimizations (PT Grid Size)")
-    plt.ylabel("Time (s)")
-    plt.title("GFEM Prediction Efficiency")
+    plt.ylabel("Elapsed Time (s)")
+    plt.title("GFEM Efficiency")
     plt.xscale("log")
     plt.yscale("log")
 
@@ -2587,7 +2586,7 @@ def visualize_training_PT_range(
         vertices[:, 1],
         facecolor="blue",
         edgecolor="black",
-        alpha=0.2
+        alpha=0.1
     )
 
     # Geotherm legend handles
@@ -2615,7 +2614,7 @@ def visualize_training_PT_range(
     training_data_handle = mpatches.Patch(
         facecolor="blue",
         edgecolor="black",
-        alpha=0.2,
+        alpha=0.1,
         label="Mantle Conditions"
     )
 
@@ -2646,7 +2645,7 @@ def visualize_training_PT_range(
 
     plt.xlabel(f"Temperature ({T_unit})")
     plt.ylabel(f"Pressure ({P_unit})")
-    plt.title("MADMLM Traning Dataset")
+    plt.title("RocML Traning Dataset")
     plt.xlim(700, 2346)
     plt.ylim(0, 29)
 
@@ -2679,7 +2678,7 @@ def visualize_PREM(
         param_unit,
         results_mgm=None,
         results_ppx=None,
-        results_ml=None,
+        results_rocml=None,
         model=None,
         geotherm_threshold=0.1,
         P_unit="GPa",
@@ -2753,7 +2752,7 @@ def visualize_PREM(
     # Check valid lists and get minimum and maximum values
     P_results = [
         results["P"] for results in
-        [results_mgm, results_ppx, results_ml] if
+        [results_mgm, results_ppx, results_rocml] if
         results is not None
     ]
 
@@ -2768,7 +2767,7 @@ def visualize_PREM(
 
     param_results = [
         results[parameter] for results in
-        [results_mgm, results_ppx, results_ml] if
+        [results_mgm, results_ppx, results_rocml] if
         results is not None
     ]
 
@@ -2795,8 +2794,10 @@ def visualize_PREM(
             results_ppx, parameter
         )
 
-    if results_ml:
-        P_grad_ml, T_grad_ml, param_grad_ml = extract_info_geotherm(results_ml, parameter)
+    if results_rocml:
+        P_grad_rocml, T_grad_rocml, param_grad_rocml = extract_info_geotherm(
+            results_rocml, parameter
+        )
 
     # Transform units
     if parameter == "DensityOfFullAssemblage":
@@ -2809,8 +2810,8 @@ def visualize_PREM(
         if results_ppx:
             param_grad_ppx = param_grad_ppx / 1000
 
-        if results_ml:
-            param_grad_ml = param_grad_ml / 1000
+        if results_rocml:
+            param_grad_rocml = param_grad_rocml / 1000
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2852,10 +2853,10 @@ def visualize_PREM(
             color=colormap(2),
             label="Perple_X"
         )
-    if results_ml:
+    if results_rocml:
         ax1.plot(
-            param_grad_ml,
-            P_grad_ml,
+            param_grad_rocml,
+            P_grad_rocml,
             "-",
             linewidth=3,
             color=colormap(1),
@@ -2888,7 +2889,7 @@ def visualize_PREM(
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 0),
-            f"R$^2$: {r2_mean:.2f}",
+            f"R$^2$: {r2_mean:.3f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2897,7 +2898,7 @@ def visualize_PREM(
         plt.text(
             1 - text_margin_x,
             text_margin_y - (text_spacing_y * 1),
-            f"RMSE: {rmse_mean:.2f}",
+            f"RMSE: {rmse_mean:.3f}",
             transform=plt.gca().transAxes,
             fontsize=fontsize * 0.833,
             horizontalalignment="right",
@@ -2966,13 +2967,13 @@ def visualize_GFEM(
         - This function first processes the GFEM results based on the selected 'program'.
         - It then transforms the results to appropriate units and creates 2D numpy arrays
           for visualization.
-        - The visualization is done using the 'visualize_MAD' function, which generates
+        - The visualization is done using the 'visualize_2d_pt_grid' function, which generates
           plots of the parameters on a P-T (pressure-temperature) grid for the given sample.
     """
     # Get GFEM results
     if program == "MAGEMin":
         # Get MAGEMin results
-        results = process_MAGEMin_grid(sample_id, dataset, res, out_dir)
+        results = process_magemin_grid(sample_id, dataset, res, out_dir)
     elif program == "Perple_X":
         # Get perplex results
         results = process_perplex_grid(
@@ -3033,7 +3034,7 @@ def visualize_GFEM(
             vmax = num_colors + 1
 
         # Plot PT grid MAGEMin
-        visualize_MAD(
+        visualize_2d_pt_grid(
             P,
             T,
             grid,
@@ -3080,7 +3081,7 @@ def visualize_GFEM_diff(
           for the given sample.
         - It transforms the results to appropriate units and creates 2D numpy arrays for
           visualization.
-        - The visualization is done using the 'visualize_MAD' function, which generates
+        - The visualization is done using the 'visualize_2d_pt_grid' function, which generates
           plots of the differences
           between the GFEM results on a P-T (pressure-temperature) grid.
         - The function also computes and visualizes the normalized difference and the
@@ -3088,7 +3089,7 @@ def visualize_GFEM_diff(
           comparison.
     """
     # Get MAGEMin results
-    results_mgm = process_MAGEMin_grid(sample_id, dataset, res, out_dir)
+    results_mgm = process_magemin_grid(sample_id, dataset, res, out_dir)
 
     # Get perplex results
     results_ppx = process_perplex_grid(
@@ -3166,7 +3167,7 @@ def visualize_GFEM_diff(
             diff_norm[~mask] = np.nan
 
             # Plot PT grid normalized diff mgm-ppx
-            visualize_MAD(
+            visualize_2d_pt_grid(
                 P_ppx,
                 T_ppx,
                 diff_norm,
@@ -3211,7 +3212,7 @@ def visualize_GFEM_diff(
 # Define a function that performs the processing for a single fold
 mp.set_start_method("fork")
 
-def process_fold(fold_data):
+def process_fold(fold_data, verbose=False):
     """
     Process a single fold of k-fold cross-validation for ML model.
 
@@ -3274,11 +3275,6 @@ def process_fold(fold_data):
         W
     ) = fold_data
 
-    # Print progress
-    print(f"    ======================")
-    print(f"        k-fold:  {fold_idx + 1}/{kfolds}    ")
-    print(f"    ======================")
-
     # Split the data into training and testing sets
     X_train, X_test = X_scaled[train_index], X_scaled[test_index]
     y_train, y_test = y_scaled[train_index], y_scaled[test_index]
@@ -3319,20 +3315,25 @@ def process_fold(fold_data):
     r2_test = r2_score(y_test_original, y_pred_original)
     r2_valid = r2_score(y_valid_original, y_pred_original_valid)
 
-    print(f"     training time: {round(training_time, 3)}")
-    print(f"    inference time: {round(inference_time, 3)}")
-    print(f"            n test: {len(y_test)}")
-    print(f"           n train: {len(y_train)}")
-    print(f"           n valid: {len(y_valid)}")
-    print(f"         rmse test: {round(rmse_test, 3)}")
-    print(f"           r2 test: {round(r2_test, 3)}")
-    print(f"        rmse valid: {round(rmse_valid, 3)}")
-    print(f"          r2 valid: {round(r2_valid, 3)}")
+    if verbose:
+        # Print progress
+        print(f"    ======================")
+        print(f"        k-fold:  {fold_idx + 1}/{kfolds}    ")
+        print(f"    ======================")
+        print(f"     training time: {round(training_time, 3)}")
+        print(f"    inference time: {round(inference_time, 3)}")
+        print(f"            n test: {len(y_test)}")
+        print(f"           n train: {len(y_train)}")
+        print(f"           n valid: {len(y_valid)}")
+        print(f"         rmse test: {round(rmse_test, 3)}")
+        print(f"           r2 test: {round(r2_test, 3)}")
+        print(f"        rmse valid: {round(rmse_valid, 3)}")
+        print(f"          r2 valid: {round(r2_valid, 3)}")
 
     return rmse_test, r2_test, rmse_valid, r2_valid, training_time, inference_time
 
-# Support Vector Regression analysis
-def ml_regression(
+# Cross-validate and train RocMLs
+def cv_rocml(
         features_array,
         target_array,
         features_array_valid,
@@ -3340,7 +3341,9 @@ def ml_regression(
         parameter,
         units,
         program,
-        model="Decision Tree",
+        sample_id,
+        model="DT",
+        tune=False,
         seed=42,
         kfolds=10,
         parallel=True,
@@ -3440,41 +3443,254 @@ def ml_regression(
     y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).flatten()
     y_scaled_valid = scaler_y_valid.fit_transform(y_valid.reshape(-1, 1)).flatten()
 
-    # K-fold cross-validation
-    kf = KFold(n_splits=kfolds, shuffle=True, random_state=seed)
-
     # Save model label string
     model_label = model
 
-    # Create the ML model
-    if model == "K Nearest":
-        model = KNeighborsRegressor(weights="distance")
-    elif model == "Random Forest":
-        model = RandomForestRegressor(random_state=seed)
-    elif model == "Decision Tree":
-        model = DecisionTreeRegressor(random_state=seed)
-    elif model == "Neural Network 1L":
-        layer_sizes = [int(y.shape[0] * 0.3)]
-        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
-    elif model == "Neural Network 2L":
-        layer_sizes = [
-            int(y.shape[0] * 0.3),
-            int(y.shape[0] * 0.2)
-        ]
-        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
-    elif model == "Neural Network 3L":
-        layer_sizes = [
-            int(y.shape[0] * 0.3),
-            int(y.shape[0] * 0.2),
-            int(y.shape[0] * 0.1)
-        ]
-        model = MLPRegressor(hidden_layer_sizes=layer_sizes, random_state=seed)
+    # Define number of processors
+    if not parallel:
+        nprocs = 1
+    elif parallel:
+        if nprocs is None:
+            nprocs = cpu_count() - 2
+        else:
+            nprocs = nprocs
 
-    # Print model config
-    print("Cross-validating ML model:")
-    print(f"        model: {model_label}")
-    print(f"      program: {program}")
-    print(f"    parameter: {parameter_label} {units_label}")
+    # Define ML models without tuning
+    if not tune:
+        if model_label == "KN":
+            model = KNeighborsRegressor(n_neighbors=4, weights="distance")
+            param_grid = dict(
+                n_neighbors=[2, 4, 8, 16, 32],
+                weights=["uniform", "distance"]
+            )
+        elif model_label == "RF":
+            if program == "MAGEMin":
+                model = RandomForestRegressor(
+                    random_state=seed,
+                    n_estimators=800,
+                    max_features=2,
+                    min_samples_leaf=1,
+                    min_samples_split=2
+                )
+            else:
+                model = RandomForestRegressor(
+                    random_state=seed,
+                    n_estimators=400,
+                    max_features=2,
+                    min_samples_leaf=1,
+                    min_samples_split=2
+                )
+        elif model_label == "DT":
+            model = DecisionTreeRegressor(
+                random_state=seed,
+                splitter="random",
+                max_features=2,
+                min_samples_leaf=1,
+                min_samples_split=2
+            )
+        elif model_label == "NN1":
+            if program == "MAGEMin":
+                model = MLPRegressor(
+                    random_state=seed,
+                    max_iter=5000,
+                    activation="relu",
+                    alpha=0.0001,
+                    learning_rate_init=0.01,
+                    hidden_layer_sizes=(int(y.shape[0] * 0.1))
+                )
+            else:
+                model = MLPRegressor(
+                    random_state=seed,
+                    max_iter=5000,
+                    activation="relu",
+                    alpha=0.01,
+                    learning_rate_init=0.05,
+                    hidden_layer_sizes=(int(y.shape[0] * 0.4))
+                )
+        elif model_label == "NN2":
+            if program == "MAGEMin":
+                model = MLPRegressor(
+                    random_state=seed,
+                    max_iter=5000,
+                    activation="relu",
+                    alpha=0.001,
+                    learning_rate_init=0.05,
+                    hidden_layer_sizes=(int(y.shape[0] * 0.5), int(y.shape[0] * 0.2))
+                )
+            else:
+                model = MLPRegressor(
+                    random_state=seed,
+                    max_iter=5000,
+                    activation="relu",
+                    alpha=0.001,
+                    learning_rate_init=0.05,
+                    hidden_layer_sizes=(int(y.shape[0] * 0.2), int(y.shape[0] * 0.2))
+                )
+        elif model_label == "NN3":
+            if program == "MAGEMin":
+                model = MLPRegressor(
+                    random_state=seed,
+                    max_iter=5000,
+                    activation="relu",
+                    alpha=0.01,
+                    learning_rate_init=0.001,
+                    hidden_layer_sizes=(
+                        int(y.shape[0] * 0.2), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)
+                    )
+                )
+            else:
+                model = MLPRegressor(
+                    random_state=seed,
+                    max_iter=5000,
+                    activation="relu",
+                    alpha=0.001,
+                    learning_rate_init=0.001,
+                    hidden_layer_sizes=(
+                        int(y.shape[0] * 0.5), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)
+                    )
+                )
+
+        # Print model config
+        print("Training RocML model without tuning kfold cross-validation and")
+        print("measuring RocML model performance with kfold cross-validation:")
+        print(f"         sample: {sample_id}")
+        print(f"          model: {model_label}")
+        print(f"        program: {program}")
+        print(f"      parameter: {parameter_label} {units_label}")
+        print(f"         kfolds: {kfolds}")
+        print(f"grid resolution: {W-1}")
+        print(f"hyperparameters: no-tune (predefined)")
+
+    # Define ML model and grid search param space for hyperparameter tuning
+    else:
+        # K-fold cross-validation
+        kf = KFold(n_splits=3, shuffle=True, random_state=seed)
+
+        if model_label == "KN":
+            model = KNeighborsRegressor()
+            param_grid = dict(
+                n_neighbors=[2, 4, 8, 16, 32],
+                weights=["uniform", "distance"]
+            )
+        elif model_label == "RF":
+            model = RandomForestRegressor(random_state=seed)
+            param_grid = dict(
+                n_estimators=[400, 800, 1200],
+                max_features=[1, 2, 3],
+                min_samples_leaf=[1, 2, 3],
+                min_samples_split=[2, 4, 6]
+
+            )
+        elif model_label == "DT":
+            model = DecisionTreeRegressor(random_state=seed)
+            param_grid = dict(
+                splitter=["best", "random"],
+                max_features=[1, 2, 3],
+                min_samples_leaf=[1, 2, 3],
+                min_samples_split=[2, 4, 6]
+
+            )
+        elif model_label == "NN1":
+            model = MLPRegressor(random_state=seed, max_iter=5000)
+            param_grid = dict(
+                activation=["relu"],
+                alpha=[0.0001, 0.001, 0.01],
+                learning_rate_init=[0.001, 0.01, 0.05],
+                hidden_layer_sizes=[
+                    (int(y.shape[0] * 0.1)),
+                    (int(y.shape[0] * 0.2)),
+                    (int(y.shape[0] * 0.3)),
+                    (int(y.shape[0] * 0.4)),
+                    (int(y.shape[0] * 0.5))
+                ]
+            )
+        elif model_label == "NN2":
+            model = MLPRegressor(random_state=seed, max_iter=5000)
+            param_grid = dict(
+                activation=["relu"],
+                alpha=[0.0001, 0.001, 0.01],
+                learning_rate_init=[0.001, 0.01, 0.05],
+                hidden_layer_sizes=[
+                    (int(y.shape[0] * 0.1), int(y.shape[0] * 0.2)),
+                    (int(y.shape[0] * 0.2), int(y.shape[0] * 0.2)),
+                    (int(y.shape[0] * 0.3), int(y.shape[0] * 0.2)),
+                    (int(y.shape[0] * 0.4), int(y.shape[0] * 0.2)),
+                    (int(y.shape[0] * 0.5), int(y.shape[0] * 0.2))
+                ]
+            )
+        elif model_label == "NN3":
+            model = MLPRegressor(random_state=seed, max_iter=5000)
+            param_grid = dict(
+                activation=["relu"],
+                alpha=[0.0001, 0.001, 0.01],
+                learning_rate_init=[0.001, 0.01, 0.05],
+                hidden_layer_sizes=[
+                    (int(y.shape[0] * 0.1), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
+                    (int(y.shape[0] * 0.2), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
+                    (int(y.shape[0] * 0.3), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
+                    (int(y.shape[0] * 0.4), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
+                    (int(y.shape[0] * 0.5), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1))
+                ]
+            )
+
+        # Perform grid search hyperparameter tuning
+        grid_search = GridSearchCV(
+            model,
+            param_grid=param_grid,
+            cv=kf,
+            scoring="neg_root_mean_squared_error",
+            n_jobs=nprocs,
+            verbose=1
+        )
+        grid_search.fit(X_scaled, y_scaled)
+
+        # Define ML model with tuned hyperparameters
+        if model_label == "KN":
+            model = KNeighborsRegressor(
+                n_neighbors=grid_search.best_params_["n_neighbors"],
+                weights=grid_search.best_params_["weights"]
+            )
+        elif model_label == "RF":
+            model = RandomForestRegressor(
+                random_state=seed,
+                n_estimators=grid_search.best_params_["n_estimators"],
+                max_features=grid_search.best_params_["max_features"],
+                min_samples_leaf=grid_search.best_params_["min_samples_leaf"],
+                min_samples_split=grid_search.best_params_["min_samples_split"]
+            )
+        elif model_label == "DT":
+            model = DecisionTreeRegressor(
+                random_state=seed,
+                splitter=grid_search.best_params_["splitter"],
+                max_features=grid_search.best_params_["max_features"],
+                min_samples_leaf=grid_search.best_params_["min_samples_leaf"],
+                min_samples_split=grid_search.best_params_["min_samples_split"]
+            )
+        elif model_label in ["NN1", "NN2", "NN3"]:
+            model = MLPRegressor(
+                random_state=seed,
+                max_iter=5000,
+                activation=grid_search.best_params_["activation"],
+                alpha=grid_search.best_params_["alpha"],
+                learning_rate_init=grid_search.best_params_["learning_rate_init"],
+                hidden_layer_sizes=grid_search.best_params_["hidden_layer_sizes"]
+            )
+
+        # Print model config
+        print("Training RocML model with grid search tuning and")
+        print("measuring RocML model performance with kfold cross-validation:")
+        print(f"         sample: {sample_id}")
+        print(f"          model: {model_label}")
+        print(f"        program: {program}")
+        print(f"      parameter: {parameter_label} {units_label}")
+        print(f"         kfolds: {kfolds}")
+        print(f"grid resolution: {W-1}")
+        print(f"hyperparameters: tuned by grid search")
+        for key, value in grid_search.best_params_.items():
+            print(f"    {key}: {value}")
+
+    # K-fold cross-validation
+    kf = KFold(n_splits=kfolds, shuffle=True, random_state=seed)
 
     # Iterate over K-fold cross-validations in parallel
     # Combine the data and parameters needed for each fold into a list
@@ -3496,15 +3712,6 @@ def ml_regression(
             W
         ) for fold_idx, (train_index, test_index) in enumerate(kf.split(X))
     ]
-
-    # Define number of processors
-    if not parallel:
-        nprocs = 1
-    elif parallel:
-        if nprocs is None:
-            nprocs = cpu_count() - 2
-        else:
-            nprocs = nprocs
 
     # Initialize the pool of processes
     with Pool(processes=nprocs) as pool:
@@ -3546,6 +3753,7 @@ def ml_regression(
 
     # Config and performance info
     model_info = {
+        "sample": [sample_id],
         "model": [model_label],
         "program": [program],
         "grid": [(W-1)*(W-1)],
@@ -3570,8 +3778,8 @@ def ml_regression(
     print(f"{model_label} performance:")
     print(f"     rmse test: {rmse_test_mean:.3f} ± {rmse_test_std:.3f}")
     print(f"       r2 test: {r2_test_mean:.3f} ± {r2_test_std:.3f}")
-    print(f"     rmse valid: {rmse_valid_mean:.3f} ± {rmse_valid_std:.3f}")
-    print(f"       r2 valid: {r2_valid_mean:.3f} ± {r2_valid_std:.3f}")
+    print(f"    rmse valid: {rmse_valid_mean:.3f} ± {rmse_valid_std:.3f}")
+    print(f"      r2 valid: {r2_valid_mean:.3f} ± {r2_valid_std:.3f}")
     print(f" training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
     print(f"inference time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
 
@@ -3628,7 +3836,7 @@ def ml_regression(
             color_reverse = True
 
     # Plot target array
-    visualize_MAD(
+    visualize_2d_pt_grid(
         features_array[:,:,0],
         features_array[:,:,1],
         target_array,
@@ -3678,7 +3886,7 @@ def ml_regression(
     plt.close()
 
     # Plot ML model predictions array
-    visualize_MAD(
+    visualize_2d_pt_grid(
         features_array_valid[:,:,0],
         features_array_valid[:,:,1],
         valid_pred_array_original,
@@ -3728,7 +3936,7 @@ def ml_regression(
     plt.close()
 
     # Plot PT normalized diff targets vs. ML model predictions
-    visualize_MAD(
+    visualize_2d_pt_grid(
         features_array_valid[:,:,0],
         features_array_valid[:,:,1],
         diff_norm,
@@ -3807,14 +4015,14 @@ def ml_regression(
             results_ppx[parameter] = [x * 1000 for x in results_ppx[parameter]]
 
     # Reshape results and transform units for ML model
-    results_model = {
+    results_rocml = {
         "P": [P * 10 for P in features_array_valid[:,:,0].ravel().tolist()],
         "T": [T - 273 for T in features_array_valid[:,:,1].ravel().tolist()],
         parameter: valid_pred_array_original.ravel().tolist()
     }
 
     if parameter == "DensityOfFullAssemblage":
-        results_model[parameter] = [x * 1000 for x in results_model[parameter]]
+        results_rocml[parameter] = [x * 1000 for x in results_rocml[parameter]]
 
     # Plot PREM comparisons
     metrics = [rmse_valid_mean, r2_valid_mean]
@@ -3826,7 +4034,7 @@ def ml_regression(
             "g/cm$^3$",
             results_mgm=results_mgm,
             results_ppx=results_ppx,
-            results_ml=results_model,
+            results_rocml=results_rocml,
             model=f"{model_label}",
             geotherm_threshold=0.1,
             depth=True,
@@ -3844,7 +4052,7 @@ def ml_regression(
             "km/s",
             results_mgm=results_mgm,
             results_ppx=results_ppx,
-            results_ml=results_model,
+            results_rocml=results_rocml,
             model=f"{model_label}",
             geotherm_threshold=0.1,
             depth=True,
@@ -3857,15 +4065,16 @@ def ml_regression(
 
     return model, model_info
 
-# MLM regression
-def run_ml_regression(
+# Train RocMLs
+def train_rocml(
         sample_id,
         res,
         parameters,
         mask_geotherm=False,
-        MAGEMin=True,
-        Perple_X=True,
-        model="Decision Tree",
+        magemin=True,
+        perplex=True,
+        model="DT",
+        tune=False,
         kfolds=cpu_count()-2,
         parallel=True,
         nprocs=cpu_count()-2,
@@ -3891,10 +4100,6 @@ def run_ml_regression(
         data_dir (str, optional): Directory containing data files needed for visualization.
                                   Default is "./assets/data".
 
-    Raises:
-        ValueError: If an invalid value for 'program' is provided. It must be either
-                    "MAGEMin" or "Perple_X".
-
     Notes:
         - This function retrieves GFEM results from the specified program and sample.
         - It preprocesses the feature array (P and T) and the target array for ML model
@@ -3903,14 +4108,10 @@ def run_ml_regression(
         - The results of ML model, including plots and performance information, are saved to
           appropriate files.
     """
-    if MAGEMin:
-        print("Processing MAGEMin results from:")
-        print(f"      training set: {out_dir}/{sample_id}/magemin_train_{res}")
-        print(f"    validation set: {out_dir}/{sample_id}/magemin_valid_{res}")
-
+    if magemin:
         # Get results
-        results_mgm = process_MAGEMin_grid(sample_id, "train", res, out_dir)
-        results_mgm_valid = process_MAGEMin_grid(sample_id, "valid", res, out_dir)
+        results_mgm = process_magemin_grid(sample_id, "train", res, out_dir)
+        results_mgm_valid = process_magemin_grid(sample_id, "valid", res, out_dir)
 
         # Get PT values and transform units
         P_mgm = [P / 10 for P in results_mgm["P"]]
@@ -3938,11 +4139,7 @@ def run_ml_regression(
         features_array_mgm = np.stack((P_grid_mgm, T_grid_mgm), axis=-1)
         features_array_mgm_valid = np.stack((P_grid_mgm_valid, T_grid_mgm_valid), axis=-1)
 
-    if Perple_X:
-        print("Processing Perple_X results from:")
-        print(f"      training set: {out_dir}/{sample_id}/perplex_train_{res}")
-        print(f"    validation set: {out_dir}/{sample_id}/perplex_valid_{res}")
-
+    if perplex:
         # Get results
         results_ppx = process_perplex_grid(
             f"{out_dir}/{sample_id}/perplex_train_{res}/{sample_id}_grid.tab",
@@ -3986,7 +4183,7 @@ def run_ml_regression(
         if parameter in ["Vp", "Vs"]:
             units = "km/s"
 
-        if MAGEMin:
+        if magemin:
             # Target array with shape (W, W)
             target_array_mgm = create_PT_grid(
                 P_mgm,
@@ -4001,7 +4198,7 @@ def run_ml_regression(
                 mask_geotherm
             )
 
-        if Perple_X:
+        if perplex:
             # Target array with shape (W, W)
             target_array_ppx = create_PT_grid(
                 P_ppx,
@@ -4018,7 +4215,7 @@ def run_ml_regression(
             )
 
         # Get min max of target array to plot colorbars on the same scales
-        if MAGEMin:
+        if magemin:
             vmin = np.min(np.abs(
                 target_array_mgm[np.logical_not(np.isnan(target_array_mgm))]
             ))
@@ -4032,7 +4229,7 @@ def run_ml_regression(
                 target_array_mgm_valid[np.logical_not(np.isnan(target_array_mgm_valid))]
             ))
 
-        if Perple_X:
+        if perplex:
             vmin = np.min(np.abs(
                 target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]
             ))
@@ -4046,7 +4243,7 @@ def run_ml_regression(
                 target_array_ppx_valid[np.logical_not(np.isnan(target_array_ppx_valid))]
             ))
 
-        if MAGEMin and Perple_X:
+        if magemin and perplex:
             vmin = min(
                 np.min(np.abs(target_array_mgm[np.logical_not(np.isnan(target_array_mgm))])),
                 np.min(np.abs(target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]))
@@ -4083,43 +4280,45 @@ def run_ml_regression(
         model_label = model.replace(" ", "-")
 
         # Train models, predict, analyze
-        if MAGEMin:
-            model_mgm, info_mgm = ml_regression(
+        if magemin:
+            model_mgm, info_mgm = cv_rocml(
                 features_array_mgm, target_array_mgm, features_array_mgm_valid,
-                target_array_mgm_valid, parameter, units, "MAGEMin",
-                model, seed, kfolds, parallel, nprocs, vmin, vmax,
+                target_array_mgm_valid, parameter, units, "MAGEMin", sample_id,
+                model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
                 filename=f"MAGEMin-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
             )
 
             # Write ML model config and performance info to csv
-            append_to_csv("assets/data/benchmark-mlms-metrics.csv", info_mgm)
+            append_to_csv("assets/data/benchmark-rocmls-performance.csv", info_mgm)
 
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-        if Perple_X:
-            model_ppx, info_ppx = ml_regression(
+        if perplex:
+            model_ppx, info_ppx = cv_rocml(
                 features_array_ppx, target_array_ppx, features_array_ppx_valid,
-                target_array_ppx_valid, parameter, units, "Perple_X",
-                model, seed, kfolds, parallel, nprocs, vmin, vmax,
+                target_array_ppx_valid, parameter, units, "Perple_X", sample_id,
+                model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
                 filename=f"Perple_X-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
             )
 
             # Write ML model config and performance info to csv
-            append_to_csv("assets/data/benchmark-mlms-metrics.csv", info_ppx)
+            append_to_csv("assets/data/benchmark-rocmls-performance.csv", info_ppx)
 
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         print("=============================================")
 
-# Visualize regression metrics
-def visualize_regression_metrics(
-        datafile="assets/data/benchmark-mlms-metrics.csv",
+# Visualize rocml performance
+def visualize_rocml_performance(
+        datafile="assets/data/benchmark-rocmls-performance.csv",
         benchmark_times="assets/data/benchmark-gfem-efficiency.csv",
+        sample_id="PUM",
+        res=128,
         palette="tab10",
         fontsize=22,
         figwidth=6.3,
         figheight=4.725,
-        filename="regression",
+        filename="rocml",
         fig_dir=f"{os.getcwd()}/figs"):
     """
     Visualize regression metrics using a facet barplot.
@@ -4168,7 +4367,8 @@ def visualize_regression_metrics(
 
     # Read regression data
     data = pd.read_csv(datafile)
-    data["inference_time_std"] = data["inference_time_std"] * 2
+    data = data[data["sample"] == sample_id]
+    data = data[data["grid"] == res**2]
 
     # Summarize data
     numeric_columns = data.select_dtypes(include=[float, int]).columns
@@ -4178,8 +4378,7 @@ def visualize_regression_metrics(
     benchmark_times = pd.read_csv(benchmark_times)
 
     filtered_times = benchmark_times[
-        (benchmark_times["sample"] == "PUM") &
-        (benchmark_times["grid"] == 16384)
+        (benchmark_times["sample"] == sample_id) & (benchmark_times["grid"] == res**2)
     ]
 
     time_mgm = np.mean(
@@ -4201,10 +4400,10 @@ def visualize_regression_metrics(
         "rmse_valid_mean"
     ]
     metric_names = [
-        "MLM Training Efficiency",
-        "MLM Prediction Efficiency",
-        "MLM Training Error",
-        "MLM Validation Error"
+        "Training Efficiency",
+        "Prediction Efficiency",
+        "Training Error",
+        "Validation Error"
     ]
 
     # Set plot style and settings
@@ -4219,27 +4418,16 @@ def visualize_regression_metrics(
 
     # Define the colors for the programs
     colormap = plt.cm.get_cmap(palette)
-    models = [
-        "K Nearest",
-        "Decision Tree",
-        "Random Forest",
-        "Gradient Boost",
-        "Support Vector",
-        "Neural Network 1L",
-        "Neural Network 2L",
-        "Neural Network 3L"
-    ]
+    models = ["KN", "DT", "RF", "NN1", "NN2", "NN3"]
 
     # Create a dictionary to map each model to a specific color
     color_mapping = {
-        "K Nearest": colormap(2),
-        "Decision Tree": colormap(0),
-        "Random Forest": colormap(3),
-        "Gradient Boost": colormap(5),
-        "Support Vector": colormap(4),
-        "Neural Network 1L": colormap(1),
-        "Neural Network 2L": colormap(6),
-        "Neural Network 3L": colormap(7),
+        "KN": colormap(2),
+        "DT": colormap(0),
+        "RF": colormap(4),
+        "NN1": colormap(1),
+        "NN2": colormap(3),
+        "NN3": colormap(5)
     }
 
     # Get the corresponding colors for each model
@@ -4290,14 +4478,16 @@ def visualize_regression_metrics(
             handles = [mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
-            legend.set_bbox_to_anchor((0, 0.9))
+            legend.set_bbox_to_anchor((0, 0.94))
         else:
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"RMSE ({data['units'][0]})")
 
         # Save the plot to a file if a filename is provided
         if filename:
-            plt.savefig(f"{fig_dir}/{filename}-{metric.replace('_', '-')}.png")
+            plt.savefig(
+                f"{fig_dir}/{filename}-{metric.replace('_', '-')}-{sample_id}-{res}.png"
+            )
         else:
             # Print plot
             plt.show()

@@ -8,7 +8,7 @@ DATELONG = $(shell date +"%d-%B-%Y")
 LOGFILE := $(WORKDIR)/log/log-$(shell date +"%d-%m-%Y")
 LOG := 2>&1 | tee -a $(LOGFILE)
 # Conda env
-CONDAENVNAME = madmlm
+CONDAENVNAME = rocml
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = $(WORKDIR)/python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
@@ -24,14 +24,14 @@ PYTHON = $(WORKDIR)/python/build-magemin-database.py \
 				 $(WORKDIR)/python/build-database.py \
 				 $(WORKDIR)/python/clone-magemin.py \
 				 $(WORKDIR)/python/download-assets.py \
-				 $(WORKDIR)/python/magemin.py \
-				 $(WORKDIR)/python/benchmark-mlms.py \
+				 $(WORKDIR)/python/rocml.py \
+				 $(WORKDIR)/python/train-benchmark-rocmls.py \
 				 $(WORKDIR)/python/session-info.py \
 				 $(WORKDIR)/python/submit-jobs.py \
 				 $(WORKDIR)/python/visualize-database.py \
 				 $(WORKDIR)/python/visualize-other.py \
 # Other variables
-GITHUBREPO = https://github.com/buchanankerswell/kerswell_et_al_madmlm
+GITHUBREPO = https://github.com/buchanankerswell/kerswell_et_al_rocml
 MAGEMINREPO = https://github.com/ComputationalThermodynamics/MAGEMin.git
 # Dataset build options
 SAMPLEID ?= PUM
@@ -39,7 +39,7 @@ PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 64
+RES ?= 128
 DATASET ?= train
 NORMOX ?= all
 SEED = 42
@@ -47,10 +47,10 @@ PARALLEL ?= True
 NPROCS ?= $(shell expr $(shell nproc) - 2)
 KFOLDS ?= $(shell expr $(shell nproc) - 2)
 OUTDIR ?= runs
-# MLM options
+# RocML options
 PARAMSML ?= ["DensityOfFullAssemblage"]
-MLMODS = ["K Nearest", "Random Forest", "Decision Tree", "Neural Network 1L"]
-# Rock sampling options
+MLMODS = ["K Nearest", "Random Forest", "Decision Tree", "NN 1L", "NN 2L", "NN 3L"]
+# Bulk rock composition sampling options
 COMP ?= [44.9, 4.44, 3.54, 37.71, 8.03, 0.029, 0.36, 0.2, 0.01, 0.38, 0]
 FRAC ?= wt
 SOURCE ?= earthchem
@@ -66,7 +66,7 @@ DATAPURGE = python/__pycache__ \
 						.job \
 						output \
 						$(DATADIR)/*assemblages.csv \
-						$(DATADIR)/benchmark-mlms-metrics.csv \
+						$(DATADIR)/benchmark-rocmls-performance.csv \
 						$(DATADIR)/benchmark-gfem-efficiency-$(DATE).csv \
 
 DATACLEAN = assets \
@@ -84,8 +84,9 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAG
 	@$(MAKE) magemin_database DATASET=valid
 	@$(MAKE) perplex_database DATASET=train
 	@$(MAKE) perplex_database DATASET=valid
-	@$(MAKE) benchmark_mlms
-	@$(MAKE) visualize
+	@$(MAKE) train_benchmark_rocmls
+	@$(MAKE) visualize_database
+	@$(MAKE) visualize_other
 
 init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
@@ -96,18 +97,13 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 	@echo "    make magemin_database DATASET=valid" $(LOG)
 	@echo "    make perplex_database DATASET=train" $(LOG)
 	@echo "    make perplex_database DATASET=valid" $(LOG)
-	@echo "    make benchmark_mlms" $(LOG)
-	@echo "    make visualize" $(LOG)
+	@echo "    make train_benchmark_rocmls" $(LOG)
+	@echo "    make visualize_database" $(LOG)
+	@echo "    make visualize_other" $(LOG)
 	@echo "To clean up the directory:" $(LOG)
 	@echo "    make purge" $(LOG)
 	@echo "    make remove_conda_env" $(LOG)
 	@echo "=============================================" $(LOG)
-
-visualize: $(LOGFILE) $(PYTHON)
-	@for run in $$(ls -d $(OUTDIR)/* | sed 's/$(OUTDIR)\/\(.*\)/\1/'); do \
-		$(MAKE) visualize_database SAMPLEID=$$run; \
-	done
-	@$(MAKE) visualize_other
 
 visualize_other: $(LOGFILE) $(PYTHON)
 	@$(CONDAPYTHON) python/visualize-other.py $(LOG)
@@ -126,8 +122,8 @@ visualize_database: $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-benchmark_mlms:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/benchmark-mlms.py \
+train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) python/train-benchmark-rocmls.py \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
 		--params '$(PARAMSML)' \
@@ -143,15 +139,21 @@ benchmark_mlms:  $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-benchmark_all_mlms: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
-	@for sample in PUM; do \
-		for res in 64; do \
+train_all_benchmark_rocmls: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
+	@for sample in DMM NMORB PUM RE46; do \
+		for res in 8 16 32 64 128; do \
+			$(MAKE) train_benchmark_rocmls SAMPLEID=$$sample RES=$$res FIGDIR=figs/$$sample\_$$res; \
+		done; \
+		$(MAKE) visualize_database SAMPLEID=$$sample RES=$$res FIGDIR=figs/$$sample\_$$res; \
+  done
+
+build_all_databases: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
+	@for sample in DMM NMORB PUM RE46; do \
+		for res in 8 16 32 64 128; do \
 			for dataset in train valid; do \
 				$(MAKE) magemin_database SAMPLEID=$$sample RES=$$res DATASET=$$dataset; \
 				$(MAKE) perplex_database SAMPLEID=$$sample RES=$$res DATASET=$$dataset; \
 			done; \
-			$(MAKE) benchmark_mlms SAMPLEID=$$sample RES=$$res; \
-			$(MAKE) visualize SAMPLEID=$$sample RES=$$res; \
 		done; \
   done
 
@@ -529,4 +531,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: find_conda_env remove_conda_env create_conda_env write_tables submit_jobs build_database all_benchmark_mlms benchmark_mlms visualize_database visualize_other visualize init all purge clean
+.PHONY: find_conda_env remove_conda_env create_conda_env write_tables submit_jobs build_database train_all_benchmark_rocmls train_benchmark_rocmls visualize_database visualize_other init all purge clean

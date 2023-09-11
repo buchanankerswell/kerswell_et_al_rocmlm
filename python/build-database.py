@@ -1,5 +1,5 @@
 import os
-from magemin import (
+from rocml import (
     run_MAGEMin,
     parse_arguments,
     check_arguments,
@@ -11,7 +11,7 @@ from magemin import (
 
 # Parse arguments and check
 args = parse_arguments()
-valid_args = check_arguments(args, "run-benchmark.py")
+valid_args = check_arguments(args, "build-database.py")
 
 # Load valid arguments
 locals().update(valid_args)
