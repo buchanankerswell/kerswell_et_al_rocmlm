@@ -814,8 +814,11 @@ def check_arguments(args, script):
         if Tmin is not None and Tmax is not None:
             print(f"    Trange: [{Tmin}, {Tmax}, {res}]")
 
-        if Pmin is not None and Pmax is not None:
+        elif Pmin is not None and Pmax is not None:
             print(f"    Prange: [{Pmin}, {Pmax}, {res}]")
+
+        else:
+            print(f"    training dataset resolution: {res}")
 
         valid_args["res"] = res
 
@@ -2308,7 +2311,7 @@ def visualize_benchmark_gfem_times(
     # Read data
     data = pd.read_csv(datafile)
 
-    # Arrange data by grid resolution and sample
+    # Arrange data by training dataset resolution and sample
     data.sort_values(by=["grid", "sample", "program"], inplace=True)
 
     # Set plot style and settings
@@ -2802,18 +2805,18 @@ def visualize_PREM(
 
     # Extract parameter values along a geotherm
     if results_mgm:
-        P_grad_mgm, T_grad_mgm, param_grad_mgm = extract_info_geotherm(
-            results_mgm, parameter
+        P_mgm, T_mgm, param_mgm = extract_info_geotherm(
+            results_mgm, parameter, threshold=geotherm_threshold
         )
 
     if results_ppx:
-        P_grad_ppx, T_grad_ppx, param_grad_ppx = extract_info_geotherm(
-            results_ppx, parameter
+        P_ppx, T_ppx, param_ppx = extract_info_geotherm(
+            results_ppx, parameter, threshold=geotherm_threshold
         )
 
     if results_rocml:
-        P_grad_rocml, T_grad_rocml, param_grad_rocml = extract_info_geotherm(
-            results_rocml, parameter
+        P_rocml, T_rocml, param_rocml = extract_info_geotherm(
+            results_rocml, parameter, threshold=geotherm_threshold
         )
 
     # Transform units
@@ -2822,13 +2825,13 @@ def visualize_PREM(
         param_max = param_max / 1000
 
         if results_mgm:
-            param_grad_mgm = param_grad_mgm / 1000
+            param_mgm = param_mgm / 1000
 
         if results_ppx:
-            param_grad_ppx = param_grad_ppx / 1000
+            param_ppx = param_ppx / 1000
 
         if results_rocml:
-            param_grad_rocml = param_grad_rocml / 1000
+            param_rocml = param_rocml / 1000
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2843,9 +2846,6 @@ def visualize_PREM(
     # Colormap
     colormap = plt.cm.get_cmap(palette)
 
-    # Change model string for filename
-    model_label = model
-
     # Plotting
     fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
 
@@ -2853,32 +2853,11 @@ def visualize_PREM(
     ax1.plot(param_prem, P_prem, "-", linewidth=3, color="black", label="PREM")
 
     if results_mgm:
-        ax1.plot(
-            param_grad_mgm,
-            P_grad_mgm,
-            "-",
-            linewidth=3,
-            color=colormap(0),
-            label="MAGEMin"
-        )
+        ax1.plot(param_mgm, P_mgm, "-", linewidth=3, color=colormap(0), label="MAGEMin")
     if results_ppx:
-        ax1.plot(
-            param_grad_ppx,
-            P_grad_ppx,
-            "-",
-            linewidth=3,
-            color=colormap(2),
-            label="Perple_X"
-        )
+        ax1.plot(param_ppx, P_ppx, "-", linewidth=3, color=colormap(2), label="Perple_X")
     if results_rocml:
-        ax1.plot(
-            param_grad_rocml,
-            P_grad_rocml,
-            "-",
-            linewidth=3,
-            color=colormap(1),
-            label="Model"
-        )
+        ax1.plot(param_rocml, P_rocml, "-", linewidth=3, color=colormap(1), label=f"{model}")
 
     if parameter == "DensityOfFullAssemblage":
         parameter_label = "Density"
@@ -3199,6 +3178,20 @@ def visualize_GFEM_diff(
                 fig_dir=fig_dir
             )
 
+            # Set geotherm threshold for extracting depth profiles
+            if res <= 8:
+                geotherm_threshold = 4
+            elif res <= 16:
+                geotherm_threshold = 2
+            elif res <= 32:
+                geotherm_threshold = 1
+            elif res <= 64:
+                geotherm_threshold = 0.5
+            elif res <= 128:
+                geotherm_threshold = 0.25
+            else:
+                geotherm_threshold = 0.125
+
             # Plot PREM comparisons
             if parameter == "DensityOfFullAssemblage":
                 visualize_PREM(
@@ -3207,7 +3200,7 @@ def visualize_GFEM_diff(
                     "g/cm$^3$",
                     results_mgm=results_mgm,
                     results_ppx=results_ppx,
-                    geotherm_threshold=0.1,
+                    geotherm_threshold=geotherm_threshold,
                     title="PREM Comparison",
                     filename=f"prem-{sample_id}-{dataset}-{parameter}.png",
                     fig_dir=fig_dir
@@ -3220,7 +3213,7 @@ def visualize_GFEM_diff(
                     "km/s",
                     results_mgm=results_mgm,
                     results_ppx=results_ppx,
-                    geotherm_threshold=0.1,
+                    geotherm_threshold=geotherm_threshold,
                     title="PREM Comparison",
                     filename=f"prem-{sample_id}-{dataset}-{parameter}.png",
                     fig_dir=fig_dir
@@ -3463,6 +3456,19 @@ def cv_rocml(
     # Save model label string
     model_label = model
 
+    if model_label == "KN":
+        model_label_full = "K Nearest"
+    elif model_label == "RF":
+        model_label_full = "Random Forest"
+    elif model_label == "DT":
+        model_label_full = "Decision Tree"
+    elif model_label == "NN1":
+        model_label_full = "Neural Net 1L"
+    elif model_label == "NN2":
+        model_label_full = "Neural Net 2L"
+    elif model_label == "NN3":
+        model_label_full = "Neural Net 3L"
+
     # Define number of processors
     if not parallel:
         nprocs = 1
@@ -3568,15 +3574,14 @@ def cv_rocml(
                 )
 
         # Print model config
-        print("Training RocML model without tuning kfold cross-validation and")
-        print("measuring RocML model performance with kfold cross-validation:")
-        print(f"         sample: {sample_id}")
-        print(f"          model: {model_label}")
-        print(f"        program: {program}")
-        print(f"      parameter: {parameter_label} {units_label}")
-        print(f"         kfolds: {kfolds}")
-        print(f"grid resolution: {W-1}")
-        print(f"hyperparameters: no-tune (predefined)")
+        print("Training RocML model without tuning:")
+        print(f"                     sample: {sample_id}")
+        print(f"                      model: {model_label_full}")
+        print(f"                    program: {program}")
+        print(f"                  parameter: {parameter_label} {units_label}")
+        print(f"                     kfolds: {kfolds}")
+        print(f"            hyperparameters: no-tune (predefined)")
+        print(f"training dataset resolution: {W-1}")
 
     # Define ML model and grid search param space for hyperparameter tuning
     else:
@@ -3694,15 +3699,14 @@ def cv_rocml(
             )
 
         # Print model config
-        print("Training RocML model with grid search tuning and")
-        print("measuring RocML model performance with kfold cross-validation:")
-        print(f"         sample: {sample_id}")
-        print(f"          model: {model_label}")
-        print(f"        program: {program}")
-        print(f"      parameter: {parameter_label} {units_label}")
-        print(f"         kfolds: {kfolds}")
-        print(f"grid resolution: {W-1}")
-        print(f"hyperparameters: tuned by grid search")
+        print("Training RocML model with grid search tuning:")
+        print(f"                     sample: {sample_id}")
+        print(f"                      model: {model_label_full}")
+        print(f"                    program: {program}")
+        print(f"                  parameter: {parameter_label} {units_label}")
+        print(f"                     kfolds: {kfolds}")
+        print(f"            hyperparameters: tuned by grid search")
+        print(f"training dataset resolution: {W-1}")
         for key, value in grid_search.best_params_.items():
             print(f"    {key}: {value}")
 
@@ -3792,7 +3796,7 @@ def cv_rocml(
     }
 
     # Print performance
-    print(f"{model_label} performance:")
+    print(f"{model_label_full} performance:")
     print(f"     rmse test: {rmse_test_mean:.3f} ± {rmse_test_std:.3f}")
     print(f"       r2 test: {r2_test_mean:.3f} ± {r2_test_std:.3f}")
     print(f"    rmse valid: {rmse_valid_mean:.3f} ± {rmse_valid_std:.3f}")
@@ -3908,7 +3912,7 @@ def cv_rocml(
         features_array_valid[:,:,1],
         valid_pred_array_original,
         parameter,
-        title=f"{model_label}",
+        title=f"{model_label_full}",
         palette=palette,
         color_discrete=False,
         color_reverse=color_reverse,
@@ -3936,7 +3940,7 @@ def cv_rocml(
     ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
     plt.tick_params(axis="x", which="major")
     plt.tick_params(axis="y", which="major")
-    plt.title(f"{model_label}", y=0.95)
+    plt.title(f"{model_label_full}", y=0.95)
     ax.view_init(20, -145)
     ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
     ax.set_facecolor("white")
@@ -4044,6 +4048,21 @@ def cv_rocml(
     # Plot PREM comparisons
     metrics = [rmse_valid_mean, r2_valid_mean]
 
+    # Set geotherm threshold for extracting depth profiles
+    res = W - 1
+    if res <= 8:
+        geotherm_threshold = 4
+    elif res <= 16:
+        geotherm_threshold = 2
+    elif res <= 32:
+        geotherm_threshold = 1
+    elif res <= 64:
+        geotherm_threshold = 0.5
+    elif res <= 128:
+        geotherm_threshold = 0.25
+    else:
+        geotherm_threshold = 0.125
+
     if parameter == "DensityOfFullAssemblage":
         visualize_PREM(
             "assets/data/prem.csv",
@@ -4053,10 +4072,10 @@ def cv_rocml(
             results_ppx=results_ppx,
             results_rocml=results_rocml,
             model=f"{model_label}",
-            geotherm_threshold=0.1,
+            geotherm_threshold=geotherm_threshold,
             depth=True,
             metrics=metrics,
-            title=f"{model_label}",
+            title=f"{model_label_full}",
             figwidth=figwidth,
             filename=f"{filename}-prem.png",
             fig_dir=fig_dir
@@ -4071,16 +4090,40 @@ def cv_rocml(
             results_ppx=results_ppx,
             results_rocml=results_rocml,
             model=f"{model_label}",
-            geotherm_threshold=0.1,
+            geotherm_threshold=geotherm_threshold,
             depth=True,
             metrics=metrics,
-            title=f"{model_label}",
+            title=f"{model_label_full}",
             figwidth=figwidth,
             filename=f"{filename}-prem.png",
             fig_dir=fig_dir
         )
 
     return model, model_info
+
+# Extract features array from training dataset
+def extract_features(results):
+    """
+    """
+    # Get PT values and transform units
+    P = [P / 10 for P in results["P"]]
+    T = [T + 273 for T in results["T"]]
+
+    # Reshape into (W, 1) arrays
+    P_array = np.unique(np.array(P)).reshape(-1, 1)
+    T_array = np.unique(np.array(T)).reshape(1, -1)
+
+    # Get array dimensions
+    W = P_array.shape[0]
+
+    # Reshape into (W, W) arrays by repeating values
+    P_grid = np.tile(P_array, (1, W))
+    T_grid = np.tile(T_array, (W, 1))
+
+    # Combine P and T grids into a single feature dataset with shape (W, W, 2)
+    features_array = np.stack((P_grid, T_grid), axis=-1)
+
+    return P, T, features_array
 
 # Train RocMLs
 def train_rocml(
@@ -4119,7 +4162,7 @@ def train_rocml(
 
     Notes:
         - This function retrieves GFEM results from the specified program and sample.
-        - It preprocesses the feature array (P and T) and the target array for ML model
+        - It preprocesses the feature array (P and T) and the targets array for ML model
           analysis.
           specified parameter.
         - The results of ML model, including plots and performance information, are saved to
@@ -4130,31 +4173,9 @@ def train_rocml(
         results_mgm = process_magemin_grid(sample_id, "train", res, out_dir)
         results_mgm_valid = process_magemin_grid(sample_id, "valid", res, out_dir)
 
-        # Get PT values and transform units
-        P_mgm = [P / 10 for P in results_mgm["P"]]
-        T_mgm = [T + 273 for T in results_mgm["T"]]
-        P_mgm_valid = [P / 10 for P in results_mgm_valid["P"]]
-        T_mgm_valid = [T + 273 for T in results_mgm_valid["T"]]
-
-        # Reshape into (W, 1) arrays
-        P_array_mgm = np.unique(np.array(P_mgm)).reshape(-1, 1)
-        T_array_mgm = np.unique(np.array(T_mgm)).reshape(1, -1)
-        P_array_mgm_valid = np.unique(np.array(P_mgm_valid)).reshape(-1, 1)
-        T_array_mgm_valid = np.unique(np.array(T_mgm_valid)).reshape(1, -1)
-
-        # Get array dimensions
-        W_mgm = P_array_mgm.shape[0]
-        W_mgm_valid = P_array_mgm_valid.shape[0]
-
-        # Reshape into (W, W) arrays by repeating values
-        P_grid_mgm = np.tile(P_array_mgm, (1, W_mgm))
-        T_grid_mgm = np.tile(T_array_mgm, (W_mgm, 1))
-        P_grid_mgm_valid = np.tile(P_array_mgm_valid, (1, W_mgm_valid))
-        T_grid_mgm_valid = np.tile(T_array_mgm_valid, (W_mgm_valid, 1))
-
-        # Combine P and T grids into a single feature dataset with shape (W, W, 2)
-        features_array_mgm = np.stack((P_grid_mgm, T_grid_mgm), axis=-1)
-        features_array_mgm_valid = np.stack((P_grid_mgm_valid, T_grid_mgm_valid), axis=-1)
+        # Get features arrays
+        P_mgm, T_mgm, features_mgm = extract_features(results_mgm)
+        P_mgm_valid, T_mgm_valid, features_mgm_valid = extract_features(results_mgm_valid)
 
     if perplex:
         # Get results
@@ -4167,31 +4188,9 @@ def train_rocml(
             f"{out_dir}/{sample_id}/perplex_valid_{res}/{sample_id}_assemblages.txt"
         )
 
-        # Get PT values and transform units
-        P_ppx = [P / 10 for P in results_ppx["P"]]
-        T_ppx = [T + 273 for T in results_ppx["T"]]
-        P_ppx_valid = [P / 10 for P in results_ppx_valid["P"]]
-        T_ppx_valid = [T + 273 for T in results_ppx_valid["T"]]
-
-        # Reshape into (W, 1) arrays
-        P_array_ppx = np.unique(np.array(P_ppx)).reshape(-1, 1)
-        T_array_ppx = np.unique(np.array(T_ppx)).reshape(1, -1)
-        P_array_ppx_valid = np.unique(np.array(P_ppx_valid)).reshape(-1, 1)
-        T_array_ppx_valid = np.unique(np.array(T_ppx_valid)).reshape(1, -1)
-
-        # Get array dimensions
-        W_ppx = P_array_ppx.shape[0]
-        W_ppx_valid = P_array_ppx_valid.shape[0]
-
-        # Reshape into (W, W) arrays by repeating values
-        P_grid_ppx = np.tile(P_array_ppx, (1, W_ppx))
-        T_grid_ppx = np.tile(T_array_ppx, (W_ppx, 1))
-        P_grid_ppx_valid = np.tile(P_array_ppx_valid, (1, W_ppx_valid))
-        T_grid_ppx_valid = np.tile(T_array_ppx_valid, (W_ppx_valid, 1))
-
-        # Combine P and T grids into a single feature dataset with shape (W, W, 2)
-        features_array_ppx = np.stack((P_grid_ppx, T_grid_ppx), axis=-1)
-        features_array_ppx_valid = np.stack((P_grid_ppx_valid, T_grid_ppx_valid), axis=-1)
+        # Get features arrays
+        P_ppx, T_ppx, features_ppx = extract_features(results_ppx)
+        P_ppx_valid, T_ppx_valid, features_ppx_valid = extract_features(results_ppx_valid)
 
     for parameter in parameters:
         # Units
@@ -4202,13 +4201,13 @@ def train_rocml(
 
         if magemin:
             # Target array with shape (W, W)
-            target_array_mgm = create_PT_grid(
+            targets_mgm = create_PT_grid(
                 P_mgm,
                 T_mgm,
                 results_mgm[parameter],
                 mask_geotherm
             )
-            target_array_mgm_valid = create_PT_grid(
+            targets_mgm_valid = create_PT_grid(
                 P_mgm_valid,
                 T_mgm_valid,
                 results_mgm_valid[parameter],
@@ -4217,14 +4216,14 @@ def train_rocml(
 
         if perplex:
             # Target array with shape (W, W)
-            target_array_ppx = create_PT_grid(
+            targets_ppx = create_PT_grid(
                 P_ppx,
                 T_ppx,
                 results_ppx[parameter],
                 mask_geotherm
             )
             # Target array with shape (W, W)
-            target_array_ppx_valid = create_PT_grid(
+            targets_ppx_valid = create_PT_grid(
                 P_ppx_valid,
                 T_ppx_valid,
                 results_ppx_valid[parameter],
@@ -4233,56 +4232,48 @@ def train_rocml(
 
         # Get min max of target array to plot colorbars on the same scales
         if magemin:
-            vmin = np.min(np.abs(
-                target_array_mgm[np.logical_not(np.isnan(target_array_mgm))]
-            ))
-            vmax = np.max(np.abs(
-                target_array_mgm[np.logical_not(np.isnan(target_array_mgm))]
-            ))
+            vmin = np.min(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))]))
+            vmax = np.max(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))]))
             vmin_valid = np.min(np.abs(
-                target_array_mgm_valid[np.logical_not(np.isnan(target_array_mgm_valid))]
+                targets_mgm_valid[np.logical_not(np.isnan(targets_mgm_valid))]
             ))
             vmax_valid = np.max(np.abs(
-                target_array_mgm_valid[np.logical_not(np.isnan(target_array_mgm_valid))]
+                targets_mgm_valid[np.logical_not(np.isnan(targets_mgm_valid))]
             ))
 
         if perplex:
-            vmin = np.min(np.abs(
-                target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]
-            ))
-            vmax = np.max(np.abs(
-                target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]
-            ))
+            vmin = np.min(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
+            vmax = np.max(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
             vmin_valid = np.min(np.abs(
-                target_array_ppx_valid[np.logical_not(np.isnan(target_array_ppx_valid))]
+                targets_ppx_valid[np.logical_not(np.isnan(targets_ppx_valid))]
             ))
             vmax_valid = np.max(np.abs(
-                target_array_ppx_valid[np.logical_not(np.isnan(target_array_ppx_valid))]
+                targets_ppx_valid[np.logical_not(np.isnan(targets_ppx_valid))]
             ))
 
         if magemin and perplex:
             vmin = min(
-                np.min(np.abs(target_array_mgm[np.logical_not(np.isnan(target_array_mgm))])),
-                np.min(np.abs(target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]))
+                np.min(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))])),
+                np.min(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
             )
             vmax = max(
-                np.max(np.abs(target_array_mgm[np.logical_not(np.isnan(target_array_mgm))])),
-                np.max(np.abs(target_array_ppx[np.logical_not(np.isnan(target_array_ppx))]))
+                np.max(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))])),
+                np.max(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
             )
             vmin_valid = min(
-                np.min(np.abs(target_array_mgm_valid[
-                    np.logical_not(np.isnan(target_array_mgm_valid))
+                np.min(np.abs(targets_mgm_valid[
+                    np.logical_not(np.isnan(targets_mgm_valid))
                 ])),
-                np.min(np.abs(target_array_ppx_valid[
-                    np.logical_not(np.isnan(target_array_ppx_valid))
+                np.min(np.abs(targets_ppx_valid[
+                    np.logical_not(np.isnan(targets_ppx_valid))
                 ]))
             )
             vmax_valid = max(
-                np.max(np.abs(target_array_mgm_valid[
-                    np.logical_not(np.isnan(target_array_mgm_valid))
+                np.max(np.abs(targets_mgm_valid[
+                    np.logical_not(np.isnan(targets_mgm_valid))
                 ])),
-                np.max(np.abs(target_array_ppx_valid[
-                    np.logical_not(np.isnan(target_array_ppx_valid))
+                np.max(np.abs(targets_ppx_valid[
+                    np.logical_not(np.isnan(targets_ppx_valid))
                 ]))
             )
 
@@ -4299,8 +4290,8 @@ def train_rocml(
         # Train models, predict, analyze
         if magemin:
             model_mgm, info_mgm = cv_rocml(
-                features_array_mgm, target_array_mgm, features_array_mgm_valid,
-                target_array_mgm_valid, parameter, units, "MAGEMin", sample_id,
+                features_mgm, targets_mgm, features_mgm_valid,
+                targets_mgm_valid, parameter, units, "MAGEMin", sample_id,
                 model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
                 filename=f"MAGEMin-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
             )
@@ -4312,8 +4303,8 @@ def train_rocml(
 
         if perplex:
             model_ppx, info_ppx = cv_rocml(
-                features_array_ppx, target_array_ppx, features_array_ppx_valid,
-                target_array_ppx_valid, parameter, units, "Perple_X", sample_id,
+                features_ppx, targets_ppx, features_ppx_valid,
+                targets_ppx_valid, parameter, units, "Perple_X", sample_id,
                 model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
                 filename=f"Perple_X-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
             )
@@ -4498,7 +4489,7 @@ def visualize_rocml_performance(
             legend.set_bbox_to_anchor((0, 0.94))
         else:
             plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"RMSE ({data['units'][0]})")
+            plt.ylabel(f"RMSE ({data['units'].values[0]})")
 
         # Save the plot to a file if a filename is provided
         if filename:

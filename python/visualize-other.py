@@ -1,5 +1,7 @@
 import os
 from rocml import (
+    parse_arguments,
+    check_arguments,
     print_filepaths,
     visualize_earthchem_data,
     combine_plots_vertically,
@@ -8,6 +10,13 @@ from rocml import (
     visualize_rocml_performance,
     visualize_benchmark_gfem_times
 )
+
+# Parse arguments and check
+args = parse_arguments()
+valid_args = check_arguments(args, "visualize-other.py")
+
+# Load valid arguments
+locals().update(valid_args)
 
 if os.path.exists("assets/data"):
     # Visualize Earthchem data
@@ -21,34 +30,32 @@ if os.path.exists("assets/data"):
 
     # Visualize rocml performance metrics
     visualize_rocml_performance(
-        "assets/data/benchmark-rocmls-performance.csv",
-        sample_id="PUM",
-        res=64
+        "assets/data/benchmark-rocmls-performance.csv", sample_id=sampleid, res=res
     )
 
     # First row
     combine_plots_horizontally(
-        "figs/rocml-inference-time-mean.png",
-        "figs/rocml-training-time-mean.png",
+        f"figs/rocml-inference-time-mean-{sampleid}-{res}.png",
+        f"figs/rocml-training-time-mean-{sampleid}-{res}.png",
         "figs/temp1.png",
         caption1="a)",
         caption2="b)"
     )
 
-    os.remove("figs/rocml-inference-time-mean.png")
-    os.remove("figs/rocml-training-time-mean.png")
+    os.remove(f"figs/rocml-inference-time-mean-{sampleid}-{res}.png")
+    os.remove(f"figs/rocml-training-time-mean-{sampleid}-{res}.png")
 
     # Second row
     combine_plots_horizontally(
-        "figs/rocml-rmse-test-mean.png",
-        "figs/rocml-rmse-valid-mean.png",
+        f"figs/rocml-rmse-test-mean-{sampleid}-{res}.png",
+        f"figs/rocml-rmse-valid-mean-{sampleid}-{res}.png",
         "figs/temp2.png",
         caption1="c)",
         caption2="d)"
     )
 
-    os.remove("figs/rocml-rmse-test-mean.png")
-    os.remove("figs/rocml-rmse-valid-mean.png")
+    os.remove(f"figs/rocml-rmse-test-mean-{sampleid}-{res}.png")
+    os.remove(f"figs/rocml-rmse-valid-mean-{sampleid}-{res}.png")
 
     # Stack rows
     combine_plots_vertically(

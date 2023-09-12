@@ -39,7 +39,7 @@ PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 128
+RES ?= 64
 DATASET ?= train
 NORMOX ?= all
 SEED = 42
@@ -107,7 +107,10 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 	@echo "=============================================" $(LOG)
 
 visualize_other: $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/visualize-other.py $(LOG)
+	@$(CONDAPYTHON) python/visualize-other.py \
+		--sampleid '$(SAMPLEID)' \
+		--res $(RES) \
+		$(LOG)
 	@echo "=============================================" $(LOG)
 
 visualize_database: $(LOGFILE) $(PYTHON)
