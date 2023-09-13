@@ -48,7 +48,7 @@ NPROCS ?= $(shell expr $(shell nproc) - 2)
 KFOLDS ?= $(shell expr $(shell nproc) - 2)
 OUTDIR ?= runs
 # RocML options
-PARAMSML ?= ["DensityOfFullAssemblage"]
+MLPARAMS ?= ["DensityOfFullAssemblage", "Vp", "Vs", "LiquidFraction"]
 MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
 MLTUNE ?= False
 # Bulk rock composition sampling options
@@ -109,6 +109,7 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 visualize_other: $(LOGFILE) $(PYTHON)
 	@$(CONDAPYTHON) python/visualize-other.py \
 		--sampleid '$(SAMPLEID)' \
+		--params '$(MLPARAMS)' \
 		--res $(RES) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
@@ -130,7 +131,7 @@ train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
 	@$(CONDAPYTHON) python/train-benchmark-rocmls.py \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
-		--params '$(PARAMSML)' \
+		--params '$(MLPARAMS)' \
 		--models '$(MLMODS)' \
 		--tune $(MLTUNE) \
 		--seed $(SEED) \

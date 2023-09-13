@@ -851,7 +851,7 @@ def check_arguments(args, script):
         valid_args["sampleid"] = sampleid
 
     if params is not None:
-        print("    physical properties:")
+        print("    targets:")
 
         for param in params:
             print(f"        {param}")
@@ -3269,9 +3269,7 @@ def process_fold(fold_data, verbose=False):
     """
     # Unpack arguments
     (
-        fold_idx,
         (train_index, test_index),
-        kfolds,
         X_scaled,
         y_scaled,
         X_scaled_valid,
@@ -3280,9 +3278,7 @@ def process_fold(fold_data, verbose=False):
         scaler_X,
         scaler_y,
         scaler_X_valid,
-        scaler_y_valid,
-        target_array,
-        W
+        scaler_y_valid
     ) = fold_data
 
     # Split the data into training and testing sets
@@ -3311,44 +3307,43 @@ def process_fold(fold_data, verbose=False):
     inference_time = (inference_end_time - inference_start_time) * 1000
 
     # Inverse transform predictions
-    y_pred_original = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).flatten()
-    y_pred_original_valid = scaler_y_valid.inverse_transform(
-        y_pred_scaled_valid.reshape(-1, 1)).flatten()
+    y_pred_original = scaler_y.inverse_transform(y_pred_scaled)
+    y_pred_original_valid = scaler_y_valid.inverse_transform(y_pred_scaled_valid)
 
     # Inverse transform test dataset
-    y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).flatten()
-    y_valid_original = scaler_y_valid.inverse_transform(y_valid.reshape(-1, 1)).flatten()
+    y_test_original = scaler_y.inverse_transform(y_test)
+    y_valid_original = scaler_y_valid.inverse_transform(y_valid)
 
-    # Evaluate the model
-    rmse_test = math.sqrt(mean_squared_error(y_test_original, y_pred_original))
-    rmse_valid = math.sqrt(mean_squared_error(y_valid_original, y_pred_original_valid))
-    r2_test = r2_score(y_test_original, y_pred_original)
-    r2_valid = r2_score(y_valid_original, y_pred_original_valid)
+    # Get the ranges for each of the parameters
+    target_ranges = np.max(y_valid_original, axis=0) - np.min(y_valid_original, axis=0)
 
-    if verbose:
-        # Print progress
-        print(f"    ======================")
-        print(f"        k-fold:  {fold_idx + 1}/{kfolds}    ")
-        print(f"    ======================")
-        print(f"     training time: {round(training_time, 3)}")
-        print(f"    inference time: {round(inference_time, 3)}")
-        print(f"            n test: {len(y_test)}")
-        print(f"           n train: {len(y_train)}")
-        print(f"           n valid: {len(y_valid)}")
-        print(f"         rmse test: {round(rmse_test, 3)}")
-        print(f"           r2 test: {round(r2_test, 3)}")
-        print(f"        rmse valid: {round(rmse_valid, 3)}")
-        print(f"          r2 valid: {round(r2_valid, 3)}")
+    # Calculate performance metrics to evaluate the model
+    rmse_test = (np.sqrt(
+        mean_squared_error(
+            y_test_original,
+            y_pred_original,
+            multioutput="raw_values"
+        )
+    ) / target_ranges) * 100
+    rmse_valid = (np.sqrt(
+        mean_squared_error(
+            y_valid_original,
+            y_pred_original_valid,
+            multioutput="raw_values"
+        )
+    ) / target_ranges) * 100
+    r2_test = r2_score(y_test_original, y_pred_original, multioutput="raw_values")
+    r2_valid = r2_score(y_valid_original, y_pred_original_valid, multioutput="raw_values")
 
     return rmse_test, r2_test, rmse_valid, r2_valid, training_time, inference_time
 
 # Cross-validate and train RocMLs
 def cv_rocml(
         features_array,
-        target_array,
+        targets_array,
         features_array_valid,
-        target_array_valid,
-        parameter,
+        targets_array_valid,
+        parameters,
         units,
         program,
         sample_id,
@@ -3405,39 +3400,67 @@ def cv_rocml(
     plt.rcParams["figure.dpi"] = 330
     plt.rcParams["savefig.bbox"] = "tight"
 
-    # Transform units
-    if parameter == "DensityOfFullAssemblage":
-        target_array = target_array / 1000
-        target_array_valid = target_array_valid / 1000
-
-    # Label units
-    if units is None:
-        units_label = ""
-    else:
-        units_label = f"({units})"
-
-    # Label parameters
-    if parameter == "DensityOfFullAssemblage":
-        parameter_label = "Density"
-    else:
-        parameter_label = parameter
-
     # Colormap
     cmap = plt.cm.get_cmap("bone_r")
     cmap.set_bad(color="white")
 
-    # Reshape the features_array and target_array
+    # Check parameters list for density
+    try:
+        index_rho = parameters.index("DensityOfFullAssemblage")
+    except:
+        print("Density not found in parameters")
+
+    # Check parameters list for Vp
+    try:
+        index_vp = parameters.index("Vp")
+    except:
+        print("Vp not found in parameters")
+
+    # Check parameters list for Vs
+    try:
+        index_vs = parameters.index("Vs")
+    except:
+        print("Vs not found in parameters")
+
+    # Check parameters list for melt
+    try:
+        index_liq = parameters.index("LiquidFraction")
+    except:
+        print("LiquidFraction not found in parameters")
+
+    # Transform units
+    if index_rho is not None:
+        targets_array[:,:,index_rho] = targets_array[:,:,index_rho] / 1000
+        targets_array_valid[:,:,index_rho] = targets_array_valid[:,:,index_rho] / 1000
+
+    if index_liq is not None:
+        targets_array[:,:,index_liq] = targets_array[:,:,index_liq] * 100
+        targets_array_valid[:,:,index_liq] = targets_array_valid[:,:,index_liq] * 100
+
+    # Label units
+    if units is None:
+        units_labels = ["" for unit in units]
+    else:
+        units_labels = [f"({unit})" for unit in units]
+
+    # Reshape the features_array and targets_array
+    n_features = targets_array.shape[2]
     W = features_array.shape[0]
     X = features_array.reshape(W*W, 2)
-    y = target_array.flatten()
+    y = targets_array.reshape(W*W, n_features)
     X_valid = features_array_valid.reshape(W*W, 2)
-    y_valid = target_array_valid.flatten()
+    y_valid = targets_array_valid.reshape(W*W, n_features)
 
     # Remove nans
-    mask = np.isnan(y)
-    X, y = X[~mask, :], y[~mask]
-    mask = np.isnan(y_valid)
-    X_valid, y_valid = X_valid[~mask, :], y_valid[~mask]
+    mask = np.any([np.isnan(y[:,i]) for i in range(y.shape[1])], axis=0)
+    X, y = X[~mask,:], y[~mask,:]
+
+    n_nans_training = sum(mask)
+
+    mask = np.any([np.isnan(y_valid[:,i]) for i in range(y_valid.shape[1])], axis=0)
+    X_valid, y_valid = X_valid[~mask,:], y_valid[~mask,:]
+
+    n_nans_valid = sum(mask)
 
     # Scale the feature array
     scaler_X = StandardScaler()
@@ -3450,8 +3473,8 @@ def cv_rocml(
     X_scaled_valid = scaler_X_valid.fit_transform(X_valid)
 
     # Scale the target array
-    y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).flatten()
-    y_scaled_valid = scaler_y_valid.fit_transform(y_valid.reshape(-1, 1)).flatten()
+    y_scaled = scaler_y.fit_transform(y)
+    y_scaled_valid = scaler_y_valid.fit_transform(y_valid)
 
     # Save model label string
     model_label = model
@@ -3574,14 +3597,23 @@ def cv_rocml(
                 )
 
         # Print model config
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
         print("Training RocML model without tuning:")
-        print(f"                     sample: {sample_id}")
-        print(f"                      model: {model_label_full}")
-        print(f"                    program: {program}")
-        print(f"                  parameter: {parameter_label} {units_label}")
-        print(f"                     kfolds: {kfolds}")
-        print(f"            hyperparameters: no-tune (predefined)")
-        print(f"training dataset resolution: {W-1}")
+        print(f"    program: {program}")
+        print(f"    sample: {sample_id}")
+        print(f"    model: {model_label_full}")
+        print(f"    k folds: {kfolds}")
+        print(f"    features:")
+        print(f"        Pressure (GPa)")
+        print(f"        Temperature (K)")
+        print(f"    targets:")
+        for param, unit in zip(parameters, units_labels):
+            print(f"        {param} {unit}")
+        print(f"    features dataset shape: ({W}, {W}, {X.shape[1]})")
+        print(f"    targets dataset shape: ({W}, {W}, {y.shape[1]})")
+        print(f"    training dataset NANs: {n_nans_training}")
+        print(f"    hyperparameters: no-tune (predefined)")
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
 
     # Define ML model and grid search param space for hyperparameter tuning
     else:
@@ -3699,16 +3731,26 @@ def cv_rocml(
             )
 
         # Print model config
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
         print("Training RocML model with grid search tuning:")
-        print(f"                     sample: {sample_id}")
-        print(f"                      model: {model_label_full}")
-        print(f"                    program: {program}")
-        print(f"                  parameter: {parameter_label} {units_label}")
-        print(f"                     kfolds: {kfolds}")
-        print(f"            hyperparameters: tuned by grid search")
-        print(f"training dataset resolution: {W-1}")
+        print(f"    program: {program}")
+        print(f"    sample: {sample_id}")
+        print(f"    model: {model_label_full}")
+        print(f"    k folds: {kfolds}")
+        print(f"    features:")
+        print(f"        Pressure (GPa)")
+        print(f"        Temperature (K)")
+        print(f"    targets:")
+        for param, unit in zip(parameters, units_labels):
+            print(f"        {param} {unit}")
+        print(f"    training dataset shape: ({W}, {W}, {n_features + 2})")
+        print(f"    training dataset NANs: {n_nans_training}")
+        print(f"    features shape: {X.shape}")
+        print(f"    targets shape: {y.shape}")
+        print(f"    hyperparameters:")
         for key, value in grid_search.best_params_.items():
-            print(f"    {key}: {value}")
+            print(f"        {key}: {value}")
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
 
     # K-fold cross-validation
     kf = KFold(n_splits=kfolds, shuffle=True, random_state=seed)
@@ -3717,9 +3759,7 @@ def cv_rocml(
     # Combine the data and parameters needed for each fold into a list
     fold_data_list = [
         (
-            fold_idx,
             (train_index, test_index),
-            kfolds,
             X_scaled,
             y_scaled,
             X_scaled_valid,
@@ -3728,9 +3768,7 @@ def cv_rocml(
             scaler_X,
             scaler_y,
             scaler_X_valid,
-            scaler_y_valid,
-            target_array,
-            W
+            scaler_y_valid
         ) for fold_idx, (train_index, test_index) in enumerate(kf.split(X))
     ]
 
@@ -3758,15 +3796,21 @@ def cv_rocml(
         training_times.append(training_time)
         inference_times.append(inference_time)
 
+    # Stack arrays
+    rmse_test_scores = np.stack(rmse_test_scores)
+    r2_test_scores = np.stack(r2_test_scores)
+    rmse_valid_scores = np.stack(rmse_valid_scores)
+    r2_valid_scores = np.stack(r2_valid_scores)
+
     # Calculate performance values with uncertainties
-    r2_test_mean = np.mean(r2_test_scores)
-    r2_test_std = np.std(r2_test_scores)
-    rmse_test_mean = np.mean(rmse_test_scores)
-    rmse_test_std = np.std(rmse_test_scores)
-    r2_valid_mean = np.mean(r2_valid_scores)
-    r2_valid_std = np.std(r2_valid_scores)
-    rmse_valid_mean = np.mean(rmse_valid_scores)
-    rmse_valid_std = np.std(rmse_valid_scores)
+    rmse_test_mean = np.mean(rmse_test_scores, axis=0)
+    rmse_test_std = np.std(rmse_test_scores, axis=0)
+    r2_test_mean = np.mean(r2_test_scores, axis=0)
+    r2_test_std = np.std(r2_test_scores, axis=0)
+    rmse_valid_mean = np.mean(rmse_valid_scores, axis=0)
+    rmse_valid_std = np.std(rmse_valid_scores, axis=0)
+    r2_valid_mean = np.mean(r2_valid_scores, axis=0)
+    r2_valid_std = np.std(r2_valid_scores, axis=0)
     training_time_mean = np.mean(training_times)
     training_time_std = np.std(training_times)
     inference_time_mean = np.mean(inference_times)
@@ -3774,37 +3818,48 @@ def cv_rocml(
 
     # Config and performance info
     model_info = {
-        "sample": [sample_id],
-        "model": [model_label],
-        "program": [program],
-        "grid": [(W-1)*(W-1)],
-        "parameter": [parameter_label],
-        "units": [units],
-        "k_folds": [kfolds],
-        "training_time_mean": [round(training_time_mean, 3)],
-        "training_time_std": [round(training_time_std, 3)],
-        "inference_time_mean": [round(inference_time_mean, 3)],
-        "inference_time_std": [round(inference_time_std, 3)],
-        "rmse_test_mean": [round(rmse_test_mean, 3)],
-        "rmse_test_std": [round(rmse_test_std, 3)],
-        "r2_test_mean": [round(r2_test_mean, 3)],
-        "r2_test_std": [round(r2_test_std, 3)],
-        "rmse_valid_mean": [round(rmse_valid_mean, 3)],
-        "rmse_valid_std": [round(rmse_valid_std, 3)],
-        "r2_valid_mean": [round(r2_valid_mean, 3)],
-        "r2_valid_std": [round(r2_valid_std, 3)]
+        "sample": sample_id,
+        "model": model_label,
+        "program": program,
+        "grid": (W-1)**2,
+        "n_params": len(parameters),
+        "k_folds": kfolds,
+        "training_time_mean": round(training_time_mean, 3),
+        "training_time_std": round(training_time_std, 3),
+        "inference_time_mean": round(inference_time_mean, 3),
+        "inference_time_std": round(inference_time_std, 3)
     }
+
+    # Add performance metrics for each parameter to the dictionary
+    for i, param in enumerate(parameters):
+        model_info[f"rmse_test_mean_{param}"] = round(rmse_test_mean[i], 3)
+        model_info[f"rmse_test_std_{param}"] = round(rmse_test_std[i], 3)
+        model_info[f"r2_test_mean_{param}"] = round(r2_test_mean[i], 3),
+        model_info[f"r2_test_std_{param}"] = round(r2_test_std[i], 3),
+        model_info[f"rmse_valid_mean_{param}"] = round(rmse_valid_mean[i], 3),
+        model_info[f"rmse_valid_std_{param}"] = round(rmse_valid_std[i], 3),
+        model_info[f"r2_valid_mean_{param}"] = round(r2_valid_mean[i], 3),
+        model_info[f"r2_valid_std_{param}"] = round(r2_valid_std[i], 3)
 
     # Print performance
     print(f"{model_label_full} performance:")
-    print(f"     rmse test: {rmse_test_mean:.3f} ± {rmse_test_std:.3f}")
-    print(f"       r2 test: {r2_test_mean:.3f} ± {r2_test_std:.3f}")
-    print(f"    rmse valid: {rmse_valid_mean:.3f} ± {rmse_valid_std:.3f}")
-    print(f"      r2 valid: {r2_valid_mean:.3f} ± {r2_valid_std:.3f}")
-    print(f" training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
-    print(f"inference time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
+    print(f"    training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
+    print(f"    inference time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
+    print(f"    rmse test (%):")
+    for r, e, p in zip(rmse_test_mean, rmse_test_std, parameters):
+        print(f"        {p}: {r:.3f} ± {e:.3f}")
+    print(f"    r2 test:")
+    for r, e, p in zip(r2_test_mean, r2_test_std, parameters):
+        print(f"        {p}: {r:.3f} ± {e:.3f}")
+    print(f"    rmse valid (%):")
+    for r, e, p in zip(rmse_valid_mean, rmse_valid_std, parameters):
+        print(f"        {p}: {r:.3f} ± {e:.3f}")
+    print(f"    r2 valid:")
+    for r, e, p in zip(r2_valid_mean, r2_valid_std, parameters):
+        print(f"        {p}: {r:.3f} ± {e:.3f}")
+    print("+++++++++++++++++++++++++++++++++++++++++++++")
 
-    # Normal 80 / 20 train / test split for plotting
+    # Train model for plotting
     X_train, X_test, y_train, y_test = train_test_split(
         X_scaled,
         y_scaled,
@@ -3812,292 +3867,287 @@ def cv_rocml(
         random_state=seed
     )
 
-    X_valid = features_array_valid.reshape(W*W, 2)
-    X_scaled_valid = scaler_X_valid.fit_transform(X_valid)
-
     # Train ML model
     model.fit(X_train, y_train)
+
+    # Reshape and scale validation dataset features
+    X_valid = features_array_valid.reshape(W*W, 2)
+    X_scaled_valid = scaler_X_valid.fit_transform(X_valid)
 
     # Make predictions on validation dataset
     valid_pred_scaled = model.predict(X_scaled_valid)
 
     # Inverse transform predictions
-    valid_pred_original = (
-        scaler_y_valid.inverse_transform(valid_pred_scaled.reshape(-1, 1)).flatten()
-    )
+    valid_pred_original = scaler_y_valid.inverse_transform(valid_pred_scaled)
 
     # Reshape the predictions to match the grid shape for visualization
-    valid_pred_array_original = valid_pred_original.reshape(W, W)
+    valid_pred_array_original = valid_pred_original.reshape(W, W, n_features)
 
-    # Compute normalized diff
-    mask = np.isnan(target_array_valid)
+    for i, param in enumerate(parameters):
+        # Make nans consistent
+        mask = np.isnan(targets_array_valid[:,:,i])
+        valid_pred_array_original[:,:,i][mask] = np.nan
 
-    valid_pred_array_original[mask] = np.nan
+        # Compute normalized diff
+        diff_norm = (
+            (targets_array_valid[:,:,i] - valid_pred_array_original[:,:,i]) /
+            ((targets_array_valid[:,:,i] + valid_pred_array_original[:,:,i]) / 2) * 100
+        )
 
-    diff_norm = (
-        (target_array_valid - valid_pred_array_original) /
-        ((target_array_valid + valid_pred_array_original) / 2) * 100
-    )
+        # Make nans consistent
+        diff_norm[mask] = np.nan
 
-    diff_norm[mask] = np.nan
+        # Plot training data distribution and ML model predictions
+        colormap = plt.cm.get_cmap("tab10")
 
-    # Plot training data distribution and ML model predictions
-    colormap = plt.cm.get_cmap("tab10")
-
-    # Reverse color scale
-    if palette in ["grey"]:
-        if parameter in ["StableVariance"]:
-            color_reverse = True
-        else:
-            color_reverse = False
-    else:
-        if parameter in ["StableVariance"]:
+        # Reverse color scale
+        if palette in ["grey"]:
             color_reverse = False
         else:
             color_reverse = True
 
-    # Plot target array
-    visualize_2d_pt_grid(
-        features_array[:,:,0],
-        features_array[:,:,1],
-        target_array,
-        parameter,
-        title=f"{program}",
-        palette=palette,
-        color_discrete=False,
-        color_reverse=color_reverse,
-        vmin=vmin,
-        vmax=vmax,
-        filename=f"{filename}-targets.png",
-        fig_dir=fig_dir
-    )
-
-    # 3D surface
-    fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
-    ax = fig.add_subplot(111, projection="3d")
-    surf = ax.plot_surface(
-        features_array[:,:,1],
-        features_array[:,:,0],
-        target_array,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax
-    )
-    ax.set_xlabel("T (K)", labelpad=18)
-    ax.set_ylabel("P (GPa)", labelpad=18)
-    ax.set_zlabel("")
-    ax.set_zlim(vmin - (vmin * 0.05), vmax + (vmax * 0.05))
-    ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-    plt.tick_params(axis="x", which="major")
-    plt.tick_params(axis="y", which="major")
-    plt.title(f"{program}", y=0.95)
-    ax.view_init(20, -145)
-    ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
-    ax.set_facecolor("white")
-    cbar = fig.colorbar(
-        surf,
-        ax=ax,
-        ticks=np.linspace(vmin, vmax, num=4),
-        label="",
-        shrink=0.6
-    )
-    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-    cbar.ax.set_ylim(vmin, vmax)
-    plt.savefig(f"{fig_dir}/{filename}-targets-surf.png")
-    plt.close()
-
-    # Plot ML model predictions array
-    visualize_2d_pt_grid(
-        features_array_valid[:,:,0],
-        features_array_valid[:,:,1],
-        valid_pred_array_original,
-        parameter,
-        title=f"{model_label_full}",
-        palette=palette,
-        color_discrete=False,
-        color_reverse=color_reverse,
-        vmin=vmin,
-        vmax=vmax,
-        filename=f"{filename}-predictions.png",
-        fig_dir=fig_dir
-    )
-
-    # 3D surface
-    fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
-    ax = fig.add_subplot(111, projection="3d")
-    surf = ax.plot_surface(
-        features_array_valid[:,:,1],
-        features_array_valid[:,:,0],
-        valid_pred_array_original,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax
-    )
-    ax.set_xlabel("T (K)", labelpad=18)
-    ax.set_ylabel("P (GPa)", labelpad=18)
-    ax.set_zlabel("")
-    ax.set_zlim(vmin - (vmin * 0.05), vmax + (vmax * 0.05))
-    ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-    plt.tick_params(axis="x", which="major")
-    plt.tick_params(axis="y", which="major")
-    plt.title(f"{model_label_full}", y=0.95)
-    ax.view_init(20, -145)
-    ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
-    ax.set_facecolor("white")
-    cbar = fig.colorbar(
-        surf,
-        ax=ax,
-        ticks=np.linspace(vmin, vmax, num=4),
-        label="",
-        shrink=0.6
-    )
-    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-    cbar.ax.set_ylim(vmin, vmax)
-    plt.savefig(f"{fig_dir}/{filename}-surf.png")
-    plt.close()
-
-    # Plot PT normalized diff targets vs. ML model predictions
-    visualize_2d_pt_grid(
-        features_array_valid[:,:,0],
-        features_array_valid[:,:,1],
-        diff_norm,
-        parameter,
-        title="Percent Difference",
-        palette="seismic",
-        color_discrete=False,
-        color_reverse=False,
-        vmin=vmin,
-        vmax=vmax,
-        filename=f"{filename}-diff.png",
-        fig_dir=fig_dir
-    )
-
-    # 3D surface
-    vmin_diff = -np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
-    vmax_diff = np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
-
-    fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
-    ax = fig.add_subplot(111, projection="3d")
-    surf = ax.plot_surface(
-        features_array_valid[:,:,1],
-        features_array_valid[:,:,0],
-        diff_norm,
-        cmap="seismic",
-        vmin=vmin_diff,
-        vmax=vmax_diff
-    )
-    ax.set_xlabel("T (K)", labelpad=18)
-    ax.set_ylabel("P (GPa)", labelpad=18)
-    ax.set_zlabel("")
-    ax.set_zlim(vmin_diff - (vmin_diff * 0.05), vmax_diff + (vmax_diff * 0.05))
-    ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-    plt.tick_params(axis="x", which="major")
-    plt.tick_params(axis="y", which="major")
-    plt.title(f"Percent Difference", y=0.95)
-    ax.view_init(20, -145)
-    ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
-    ax.set_facecolor("white")
-    cbar = fig.colorbar(
-        surf,
-        ax=ax,
-        ticks=[vmin_diff, vmin_diff/2, 0, vmax_diff/2, vmax_diff],
-        label="",
-        shrink=0.6
-    )
-    cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
-    cbar.ax.set_ylim(vmin_diff, vmax_diff)
-    plt.savefig(f"{fig_dir}/{filename}-diff-surf.png")
-    plt.close()
-
-    # Reshape results and transform units for MAGEMin
-    if program == "MAGEMin":
-        results_mgm = {
-            "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
-            "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
-            parameter: target_array.ravel().tolist()
-        }
-
-        results_ppx = None
-
-        if parameter == "DensityOfFullAssemblage":
-            results_mgm[parameter] = [x * 1000 for x in results_mgm[parameter]]
-
-    # Reshape results and transform units for Perple_X
-    if program == "Perple_X":
-        results_ppx = {
-            "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
-            "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
-            parameter: target_array.ravel().tolist()
-        }
-
-        results_mgm = None
-
-        if parameter == "DensityOfFullAssemblage":
-            results_ppx[parameter] = [x * 1000 for x in results_ppx[parameter]]
-
-    # Reshape results and transform units for ML model
-    results_rocml = {
-        "P": [P * 10 for P in features_array_valid[:,:,0].ravel().tolist()],
-        "T": [T - 273 for T in features_array_valid[:,:,1].ravel().tolist()],
-        parameter: valid_pred_array_original.ravel().tolist()
-    }
-
-    if parameter == "DensityOfFullAssemblage":
-        results_rocml[parameter] = [x * 1000 for x in results_rocml[parameter]]
-
-    # Plot PREM comparisons
-    metrics = [rmse_valid_mean, r2_valid_mean]
-
-    # Set geotherm threshold for extracting depth profiles
-    res = W - 1
-    if res <= 8:
-        geotherm_threshold = 4
-    elif res <= 16:
-        geotherm_threshold = 2
-    elif res <= 32:
-        geotherm_threshold = 1
-    elif res <= 64:
-        geotherm_threshold = 0.5
-    elif res <= 128:
-        geotherm_threshold = 0.25
-    else:
-        geotherm_threshold = 0.125
-
-    if parameter == "DensityOfFullAssemblage":
-        visualize_PREM(
-            "assets/data/prem.csv",
-            parameter,
-            "g/cm$^3$",
-            results_mgm=results_mgm,
-            results_ppx=results_ppx,
-            results_rocml=results_rocml,
-            model=f"{model_label}",
-            geotherm_threshold=geotherm_threshold,
-            depth=True,
-            metrics=metrics,
-            title=f"{model_label_full}",
-            figwidth=figwidth,
-            filename=f"{filename}-prem.png",
+        # Plot target array
+        visualize_2d_pt_grid(
+            features_array[:,:,0],
+            features_array[:,:,1],
+            targets_array[:,:,i],
+            param,
+            title=f"{program}",
+            palette=palette,
+            color_discrete=False,
+            color_reverse=color_reverse,
+            vmin=vmin[i],
+            vmax=vmax[i],
+            filename=f"{filename}-{param}-targets.png",
             fig_dir=fig_dir
         )
 
-    if parameter in ["Vp", "Vs"]:
-        visualize_PREM(
-            "assets/data/prem.csv",
-            parameter,
-            "km/s",
-            results_mgm=results_mgm,
-            results_ppx=results_ppx,
-            results_rocml=results_rocml,
-            model=f"{model_label}",
-            geotherm_threshold=geotherm_threshold,
-            depth=True,
-            metrics=metrics,
+        # 3D surface
+        fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
+        ax = fig.add_subplot(111, projection="3d")
+        surf = ax.plot_surface(
+            features_array[:,:,1],
+            features_array[:,:,0],
+            targets_array[:,:,i],
+            cmap=cmap,
+            vmin=vmin[i],
+            vmax=vmax[i]
+        )
+        ax.set_xlabel("T (K)", labelpad=18)
+        ax.set_ylabel("P (GPa)", labelpad=18)
+        ax.set_zlabel("")
+        ax.set_zlim(vmin[i] - (vmin[i] * 0.05), vmax[i] + (vmax[i] * 0.05))
+        ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        plt.tick_params(axis="x", which="major")
+        plt.tick_params(axis="y", which="major")
+        plt.title(f"{program}", y=0.95)
+        ax.view_init(20, -145)
+        ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
+        ax.set_facecolor("white")
+        cbar = fig.colorbar(
+            surf,
+            ax=ax,
+            ticks=np.linspace(vmin[i], vmax[i], num=4),
+            label="",
+            shrink=0.6
+        )
+        cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        cbar.ax.set_ylim(vmin[i], vmax[i])
+        plt.savefig(f"{fig_dir}/{filename}-{param}-targets-surf.png")
+        plt.close()
+
+        # Plot ML model predictions array
+        visualize_2d_pt_grid(
+            features_array_valid[:,:,0],
+            features_array_valid[:,:,1],
+            valid_pred_array_original[:,:,i],
+            param,
             title=f"{model_label_full}",
-            figwidth=figwidth,
-            filename=f"{filename}-prem.png",
+            palette=palette,
+            color_discrete=False,
+            color_reverse=color_reverse,
+            vmin=vmin[i],
+            vmax=vmax[i],
+            filename=f"{filename}-{param}-predictions.png",
             fig_dir=fig_dir
         )
+
+        # 3D surface
+        fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
+        ax = fig.add_subplot(111, projection="3d")
+        surf = ax.plot_surface(
+            features_array_valid[:,:,1],
+            features_array_valid[:,:,0],
+            valid_pred_array_original[:,:,i],
+            cmap=cmap,
+            vmin=vmin[i],
+            vmax=vmax[i]
+        )
+        ax.set_xlabel("T (K)", labelpad=18)
+        ax.set_ylabel("P (GPa)", labelpad=18)
+        ax.set_zlabel("")
+        ax.set_zlim(vmin[i] - (vmin[i] * 0.05), vmax[i] + (vmax[i] * 0.05))
+        ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        plt.tick_params(axis="x", which="major")
+        plt.tick_params(axis="y", which="major")
+        plt.title(f"{model_label_full}", y=0.95)
+        ax.view_init(20, -145)
+        ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
+        ax.set_facecolor("white")
+        cbar = fig.colorbar(
+            surf,
+            ax=ax,
+            ticks=np.linspace(vmin[i], vmax[i], num=4),
+            label="",
+            shrink=0.6
+        )
+        cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        cbar.ax.set_ylim(vmin[i], vmax[i])
+        plt.savefig(f"{fig_dir}/{filename}-{param}-surf.png")
+        plt.close()
+
+        # Plot PT normalized diff targets vs. ML model predictions
+        visualize_2d_pt_grid(
+            features_array_valid[:,:,0],
+            features_array_valid[:,:,1],
+            diff_norm,
+            param,
+            title="Percent Difference",
+            palette="seismic",
+            color_discrete=False,
+            color_reverse=False,
+            vmin=vmin[i],
+            vmax=vmax[i],
+            filename=f"{filename}-{param}-diff.png",
+            fig_dir=fig_dir
+        )
+
+        # 3D surface
+        vmin_diff = -np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
+        vmax_diff = np.max(np.abs(diff_norm[np.logical_not(np.isnan(diff_norm))]))
+
+        fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
+        ax = fig.add_subplot(111, projection="3d")
+        surf = ax.plot_surface(
+            features_array_valid[:,:,1],
+            features_array_valid[:,:,0],
+            diff_norm,
+            cmap="seismic",
+            vmin=vmin_diff,
+            vmax=vmax_diff
+        )
+        ax.set_xlabel("T (K)", labelpad=18)
+        ax.set_ylabel("P (GPa)", labelpad=18)
+        ax.set_zlabel("")
+        ax.set_zlim(vmin_diff - (vmin_diff * 0.05), vmax_diff + (vmax_diff * 0.05))
+        ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+        plt.tick_params(axis="x", which="major")
+        plt.tick_params(axis="y", which="major")
+        plt.title(f"Percent Difference", y=0.95)
+        ax.view_init(20, -145)
+        ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
+        ax.set_facecolor("white")
+        cbar = fig.colorbar(
+            surf,
+            ax=ax,
+            ticks=[vmin_diff, vmin_diff/2, 0, vmax_diff/2, vmax_diff],
+            label="",
+            shrink=0.6
+        )
+        cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
+        cbar.ax.set_ylim(vmin_diff, vmax_diff)
+        plt.savefig(f"{fig_dir}/{filename}-{param}-diff-surf.png")
+        plt.close()
+
+        # Reshape results and transform units for MAGEMin
+        if program == "MAGEMin":
+            results_mgm = {
+                "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
+                "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
+                param: targets_array[:,:,i].ravel().tolist()
+            }
+
+            results_ppx = None
+
+            if param == "DensityOfFullAssemblage":
+                results_mgm[param] = [x * 1000 for x in results_mgm[param]]
+
+        # Reshape results and transform units for Perple_X
+        if program == "Perple_X":
+            results_ppx = {
+                "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
+                "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
+                param: targets_array[:,:,i].ravel().tolist()
+            }
+
+            results_mgm = None
+
+            if param == "DensityOfFullAssemblage":
+                results_ppx[param] = [x * 1000 for x in results_ppx[param]]
+
+        # Reshape results and transform units for ML model
+        results_rocml = {
+            "P": [P * 10 for P in features_array_valid[:,:,0].ravel().tolist()],
+            "T": [T - 273 for T in features_array_valid[:,:,1].ravel().tolist()],
+            param: valid_pred_array_original[:,:,i].ravel().tolist()
+        }
+
+        if param == "DensityOfFullAssemblage":
+            results_rocml[param] = [x * 1000 for x in results_rocml[param]]
+
+        # Plot PREM comparisons
+        metrics = [rmse_valid_mean[i], r2_valid_mean[i]]
+
+        # Set geotherm threshold for extracting depth profiles
+        res = W - 1
+        if res <= 8:
+            geotherm_threshold = 4
+        elif res <= 16:
+            geotherm_threshold = 2
+        elif res <= 32:
+            geotherm_threshold = 1
+        elif res <= 64:
+            geotherm_threshold = 0.5
+        elif res <= 128:
+            geotherm_threshold = 0.25
+        else:
+            geotherm_threshold = 0.125
+
+        if param == "DensityOfFullAssemblage":
+            visualize_PREM(
+                "assets/data/prem.csv",
+                param,
+                "g/cm$^3$",
+                results_mgm=results_mgm,
+                results_ppx=results_ppx,
+                results_rocml=results_rocml,
+                model=f"{model_label}",
+                geotherm_threshold=geotherm_threshold,
+                depth=True,
+                metrics=metrics,
+                title=f"{model_label_full}",
+                figwidth=figwidth,
+                filename=f"{filename}-{param}-prem.png",
+                fig_dir=fig_dir
+            )
+
+        if param in ["Vp", "Vs"]:
+            visualize_PREM(
+                "assets/data/prem.csv",
+                param,
+                "km/s",
+                results_mgm=results_mgm,
+                results_ppx=results_ppx,
+                results_rocml=results_rocml,
+                model=f"{model_label}",
+                geotherm_threshold=geotherm_threshold,
+                depth=True,
+                metrics=metrics,
+                title=f"{model_label_full}",
+                figwidth=figwidth,
+                filename=f"{filename}-{param}-prem.png",
+                fig_dir=fig_dir
+            )
 
     return model, model_info
 
@@ -4188,139 +4238,178 @@ def train_rocml(
             f"{out_dir}/{sample_id}/perplex_valid_{res}/{sample_id}_assemblages.txt"
         )
 
+        # Make liquid fraction consistent
+        results_ppx["LiquidFraction"] = [
+            0.0 if np.isnan(x) else x for x in results_ppx["LiquidFraction"]
+        ]
+        results_ppx_valid["LiquidFraction"] = [
+            0.0 if np.isnan(x) else x for x in results_ppx_valid["LiquidFraction"]
+        ]
+
         # Get features arrays
         P_ppx, T_ppx, features_ppx = extract_features(results_ppx)
         P_ppx_valid, T_ppx_valid, features_ppx_valid = extract_features(results_ppx_valid)
 
-    for parameter in parameters:
+    # Create empty lists
+    units = []
+    targets_mgm, targets_mgm_valid, targets_ppx, targets_ppx_valid = [], [], [], []
+    vmin, vmax, vmin_valid, vmax_valid = [], [], [], []
+
+    for i, parameter in enumerate(parameters):
         # Units
         if parameter == "DensityOfFullAssemblage":
-            units = "g/cm$^3$"
+            units.append("g/cm$^3$")
         if parameter in ["Vp", "Vs"]:
-            units = "km/s"
+            units.append("km/s")
+        if parameter == "LiquidFraction":
+            units.append("%")
 
         if magemin:
             # Target array with shape (W, W)
-            targets_mgm = create_PT_grid(
+            targets_mgm.append(create_PT_grid(
                 P_mgm,
                 T_mgm,
                 results_mgm[parameter],
                 mask_geotherm
-            )
-            targets_mgm_valid = create_PT_grid(
+            ))
+            targets_mgm_valid.append(create_PT_grid(
                 P_mgm_valid,
                 T_mgm_valid,
                 results_mgm_valid[parameter],
                 mask_geotherm
-            )
+            ))
 
         if perplex:
             # Target array with shape (W, W)
-            targets_ppx = create_PT_grid(
+            targets_ppx.append(create_PT_grid(
                 P_ppx,
                 T_ppx,
                 results_ppx[parameter],
                 mask_geotherm
-            )
+            ))
             # Target array with shape (W, W)
-            targets_ppx_valid = create_PT_grid(
+            targets_ppx_valid.append(create_PT_grid(
                 P_ppx_valid,
                 T_ppx_valid,
                 results_ppx_valid[parameter],
                 mask_geotherm
-            )
+            ))
 
         # Get min max of target array to plot colorbars on the same scales
-        if magemin:
-            vmin = np.min(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))]))
-            vmax = np.max(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))]))
-            vmin_valid = np.min(np.abs(
-                targets_mgm_valid[np.logical_not(np.isnan(targets_mgm_valid))]
-            ))
-            vmax_valid = np.max(np.abs(
-                targets_mgm_valid[np.logical_not(np.isnan(targets_mgm_valid))]
-            ))
+        if magemin and not perplex:
+            vmin.append(np.min(np.abs(
+                targets_mgm[i][np.logical_not(np.isnan(targets_mgm[i]))]
+            )))
+            vmax.append(np.max(np.abs(
+                targets_mgm[i][np.logical_not(np.isnan(targets_mgm[i]))]
+            )))
+            vmin_valid.append(np.min(np.abs(
+                targets_mgm_valid[i][np.logical_not(np.isnan(targets_mgm_valid[i]))]
+            )))
+            vmax_valid.append(np.max(np.abs(
+                targets_mgm_valid[i][np.logical_not(np.isnan(targets_mgm_valid[i]))]
+            )))
 
-        if perplex:
-            vmin = np.min(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
-            vmax = np.max(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
-            vmin_valid = np.min(np.abs(
-                targets_ppx_valid[np.logical_not(np.isnan(targets_ppx_valid))]
-            ))
-            vmax_valid = np.max(np.abs(
-                targets_ppx_valid[np.logical_not(np.isnan(targets_ppx_valid))]
-            ))
+        if perplex and not magemin:
+            vmin.append(np.min(np.abs(
+                targets_ppx[i][np.logical_not(np.isnan(targets_ppx[i]))]
+            )))
+            vmax.append(np.max(np.abs(
+                targets_ppx[i][np.logical_not(np.isnan(targets_ppx[i]))]
+            )))
+            vmin_valid.append(np.min(np.abs(
+                targets_ppx_valid[i][np.logical_not(np.isnan(targets_ppx_valid[i]))]
+            )))
+            vmax_valid.append(np.max(np.abs(
+                targets_ppx_valid[i][np.logical_not(np.isnan(targets_ppx_valid[i]))]
+            )))
 
         if magemin and perplex:
-            vmin = min(
-                np.min(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))])),
-                np.min(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
-            )
-            vmax = max(
-                np.max(np.abs(targets_mgm[np.logical_not(np.isnan(targets_mgm))])),
-                np.max(np.abs(targets_ppx[np.logical_not(np.isnan(targets_ppx))]))
-            )
-            vmin_valid = min(
-                np.min(np.abs(targets_mgm_valid[
-                    np.logical_not(np.isnan(targets_mgm_valid))
+            vmin.append(min(
+                np.min(np.abs(targets_mgm[i][np.logical_not(np.isnan(targets_mgm[i]))])),
+                np.min(np.abs(targets_ppx[i][np.logical_not(np.isnan(targets_ppx[i]))]))
+            ))
+            vmax.append(max(
+                np.max(np.abs(targets_mgm[i][np.logical_not(np.isnan(targets_mgm[i]))])),
+                np.max(np.abs(targets_ppx[i][np.logical_not(np.isnan(targets_ppx[i]))]))
+            ))
+            vmin_valid.append(min(
+                np.min(np.abs(targets_mgm_valid[i][
+                    np.logical_not(np.isnan(targets_mgm_valid[i]))
                 ])),
-                np.min(np.abs(targets_ppx_valid[
-                    np.logical_not(np.isnan(targets_ppx_valid))
+                np.min(np.abs(targets_ppx_valid[i][
+                    np.logical_not(np.isnan(targets_ppx_valid[i]))
                 ]))
-            )
-            vmax_valid = max(
-                np.max(np.abs(targets_mgm_valid[
-                    np.logical_not(np.isnan(targets_mgm_valid))
+            ))
+            vmax_valid.append(max(
+                np.max(np.abs(targets_mgm_valid[i][
+                    np.logical_not(np.isnan(targets_mgm_valid[i]))
                 ])),
-                np.max(np.abs(targets_ppx_valid[
-                    np.logical_not(np.isnan(targets_ppx_valid))
+                np.max(np.abs(targets_ppx_valid[i][
+                    np.logical_not(np.isnan(targets_ppx_valid[i]))
                 ]))
-            )
+            ))
 
         # Transform units
         if parameter == "DensityOfFullAssemblage":
-            vmin = vmin / 1000
-            vmax = vmax / 1000
-            vmin_valid = vmin_valid / 1000
-            vmax_valid = vmax_valid / 1000
+            vmin[i] = vmin[i] / 1000
+            vmax[i] = vmax[i] / 1000
+            vmin_valid[i] = vmin_valid[i] / 1000
+            vmax_valid[i] = vmax_valid[i] / 1000
+
+        if parameter == "LiquidFraction":
+            vmin[i] = vmin[i] * 100
+            vmax[i] = vmax[i] * 100
+            vmin_valid[i] = vmin_valid[i] * 100
+            vmax_valid[i] = vmax_valid[i] * 100
 
         # Change model string for filename
         model_label = model.replace(" ", "-")
 
-        # Train models, predict, analyze
-        if magemin:
-            model_mgm, info_mgm = cv_rocml(
-                features_mgm, targets_mgm, features_mgm_valid,
-                targets_mgm_valid, parameter, units, "MAGEMin", sample_id,
-                model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
-                filename=f"MAGEMin-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
-            )
+    # Combine target arrays for all parameters
+    if magemin:
+        targets_mgm = np.stack(targets_mgm, -1)
+        targets_mgm_valid = np.stack(targets_mgm_valid, -1)
 
-            # Write ML model config and performance info to csv
-            append_to_csv("assets/data/benchmark-rocmls-performance.csv", info_mgm)
+    if perplex:
+        targets_ppx = np.stack(targets_ppx, -1)
+        targets_ppx_valid = np.stack(targets_ppx_valid, -1)
 
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    # Train models, predict, analyze
+    if magemin:
+        model_mgm, info_mgm = cv_rocml(
+            features_mgm, targets_mgm, features_mgm_valid,
+            targets_mgm_valid, parameters, units, "MAGEMin", sample_id,
+            model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
+            filename=f"MAGEMin-{sample_id}-{model_label}", fig_dir=fig_dir
+        )
 
-        if perplex:
-            model_ppx, info_ppx = cv_rocml(
-                features_ppx, targets_ppx, features_ppx_valid,
-                targets_ppx_valid, parameter, units, "Perple_X", sample_id,
-                model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
-                filename=f"Perple_X-{sample_id}-{parameter}-{model_label}", fig_dir=fig_dir
-            )
+        # Write ML model config and performance info to csv
+        append_to_csv("assets/data/benchmark-rocmls-performance.csv", info_mgm)
 
-            # Write ML model config and performance info to csv
-            append_to_csv("assets/data/benchmark-rocmls-performance.csv", info_ppx)
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    if perplex:
+        model_ppx, info_ppx = cv_rocml(
+            features_ppx, targets_ppx, features_ppx_valid,
+            targets_ppx_valid, parameters, units, "Perple_X", sample_id,
+            model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
+            filename=f"Perple_X-{sample_id}-{model_label}", fig_dir=fig_dir
+        )
 
-        print("=============================================")
+        # Write ML model config and performance info to csv
+        append_to_csv("assets/data/benchmark-rocmls-performance.csv", info_ppx)
+
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+    print("=============================================")
 
 # Visualize rocml performance
 def visualize_rocml_performance(
         datafile="assets/data/benchmark-rocmls-performance.csv",
         benchmark_times="assets/data/benchmark-gfem-efficiency.csv",
         sample_id="PUM",
+        parameter="DensityOfFullAssemblage",
         res=128,
         palette="tab10",
         fontsize=22,
@@ -4402,10 +4491,10 @@ def visualize_rocml_performance(
 
     # Define the metrics to plot
     metrics = [
-        "training_time_mean",
-        "inference_time_mean",
-        "rmse_test_mean",
-        "rmse_valid_mean"
+        f"training_time_mean",
+        f"inference_time_mean",
+        f"rmse_test_mean_{parameter}",
+        f"rmse_valid_mean_{parameter}"
     ]
     metric_names = [
         "Training Efficiency",
@@ -4467,7 +4556,7 @@ def visualize_rocml_performance(
         )
 
         # Show MAGEMin and Perple_X compute times
-        if metric == "inference_time_mean":
+        if metric == f"inference_time_mean":
             mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin")
             ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X")
 
@@ -4475,11 +4564,11 @@ def visualize_rocml_performance(
         plt.gca().set_xticklabels([])
 
         # Plot titles
-        if i == 0:
+        if metric == f"training_time_mean":
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"Elapsed Time (ms)")
             plt.yscale("log")
-        elif i == 1:
+        elif metric == f"inference_time_mean":
             plt.title(f"{metric_names[i]}")
             plt.ylabel(f"Elapsed Time (ms)")
             plt.yscale("log")
@@ -4487,9 +4576,34 @@ def visualize_rocml_performance(
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
             legend.set_bbox_to_anchor((0, 0.94))
-        else:
+        elif metric == f"rmse_test_mean_{parameter}":
+            plt.errorbar(
+                x_positions * bar_width,
+                summary_df.loc[order][f"rmse_test_mean_{parameter}"],
+                yerr=summary_df.loc[order][f"rmse_test_std_{parameter}"] * 2,
+                fmt="none",
+                capsize=5,
+                color="black",
+                linewidth=2
+            )
             plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"RMSE ({data['units'].values[0]})")
+            plt.ylabel("RMSE (%)")
+            plt.ylim(bottom=0)
+            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        elif metric == f"rmse_valid_mean_{parameter}":
+            plt.errorbar(
+                x_positions * bar_width,
+                summary_df.loc[order][f"rmse_valid_mean_{parameter}"],
+                yerr=summary_df.loc[order][f"rmse_valid_std_{parameter}"] * 2,
+                fmt="none",
+                capsize=5,
+                color="black",
+                linewidth=2
+            )
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel("RMSE (%)")
+            plt.ylim(bottom=0)
+            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
 
         # Save the plot to a file if a filename is provided
         if filename:

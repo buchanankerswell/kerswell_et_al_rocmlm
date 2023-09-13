@@ -28,47 +28,44 @@ if os.path.exists("assets/data"):
     # Visualize benchmark computation times
     visualize_benchmark_gfem_times("assets/data/benchmark-gfem-efficiency.csv")
 
-    # Visualize rocml performance metrics
-    visualize_rocml_performance(
-        "assets/data/benchmark-rocmls-performance.csv", sample_id=sampleid, res=res
-    )
+    for param in params:
+        # Visualize rocml performance metrics
+        visualize_rocml_performance(sample_id=sampleid, parameter=param, res=res)
 
-    # First row
-    combine_plots_horizontally(
-        f"figs/rocml-inference-time-mean-{sampleid}-{res}.png",
-        f"figs/rocml-training-time-mean-{sampleid}-{res}.png",
-        "figs/temp1.png",
-        caption1="a)",
-        caption2="b)"
-    )
+        # First row
+        combine_plots_horizontally(
+            f"figs/rocml-inference-time-mean-{sampleid}-{res}.png",
+            f"figs/rocml-training-time-mean-{sampleid}-{res}.png",
+            "figs/temp1.png",
+            caption1="a)",
+            caption2="b)"
+        )
 
-    os.remove(f"figs/rocml-inference-time-mean-{sampleid}-{res}.png")
-    os.remove(f"figs/rocml-training-time-mean-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-inference-time-mean-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-training-time-mean-{sampleid}-{res}.png")
 
-    # Second row
-    combine_plots_horizontally(
-        f"figs/rocml-rmse-test-mean-{sampleid}-{res}.png",
-        f"figs/rocml-rmse-valid-mean-{sampleid}-{res}.png",
-        "figs/temp2.png",
-        caption1="c)",
-        caption2="d)"
-    )
+        # Second row
+        combine_plots_horizontally(
+            f"figs/rocml-rmse-test-mean-{param}-{sampleid}-{res}.png",
+            f"figs/rocml-rmse-valid-mean-{param}-{sampleid}-{res}.png",
+            "figs/temp2.png",
+            caption1="c)",
+            caption2="d)"
+        )
 
-    os.remove(f"figs/rocml-rmse-test-mean-{sampleid}-{res}.png")
-    os.remove(f"figs/rocml-rmse-valid-mean-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-rmse-test-mean-{param}-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-rmse-valid-mean-{param}-{sampleid}-{res}.png")
 
-    # Stack rows
-    combine_plots_vertically(
-        "figs/temp1.png",
-        "figs/temp2.png",
-        "figs/benchmark-mlms-metrics.png",
-        caption1="",
-        caption2=""
-    )
+        # Stack rows
+        combine_plots_vertically(
+            "figs/temp1.png",
+            "figs/temp2.png",
+            f"figs/benchmark-rocmls-metrics-{param}.png",
+            caption1="",
+            caption2=""
+        )
 
-    os.remove("figs/temp1.png")
-    os.remove("figs/temp2.png")
+        os.remove("figs/temp1.png")
+        os.remove("figs/temp2.png")
 
-print("Figures:")
-print_filepaths("figs")
 print("visualize-other.py done!")
