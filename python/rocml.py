@@ -3505,96 +3505,51 @@ def cv_rocml(
     if not tune:
         if model_label == "KN":
             model = KNeighborsRegressor(n_neighbors=4, weights="distance")
-            param_grid = dict(
-                n_neighbors=[2, 4, 8, 16, 32],
-                weights=["uniform", "distance"]
-            )
         elif model_label == "RF":
-            if program == "MAGEMin":
-                model = RandomForestRegressor(
-                    random_state=seed,
-                    n_estimators=800,
-                    max_features=2,
-                    min_samples_leaf=1,
-                    min_samples_split=2
-                )
-            else:
-                model = RandomForestRegressor(
-                    random_state=seed,
-                    n_estimators=400,
-                    max_features=2,
-                    min_samples_leaf=1,
-                    min_samples_split=2
-                )
+            model = RandomForestRegressor(
+                random_state=seed,
+                n_estimators=400,
+                max_features=2,
+                min_samples_leaf=1,
+                min_samples_split=2
+            )
         elif model_label == "DT":
             model = DecisionTreeRegressor(
                 random_state=seed,
-                splitter="random",
+                splitter="best",
                 max_features=2,
                 min_samples_leaf=1,
                 min_samples_split=2
             )
         elif model_label == "NN1":
-            if program == "MAGEMin":
-                model = MLPRegressor(
-                    random_state=seed,
-                    max_iter=5000,
-                    activation="relu",
-                    alpha=0.0001,
-                    learning_rate_init=0.01,
-                    hidden_layer_sizes=(int(y.shape[0] * 0.1))
-                )
-            else:
-                model = MLPRegressor(
-                    random_state=seed,
-                    max_iter=5000,
-                    activation="relu",
-                    alpha=0.01,
-                    learning_rate_init=0.05,
-                    hidden_layer_sizes=(int(y.shape[0] * 0.4))
-                )
+            model = MLPRegressor(
+                random_state=seed,
+                max_iter=5000,
+                activation="relu",
+                alpha=0.001,
+                learning_rate_init=0.001,
+                hidden_layer_sizes=(int(y.shape[0] * 0.1))
+            )
         elif model_label == "NN2":
-            if program == "MAGEMin":
-                model = MLPRegressor(
-                    random_state=seed,
-                    max_iter=5000,
-                    activation="relu",
-                    alpha=0.001,
-                    learning_rate_init=0.05,
-                    hidden_layer_sizes=(int(y.shape[0] * 0.5), int(y.shape[0] * 0.2))
-                )
-            else:
-                model = MLPRegressor(
-                    random_state=seed,
-                    max_iter=5000,
-                    activation="relu",
-                    alpha=0.001,
-                    learning_rate_init=0.05,
-                    hidden_layer_sizes=(int(y.shape[0] * 0.2), int(y.shape[0] * 0.2))
-                )
+            model = MLPRegressor(
+                random_state=seed,
+                max_iter=5000,
+                activation="relu",
+                alpha=0.001,
+                learning_rate_init=0.001,
+                hidden_layer_sizes=(int(y.shape[0] * 0.5), int(y.shape[0] * 0.2))
+            )
         elif model_label == "NN3":
-            if program == "MAGEMin":
-                model = MLPRegressor(
-                    random_state=seed,
-                    max_iter=5000,
-                    activation="relu",
-                    alpha=0.01,
-                    learning_rate_init=0.001,
-                    hidden_layer_sizes=(
-                        int(y.shape[0] * 0.2), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)
-                    )
+            model = MLPRegressor(
+                random_state=seed,
+                max_iter=5000,
+                activation="relu",
+                alpha=0.001,
+                learning_rate_init=0.001,
+                hidden_layer_sizes=(
+                    int(y.shape[0] * 0.5), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)
                 )
-            else:
-                model = MLPRegressor(
-                    random_state=seed,
-                    max_iter=5000,
-                    activation="relu",
-                    alpha=0.001,
-                    learning_rate_init=0.001,
-                    hidden_layer_sizes=(
-                        int(y.shape[0] * 0.5), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)
-                    )
-                )
+            )
 
         # Print model config
         print("+++++++++++++++++++++++++++++++++++++++++++++")
@@ -3623,7 +3578,7 @@ def cv_rocml(
         if model_label == "KN":
             model = KNeighborsRegressor()
             param_grid = dict(
-                n_neighbors=[2, 4, 8, 16, 32],
+                n_neighbors=[2, 4, 8],
                 weights=["uniform", "distance"]
             )
         elif model_label == "RF":
@@ -3645,44 +3600,44 @@ def cv_rocml(
 
             )
         elif model_label == "NN1":
-            model = MLPRegressor(random_state=seed, max_iter=5000)
+            model = MLPRegressor(
+                random_state=seed,
+                max_iter=5000,
+                activation="relu",
+                alpha=0.001
+            )
             param_grid = dict(
-                activation=["relu"],
-                alpha=[0.0001, 0.001, 0.01],
-                learning_rate_init=[0.001, 0.01, 0.05],
                 hidden_layer_sizes=[
                     (int(y.shape[0] * 0.1)),
                     (int(y.shape[0] * 0.2)),
-                    (int(y.shape[0] * 0.3)),
-                    (int(y.shape[0] * 0.4)),
                     (int(y.shape[0] * 0.5))
                 ]
             )
         elif model_label == "NN2":
-            model = MLPRegressor(random_state=seed, max_iter=5000)
+            model = MLPRegressor(
+                random_state=seed,
+                max_iter=5000,
+                activation="relu",
+                alpha=0.001
+            )
             param_grid = dict(
-                activation=["relu"],
-                alpha=[0.0001, 0.001, 0.01],
-                learning_rate_init=[0.001, 0.01, 0.05],
                 hidden_layer_sizes=[
                     (int(y.shape[0] * 0.1), int(y.shape[0] * 0.2)),
                     (int(y.shape[0] * 0.2), int(y.shape[0] * 0.2)),
-                    (int(y.shape[0] * 0.3), int(y.shape[0] * 0.2)),
-                    (int(y.shape[0] * 0.4), int(y.shape[0] * 0.2)),
                     (int(y.shape[0] * 0.5), int(y.shape[0] * 0.2))
                 ]
             )
         elif model_label == "NN3":
-            model = MLPRegressor(random_state=seed, max_iter=5000)
+            model = MLPRegressor(
+                random_state=seed,
+                max_iter=5000,
+                activation="relu",
+                alpha=0.001
+            )
             param_grid = dict(
-                activation=["relu"],
-                alpha=[0.0001, 0.001, 0.01],
-                learning_rate_init=[0.001, 0.01, 0.05],
                 hidden_layer_sizes=[
                     (int(y.shape[0] * 0.1), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
                     (int(y.shape[0] * 0.2), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
-                    (int(y.shape[0] * 0.3), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
-                    (int(y.shape[0] * 0.4), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1)),
                     (int(y.shape[0] * 0.5), int(y.shape[0] * 0.2), int(y.shape[0] * 0.1))
                 ]
             )
