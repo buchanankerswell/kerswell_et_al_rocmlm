@@ -26,7 +26,11 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.ticker as ticker
+from sklearn.cluster import KMeans
 import matplotlib.patches as mpatches
+from sklearn.impute import KNNImputer
+from sklearn.decomposition import PCA
+from matplotlib.ticker import FixedLocator
 from multiprocessing import Pool, cpu_count
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
@@ -1031,7 +1035,7 @@ def download_and_unzip(url, destination):
     os.remove("assets.zip")
 
 # Read csv files
-def read_geochemical_data(file_path):
+def read_earthchem_data(data_dir="assets/data/"):
     """
     Reads a CSV file containing geochemical data and returns the data as a pandas DataFrame.
 
@@ -1041,8 +1045,56 @@ def read_geochemical_data(file_path):
     Returns:
         pandas.DataFrame: The geochemical data read from the CSV file.
     """
+    # Find earthchem data files
+    datafiles = [
+        file for file in os.listdir(data_dir) if file.startswith("earthchem-igneous")
+    ]
 
-    data = pd.read_csv(file_path)
+    # Filter criteria
+    oxides = ["SIO2", "TIO2", "AL2O3", "CR2O3", "FE2O3", "FEO", "MGO", "CAO", "NA2O", "K2O" ]
+    metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
+
+    # Read all datafiles into dataframes
+    dataframes = {}
+    for file in datafiles:
+        df_name = file.split("-")[-1].split(".")[0]
+
+        # Read the file into a DataFrame and assign it to the corresponding variable
+        dataframes[f"df_{df_name}"] = pd.read_csv(f"{data_dir}/{file}", delimiter="\t")
+        dataframes[f"df_{df_name}"] = dataframes[f"df_{df_name}"][metadata + oxides]
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
+        print(f"Earthchem {df_name} info:")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print(dataframes[f"df_{df_name}"].info())
+
+    data = pd.concat(dataframes, ignore_index=True)
+    data = data[data["SIO2"] >= 25]
+    data = data[data["SIO2"] <= 90]
+    data = data[data["CAO"] <= 25]
+    data = data[data["FE2O3"] <= 20]
+    data = data[data["TIO2"] <= 10]
+
+    # Print info
+    print("+++++++++++++++++++++++++++++++++++++++++++++")
+    print("Eartchem search portal critera:")
+    print("    material: bulk")
+    print("    normalization: oxides as reported")
+    print("    sample type:")
+    print("        igneos > felsic")
+    print("        igneos > intermediate")
+    print("        igneos > mafic")
+    print("        igneos > ultramafic")
+    print("    oxides: (and/or)")
+    for oxide in oxides:
+        print(f"        {oxide}")
+    print("Dataset filtering:")
+    print("    SIO2 >= 25 wt.%")
+    print("    SIO2 <= 90 wt.%")
+    print("    CAO <= 25 wt.%")
+    print("    FE2O3 <= 20 wt.%")
+    print("    TIO2 <= 10 wt.%")
+    print("+++++++++++++++++++++++++++++++++++++++++++++")
+
     return data
 
 # Sample batches from the earthchem database
@@ -2145,20 +2197,28 @@ def visualize_2d_pt_grid(
     plt.close()
 
 # Plot Harker diagram with density contours using seaborn
-def visualize_earthchem_data(
-        datafile,
-        x_oxide="SiO2",
-        y_oxide=["MgO", "FeO", "CaO", "Al2O3"],
-        fontsize=12,
-        filename="earthchem-samples-harker-diagram.png",
-        fig_dir=f"{os.getcwd()}/figs"):
+def earthchem_samples_PCA(
+        res,
+        k_impute=4,
+        k_pca_clusters=3,
+        n_pca_components=3,
+        seed=42,
+        harker_xox="SiO2",
+        harker_yox=["MgO", "FeO", "CaO", "Al2O3", "Na2O", "K2O", "TiO2", "Fe2O3", "Cr2O3"],
+        palette="tab10",
+        figwidth=6.3,
+        figheight=6.3,
+        fontsize=22,
+        filename="earthchem-samples",
+        fig_dir=f"{os.getcwd()}/figs",
+        data_dir=f"{os.getcwd()}/assets/data"):
     """
     Plot Harker diagrams with density contours using seaborn.
 
     Parameters:
         datafile (str): Path to the geochemical datafile in .csv format.
-        x_oxide (str): The x-axis oxide for the Harker diagram.
-        y_oxide (str or list): The y-axis oxide(s) for the Harker diagram.
+        harker_xox (str): The x-axis oxide for the Harker diagram.
+        harker_yox (str or list): The y-axis oxide(s) for the Harker diagram.
             Can be a single oxide or a list of oxides.
         filename (str, optional): The filename to save the plot. If not provided,
             the plot will be displayed interactively.
@@ -2175,14 +2235,7 @@ def visualize_earthchem_data(
         - Legends are shown only for the first subplot.
         - The plot can be saved to a file if a filename is provided.
     """
-    # Ignore warnings
-    warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
-
-    # Read geochemical data
-    data = read_geochemical_data(datafile)
-    data = data.rename(columns={"COMPOSITION": "Rock Type"})
-
-    # Create figs dir
+    # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
 
@@ -2197,8 +2250,281 @@ def visualize_earthchem_data(
     plt.rcParams["figure.dpi"] = 330
     plt.rcParams["savefig.bbox"] = "tight"
 
+    # Ignore warnings
+    warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
+
+    # Read geochemical data
+    print("Reading Earthchem samples ...")
+    data = read_earthchem_data()
+
+    # Sort by composition
+    data.sort_values(
+        by=["SIO2", "MGO"],
+        ascending=[True, False],
+        inplace=True,
+        ignore_index=True
+    )
+
+    # Oxides to use for PCA analysis
+    oxides = ["SIO2", "MGO", "FEO", "CAO", "AL2O3", "NA2O", "K2O", "TIO2", "FE2O3", "CR2O3"]
+
+    # Impute missing measurement values by K-nearest algorithm
+    print("Imputing missing oxide measurements with K-nearest algorithm:")
+    print(f"    components: {k_impute}")
+    print(f"    weights: distance")
+
+    imputer = KNNImputer(n_neighbors=k_impute, weights="distance")
+    imputer.fit(data[oxides])
+
+    # Add missing values back to data
+    data[oxides] = imputer.transform(data[oxides])
+
+    # Standardize data
+    scaler = StandardScaler()
+    data_scaled = scaler.fit_transform(data[oxides])
+
+    # PCA modeling
+    pca = PCA(n_components=n_pca_components)
+    pca.fit(data_scaled)
+
+    # Print summary
+    print("PCA summary for Earthchem samples:")
+    print(f"    number of samples: {pca.n_samples_}")
+    print(f"    number of components: {n_pca_components}")
+    print(f"    features ({len(oxides)}):")
+    for oxide in oxides:
+        print(f"        {oxide}")
+    print("    explained variance:")
+    for i, value in enumerate(pca.explained_variance_ratio_):
+        print(f"        PC{i}: {round(value, 3)}")
+    print("    cumulative explained variance:")
+    cumulative_variance = pca.explained_variance_ratio_.cumsum()
+    for i, value in enumerate(cumulative_variance):
+        print(f"        PC{i}: {round(value, 3)}")
+    print("+++++++++++++++++++++++++++++++++++++++++++++")
+
+    # Transform the data to obtain the principal components
+    principal_components = pca.transform(data_scaled)
+
+    # Create a DataFrame to store the results
+    pca_columns = [f"PC{i+1}" for i in range(n_pca_components)]
+    data[pca_columns] = principal_components
+
+    # Round numerical data
+    data[oxides + pca_columns] = data[oxides + pca_columns].round(3)
+
+    # Write csv file
+    data.to_csv(f"{data_dir}/earthchem-samples-pca.csv", index=False)
+
+    # Plot PCA loadings
+    loadings = pd.DataFrame(
+        (pca.components_.T * np.sqrt(pca.explained_variance_)).T,
+        columns=oxides
+    )
+
+    # Colormap
+    colormap = plt.cm.get_cmap(palette)
+
+    # Plot PCA loadings
+    fig = plt.figure(figsize=(figheight, figwidth))
+    for i in [0, 1]:
+        ax = fig.add_subplot(2, 1, i+1)
+        ax.bar(oxides, loadings.iloc[i], color=colormap(i))
+        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+        ax.set_xlabel("")
+        ax.set_ylim([-1, 1])
+        ax.set_ylabel("")
+        ax.xaxis.set_major_locator(FixedLocator(range(len(oxides))))
+        ax.set_xticklabels(oxides, rotation=90)
+        plt.title(f"PC{i+1} Loadings")
+        if i == 0:
+            ax.set_xticks([])
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}-pca-loadings.png")
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
+    # Plot PCA results
+    for n in range(n_pca_components-1):
+        fig = plt.figure(figsize=(figwidth, figheight))
+        ax = fig.add_subplot(111)
+        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+        for i, comp in enumerate(["ultramafic", "mafic", "intermediate", "felsic"]):
+            indices = data.loc[data["COMPOSITION"] == comp].index
+            scatter = ax.scatter(
+                data.loc[indices, f"PC{n+1}"],
+                data.loc[indices, f"PC{n+2}"],
+                edgecolors="none",
+                color=colormap(i),
+                marker=".",
+                label=comp
+            )
+        for oxide in oxides:
+            ax.arrow(
+                0, 0,
+                loadings.at[n, oxide] * 3,
+                loadings.at[n+1, oxide] * 3,
+                width=0.02,
+                head_width=0.14,
+                color="black"
+            )
+            ax.text(
+                (loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1),
+                (loadings.at[n+1, oxide] * 3) + (loadings.at[n+1, oxide] * 1),
+                oxide,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.6, pad=0.1),
+                fontsize=fontsize * 0.579,
+                color="black",
+                ha = "center",
+                va = "center"
+            )
+        ax.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.2),
+            ncol=4,
+            columnspacing=0,
+            markerscale=3,
+            handletextpad=-0.5,
+            fontsize=fontsize * 0.694
+        )
+        ax.set_xlabel(f"PC{n+1}")
+        ax.set_ylabel(f"PC{n+2}")
+        plt.title("Earthchem Samples")
+
+        # Save the plot to a file if a filename is provided
+        if filename:
+            plt.savefig(f"{fig_dir}/{filename}-pca{n+1}{n+2}.png")
+        else:
+            # Print plot
+            plt.show()
+
+        # Close device
+        plt.close()
+
+    # Kmeans clustering in PCA space
+    kmeans = KMeans(n_clusters=k_pca_clusters, n_init="auto", random_state=seed)
+    kmeans.fit(principal_components)
+
+    # Add cluster labels to data
+    data["CLUSTER"] = kmeans.labels_
+
+    # Get centroids
+    centroids = kmeans.cluster_centers_
+    original_centroids = pca.inverse_transform(centroids)
+
+    # Plot PCA results and extract mixing lines among cluster centroids
+    for n in range(n_pca_components-1):
+        fig = plt.figure(figsize=(figwidth, figheight))
+        ax = fig.add_subplot(111)
+        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+        for c in range(k_pca_clusters):
+            # Get datapoints indices for each cluster
+            indices = data.loc[data["CLUSTER"] == c].index
+            scatter = ax.scatter(
+                data.loc[indices, f"PC{n+1}"],
+                data.loc[indices, f"PC{n+2}"],
+                edgecolors="none",
+                color=colormap(c+4),
+                marker=".",
+                alpha=0.3
+            )
+            clusters = ax.scatter(
+                centroids[c, n],
+                centroids[c, n+1],
+                edgecolor="black",
+                color=colormap(c+4),
+                label=f"cluster {c+1}",
+                marker="s",
+                s=100
+            )
+            # Calculate mixing lines between cluster centroids
+            if k_pca_clusters > 1:
+                for i in range(c+1, k_pca_clusters):
+                    m = ((centroids[i, n+1] - centroids[c, n+1]) /
+                         (centroids[i, n] - centroids[c, n]))
+                    b = centroids[c, n+1] - m * centroids[c, n]
+                    x_vals = np.linspace(centroids[c, n], centroids[i, n], res)
+                    y_vals = m * x_vals + b
+                    ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1)
+        ax.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.2),
+            ncol=4,
+            columnspacing=0,
+            handletextpad=-0.5,
+            fontsize=fontsize * 0.694
+        )
+        ax.set_xlabel(f"PC{n+1}")
+        ax.set_ylabel(f"PC{n+2}")
+        plt.title("Earthchem Samples")
+
+        # Save the plot to a file if a filename is provided
+        if filename:
+            plt.savefig(f"{fig_dir}/{filename}-clusters{n+1}{n+2}.png")
+        else:
+            # Print plot
+            plt.show()
+
+        # Close device
+        plt.close()
+
+    # Initialize a dictionary for mixing lines
+    mixing_lines = {}
+
+    # Loop through PCA components
+    print("Calculating mixing lines between cluster centroids:")
+    for n in range(n_pca_components):
+        for c in range(k_pca_clusters):
+            # Calculate mixing lines between cluster centroids
+            if k_pca_clusters > 1:
+                for i in range(c+1, k_pca_clusters):
+                    print(f"    PC{n+1}", f"cluster{c+1}", f"cluster{i+1}")
+                    if n == 0:
+                        mixing_lines[f"cluster{c+1}{i+1}"] = (
+                            np.linspace(centroids[c, n], centroids[i, n], res)
+                        )
+                    else:
+                        mixing_lines[f"cluster{c+1}{i+1}"] = np.vstack((
+                            mixing_lines[f"cluster{c+1}{i+1}"],
+                            np.linspace(centroids[c, n], centroids[i, n], res)
+                        ))
+
+    # Write mixing lines to csv
+    print(f"Saving mixing lines to {data_dir} ...")
+    for i in range(k_pca_clusters):
+        for j in range(i+1, k_pca_clusters):
+            data_synthetic = pd.DataFrame(
+                np.hstack((
+                    scaler.inverse_transform(
+                        pca.inverse_transform(
+                            mixing_lines[f"cluster{i+1}{j+1}"].T
+                        )
+                    ),
+                    mixing_lines[f"cluster{i+1}{j+1}"].T
+                )),
+                columns=oxides + [f"PC{n+1}" for n in range(n_pca_components)]
+            ).round(3)
+
+            # Write to csv
+            data_synthetic.to_csv(
+                f"{data_dir}/synthetic-samples-pca{n_pca_components}-clusters{i+1}{j+1}.csv",
+                index=False
+            )
+
+    data = data.rename(columns={"COMPOSITION": "Rock Type"})
+    data_synthetic12 = pd.read_csv(f"{data_dir}/synthetic-samples-pca4-clusters12.csv")
+    data_synthetic13 = pd.read_csv(f"{data_dir}/synthetic-samples-pca4-clusters13.csv")
+
     # Create a grid of subplots
-    num_plots = len(y_oxide)
+    num_plots = len(harker_yox)
     if num_plots == 1:
         num_cols = 1
     elif ((num_plots > 1) and (num_plots <= 4)):
@@ -2212,56 +2538,83 @@ def visualize_earthchem_data(
     num_rows = (num_plots + 1) // num_cols
 
     # Total figure size
-    fig_width = 3.8 * num_cols
-    fig_height = 3.15 * num_rows
+    fig_width = figwidth / 2 * num_cols
+    fig_height = figheight / 2 * num_rows
 
-    # Draw plots
+    # Harker diagrams
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
     axes = axes.flatten()
-
-    for i, y in enumerate(y_oxide):
+    for i, y in enumerate(harker_yox):
         ax = axes[i]
-
-        # Add density contours
-        sns.kdeplot(
-            data=data,
-            x=x_oxide.upper(),
-            y=y.upper(),
-            hue="Rock Type",
-            hue_order=["ultramafic", "mafic"],
-            fill=True,
-            ax=ax
-        )
-
-        # X-Y scatter (Harker diagram)
         sns.scatterplot(
-            data=data,
-            x=x_oxide.upper(),
+            data=data_synthetic12,
+            x=harker_xox.upper(),
             y=y.upper(),
-            hue="Rock Type",
-            hue_order=["ultramafic", "mafic"],
             linewidth=0,
-            s=5,
+            s=10,
+            zorder=100,
+            color=".2",
             legend=False,
             ax=ax
         )
-
-        ax.set_xlabel(f"{x_oxide} (wt%)")
-        ax.set_ylabel(f"{y} (wt%)")
-        ax.get_legend().set_title("")
-
-        # Show legend only for the first subplot
-        if i > 0:
-            ax.get_legend().remove()
-
-    # Remove empty subplots
+        sns.scatterplot(
+            data=data_synthetic13,
+            x=harker_xox.upper(),
+            y=y.upper(),
+            linewidth=0,
+            s=10,
+            zorder=50,
+            color=".2",
+            legend=False,
+            ax=ax
+        )
+        sns.kdeplot(
+            data=data,
+            x=harker_xox.upper(),
+            y=y.upper(),
+            hue="Rock Type",
+            hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
+            fill=False,
+            ax=ax,
+            levels=5
+        )
+#        sns.scatterplot(
+#            data=data,
+#            x=harker_xox.upper(),
+#            y=y.upper(),
+#            hue="Rock Type",
+#            hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
+#            linewidth=0,
+#            s=5,
+#            legend=False,
+#            ax=ax
+#        )
+        ax.set_title(f"{y}")
+        ax.set_ylabel("")
+        ax.set_xlabel("")
+        if (i < (num_plots - num_cols)):
+            ax.set_xticks([])
+        if i == (num_plots - 1):
+            handles = ax.get_legend().legendHandles
+            labels = ["ultramafic", "mafic", "intermediate", "felsic"]
+        for line in ax.get_legend().get_lines():
+            line.set_linewidth(5)
+        ax.get_legend().remove()
+    fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.05),
+        ncol=4
+    )
+    fig.suptitle("Harker Diagrams vs. SiO2 (wt.%)")
     if num_plots < len(axes):
         for i in range(num_plots, len(axes)):
             fig.delaxes(axes[i])
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
+        plt.savefig(f"{fig_dir}/{filename}-harker-diagram.png")
     else:
         # Print plot
         plt.show()
@@ -2389,8 +2742,8 @@ def visualize_benchmark_gfem_times(
         legend_handles,
         legend_labels,
         title="",
-        bbox_to_anchor=(1.02, 1),
-        loc="upper left"
+        bbox_to_anchor=(1.02, 0.5),
+        loc="center left"
     )
 
     # Adjust the figure size
@@ -2674,7 +3027,7 @@ def visualize_training_PT_range(
         title="",
         handles=legend_handles,
         loc="center left",
-        bbox_to_anchor=(1, 0.5)
+        bbox_to_anchor=(1.02, 0.5)
     )
 
     # Adjust the figure size
