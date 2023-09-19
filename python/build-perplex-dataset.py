@@ -1,7 +1,7 @@
 from rocml import (
     parse_arguments,
     check_arguments,
-    configure_perplex,
+    configure_perplex_model,
     run_perplex,
     get_comp_time
 )
@@ -14,15 +14,12 @@ valid_args = check_arguments(args, "build-perplex-dataset.py")
 locals().update(valid_args)
 
 # Configure Perple_X model
-configure_perplex(
-    Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox,
-    dataset, emsonly, configdir, perplexdir, outdir
-)
+configure_perplex_model(Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset)
 
 # Run Perple_X
-run_perplex(sampleid, dataset, res, emsonly, perplexdir, outdir, verbose=False)
+run_perplex(sampleid, dataset, res)
 
 # Get Perple_X comp time and write to csv
-get_comp_time(logfile, sampleid, dataset, res, nprocs, datadir)
+get_comp_time(logfile, sampleid, dataset, res, nprocs)
 
 print("build-perplex-dataset.py done!")

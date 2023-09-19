@@ -3,7 +3,7 @@ import glob
 from rocml import (
     parse_arguments,
     check_arguments,
-    train_rocml,
+    run_rocml_training,
     combine_plots_vertically,
     combine_plots_horizontally
 )
@@ -24,7 +24,7 @@ ppx_results_valid = os.path.exists(f"{outdir}/perplex_{sampleid}_valid_{res}")
 if (mgm_results_train and ppx_results_train and mgm_results_valid and ppx_results_valid):
     for m in models:
         # Run support vector regression
-        train_rocml(
+        run_rocml_training(
             sampleid, res, params, True, True, True, m, tune, kfolds,
             parallel, nprocs, seed, colormap, outdir, figdir, datadir
         )

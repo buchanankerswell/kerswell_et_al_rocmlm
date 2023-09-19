@@ -11,23 +11,25 @@ CONDAENVNAME = rocml
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
-# Magemin program
+# Magemin programs
 MAGEMIN = MAGEMin
-# Perplex program
+# Perplex programs
 PERPLEX = assets/perplex
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIG = assets/config
 PYTHON = python/build-magemin-dataset.py \
-				 python/earthchem-samples-pca.py \
+				 python/build-perplex-dataset.py \
 				 python/clone-magemin.py \
 				 python/download-assets.py \
+				 python/earthchem-pca-mixing-arrays.py \
 				 python/rocml.py \
-				 python/train-benchmark-rocmls.py \
 				 python/session-info.py \
 				 python/submit-jobs.py \
+				 python/train-benchmark-rocmls.py \
 				 python/visualize-dataset.py \
 				 python/visualize-other.py \
+				 python/write-markdown-tables.py \
 # Dataset build options
 SOURCE ?= $(DATADIR)/benchmark-samples.csv
 SAMPLEID ?= PUM
@@ -47,7 +49,8 @@ OUTDIR ?= runs
 VERBOSE ?= False
 # RocML options
 MLPARAMS ?= ["DensityOfFullAssemblage", "Vp", "Vs", "LiquidFraction"]
-MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
+MLMODS ?= ["KN", "RF", "DT", "NN1"]
+#MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
 MLTUNE ?= False
 # Bulk rock composition sampling options
 OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
@@ -63,7 +66,7 @@ DATAPURGE = python/__pycache__ \
 						output \
 						$(DATADIR)/*assemblages.csv \
 						$(DATADIR)/benchmark-rocmls-performance.csv \
-						$(DATADIR)/benchmark-gfem-efficiency-$(DATE).csv
+						$(DATADIR)/benchmark-efficiency-$(DATE).csv
 DATACLEAN = assets log MAGEMin runs
 FIGSPURGE =
 FIGSCLEAN = figs
@@ -72,7 +75,7 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAG
 	@echo "=============================================" $(LOG)
 	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
-	@$(MAKE) earthchem_samples_pca
+	@$(MAKE) earthchem_pca_mixing_arrays
 	@$(MAKE) magemin_dataset DATASET=train
 	@$(MAKE) magemin_dataset DATASET=valid
 	@$(MAKE) perplex_dataset DATASET=train
@@ -86,7 +89,7 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MA
 	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
 	@echo "Run the following in order:" $(LOG)
-	@echo "    make earthchem_samples_pca" $(LOG)
+	@echo "    make earthchem_pca_mixing_arrays" $(LOG)
 	@echo "    make magemin_dataset DATASET=train" $(LOG)
 	@echo "    make magemin_dataset DATASET=valid" $(LOG)
 	@echo "    make perplex_dataset DATASET=train" $(LOG)
@@ -146,7 +149,7 @@ train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-build_all_benchmarks: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
+build_all_benchmarks_datasets: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
 	@for sample in DMM NMORB PUM RE46; do \
 		for res in 8 16 32 64 128; do \
 			for dataset in train valid; do \
@@ -206,8 +209,8 @@ perplex_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX)
 	@echo "make visualize_dataset SAMPLEID=$(SAMPLEID) RES=$(RES)" $(LOG)
 	@echo "=============================================" $(LOG)
 
-earthchem_samples_pca:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/earthchem-samples-pca.py \
+earthchem_pca_mixing_arrays:  $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) python/earthchem-pca-mixing-arrays.py \
 		--res $(RES) \
 		--oxides '$(OXIDES)' \
 		--npca $(NPCA) \
@@ -231,7 +234,7 @@ $(MAGEMIN): $(LOGFILE) $(PYTHON)
 		chmod +x python/clone-magemin.py; \
 		$(CONDAPYTHON) python/clone-magemin.py $(LOG); \
 	else \
-		echo "MAGEMin found at: $(MAGEMIN)" $(LOG); \
+		echo "MAGEMin programs found!" $(LOG); \
 	fi
 
 remove_conda_env: $(LOGFILE)
@@ -240,12 +243,12 @@ remove_conda_env: $(LOGFILE)
 
 create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	@if [ "$(HASCONDA)" = "false" ]; then \
-		echo "conda not found in PATH, install conda first ..." $(LOG); \
-		echo "See https://github.com/buchanankerswell/kerswell_et_al_rocml ..." $(LOG); \
+		echo "conda not found in PATH, install conda first!" $(LOG); \
+		echo "See: https://github.com/buchanankerswell/kerswell_et_al_rocml" $(LOG); \
 		exit 1; \
 	fi
 	@if [ -d "$(MY_ENV_DIR)" ]; then \
-		echo "Conda environment \"$(CONDAENVNAME)\" found at: $(MY_ENV_DIR)" $(LOG); \
+		echo "Conda environment \"$(CONDAENVNAME)\" found!" $(LOG); \
 	else \
 		echo "Creating environment $(CONDAENVNAME) from:" $(LOG); \
 		echo "	$(CONDASPECSFILE)" $(LOG); \
@@ -260,21 +263,21 @@ $(PERPLEX): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
-		echo "Perplex found at: $(PERPLEX)" $(LOG); \
+		echo "Perplex programs found!" $(LOG); \
 	fi
 
 $(DATADIR): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
-		echo "Data files found at: $(DATADIR)" $(LOG); \
+		echo "Data files found!" $(LOG); \
 	fi
 
 $(CONFIG): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(CONFIG)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
-		echo "Configuration files found at: $(CONFIG)" $(LOG); \
+		echo "Config files found!" $(LOG); \
 	fi
 
 $(LOGFILE):
@@ -289,4 +292,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs write_tables earthchem_samples_pca perplex_dataset magemin_dataset build_all_benchmarks train_benchmark_rocmls train_all_benchmark_rocmls visualize_dataset visualize_other init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs write_tables earthchem_pca_mixing_arrays perplex_dataset magemin_dataset build_all_benchmarks train_benchmark_rocmls train_all_benchmark_rocmls visualize_dataset visualize_other init all

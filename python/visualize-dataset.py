@@ -1,10 +1,10 @@
 import os
 import numpy as np
 from rocml import (
-    visualize_GFEM,
+    visualize_training_dataset,
     parse_arguments,
     check_arguments,
-    visualize_GFEM_diff,
+    visualize_training_dataset_diff,
     combine_plots_vertically,
     combine_plots_horizontally
 )
@@ -26,18 +26,18 @@ print(f"Plotting results for {sampleid}:")
 
 # Plot MAGEMin output
 if (mgm_results_train and mgm_results_valid):
-    visualize_GFEM("MAGEMin", sampleid, res, "train", params)
-    visualize_GFEM("MAGEMin", sampleid, res, "valid", params)
+    visualize_training_dataset("MAGEMin", sampleid, res, "train", params)
+    visualize_training_dataset("MAGEMin", sampleid, res, "valid", params)
 
 # Plot Perple_X output
 if (ppx_results_train and ppx_results_valid):
-    visualize_GFEM("Perple_X", sampleid, res, "train", params)
-    visualize_GFEM("Perple_X", sampleid, res, "valid", params)
+    visualize_training_dataset("Perple_X", sampleid, res, "train", params)
+    visualize_training_dataset("Perple_X", sampleid, res, "valid", params)
 
 # Plot MAGEMin Perple_X difference
 if (mgm_results_train and mgm_results_valid and ppx_results_train and ppx_results_valid):
-    visualize_GFEM_diff(sampleid, res, "train", params)
-    visualize_GFEM_diff(sampleid, res, "valid", params)
+    visualize_training_dataset_diff(sampleid, res, "train", params)
+    visualize_training_dataset_diff(sampleid, res, "valid", params)
 
     # Plot MAGEMin Perple_X compositions
     for p in params:

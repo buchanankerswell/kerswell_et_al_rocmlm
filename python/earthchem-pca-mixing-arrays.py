@@ -1,17 +1,17 @@
 from rocml import (
     parse_arguments,
     check_arguments,
-    earthchem_samples_pca
+    pca_mixing_arrays
 )
 
 # Parse arguments and check
 args = parse_arguments()
-valid_args = check_arguments(args, "earthchem-samples-pca.py")
+valid_args = check_arguments(args, "earthchem-pca-mixing-arrays.py")
 
 # Load valid arguments
 locals().update(valid_args)
 
-earthchem_samples_pca(
+pca_mixing_arrays(
     res=res,
     oxides=oxides,
     n_pca_components=npca,
@@ -20,4 +20,4 @@ earthchem_samples_pca(
     data_dir=datadir
 )
 
-print("earthchem-samples-pca.py done!")
+print("earthchem-pca-mixing-arrays.py done!")

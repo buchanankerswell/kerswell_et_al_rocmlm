@@ -6,7 +6,7 @@ from rocml import (
     combine_plots_horizontally,
     visualize_training_PT_range,
     visualize_rocml_performance,
-    visualize_benchmark_gfem_times
+    visualize_benchmark_efficiency
 )
 
 # Parse arguments and check
@@ -21,7 +21,7 @@ if os.path.exists("assets/data"):
     visualize_training_PT_range()
 
     # Visualize benchmark computation times
-    visualize_benchmark_gfem_times("assets/data/benchmark-gfem-efficiency.csv")
+    visualize_benchmark_efficiency("assets/data/benchmark-efficiency.csv")
 
     for param in params:
         # Visualize rocml performance metrics
@@ -42,14 +42,14 @@ if os.path.exists("assets/data"):
         # Second row
         combine_plots_horizontally(
             f"figs/rocml-rmse-test-mean-{param}-{sampleid}-{res}.png",
-            f"figs/rocml-rmse-valid-mean-{param}-{sampleid}-{res}.png",
+            f"figs/rocml-rmse-val-mean-{param}-{sampleid}-{res}.png",
             "figs/temp2.png",
             caption1="c)",
             caption2="d)"
         )
 
         os.remove(f"figs/rocml-rmse-test-mean-{param}-{sampleid}-{res}.png")
-        os.remove(f"figs/rocml-rmse-valid-mean-{param}-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-rmse-val-mean-{param}-{sampleid}-{res}.png")
 
         # Stack rows
         combine_plots_vertically(
