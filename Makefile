@@ -225,22 +225,18 @@ write_tables: $(LOGFILE)
 submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
 	@echo "Submitting job to SLURM ..." $(LOG)
 	@$(CONDAPYTHON) python/submit-jobs.py $(LOG)
-	@echo "=============================================" $(LOG)
 
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
-		echo "=============================================" $(LOG); \
 		chmod +x python/clone-magemin.py; \
 		$(CONDAPYTHON) python/clone-magemin.py $(LOG); \
 	else \
 		echo "MAGEMin found at: $(MAGEMIN)" $(LOG); \
-		echo "=============================================" $(LOG); \
 	fi
 
 remove_conda_env: $(LOGFILE)
 	@echo "Removing conda env $(CONDAENVNAME) ..." $(LOG)
 	@conda remove --name $(CONDAENVNAME) --all --yes $(LOG)
-	@echo "=============================================" $(LOG)
 
 create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	@if [ "$(HASCONDA)" = "false" ]; then \
@@ -250,26 +246,21 @@ create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	fi
 	@if [ -d "$(MY_ENV_DIR)" ]; then \
 		echo "Conda environment \"$(CONDAENVNAME)\" found at: $(MY_ENV_DIR)" $(LOG); \
-		echo "=============================================" $(LOG); \
 	else \
 		echo "Creating environment $(CONDAENVNAME) from:" $(LOG); \
 		echo "	$(CONDASPECSFILE)" $(LOG); \
 		conda env create --file $(CONDASPECSFILE) $(LOG); \
 		echo "	Conda environment $(CONDAENVNAME) created ..." $(LOG); \
 	fi
-	@echo "=============================================" $(LOG)
 
 find_conda_env: $(LOGFILE)
-	@echo "Looking for conda environment $(CONDAENVNAME)..." $(LOG)
 	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
-	@echo "=============================================" $(LOG)
 
 $(PERPLEX): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Perplex found at: $(PERPLEX)" $(LOG); \
-		echo "=============================================" $(LOG); \
 	fi
 
 $(DATADIR): $(LOGFILE) $(PYTHON)
@@ -277,16 +268,13 @@ $(DATADIR): $(LOGFILE) $(PYTHON)
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Data files found at: $(DATADIR)" $(LOG); \
-		echo "=============================================" $(LOG); \
 	fi
 
 $(CONFIG): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(CONFIG)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
-		echo "=============================================" $(LOG); \
 	else \
 		echo "Configuration files found at: $(CONFIG)" $(LOG); \
-		echo "=============================================" $(LOG); \
 	fi
 
 $(LOGFILE):
