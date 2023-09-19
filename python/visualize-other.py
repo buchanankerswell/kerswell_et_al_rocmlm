@@ -2,8 +2,6 @@ import os
 from rocml import (
     parse_arguments,
     check_arguments,
-    print_filepaths,
-    visualize_earthchem_data,
     combine_plots_vertically,
     combine_plots_horizontally,
     visualize_training_PT_range,
@@ -19,9 +17,6 @@ valid_args = check_arguments(args, "visualize-other.py")
 locals().update(valid_args)
 
 if os.path.exists("assets/data"):
-    # Visualize Earthchem data
-    visualize_earthchem_data("assets/data/earthchem-samples.csv")
-
     # Visualize Clapeyron slopes for 660 transition
     visualize_training_PT_range()
 

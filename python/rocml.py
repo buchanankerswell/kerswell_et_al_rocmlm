@@ -10,6 +10,7 @@ import math
 import shutil
 import zipfile
 import fnmatch
+import datetime
 import argparse
 import warnings
 import platform
@@ -43,29 +44,6 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.metrics import mean_squared_error, r2_score
-
-# Print filepaths
-def print_filepaths(folder_path):
-    """
-    Print the filepaths of all files in the specified folder path.
-
-    Parameters:
-        folder_path (str): The path of the folder whose filepaths need to be printed.
-
-    Returns:
-        None
-
-    This function iterates through all items (files and subfolders) in the given folder_path
-    and prints the absolute filepaths of all files found. It skips the special macOS file
-    '.DS_Store' and only considers regular files (excluding subfolders).
-    """
-    for item in os.listdir(folder_path):
-        if item == ".DS_Store":
-             continue
-        item_path = os.path.join(folder_path, item)
-
-        if os.path.isfile(item_path):
-            print(f"    {item_path}")
 
 # Extract info along a geotherm
 def extract_info_geotherm(
@@ -594,6 +572,12 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
+        "--source",
+        type=str,
+        help="Specify the source argument ...",
+        required=False
+    )
+    parser.add_argument(
         "--sampleid",
         type=str,
         help="Specify the sampleid argument ...",
@@ -618,15 +602,21 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
-        "--source",
-        type=str,
-        help="Specify the source argument ...",
+        "--oxides",
+        type=parse_list_of_strings,
+        help="Specify the oxides argument ...",
         required=False
     )
     parser.add_argument(
-        "--strategy",
-        type=str,
-        help="Specify the strategy argument ...",
+        "--npca",
+        type=int,
+        help="Specify the npca argument ...",
+        required=False
+    )
+    parser.add_argument(
+        "--kcluster",
+        type=int,
+        help="Specify the kcluster argument ...",
         required=False
     )
     parser.add_argument(
@@ -690,6 +680,30 @@ def parse_arguments():
         required=False
     )
     parser.add_argument(
+        "--configdir",
+        type=str,
+        help="Specify the configdir argument ...",
+        required=False
+    )
+    parser.add_argument(
+        "--perplexdir",
+        type=str,
+        help="Specify the perplexdir argument ...",
+        required=False
+    )
+    parser.add_argument(
+        "--logfile",
+        type=str,
+        help="Specify the logfile argument ...",
+        required=False
+    )
+    parser.add_argument(
+        "--emsonly",
+        type=str,
+        help="Specify the emsonly argument ...",
+        required=False
+    )
+    parser.add_argument(
         "--dataset",
         type=str,
         help="Specify the dataset argument ...",
@@ -701,15 +715,25 @@ def parse_arguments():
         help="Specify the tune argument ...",
         required=False
     )
+    parser.add_argument(
+        "--verbose",
+        type=str,
+        help="Specify the verbose argument ...",
+        required=False
+    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
 
     # Convert the parallel argument to a boolean value based on the string value
     parallel = args.parallel.lower() == "true" if args.parallel else False
+    emsonly = args.emsonly.lower() == "true" if args.emsonly else False
+    verbose = args.verbose.lower() == "true" if args.verbose else False
 
     # Assign the modified parallel value back to the args object
     args.parallel = parallel
+    args.emsonly = emsonly
+    args.verbose = verbose
 
     return args
 
@@ -740,15 +764,18 @@ def check_arguments(args, script):
     Tmax = args.Tmax
     res = args.res
     dataset = args.dataset
+    emsonly = args.emsonly
     comp = args.comp
     frac = args.frac
+    source = args.source
     sampleid = args.sampleid
     params = args.params
     models = args.models
     tune = args.tune
     normox = args.normox
-    source = args.source
-    strategy = args.strategy
+    oxides = args.oxides
+    npca = args.npca
+    kcluster = args.kcluster
     n = args.n
     k = args.k
     parallel = args.parallel
@@ -759,28 +786,16 @@ def check_arguments(args, script):
     figdir = args.figdir
     outdir = args.outdir
     datadir = args.datadir
+    configdir = args.configdir
+    perplexdir = args.perplexdir
+    logfile = args.logfile
+    verbose = args.verbose
 
     # MAGEMin oxide options
     oxide_list_magemin = [
-        "SiO2",
-        "Al2O3",
-        "CaO",
-        "MgO",
-        "FeO",
-        "K2O",
-        "Na2O",
-        "TiO2",
-        "Fe2O3",
-        "Cr2O3",
-        "H2O"
-
+        "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O",
+        "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
     ]
-
-    # Benchmark sample ids
-    benchmark_sample_ids = ["PUM", "DMM", "RE46", "NMORB"]
-
-    # Benchmark sample data
-    datafile = "assets/data/benchmark-samples.csv"
 
     valid_args = {}
 
@@ -815,14 +830,13 @@ def check_arguments(args, script):
                 "--res must be <= 128"
             )
 
+        print(f"    dataset resolution: {res}")
+
         if Tmin is not None and Tmax is not None:
             print(f"    Trange: [{Tmin}, {Tmax}, {res}]")
 
-        elif Pmin is not None and Pmax is not None:
+        if Pmin is not None and Pmax is not None:
             print(f"    Prange: [{Pmin}, {Pmax}, {res}]")
-
-        else:
-            print(f"    training dataset resolution: {res}")
 
         valid_args["res"] = res
 
@@ -845,10 +859,15 @@ def check_arguments(args, script):
 
         valid_args["frac"] = frac
 
+    if source is not None:
+        print(f"    samples datafile: {source}")
+
+        valid_args["source"] = source
+
     if sampleid is not None:
-        if sampleid in benchmark_sample_ids:
+        if source is not None:
             # Get sample composition
-            sample_comp = get_benchmark_sample_for_magemin(datafile, sampleid)
+            sample_comp = sample_for_magemin(source, sampleid)
 
         print(f"    sampleid: {sampleid}")
 
@@ -904,39 +923,41 @@ def check_arguments(args, script):
             for oxide in normox:
                 print(f"        {oxide}")
 
-        # Normalize composition
-        sample_norm = normalize_sample(sample=sample_comp, components=normox)
+        if sample_comp is not None:
+            # Normalize composition
+            sample_norm = normalize_sample(sample=sample_comp, components=normox)
 
-        print("    Normalized composition:")
+            print("    Normalized composition:")
 
-        for component, value in zip(oxide_list_magemin, sample_norm):
-            formatted_value = "{:.3f}".format(value)
-            print(f"        {component}: {formatted_value}")
-
+            for component, value in zip(oxide_list_magemin, sample_norm):
+                formatted_value = "{:.3f}".format(value)
+                print(f"        {component}: {formatted_value}")
 
         valid_args["normox"] = normox
 
-    if source is not None:
-        if source not in ["sample", "earthchem"]:
+    if oxides is not None:
+        if check_non_matching_strings(oxides, oxide_list_magemin[:-1]):
             raise ValueError(
-                "Invalid --source argument ...\n"
-                "Use --source=earthchem or --source=sample"
+                "Invalid --oxides argument ...\n"
+                f"Can only use oxides {oxide_list_magemin[:-1]}"
             )
 
-        print(f"    source: {source}")
+        print(f"    Selected oxides:")
 
-        valid_args["source"] = source
+        for oxide in oxides:
+            print(f"        {oxide}")
 
-    if strategy is not None:
-        if strategy not in ["random", "batch"]:
-            raise ValueError(
-                "Invalid --strategy argument ...\n"
-                "Use --source=earthchem or --source=sample"
-            )
+        valid_args["oxides"] = oxides
 
-        print(f"    strategy: {strategy}")
+    if npca is not None:
+        print(f"    pca components: {npca}")
 
-        valid_args["strategy"] = strategy
+        valid_args["npca"] = npca
+
+    if kcluster is not None:
+        print(f"    k-means clusters: {kcluster}")
+
+        valid_args["kcluster"] = kcluster
 
     if n is not None:
         print(f"    n: {n}")
@@ -1002,10 +1023,47 @@ def check_arguments(args, script):
 
         valid_args["datadir"] = datadir
 
+    if configdir is not None:
+        print(f"    configdir: {configdir}")
+
+        valid_args["configdir"] = configdir
+
+    if perplexdir is not None:
+        print(f"    perplexdir: {perplexdir}")
+
+        valid_args["perplexdir"] = perplexdir
+
+    if logfile is not None:
+        print(f"    logfile: {logfile}")
+
+        valid_args["logfile"] = logfile
+
     if dataset is not None:
         print(f"    dataset: {dataset}")
 
         valid_args["dataset"] = dataset
+
+    if emsonly is not None:
+        if not isinstance(emsonly, bool):
+            raise ValueError(
+                "Invalid --emsonly argument ...\n"
+                "--emsonly must be either True or False"
+            )
+
+        print(f"    endmembers only: {emsonly}")
+
+        valid_args["emsonly"] = emsonly
+
+    if verbose is not None:
+        if not isinstance(verbose, bool):
+            raise ValueError(
+                "Invalid --verbose argument ...\n"
+                "--verbose must be either True or False"
+            )
+
+        print(f"    verbose: {verbose}")
+
+        valid_args["verbose"] = verbose
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
@@ -1035,7 +1093,9 @@ def download_and_unzip(url, destination):
     os.remove("assets.zip")
 
 # Read csv files
-def read_earthchem_data(data_dir="assets/data/"):
+def read_earthchem_data(
+        oxides=["SIO2","AL2O3","CAO","MGO","FEO","K2O","NA2O","TIO2","FE2O3","CR2O3"],
+        data_dir="assets/data/"):
     """
     Reads a CSV file containing geochemical data and returns the data as a pandas DataFrame.
 
@@ -1051,28 +1111,27 @@ def read_earthchem_data(data_dir="assets/data/"):
     ]
 
     # Filter criteria
-    oxides = ["SIO2", "TIO2", "AL2O3", "CR2O3", "FE2O3", "FEO", "MGO", "CAO", "NA2O", "K2O" ]
     metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
 
     # Read all datafiles into dataframes
     dataframes = {}
+    df_name = []
     for file in datafiles:
-        df_name = file.split("-")[-1].split(".")[0]
-
-        # Read the file into a DataFrame and assign it to the corresponding variable
-        dataframes[f"df_{df_name}"] = pd.read_csv(f"{data_dir}/{file}", delimiter="\t")
-        dataframes[f"df_{df_name}"] = dataframes[f"df_{df_name}"][metadata + oxides]
-        print("+++++++++++++++++++++++++++++++++++++++++++++")
-        print(f"Earthchem {df_name} info:")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        print(dataframes[f"df_{df_name}"].info())
+        df_name.append(file.split("-")[-1].split(".")[0])
+        idx = file.split("-")[-1].split(".")[0]
+        dataframes[f"df_{idx}"] = pd.read_csv(f"{data_dir}/{file}", delimiter="\t")
+        dataframes[f"df_{idx}"] = dataframes[f"df_{idx}"][metadata + oxides]
 
     data = pd.concat(dataframes, ignore_index=True)
-    data = data[data["SIO2"] >= 25]
-    data = data[data["SIO2"] <= 90]
-    data = data[data["CAO"] <= 25]
-    data = data[data["FE2O3"] <= 20]
-    data = data[data["TIO2"] <= 10]
+    if "SIO2" in oxides:
+        data = data[data["SIO2"] >= 25]
+        data = data[data["SIO2"] <= 90]
+    if "CAO" in oxides:
+        data = data[data["CAO"] <= 25]
+    if "FE2O3" in oxides:
+        data = data[data["FE2O3"] <= 20]
+    if "TIO2" in oxides:
+        data = data[data["TIO2"] <= 10]
 
     # Print info
     print("+++++++++++++++++++++++++++++++++++++++++++++")
@@ -1080,22 +1139,111 @@ def read_earthchem_data(data_dir="assets/data/"):
     print("    material: bulk")
     print("    normalization: oxides as reported")
     print("    sample type:")
-    print("        igneos > felsic")
-    print("        igneos > intermediate")
-    print("        igneos > mafic")
-    print("        igneos > ultramafic")
+    for name in df_name:
+        print(f"        igneos > {name}")
     print("    oxides: (and/or)")
     for oxide in oxides:
         print(f"        {oxide}")
     print("Dataset filtering:")
-    print("    SIO2 >= 25 wt.%")
-    print("    SIO2 <= 90 wt.%")
-    print("    CAO <= 25 wt.%")
-    print("    FE2O3 <= 20 wt.%")
-    print("    TIO2 <= 10 wt.%")
+    if "SIO2" in oxides:
+        print("    SIO2 >= 25 wt.%")
+        print("    SIO2 <= 90 wt.%")
+    if "CAO" in oxides:
+        print("    CAO <= 25 wt.%")
+    if "FE2O3" in oxides:
+        print("    FE2O3 <= 20 wt.%")
+    if "TIO2" in oxides:
+        print("    TIO2 <= 10 wt.%")
     print("+++++++++++++++++++++++++++++++++++++++++++++")
+    print(f"Combined and filtered samples summary:")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print(data[oxides].describe().map("{:.4g}".format))
 
     return data
+
+# Get composition of a single benchmark mantle samples
+def sample_for_magemin(datafile, sample_id):
+    """
+    Extracts the oxide compositions needed for the "MAGEMin" analysis
+    for a single sample specified by name from the given datafile.
+
+    Args:
+        datafile (str): Path to the CSV data file.
+        sample_id (str): Name of the sample to select.
+
+    Returns:
+        list: Oxide compositions for the specified sample.
+
+    """
+    # All oxides needed for MAGEMin
+    oxides = [
+        "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O",
+        "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
+    ]
+
+    # Read the data file
+    df = pd.read_csv(datafile)
+
+    # Subset the DataFrame based on the sample name
+    subset_df = df[df["NAME"] == sample_id]
+
+    if subset_df.empty:
+        raise ValueError("Sample name not found in the dataset ...")
+
+    # Get the oxide compositions for the selected sample
+    composition = []
+    for oxide in oxides:
+        if oxide in subset_df.columns and pd.notnull(subset_df[oxide].iloc[0]):
+            composition.append(float(subset_df[oxide].iloc[0]))
+        else:
+            if oxide != "H2O":
+                composition.append(0.01)
+            else:
+                composition.append(0.00)
+
+    return composition
+
+# Sample randomly from the earthchem database
+def random_sample_for_magemin(datafile, n=1, seed=None):
+    """
+    Randomly samples n rows from the given datafile and
+    extracts the oxide compositions needed for the "MAGEMin" analysis.
+
+    Args:
+        datafile (str): Path to the CSV data file.
+        n (int): Number of random samples to extract (default: 1).
+        seed (int): Random seed for reproducibility (default: None).
+
+    Returns:
+        tuple: Two lists, the first containing sample_ids and the second containing
+        lists of oxide compositions for each random sample.
+
+    """
+    # All oxides needed for MAGEMin
+    oxides = [
+        "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O",
+        "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
+    ]
+
+    # Random sampling
+    df = pd.read_csv(datafile)
+    random_rows = df.sample(n, random_state=seed)
+
+    # Get sample names and oxides in correct order for each random sample
+    sample_ids = []
+    compositions = []
+
+    for _, random_row in random_rows.iterrows():
+        sample_ids.append(random_row["SAMPLE ID"])
+        composition = []
+        for oxide in oxides:
+            if oxide in random_row.index and pd.notnull(random_row[oxide]):
+                composition.append(float(random_row[oxide]))
+            else:
+                composition.append(0.01)
+        compositions.append(composition)
+
+    return sample_ids, compositions
 
 # Sample batches from the earthchem database
 def batch_sample_for_magemin(datafile, batch_size=1, k=0):
@@ -1114,13 +1262,10 @@ def batch_sample_for_magemin(datafile, batch_size=1, k=0):
 
     """
     # All oxides needed for MAGEMin
-    component_list = [
-        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
-        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
+    oxides = [
+        "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O",
+        "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
     ]
-
-    # Make uppercase
-    oxides = [oxide.upper() for oxide in component_list]
 
     # Read the datafile in chunks of size batch_size
     df_iterator = pd.read_csv(datafile, chunksize=batch_size)
@@ -1146,93 +1291,6 @@ def batch_sample_for_magemin(datafile, batch_size=1, k=0):
 
     return sample_ids, compositions
 
-# Get composition of a single benchmark mantle samples
-def get_benchmark_sample_for_magemin(datafile, sample_id):
-    """
-    Extracts the oxide compositions needed for the "MAGEMin" analysis
-    for a single sample specified by name from the given datafile.
-
-    Args:
-        datafile (str): Path to the CSV data file.
-        sample_id (str): Name of the sample to select.
-
-    Returns:
-        list: Oxide compositions for the specified sample.
-
-    """
-    # All oxides needed for MAGEMin
-    component_list = [
-        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
-        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
-    ]
-
-    # Make uppercase
-    oxides = [oxide.upper() for oxide in component_list]
-
-    # Read the data file
-    df = pd.read_csv(datafile)
-
-    # Subset the DataFrame based on the sample name
-    subset_df = df[df["NAME"] == sample_id]
-
-    if subset_df.empty:
-        raise ValueError("Sample name not found in the dataset ...")
-
-    # Get the oxide compositions for the selected sample
-    composition = []
-    for oxide in oxides:
-        if oxide in subset_df.columns and pd.notnull(subset_df[oxide].iloc[0]):
-            composition.append(float(subset_df[oxide].iloc[0]))
-        else:
-            composition.append(0.01)
-
-    return composition
-
-# Sample randomly from the earthchem database
-def random_sample_for_magemin(datafile, n=1, seed=None):
-    """
-    Randomly samples n rows from the given datafile and
-    extracts the oxide compositions needed for the "MAGEMin" analysis.
-
-    Args:
-        datafile (str): Path to the CSV data file.
-        n (int): Number of random samples to extract (default: 1).
-        seed (int): Random seed for reproducibility (default: None).
-
-    Returns:
-        tuple: Two lists, the first containing sample_ids and the second containing
-        lists of oxide compositions for each random sample.
-
-    """
-    # All oxides needed for MAGEMin
-    component_list = [
-        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
-        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
-    ]
-
-    # Make uppercase
-    oxides = [oxide.upper() for oxide in component_list]
-
-    # Random sampling
-    df = pd.read_csv(datafile)
-    random_rows = df.sample(n, random_state=seed)
-
-    # Get sample names and oxides in correct order for each random sample
-    sample_ids = []
-    compositions = []
-
-    for _, random_row in random_rows.iterrows():
-        sample_ids.append(random_row["SAMPLE ID"])
-        composition = []
-        for oxide in oxides:
-            if oxide in random_row.index and pd.notnull(random_row[oxide]):
-                composition.append(float(random_row[oxide]))
-            else:
-                composition.append(0.01)
-        compositions.append(composition)
-
-    return sample_ids, compositions
-
 # Normalize components
 def normalize_sample(sample, components="all"):
     """
@@ -1254,29 +1312,29 @@ def normalize_sample(sample, components="all"):
         return sample
 
     # MAGEMin req components
-    component_list = [
-        "SiO2", "Al2O3", "CaO", "MgO", "FeO", "K2O",
-        "Na2O", "TiO2", "Fe2O3", "Cr2O3", "H2O"
+    oxides = [
+        "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O",
+        "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
     ]
 
     # Check input
     if len(sample) != 11:
         error_message = (
             f"The input sample list must have exactly 11 components ...\n" +
-            f"{component_list}"
+            f"{oxides}"
         )
         raise ValueError(error_message)
 
     # Filter components
     subset_sample = [
-        c if comp in components else 0.01 for c, comp in zip(sample, component_list)
+        c if comp in components else 0.01 for c, comp in zip(sample, oxides)
     ]
 
     # Normalize
     total_subset_concentration = sum([c for c in subset_sample if c != 0.01])
     normalized_concentrations = []
 
-    for c, comp in zip(sample, component_list):
+    for c, comp in zip(sample, oxides):
         if comp in components:
             normalized_concentration = (
                 (c / total_subset_concentration) * 100 if c != 0.01 else 0.01
@@ -1367,12 +1425,16 @@ def merge_dictionaries(dictionaries):
     return merged_dict
 
 # Create MAGEMin input
-def create_magemin_input(
-        P_range,
-        T_range,
-        composition,
-        mode=0,
-        run_name="test",
+def configure_magemin(
+        P_min,
+        P_max,
+        T_min,
+        T_max,
+        res,
+        source,
+        sample_id,
+        normox,
+        dataset,
         out_dir="runs"):
     """
     Creates an input string for MAGEMin.
@@ -1381,9 +1443,8 @@ def create_magemin_input(
         P_range (list): Start, end, and step values for the pressure range.
         T_range (list): Start, end, and step values for the temperature range.
         composition (list): Bulk composition with the following oxides:
-            [SiO2, Al2O3, CaO, MgO, FeOt, K2O, Na2O, TiO2, O, Cr2O3, H2O]
-        mode (int, optional): The mode value for MAGEMin. Default is 0.
-        run_name (str, optional): The name of the MAGEMin run. Default is "test".
+            [SIO2, AL2O3, CAO, MGO, FEOT, K2O, NA2O, TIO2, O, CR2O3, H2O]
+        sample_id (str, optional): The name of the MAGEMin run. Default is "test".
 
     Returns:
         None
@@ -1395,12 +1456,39 @@ def create_magemin_input(
 
     Creates:
         - A directory "runs" if it does not exist.
-        - Writes the input string for MAGEMin to a file named "run_name.dat"
+        - Writes the input string for MAGEMin to a file named "sample_id.dat"
         inside the "runs" directory.
     """
     # Create directory
-    directory = f"{os.getcwd()}/{out_dir}"
-    os.makedirs(directory, exist_ok=True)
+    model_out_dir = f"{os.getcwd()}/{out_dir}"
+    os.makedirs(model_out_dir, exist_ok=True)
+
+    # Get sample composition
+    sample_comp = sample_for_magemin(source, sample_id)
+
+    # Normalize composition
+    norm_comp = normalize_sample(sample_comp, normox)
+
+    # Transform units to kbar C
+    P_min, P_max, T_min, T_max = P_min * 10, P_max * 10, T_min - 273, T_max - 273
+
+    if dataset != "train":
+        # Define small P T step to shift training dataset
+        P_step, T_step = 1, 25
+
+        # Print shift
+        print("Shifting training dataset by a small amount:")
+        print(f"P_min: {P_min/10} GPa --> P_min: {P_min/10 + P_step/10} GPa")
+        print(f"P_max: {P_max/10} GPa --> P_max: {P_max/10 - P_step/10} GPa")
+        print(f"T_min: {T_min+273} K --> T_min: {T_min+273 + T_step} K")
+        print(f"T_max: {T_max+273} K --> T_max: {T_max+273 - T_step} K")
+
+        # Shift PT range
+        P_min, P_max = P_min + P_step, P_max - P_step
+        T_min, T_max = T_min + T_step, T_max - T_step
+
+    # PT range
+    P_range, T_range = [P_min, P_max, (P_max-P_min)/res], [T_min, T_max, (T_max-T_min)/res]
 
     # Setup PT vectors
     magemin_input = ""
@@ -1408,42 +1496,174 @@ def create_magemin_input(
         float(P_range[0]),
         float(P_range[1]) + float(P_range[2]),
         float(P_range[2])
-    )
+    ).round(3)
     temperature_values = np.arange(
         float(T_range[0]),
         float(T_range[1]) + float(T_range[2]),
         float(T_range[2])
-    )
+    ).round(3)
 
     # Expand PT vectors into grid
     combinations = list(itertools.product(pressure_values, temperature_values))
     for p, t in combinations:
         magemin_input += (
-            f"{mode} {p} {t} {composition[0]} {composition[1]} {composition[2]} "
-            f"{composition[3]} {composition[4]} {composition[5]} {composition[6]} "
-            f"{composition[7]} {composition[8]} {composition[9]} {composition[10]}\n"
+            f"0 {p} {t} {norm_comp[0]} {norm_comp[1]} {norm_comp[2]} "
+            f"{norm_comp[3]} {norm_comp[4]} {norm_comp[5]} {norm_comp[6]} "
+            f"{norm_comp[7]} {norm_comp[8]} {norm_comp[9]} {norm_comp[10]}\n"
         )
 
     # Write input file
-    with open(f"{directory}/{run_name}.dat", "w") as f:
+    with open(f"{model_out_dir}/magemin-{sample_id}-{dataset}-{res}.dat", "w") as f:
         f.write(magemin_input)
 
+# Helper function to copy and replace perplex config files
+def replace_in_file(file_path, replacements):
+    with open(file_path, "r") as file:
+        file_data = file.read()
+        for key, value in replacements.items():
+            file_data = file_data.replace(key, value)
+    with open(file_path, "w") as file:
+        file.write(file_data)
+
+# Copy and modify perplex config files
+def configure_perplex(
+        P_min,
+        P_max,
+        T_min,
+        T_max,
+        res,
+        source,
+        sample_id,
+        normox,
+        dataset,
+        emsonly=True,
+        config_dir="assets/config",
+        perplex_dir="assets/perplex",
+        out_dir="runs"):
+    """
+    """
+    # Get current working dir for making absolute paths
+    cwd = os.getcwd()
+
+    # Create directory
+    abs_out_dir = f"{cwd}/{out_dir}"
+    os.makedirs(abs_out_dir, exist_ok=True)
+
+    # Get absolute path to perplex programs
+    abs_perplex_dir = f"{cwd}/{perplex_dir}"
+
+    # Create directory for storing perplex model outputs
+    model_out_dir = f"{cwd}/{out_dir}/perplex_{sample_id}_{dataset}_{res}"
+
+    # Remove old model
+    if os.path.exists(model_out_dir):
+        shutil.rmtree(model_out_dir)
+
+    # Make new dir
+    os.makedirs(model_out_dir, exist_ok=True)
+
+    # Get sample composition
+    sample_comp = sample_for_magemin(source, sample_id)
+
+    # Normalize composition
+    norm_comp = normalize_sample(sample_comp, normox)
+
+    # Transform units to kbar C
+    P_min, P_max = P_min * 1e4, P_max * 1e4
+
+    if dataset != "train":
+        # Define small P T step to shift training dataset
+        P_step, T_step = 1e3, 25
+
+        # Print shift
+        print("Shifting training dataset by a small amount:")
+        print(f"P_min: {P_min/1e4} GPa --> P_min: {P_min/1e4 + P_step/1e4} GPa")
+        print(f"P_max: {P_max/1e4} GPa --> P_max: {P_max/1e4 - P_step/1e4} GPa")
+        print(f"T_min: {T_min} K --> T_min: {T_min + T_step} K")
+        print(f"T_max: {T_max} K --> T_max: {T_max - T_step} K")
+
+        # Shift PT range
+        P_min, P_max = P_min + P_step, P_max - P_step
+        T_min, T_max = T_min + T_step, T_max - T_step
+
+    # Configuration files
+    if emsonly:
+        build = "perplex-build-endmembers"
+    else:
+        build = "perplex-build-solutions"
+    min = "perplex-vertex-min"
+    grid = "perplex-werami-grid"
+    phase = "perplex-werami-phase"
+    options = "perplex-build-options"
+    draw = "perplex-pssect-draw"
+    plot = "perplex-plot-options"
+
+    # Copy original configuration files to the perplex directory
+    shutil.copy(f"{config_dir}/{build}", f"{model_out_dir}/{build}")
+    shutil.copy(f"{config_dir}/{min}", f"{model_out_dir}/{min}")
+    shutil.copy(f"{config_dir}/{grid}", f"{model_out_dir}/{grid}")
+    shutil.copy(f"{config_dir}/{phase}", f"{model_out_dir}/{phase}")
+    shutil.copy(f"{config_dir}/{options}", f"{model_out_dir}/{options}")
+    shutil.copy(f"{config_dir}/{draw}", f"{model_out_dir}/{draw}")
+    shutil.copy(f"{config_dir}/{plot}", f"{model_out_dir}/perplex_plot_option.dat")
+
+    # Modify the copied configuration files within the perplex directory
+    replace_in_file(
+        f"{model_out_dir}/{build}",
+        {
+            "{SAMPLEID}": f"{sample_id}-{dataset}-{res}",
+            "{PERPLEX}": f"{abs_perplex_dir}",
+            "{OUTDIR}": f"{model_out_dir}",
+            "{TMIN}": str(T_min),
+            "{TMAX}": str(T_max),
+            "{PMIN}": str(P_min),
+            "{PMAX}": str(P_max),
+            "{SAMPLECOMP}": " ".join(map(str, norm_comp))
+        }
+    )
+    replace_in_file(
+        f"{model_out_dir}/{min}",
+        {"{SAMPLEID}": f"{sample_id}-{dataset}-{res}"}
+    )
+    replace_in_file(
+        f"{model_out_dir}/{grid}",
+        {"{SAMPLEID}": f"{sample_id}-{dataset}-{res}"}
+    )
+    replace_in_file(
+        f"{model_out_dir}/{phase}",
+        {"{SAMPLEID}": f"{sample_id}-{dataset}-{res}"}
+    )
+    replace_in_file(
+        f"{model_out_dir}/{options}",
+        {
+            "{XNODES}": f"{int(res / 4)} {res + 1}",
+            "{YNODES}": f"{int(res / 4)} {res + 1}"
+        }
+    )
+    replace_in_file(
+        f"{model_out_dir}/{draw}",
+        {"{SAMPLEID}": f"{sample_id}-{dataset}-{res}"}
+    )
+
 # Move files from MAGEMin output dir
-def cleanup_ouput_dir(run_name, out_dir="runs"):
+def cleanup_ouput_dir(sample_id, dataset, res, out_dir="runs"):
     """
     Move files from the MAGEMin output directory to a new directory based on the run name.
     Also moves the input data file into the new directory and removes the output directory.
 
     Args:
-        run_name (str): The name of the run, used to create the new directory and rename
+        sample_id (str): The name of the run, used to create the new directory and rename
             the files.
 
     Returns:
         None
     """
-    # Create the directory based on the run_name
-    directory = f"{os.getcwd()}/{out_dir}/{run_name}"
-    os.makedirs(directory, exist_ok=True)
+    # Get current working dir for making absolute paths
+    cwd = os.getcwd()
+
+    # Create the directory based on the sample_id
+    model_out_dir = f"{cwd}/{out_dir}/magemin_{sample_id}_{dataset}_{res}"
+    os.makedirs(model_out_dir, exist_ok=True)
 
     # Get a list of all files in the "output" directory matching the pattern
     files = os.listdir("output")
@@ -1451,39 +1671,46 @@ def cleanup_ouput_dir(run_name, out_dir="runs"):
 
     # Rename and move the files
     for file in matching_files:
-        new_filename = f"_{run_name}{file[len('_pseudosection'):]}"
-        new_filepath = os.path.join(directory, new_filename)
+        new_filename = f"magemin-{sample_id}-{dataset}-{res}{file[len('_pseudosection'):]}"
+        new_filepath = os.path.join(model_out_dir, new_filename)
         old_filepath = os.path.join("output", file)
-        shutil.move(old_filepath, new_filepath)
+
+        # Copy the file to the new location
+        shutil.copy(old_filepath, new_filepath)
+
+        # Remove the old file
+        if os.path.exists(old_filepath):
+            os.remove(old_filepath)
 
     # Move input data file into directory
-    if os.path.isfile(f"{directory}/{run_name}.dat"):
-        os.remove(f"{directory}/{run_name}.dat")
-        shutil.move(f"{directory}.dat", directory)
-    else:
-        shutil.move(f"{directory}.dat", directory)
+    input_data_file = f"{out_dir}/magemin-{sample_id}-{dataset}-{res}.dat"
+    input_data_destination = f"{model_out_dir}/magemin-{sample_id}-{dataset}-{res}.dat"
+
+    if os.path.isfile(input_data_file):
+        # Copy the input data file to the new location
+        shutil.copy(input_data_file, input_data_destination)
+
+        # Remove the old input data file
+        os.remove(input_data_file)
 
     # Remove MAGEMin output directory
     shutil.rmtree("output")
 
 # Run MAGEMin
 def run_magemin(
-        program_path=None,
-        run_name="test",
-        comp_type="wt",
-        database="ig",
+        sample_id,
+        res,
+        dataset,
+        emsonly=True,
         parallel=True,
-        nprocs=None,
-        out_dir="runs"):
+        nprocs=os.cpu_count()-2,
+        out_dir="runs",
+        verbose=True):
     """
     Runs MAGEMin with the specified parameters.
 
     Args:
-        program_path (str, optional): The location of the MAGEMin executable.
-        run_name (str, optional): The name of the MAGEMin run. Default is "test".
-        mode (int, optional): The mode value for MAGEMin. Default is 0.
-        comp_type (str, optional): The composition type for MAGEMin. Default is "wt".
-        database (str, optional): The database for MAGEMin. Default is "ig".
+        sample_id (str, optional): The name of the MAGEMin run. Default is "test".
         parallel (bool, optional): Determines whether to run MAGEMin in parallel.
         Default is True.
         nprocs (int, optional): The number of processes to use in parallel execution.
@@ -1499,15 +1726,42 @@ def run_magemin(
         - Prints the elapsed time in seconds.
 
     Calls:
-        - cleanup_output_dir(run_name): Moves the output files and cleans up the
+        - cleanup_output_dir(sample_id): Moves the output files and cleans up the
           directory after MAGEMin execution.
     """
-    # Check for MAGEMin program
-    if program_path is None:
-        sys.exit("Please provide location to MAGEMin executable ...")
+    # Get current date
+    current_date = datetime.datetime.now()
+    formatted_date = current_date.strftime("%d-%m-%Y")
+
+    # Log file
+    log_file = f"log/log-magemin-{sample_id}-{dataset}-{res}-{formatted_date}"
+
+    # Check for MAGEMin repo
+    if os.path.exists("MAGEMin"):
+        if emsonly:
+            # Modified MAGEMin config file
+            config = "assets/config/magemin-init-hp-endmembers"
+            old_config = "MAGEMIN/src/initialize.h"
+            if os.path.exists(config):
+                # Replace MAGEMin config file with modified (endmembers only) file
+                subprocess.run(f"cp {config} {old_config}", shell=True)
+
+        # Compile MAGEMin
+        if verbose:
+            subprocess.run("(cd MAGEMin && make)", shell=True, text=True)
+        else:
+            with open(os.devnull, "w") as null:
+                subprocess.run("(cd MAGEMin && make)", shell=True, stdout=null, stderr=null)
+
+    else:
+        # MAGEMin repo not found
+        print("MAGEMin does not exist!")
+        print("Clone MAGEMin from:")
+        print("    https://github.com/ComputationalThermodynamics/MAGEMin.git")
+        sys.exit()
 
     # Count number of pt points to model with MAGEMin
-    input_path = f"{os.getcwd()}/{out_dir}/{run_name}.dat"
+    input_path = f"{out_dir}/magemin-{sample_id}-{dataset}-{res}.dat"
     n_points = count_lines(input_path)
 
     # Check for input MAGEMin input files
@@ -1517,30 +1771,237 @@ def run_magemin(
     # Execute MAGEMin in parallel with MPI
     if parallel == True:
         if nprocs > os.cpu_count():
-            raise ValueError(
-                f"Number of processors {os.cpu_count()} is less than nprocs argument ...\n"
-                "Choose fewer nprocs ..."
-            )
-        elif nprocs is not None and nprocs < os.cpu_count():
+            print(f"Number of processors {os.cpu_count()} is less than nprocs argument ...")
+            print(f"Setting nprocs to {os.cpu_count() - 2}")
+            nprocs = os.cpu_count() - 2
+        elif nprocs < os.cpu_count():
             nprocs = nprocs
-        elif nprocs is None:
-            nprocs = os.cpu_count()-2
         exec = (
-            f"mpirun -np {nprocs} {program_path}MAGEMin --File={input_path} "
-            f"--n_points={n_points} --sys_in={comp_type} --db={database}"
+            f"mpirun -np {nprocs} MAGEMin/MAGEMin --File={input_path} "
+            f"--n_points={n_points} --sys_in=wt --db=ig"
         )
-    # Or execute MAGEMin in sequence
+    # Or execute MAGEMin in serial
     else:
         exec = (
-            f"{program_path}MAGEMin --File={input_path} "
-            f"--n_points={n_points} --sys_in={comp_type} --db={database}"
+            f"MAGEMin/MAGEMin --File={input_path} "
+            f"--n_points={n_points} --sys_in=wt --db=ig"
         )
 
     # Run MAGEMin
-    shell_process = subprocess.run(exec, shell=True, text=True)
+    if verbose:
+        subprocess.run(exec, shell=True, text=True)
+    else:
+        # Write to logfile
+        with open(log_file, "w") as log:
+            subprocess.run(exec, shell=True, stdout=log, stderr=log)
 
     # Move output files and cleanup directory
-    cleanup_ouput_dir(run_name, out_dir)
+    cleanup_ouput_dir(sample_id, dataset, res, out_dir)
+
+# Run Perple_X program
+def run_perplex(
+        sample_id,
+        dataset,
+        res,
+        emsonly=True,
+        perplex_dir="assets/perplex",
+        out_dir="runs",
+        verbose=True):
+    """
+    """
+    # Get current working dir for making absolute paths
+    cwd = os.getcwd()
+
+    # Get absolute path to perplex programs
+    abs_perplex_dir = f"{cwd}/{perplex_dir}"
+
+    # Create directory for storing perplex model outputs
+    model_out_dir = f"{cwd}/{out_dir}/perplex_{sample_id}_{dataset}_{res}"
+    os.makedirs(model_out_dir, exist_ok=True)
+
+    # Get current date
+    current_date = datetime.datetime.now()
+    formatted_date = current_date.strftime("%d-%m-%Y")
+
+    # Log file
+    log_file = f"log/log-perplex-{sample_id}-{dataset}-{res}-{formatted_date}"
+
+    # Run programs with corresponding configuration files
+    for program in ["build", "vertex", "werami", "pssect"]:
+        # Get config files
+        config_files = []
+
+        if program == "build":
+            if emsonly:
+                config_files.append(f"{model_out_dir}/perplex-build-endmembers")
+            else:
+                config_files.append(f"{model_out_dir}/perplex-build-solutions")
+
+        elif program == "vertex":
+            config_files.append(f"{model_out_dir}/perplex-vertex-min")
+
+        elif program == "werami":
+            config_files.append(f"{model_out_dir}/perplex-werami-grid")
+            config_files.append(f"{model_out_dir}/perplex-werami-phase")
+
+        elif program == "pssect":
+            config_files.append(f"{model_out_dir}/perplex-pssect-draw")
+
+        # Get program path
+        program_path = f"{cwd}/{perplex_dir}/{program}"
+
+        for i, config in enumerate(config_files):
+            try:
+                # Set permissions
+                os.chmod(program_path, 0o755)
+
+                # Open the subprocess and redirect input from the input file
+                with open(config, "rb") as input_stream:
+                    process = subprocess.Popen(
+                        [program_path],
+                        stdin=input_stream,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        shell=True,
+                        cwd=model_out_dir
+                    )
+
+                # Wait for the process to complete and capture its output
+                stdout, stderr = process.communicate()
+
+                # Write to logfile
+                with open(log_file, "w") as log:
+                    log.write(stdout.decode())
+                    log.write(stderr.decode())
+
+                if process.returncode != 0:
+                    print(f"Error executing {program}: {stderr.decode()}")
+                elif verbose:
+                    print(f"{program} output:\n{stdout.decode()}")
+
+                if program == "werami" and i == 0:
+                    # Copy werami pseudosection output
+                    shutil.copy(
+                        f"{model_out_dir}/{sample_id}-{dataset}-{res}_1.tab",
+                        f"{model_out_dir}/grid.tab"
+                    )
+
+                    # Remove old output
+                    os.remove(f"{model_out_dir}/{sample_id}-{dataset}-{res}_1.tab")
+
+                elif program == "werami" and i == 1:
+                    # Copy werami mineral assemblage output
+                    shutil.copy(
+                        f"{model_out_dir}/{sample_id}-{dataset}-{res}_1.tab",
+                        f"{model_out_dir}/phases.tab"
+                    )
+
+                    # Remove old output
+                    os.remove(f"{model_out_dir}/{sample_id}-{dataset}-{res}_1.tab")
+
+                elif program == "pssect":
+                    # Copy pssect assemblages output
+                    shutil.copy(
+                        f"{model_out_dir}/{sample_id}-{dataset}-{res}_assemblages.txt",
+                        f"{model_out_dir}/assemblages.txt"
+                    )
+
+                    # Copy pssect auto refine output
+                    shutil.copy(
+                        f"{model_out_dir}/{sample_id}-{dataset}-{res}_auto_refine.txt",
+                        f"{model_out_dir}/auto_refine.txt"
+                    )
+
+                    # Copy pssect seismic data output
+                    shutil.copy(
+                        f"{model_out_dir}/{sample_id}-{dataset}-{res}_seismic_data.txt",
+                        f"{model_out_dir}/seismic_data.txt"
+                    )
+
+                    # Remove old output
+                    os.remove(f"{model_out_dir}/{sample_id}-{dataset}-{res}_assemblages.txt")
+                    os.remove(f"{model_out_dir}/{sample_id}-{dataset}-{res}_auto_refine.txt")
+                    os.remove(f"{model_out_dir}/{sample_id}-{dataset}-{res}_seismic_data.txt")
+
+                    # Convert postscript file to pdf
+                    ps = f"{model_out_dir}/{sample_id}-{dataset}-{res}.ps"
+                    pdf = f"{model_out_dir}/{sample_id}-{dataset}-{res}.pdf"
+
+                    subprocess.run(f"ps2pdf {ps} {pdf}", shell=True)
+
+            except subprocess.CalledProcessError as e:
+                print(f"Error: {e}")
+
+# Get MAGEMin comp time
+def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/data"):
+    """
+    """
+    # Get current date
+    current_date = datetime.datetime.now()
+    formatted_date = current_date.strftime("%d-%m-%Y")
+
+    # Define the CSV filename
+    csv_filename = f'benchmark-gfem-efficiency-{formatted_date}.csv'
+
+    # Define the full path to the CSV file
+    csv_filepath = f"{data_dir}/{csv_filename}"
+
+    if os.path.exists(log_file) and os.path.exists(data_dir):
+        # Define a list to store the time values
+        time_values_mgm = []
+        time_values_ppx = []
+
+        # Open the log file and read its lines
+        with open(log_file, 'r') as log_file:
+            lines = log_file.readlines()
+
+        # Iterate over the lines in reverse order
+        for line in reversed(lines):
+            # Look for the line containing "MAGEMin comp time:"
+            if "MAGEMin comp time:" in line:
+                match = re.search(r"\+([\d.]+) ms", line)
+                if match:
+                    time_ms = float(match.group(1))
+                    if nprocs <= 0:
+                        time_s = time_ms / 1000
+                    else:
+                        time_s = time_ms / 1000 * nprocs
+                    time_values_mgm.append(time_s)
+                # Break the loop after finding the first match
+                break
+
+        # Iterate over the lines in reverse order
+        for line in reversed(lines):
+            if "Total elapsed time" in line:
+                match = re.search(r"\s+([\d.]+)", line)
+                if match:
+                    time_m = float(match.group(1))
+                    time_s = time_m * 60
+                    time_values_ppx.append(time_s)
+                # Break the loop after finding the first match
+                break
+
+        if time_values_mgm:
+            # Get the last time value (most recent)
+            last_value_mgm = time_values_mgm[-1]
+
+            # Create the line to append to the CSV file
+            line_to_append = f"{sample_id},magemin,{res*res},{last_value_mgm:.1f}"
+
+            # Append the line to the CSV file
+            with open(csv_filepath, 'a') as csv_file:
+                csv_file.write(line_to_append + '\n')
+
+        if time_values_ppx:
+            # Get the last time value (most recent)
+            last_value_ppx = time_values_ppx[-1]
+
+            # Create the line to append to the CSV file
+            line_to_append = f"{sample_id},perplex,{res*res},{last_value_ppx:.1f}"
+
+            # Append the line to the CSV file
+            with open(csv_filepath, 'a') as csv_file:
+                csv_file.write(line_to_append + '\n')
 
 # Read pseudosection info from MAGEMin output file
 def read_magemin_pseudosection_data(filename):
@@ -1681,7 +2142,7 @@ def read_magemin_pseudosection_data(filename):
     return results
 
 # Process all MAGEMin output files in a directory
-def process_magemin_grid(sample_id, dataset, res, out_dir="runs"):
+def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
@@ -1696,14 +2157,14 @@ def process_magemin_grid(sample_id, dataset, res, out_dir="runs"):
         directory does not exist.
     """
     # Check for MAGEMin output files
-    if not os.path.exists(f"{os.getcwd()}/{out_dir}"):
+    if not os.path.exists(f"{out_dir}"):
         sys.exit("No MAGEMin output files to process ...")
-    if not os.path.exists(f"{os.getcwd()}/{out_dir}/{sample_id}/magemin_{dataset}_{res}"):
+    if not os.path.exists(f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"):
         sys.exit("No MAGEMin output files to process ...")
 
     # Get filenames directory for files
-    directory = f"{os.getcwd()}/{out_dir}/{sample_id}/magemin_{dataset}_{res}"
-    pattern = f"_{sample_id}*.txt"
+    directory = f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"
+    pattern = f"magemin-{sample_id}-{dataset}-{res}_*.txt"
 
     results = []
 
@@ -1771,7 +2232,7 @@ def encode_phases(phases, filename=None):
     return encoded_assemblages, unique_assemblages
 
 # Get perplex grids
-def process_perplex_grid(file_path_grid, file_path_assemblages):
+def process_perplex_results(file_path_grid, file_path_assemblages):
     """
     Process the Perple_X assemblage file and extract the phase assemblages.
 
@@ -1973,7 +2434,7 @@ def visualize_2d_pt_grid(
         figheight=4.725,
         fontsize=22,
         filename=None,
-        fig_dir=f"{os.getcwd()}/figs"):
+        fig_dir="figs"):
     """
     Plot the results of a pseudosection calculation.
 
@@ -2197,29 +2658,24 @@ def visualize_2d_pt_grid(
     plt.close()
 
 # Plot Harker diagram with density contours using seaborn
-def earthchem_samples_PCA(
+def earthchem_samples_pca(
         res,
-        k_impute=4,
-        k_pca_clusters=3,
+        oxides=["SIO2","AL2O3","CAO","MGO","FEO","K2O","NA2O","TIO2","FE2O3","CR2O3"],
         n_pca_components=3,
+        k_pca_clusters=3,
         seed=42,
-        harker_xox="SiO2",
-        harker_yox=["MgO", "FeO", "CaO", "Al2O3", "Na2O", "K2O", "TiO2", "Fe2O3", "Cr2O3"],
         palette="tab10",
         figwidth=6.3,
         figheight=6.3,
         fontsize=22,
         filename="earthchem-samples",
-        fig_dir=f"{os.getcwd()}/figs",
-        data_dir=f"{os.getcwd()}/assets/data"):
+        fig_dir="figs",
+        data_dir="assets/data"):
     """
     Plot Harker diagrams with density contours using seaborn.
 
     Parameters:
         datafile (str): Path to the geochemical datafile in .csv format.
-        harker_xox (str): The x-axis oxide for the Harker diagram.
-        harker_yox (str or list): The y-axis oxide(s) for the Harker diagram.
-            Can be a single oxide or a list of oxides.
         filename (str, optional): The filename to save the plot. If not provided,
             the plot will be displayed interactively.
         fig_dir (str, optional): The directory to save the plot. Default is "./figs".
@@ -2253,27 +2709,32 @@ def earthchem_samples_PCA(
     # Ignore warnings
     warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
 
+    # SIO2 required to be in oxides list
+    if "SIO2" not in oxides:
+        oxides = ["SIO2"] + oxides
+
     # Read geochemical data
     print("Reading Earthchem samples ...")
-    data = read_earthchem_data()
+    data = read_earthchem_data(oxides=oxides)
 
     # Sort by composition
-    data.sort_values(
-        by=["SIO2", "MGO"],
-        ascending=[True, False],
-        inplace=True,
-        ignore_index=True
-    )
-
-    # Oxides to use for PCA analysis
-    oxides = ["SIO2", "MGO", "FEO", "CAO", "AL2O3", "NA2O", "K2O", "TIO2", "FE2O3", "CR2O3"]
+    if "MGO" in oxides:
+        data.sort_values(
+            by=["SIO2", "MGO"],
+            ascending=[True, False],
+            inplace=True,
+            ignore_index=True
+        )
+    else:
+        data.sort_values(
+            by="SIO2",
+            ascending=True,
+            inplace=True,
+            ignore_index=True
+        )
 
     # Impute missing measurement values by K-nearest algorithm
-    print("Imputing missing oxide measurements with K-nearest algorithm:")
-    print(f"    components: {k_impute}")
-    print(f"    weights: distance")
-
-    imputer = KNNImputer(n_neighbors=k_impute, weights="distance")
+    imputer = KNNImputer(n_neighbors=4, weights="distance")
     imputer.fit(data[oxides])
 
     # Add missing values back to data
@@ -2288,20 +2749,22 @@ def earthchem_samples_PCA(
     pca.fit(data_scaled)
 
     # Print summary
+    print("+++++++++++++++++++++++++++++++++++++++++++++")
     print("PCA summary for Earthchem samples:")
     print(f"    number of samples: {pca.n_samples_}")
-    print(f"    number of components: {n_pca_components}")
+    print(f"    PCA components: {n_pca_components}")
+    print(f"    K-means clusters: {k_pca_clusters}")
     print(f"    features ({len(oxides)}):")
     for oxide in oxides:
         print(f"        {oxide}")
     print("    explained variance:")
     for i, value in enumerate(pca.explained_variance_ratio_):
-        print(f"        PC{i}: {round(value, 3)}")
+        print(f"        PC{i+1}: {round(value, 3)}")
     print("    cumulative explained variance:")
     cumulative_variance = pca.explained_variance_ratio_.cumsum()
     for i, value in enumerate(cumulative_variance):
-        print(f"        PC{i}: {round(value, 3)}")
-    print("+++++++++++++++++++++++++++++++++++++++++++++")
+        print(f"        PC{i+1}: {round(value, 3)}")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     # Transform the data to obtain the principal components
     principal_components = pca.transform(data_scaled)
@@ -2513,25 +2976,35 @@ def earthchem_samples_PCA(
                 columns=oxides + [f"PC{n+1}" for n in range(n_pca_components)]
             ).round(3)
 
+            # Add sample id column
+            data_synthetic.insert(
+                0, "NAME",
+                [f"c{i+1}{j+1}-{n}" for n in range(len(data_synthetic))]
+            )
+
             # Write to csv
             data_synthetic.to_csv(
                 f"{data_dir}/synthetic-samples-pca{n_pca_components}-clusters{i+1}{j+1}.csv",
                 index=False
             )
 
-    data = data.rename(columns={"COMPOSITION": "Rock Type"})
-    data_synthetic12 = pd.read_csv(f"{data_dir}/synthetic-samples-pca4-clusters12.csv")
-    data_synthetic13 = pd.read_csv(f"{data_dir}/synthetic-samples-pca4-clusters13.csv")
+    # Compile all synthetic datasets into a dict
+    synthetic_datasets = {}
+    for i in range(k_pca_clusters):
+        for j in range(i+1, k_pca_clusters):
+            synthetic_datasets[f"data_synthetic{i+1}{j+1}"] = pd.read_csv(
+                f"{data_dir}/synthetic-samples-pca{n_pca_components}-clusters{i+1}{j+1}.csv"
+            )
 
     # Create a grid of subplots
-    num_plots = len(harker_yox)
+    num_plots = len(oxides) - 1
     if num_plots == 1:
         num_cols = 1
-    elif ((num_plots > 1) and (num_plots <= 4)):
+    elif num_plots > 1 and num_plots <= 4:
         num_cols = 2
-    elif ((num_plots > 4) and (num_plots <= 9)):
+    elif num_plots > 4 and num_plots <= 9:
         num_cols = 3
-    elif ((num_plots > 9) and (num_plots <= 16)):
+    elif num_plots > 9 and num_plots <= 16:
         num_cols = 4
     else:
         num_cols = 5
@@ -2544,57 +3017,79 @@ def earthchem_samples_PCA(
     # Harker diagrams
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
     axes = axes.flatten()
-    for i, y in enumerate(harker_yox):
-        ax = axes[i]
-        sns.scatterplot(
-            data=data_synthetic12,
-            x=harker_xox.upper(),
-            y=y.upper(),
-            linewidth=0,
-            s=10,
-            zorder=100,
-            color=".2",
-            legend=False,
-            ax=ax
-        )
-        sns.scatterplot(
-            data=data_synthetic13,
-            x=harker_xox.upper(),
-            y=y.upper(),
-            linewidth=0,
-            s=10,
-            zorder=50,
-            color=".2",
-            legend=False,
-            ax=ax
-        )
+    for k, y in enumerate([oxide for oxide in oxides if oxide != "SIO2"]):
+        ax = axes[k]
+        for i in range(k_pca_clusters):
+            for j in range(i+1, k_pca_clusters):
+                first_element = synthetic_datasets[f"data_synthetic{i+1}{j+1}"].iloc[0]
+                last_element = synthetic_datasets[f"data_synthetic{i+1}{j+1}"].iloc[-1]
+                sns.scatterplot(
+                    data=synthetic_datasets[f"data_synthetic{i+1}{j+1}"],
+                    x="SIO2",
+                    y=y,
+                    linewidth=0,
+                    s=10,
+                    zorder=100,
+                    color=".2",
+                    legend=False,
+                    ax=ax
+                )
+                ax.annotate(
+                    f"{i+1}",
+                    xy=(first_element["SIO2"], first_element[y]),
+                    xytext=(0, 0),
+                    textcoords='offset points',
+                    bbox=dict(
+                        boxstyle="round,pad=0.1",
+                        edgecolor="black",
+                        facecolor="white",
+                        alpha=0.6
+                    ),
+                    fontsize=fontsize * 0.579,
+                    zorder=200,
+                )
+                ax.annotate(
+                    f"{j+1}",
+                    xy=(last_element["SIO2"], last_element[y]),
+                    xytext=(0, 0),
+                    textcoords='offset points',
+                    bbox=dict(
+                        boxstyle="round,pad=0.1",
+                        edgecolor="black",
+                        facecolor="white",
+                        alpha=0.6
+                    ),
+                    fontsize=fontsize * 0.579,
+                    zorder=200,
+                )
         sns.kdeplot(
             data=data,
-            x=harker_xox.upper(),
-            y=y.upper(),
-            hue="Rock Type",
+            x="SIO2",
+            y=y,
+            hue="COMPOSITION",
             hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
             fill=False,
             ax=ax,
             levels=5
         )
-#        sns.scatterplot(
-#            data=data,
-#            x=harker_xox.upper(),
-#            y=y.upper(),
-#            hue="Rock Type",
-#            hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
-#            linewidth=0,
-#            s=5,
-#            legend=False,
-#            ax=ax
-#        )
+        sns.scatterplot(
+            data=data,
+            x="SIO2",
+            y=y,
+            hue="COMPOSITION",
+            hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
+            linewidth=0,
+            s=5,
+            zorder=1,
+            legend=False,
+            ax=ax
+        )
         ax.set_title(f"{y}")
         ax.set_ylabel("")
         ax.set_xlabel("")
-        if (i < (num_plots - num_cols)):
+        if k < (num_plots - num_cols):
             ax.set_xticks([])
-        if i == (num_plots - 1):
+        if k == (num_plots - 1):
             handles = ax.get_legend().legendHandles
             labels = ["ultramafic", "mafic", "intermediate", "felsic"]
         for line in ax.get_legend().get_lines():
@@ -2607,7 +3102,7 @@ def earthchem_samples_PCA(
         bbox_to_anchor=(0.5, -0.05),
         ncol=4
     )
-    fig.suptitle("Harker Diagrams vs. SiO2 (wt.%)")
+    fig.suptitle("Harker Diagrams vs. SIO2 (wt.%)")
     if num_plots < len(axes):
         for i in range(num_plots, len(axes)):
             fig.delaxes(axes[i])
@@ -2630,7 +3125,7 @@ def visualize_benchmark_gfem_times(
         figwidth=6.3,
         figheight=3.54,
         filename="benchmark-gfem-efficiency.png",
-        fig_dir=f"{os.getcwd()}/figs"):
+        fig_dir="figs"):
     """
     Visualize benchmark computation times.
 
@@ -2664,7 +3159,7 @@ def visualize_benchmark_gfem_times(
     # Read data
     data = pd.read_csv(datafile)
 
-    # Arrange data by training dataset resolution and sample
+    # Arrange data by dataset resolution and sample
     data.sort_values(by=["grid", "sample", "program"], inplace=True)
 
     # Set plot style and settings
@@ -2769,7 +3264,7 @@ def visualize_training_PT_range(
         figwidth=6.3,
         figheight=3.54,
         filename="training-dataset-design.png",
-        fig_dir=f"{os.getcwd()}/figs"):
+        fig_dir="figs"):
     """
     Generate a plot to visualize the training data PT range and Clapeyron slopes.
 
@@ -3063,7 +3558,7 @@ def visualize_PREM(
         figheight=4.725,
         fontsize=22,
         filename=None,
-        fig_dir=f"{os.getcwd()}/figs"):
+        fig_dir="figs"):
     """
     Visualize MGM and PPX comparisons with PREM model.
 
@@ -3285,11 +3780,11 @@ def visualize_GFEM(
         res,
         dataset,
         parameters,
-        mask_geotherm=False,
+        mask_geotherm=True,
         palette="bone",
-        out_dir=f"{os.getcwd()}/runs",
-        fig_dir=f"{os.getcwd()}/figs",
-        data_dir=f"{os.getcwd()}/assets/data"):
+        out_dir="runs",
+        fig_dir="figs",
+        data_dir="assets/data"):
     """
     Visualize GFEM (Gibbs Free Energy Minimization) results for a given program and sample.
 
@@ -3322,12 +3817,12 @@ def visualize_GFEM(
     # Get GFEM results
     if program == "MAGEMin":
         # Get MAGEMin results
-        results = process_magemin_grid(sample_id, dataset, res, out_dir)
+        results = process_magemin_results(sample_id, dataset, res, out_dir)
     elif program == "Perple_X":
         # Get perplex results
-        results = process_perplex_grid(
-            f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_grid.tab",
-            f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_assemblages.txt"
+        results = process_perplex_results(
+            f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/grid.tab",
+            f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/assemblages.txt"
         )
     else:
         raise ValueError(
@@ -3404,11 +3899,11 @@ def visualize_GFEM_diff(
         res,
         dataset,
         parameters,
-        mask_geotherm=False,
+        mask_geotherm=True,
         palette="bone",
-        out_dir=f"{os.getcwd()}/runs",
-        fig_dir=f"{os.getcwd()}/figs",
-        data_dir=f"{os.getcwd()}/assets/data"):
+        out_dir="runs",
+        fig_dir="figs",
+        data_dir="assets/data"):
     """
     Visualize the difference between GFEM results from two programs for a given sample.
 
@@ -3438,12 +3933,12 @@ def visualize_GFEM_diff(
           comparison.
     """
     # Get MAGEMin results
-    results_mgm = process_magemin_grid(sample_id, dataset, res, out_dir)
+    results_mgm = process_magemin_results(sample_id, dataset, res, out_dir)
 
     # Get perplex results
-    results_ppx = process_perplex_grid(
-        f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_grid.tab",
-        f"{out_dir}/{sample_id}/perplex_{dataset}_{res}/{sample_id}_assemblages.txt"
+    results_ppx = process_perplex_results(
+        f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/grid.tab",
+        f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/assemblages.txt"
     )
 
     # Get PT values MAGEMin and transform units
@@ -3713,7 +4208,7 @@ def cv_rocml(
         figheight=4.725,
         fontsize=22,
         filename=None,
-        fig_dir=f"{os.getcwd()}/figs"):
+        fig_dir="figs"):
     """
     Runs ML model regression on the provided feature and target arrays.
 
@@ -4498,9 +4993,9 @@ def train_rocml(
         nprocs=cpu_count()-2,
         seed=42,
         palette="bone",
-        out_dir=f"{os.getcwd()}/runs",
-        fig_dir=f"{os.getcwd()}/figs",
-        data_dir=f"{os.getcwd()}/assets/data"):
+        out_dir="runs",
+        fig_dir="figs",
+        data_dir="assets/data"):
     """
     Perform ML model regression.
 
@@ -4528,8 +5023,8 @@ def train_rocml(
     """
     if magemin:
         # Get results
-        results_mgm = process_magemin_grid(sample_id, "train", res, out_dir)
-        results_mgm_valid = process_magemin_grid(sample_id, "valid", res, out_dir)
+        results_mgm = process_magemin_results(sample_id, "train", res, out_dir)
+        results_mgm_valid = process_magemin_results(sample_id, "valid", res, out_dir)
 
         # Get features arrays
         P_mgm, T_mgm, features_mgm = extract_features(results_mgm)
@@ -4537,13 +5032,13 @@ def train_rocml(
 
     if perplex:
         # Get results
-        results_ppx = process_perplex_grid(
-            f"{out_dir}/{sample_id}/perplex_train_{res}/{sample_id}_grid.tab",
-            f"{out_dir}/{sample_id}/perplex_train_{res}/{sample_id}_assemblages.txt"
+        results_ppx = process_perplex_results(
+            f"{out_dir}/perplex_{sample_id}_train_{res}/grid.tab",
+            f"{out_dir}/perplex_{sample_id}_train_{res}/assemblages.txt"
         )
-        results_ppx_valid = process_perplex_grid(
-            f"{out_dir}/{sample_id}/perplex_valid_{res}/{sample_id}_grid.tab",
-            f"{out_dir}/{sample_id}/perplex_valid_{res}/{sample_id}_assemblages.txt"
+        results_ppx_valid = process_perplex_results(
+            f"{out_dir}/perplex_{sample_id}_valid_{res}/grid.tab",
+            f"{out_dir}/perplex_{sample_id}_valid_{res}/assemblages.txt"
         )
 
         # Make liquid fraction consistent
@@ -4724,7 +5219,7 @@ def visualize_rocml_performance(
         figwidth=6.3,
         figheight=4.725,
         filename="rocml",
-        fig_dir=f"{os.getcwd()}/figs"):
+        fig_dir="figs"):
     """
     Visualize regression metrics using a facet barplot.
 
@@ -4883,7 +5378,7 @@ def visualize_rocml_performance(
             handles = [mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
-            legend.set_bbox_to_anchor((0, 0.94))
+            legend.set_bbox_to_anchor((0.48, 0.94))
         elif metric == f"rmse_test_mean_{parameter}":
             plt.errorbar(
                 x_positions * bar_width,

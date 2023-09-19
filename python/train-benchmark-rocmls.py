@@ -3,7 +3,6 @@ import glob
 from rocml import (
     parse_arguments,
     check_arguments,
-    print_filepaths,
     train_rocml,
     combine_plots_vertically,
     combine_plots_horizontally
@@ -17,10 +16,10 @@ valid_args = check_arguments(args, "train-benchmark-rocmls.py")
 locals().update(valid_args)
 
 # Test for results
-mgm_results_train = len(os.listdir(f"{outdir}/{sampleid}/magemin_train_{res}")) != 0
-mgm_results_valid = len(os.listdir(f"{outdir}/{sampleid}/magemin_valid_{res}")) != 0
-ppx_results_train = len(os.listdir(f"{outdir}/{sampleid}/perplex_train_{res}")) != 0
-ppx_results_valid = len(os.listdir(f"{outdir}/{sampleid}/perplex_valid_{res}")) != 0
+mgm_results_train = os.path.exists(f"{outdir}/magemin_{sampleid}_train_{res}")
+mgm_results_valid = os.path.exists(f"{outdir}/magemin_{sampleid}_valid_{res}")
+ppx_results_train = os.path.exists(f"{outdir}/perplex_{sampleid}_train_{res}")
+ppx_results_valid = os.path.exists(f"{outdir}/perplex_{sampleid}_valid_{res}")
 
 if (mgm_results_train and ppx_results_train and mgm_results_valid and ppx_results_valid):
     for m in models:
