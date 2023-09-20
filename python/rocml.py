@@ -2099,6 +2099,118 @@ def encode_phases(phases, filepath=None):
 
     return encoded_assemblages, unique_assemblages
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# create feature array !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def create_feature_array(results):
+    """
+    Parameters:
+        results (dict): A dictionary containing the training dataset results.
+
+    Returns:
+        tuple: A tuple containing the following:
+            - P (list): Pressure values in MPa.
+            - T (list): Temperature values in Kelvin.
+            - feature_array (numpy.ndarray): A 3D numpy array of shape (W, W, 2) representing
+              the PT feature array.
+
+    Notes:
+        - This function processes pressure (P) and temperature (T) values from the input
+            results.
+        - It transforms units and organizes the data into a 3D feature array for training
+    """
+    # Get PT values and transform units
+    P = [P / 10 for P in results["P"]]
+    T = [T + 273 for T in results["T"]]
+
+    # Reshape into (W, 1) arrays
+    P_unique = np.unique(np.array(P)).reshape(-1, 1)
+    T_unique = np.unique(np.array(T)).reshape(1, -1)
+
+    # Get array dimensions
+    W = P_unique.shape[0]
+
+    # Reshape into (W, W) arrays by repeating values
+    P_array = np.tile(P_unique, (1, W))
+    T_array = np.tile(T_unique, (W, 1))
+
+    # Combine P and T arrays into a single feature dataset with shape (W, W, 2)
+    feature_array = np.stack((P_array, T_array), axis=-1)
+
+    return P, T, feature_array
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# create target array !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def create_target_array(P, T, targets, T_mantle1=273, T_mantle2=1773,
+                        grad_mantle1=1, grad_mantle2=0.5, mask_geotherm=True):
+    """
+    Create a 2D NumPy array representing a target array of parameter values across PT space.
+
+    Args:
+        P (list or array-like): A 1D array or list of P values.
+        T (list or array-like): A 1D array or list of T values.
+        targets (list or array-like): A 1D array or list of parameter values.
+
+    Returns:
+        numpy.ndarray: A 2D NumPy array representing the target array of parameter values.
+            The target array is created by reshaping the parameter values based on unique P
+            and T values.  Missing values in the target array are represented by NaN.
+    """
+    # Convert P, T, and targets to arrays
+    P = np.array(P)
+    T = np.array(T)
+
+    targets = np.array(targets)
+
+    # Get unique P and T values
+    unique_P = np.unique(P)
+    unique_T = np.unique(T)
+
+    if mask_geotherm:
+        # Define T range
+        T_min, T_max = min(unique_T), max(unique_T)
+
+        # Define P range
+        P_min, P_max = min(unique_P), max(unique_P)
+
+        # Calculate mantle geotherms
+        geotherm1 = (unique_T - T_mantle1) / (grad_mantle1 * 35)
+        geotherm2 = (unique_T - T_mantle2) / (grad_mantle2 * 35)
+
+        # Find boundaries
+        T1_Pmax = (P_max * grad_mantle1 * 35) + T_mantle1
+        P1_Tmin = (T_min - T_mantle1) / (grad_mantle1 * 35)
+        T2_Pmin = (P_min * grad_mantle2 * 35) + T_mantle2
+        T2_Pmax = (P_max * grad_mantle2 * 35) + T_mantle2
+
+    # Determine the target array dimensions
+    rows = len(unique_P)
+    cols = len(unique_T)
+
+    # Create an empty target array to store the reshaped targets
+    target_array = np.empty((rows, cols))
+
+    # Reshape the targets to match the target array dimensions
+    for i, p in enumerate(unique_P):
+        for j, t in enumerate(unique_T):
+            if (
+                   ((t <= T1_Pmax) and (p >= geotherm1[j])) or
+                   ((t >= T2_Pmin) and (p <= geotherm2[j]))
+            ):
+                index = None
+
+            else:
+                index = np.where((P == p) & (T == t))[0]
+
+            if index is not None:
+                target_array[i, j] = targets[index[0]]
+
+            else:
+                target_array[i, j] = np.nan
+
+    return target_array
+
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #+ .3.1             Process MAGEMin              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2442,85 +2554,6 @@ def process_perplex_results(filepath_targets, filepath_assemblages):
 
     return results
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# create target array !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def create_target_array(P, T, targets, mask=False):
-    """
-    Create a 2D NumPy array representing a target array of parameter values across PT space.
-
-    Args:
-        P (list or array-like): A 1D array or list of P values.
-        T (list or array-like): A 1D array or list of T values.
-        targets (list or array-like): A 1D array or list of parameter values.
-
-    Returns:
-        numpy.ndarray: A 2D NumPy array representing the target array of parameter values.
-            The target array is created by reshaping the parameter values based on unique P
-            and T values.  Missing values in the target array are represented by NaN.
-    """
-    # Convert P, T, and targets to arrays
-    P = np.array(P)
-    T = np.array(T)
-
-    targets = np.array(targets)
-
-    # Get unique P and T values
-    unique_P = np.unique(P)
-    unique_T = np.unique(T)
-
-    if mask:
-        # Define T range
-        T_min, T_max = min(unique_T), max(unique_T)
-
-        # Define P range
-        P_min, P_max = min(unique_P), max(unique_P)
-
-        # Mantle potential temps
-        T_mantle1 = 0 + 273
-        T_mantle2 = 1500 + 273
-
-        # Thermal gradients
-        grad_mantle1 = 1
-        grad_mantle2 = 0.5
-
-        # Calculate mantle geotherms
-        geotherm1 = (unique_T - T_mantle1) / (grad_mantle1 * 35)
-        geotherm2 = (unique_T - T_mantle2) / (grad_mantle2 * 35)
-
-        # Find boundaries
-        T1_Pmax = (P_max * grad_mantle1 * 35) + T_mantle1
-        P1_Tmin = (T_min - T_mantle1) / (grad_mantle1 * 35)
-        T2_Pmin = (P_min * grad_mantle2 * 35) + T_mantle2
-        T2_Pmax = (P_max * grad_mantle2 * 35) + T_mantle2
-
-    # Determine the target array dimensions
-    rows = len(unique_P)
-    cols = len(unique_T)
-
-    # Create an empty target array to store the reshaped targets
-    target_array = np.empty((rows, cols))
-
-    # Reshape the targets to match the target array dimensions
-    for i, p in enumerate(unique_P):
-        for j, t in enumerate(unique_T):
-            if (
-                   ((t <= T1_Pmax) and (p >= geotherm1[j])) or
-                   ((t >= T2_Pmin) and (p <= geotherm2[j]))
-            ):
-                index = None
-
-            else:
-                index = np.where((P == p) & (T == t))[0]
-
-            if index is not None:
-                target_array[i, j] = targets[index[0]]
-
-            else:
-                target_array[i, j] = np.nan
-
-    return target_array
-
 #######################################################
 ## .4.                ML Methods                 !!! ##
 #######################################################
@@ -2568,46 +2601,6 @@ def append_to_csv(filepath, data_dict):
 
     # Save the updated DataFrame back to the CSV file
     df.to_csv(filepath, index=False)
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# extract features !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def extract_features_array(results):
-    """
-    Parameters:
-        results (dict): A dictionary containing the training dataset results.
-
-    Returns:
-        tuple: A tuple containing the following:
-            - P (list): Pressure values in MPa.
-            - T (list): Temperature values in Kelvin.
-            - features_array (numpy.ndarray): A 3D numpy array of shape (W, W, 2) representing
-              the PT features array.
-
-    Notes:
-        - This function processes pressure (P) and temperature (T) values from the input
-            results.
-        - It transforms units and organizes the data into a 3D features array for training
-    """
-    # Get PT values and transform units
-    P = [P / 10 for P in results["P"]]
-    T = [T + 273 for T in results["T"]]
-
-    # Reshape into (W, 1) arrays
-    P_unique = np.unique(np.array(P)).reshape(-1, 1)
-    T_unique = np.unique(np.array(T)).reshape(1, -1)
-
-    # Get array dimensions
-    W = P_unique.shape[0]
-
-    # Reshape into (W, W) arrays by repeating values
-    P_array = np.tile(P_unique, (1, W))
-    T_array = np.tile(T_unique, (W, 1))
-
-    # Combine P and T arrays into a single feature dataset with shape (W, W, 2)
-    features_array = np.stack((P_array, T_array), axis=-1)
-
-    return P, T, features_array
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #+ .4.1          PCA and Synthetic Sampling      !!! ++
@@ -3254,7 +3247,7 @@ def process_fold(fold_data, verbose=False):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # train cv rocml !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def train_cv_rocml(features_array, targets_array, features_array_val, targets_array_val,
+def train_cv_rocml(feature_array, target_array, feature_array_val, target_array_val,
                    parameters, units, program, sample_id, model="DT", tune=False, seed=42,
                    kfolds=10, parallel=True, nprocs=os.cpu_count()-2, vmin=None, vmax=None,
                    palette="bone", figwidth=6.3, figheight=4.725, fontsize=22, filename=None,
@@ -3263,8 +3256,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
     Runs ML model regression on the provided feature and target arrays.
 
     Parameters:
-        features_array (ndarray): The feature array with shape (W, W, 2), containing
-            pressure and temperature features.
+        feature_array (ndarray): The feature array with shape (W, W, 2), containing
+            pressure and temperature feature.
         target_array (ndarray): The target array with shape (W, W), containing the
             corresponding target values.
         parameter (str): The name of the parameter being predicted.
@@ -3331,12 +3324,12 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
     # Transform units
     if index_rho is not None:
-        targets_array[:,:,index_rho] = targets_array[:,:,index_rho] / 1000
-        targets_array_val[:,:,index_rho] = targets_array_val[:,:,index_rho] / 1000
+        target_array[:,:,index_rho] = target_array[:,:,index_rho] / 1000
+        target_array_val[:,:,index_rho] = target_array_val[:,:,index_rho] / 1000
 
     if index_liq is not None:
-        targets_array[:,:,index_liq] = targets_array[:,:,index_liq] * 100
-        targets_array_val[:,:,index_liq] = targets_array_val[:,:,index_liq] * 100
+        target_array[:,:,index_liq] = target_array[:,:,index_liq] * 100
+        target_array_val[:,:,index_liq] = target_array_val[:,:,index_liq] * 100
 
     # Label units
     if units is None:
@@ -3345,15 +3338,15 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
     else:
         units_labels = [f"({unit})" for unit in units]
 
-    # Reshape the features_array and targets_array
-    n_targets = targets_array.shape[2]
-    n_features = features_array.shape[2]
+    # Reshape the feature_array and target_array
+    n_targets = target_array.shape[-1]
+    n_features = feature_array.shape[-1]
 
-    W = features_array.shape[0]
-    X = features_array.reshape(W*W, n_features)
-    y = targets_array.reshape(W*W, n_targets)
-    X_val = features_array_val.reshape(W*W, 2)
-    y_val = targets_array_val.reshape(W*W, n_targets)
+    W = feature_array.shape[0]
+    X = feature_array.reshape(W**n_features, n_features)
+    y = target_array.reshape(W**n_features, n_targets)
+    X_val = feature_array_val.reshape(W**n_features, n_features)
+    y_val = target_array_val.reshape(W**n_features, n_targets)
 
     # Create nan mask training set
     mask = np.any([np.isnan(y[:,i]) for i in range(y.shape[1])], axis=0)
@@ -3487,8 +3480,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         print(f"    targets:")
         for param, unit in zip(parameters, units_labels):
             print(f"        {param} {unit}")
-        print(f"    features dataset shape: ({W}, {W}, {X.shape[1]})")
-        print(f"    targets dataset shape: ({W}, {W}, {y.shape[1]})")
+        print(f"    feature dataset shape: ({W-1}, {W-1}, {X.shape[1]})")
+        print(f"    targets dataset shape: ({W-1}, {W-1}, {y.shape[1]})")
         print(f"    training dataset NANs: {n_nans_training}")
         print(f"    hyperparameters: no-tune (predefined)")
         print("+++++++++++++++++++++++++++++++++++++++++++++")
@@ -3638,7 +3631,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
             print(f"        {param} {unit}")
         print(f"    training dataset shape: ({W}, {W}, {n_features + 2})")
         print(f"    training dataset NANs: {n_nans_training}")
-        print(f"    features shape: {X.shape}")
+        print(f"    feature shape: {X.shape}")
         print(f"    targets shape: {y.shape}")
         print(f"    hyperparameters:")
         for key, value in grid_search.best_params_.items():
@@ -3763,8 +3756,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
     # Train ML model
     model.fit(X_train, y_train)
 
-    # Reshape and scale validation dataset features
-    X_val = features_array_val.reshape(W*W, 2)
+    # Reshape and scale validation dataset feature
+    X_val = feature_array_val.reshape(W**n_features, n_features)
     X_scaled_val = scaler_X_val.fit_transform(X_val)
 
     # Make predictions on validation dataset
@@ -3778,15 +3771,15 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
     for i, param in enumerate(parameters):
         # Create nan mask for validation set targets
-        mask = np.isnan(targets_array_val[:,:,i])
+        mask = np.isnan(target_array_val[:,:,i])
 
         # Match nans between validation set predictions and original targets
         valid_pred_array_original[:,:,i][mask] = np.nan
 
         # Compute normalized diff
         diff_norm = (
-            (targets_array_val[:,:,i] - valid_pred_array_original[:,:,i]) /
-            ((targets_array_val[:,:,i] + valid_pred_array_original[:,:,i]) / 2) * 100
+            (target_array_val[:,:,i] - valid_pred_array_original[:,:,i]) /
+            ((target_array_val[:,:,i] + valid_pred_array_original[:,:,i]) / 2) * 100
         )
 
         # Make nans consistent
@@ -3804,9 +3797,9 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
         # Plot target array
         visualize_target_array(
-            features_array[:,:,0],
-            features_array[:,:,1],
-            targets_array[:,:,i],
+            feature_array[:,:,0],
+            feature_array[:,:,1],
+            target_array[:,:,i],
             param,
             title=f"{program}",
             palette=palette,
@@ -3823,9 +3816,9 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         ax = fig.add_subplot(111, projection="3d")
 
         surf = ax.plot_surface(
-            features_array[:,:,1],
-            features_array[:,:,0],
-            targets_array[:,:,i],
+            feature_array[:,:,1],
+            feature_array[:,:,0],
+            target_array[:,:,i],
             cmap=cmap,
             vmin=vmin[i],
             vmax=vmax[i]
@@ -3860,8 +3853,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
         # Plot ML model predictions array
         visualize_target_array(
-            features_array_val[:,:,0],
-            features_array_val[:,:,1],
+            feature_array_val[:,:,0],
+            feature_array_val[:,:,1],
             valid_pred_array_original[:,:,i],
             param,
             title=f"{model_label_full}",
@@ -3879,8 +3872,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         ax = fig.add_subplot(111, projection="3d")
 
         surf = ax.plot_surface(
-            features_array_val[:,:,1],
-            features_array_val[:,:,0],
+            feature_array_val[:,:,1],
+            feature_array_val[:,:,0],
             valid_pred_array_original[:,:,i],
             cmap=cmap,
             vmin=vmin[i],
@@ -3916,8 +3909,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
         # Plot PT normalized diff targets vs. ML model predictions
         visualize_target_array(
-            features_array_val[:,:,0],
-            features_array_val[:,:,1],
+            feature_array_val[:,:,0],
+            feature_array_val[:,:,1],
             diff_norm,
             param,
             title="Percent Difference",
@@ -3938,8 +3931,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         ax = fig.add_subplot(111, projection="3d")
 
         surf = ax.plot_surface(
-            features_array_val[:,:,1],
-            features_array_val[:,:,0],
+            feature_array_val[:,:,1],
+            feature_array_val[:,:,0],
             diff_norm,
             cmap="seismic",
             vmin=vmin_diff,
@@ -3976,9 +3969,9 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         # Reshape results and transform units for MAGEMin
         if program == "MAGEMin":
             results_mgm = {
-                "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
-                "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
-                param: targets_array[:,:,i].ravel().tolist()
+                "P": [P * 10 for P in feature_array[:,:,0].ravel().tolist()],
+                "T": [T - 273 for T in feature_array[:,:,1].ravel().tolist()],
+                param: target_array[:,:,i].ravel().tolist()
             }
 
             results_ppx = None
@@ -3989,9 +3982,9 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         # Reshape results and transform units for Perple_X
         if program == "Perple_X":
             results_ppx = {
-                "P": [P * 10 for P in features_array[:,:,0].ravel().tolist()],
-                "T": [T - 273 for T in features_array[:,:,1].ravel().tolist()],
-                param: targets_array[:,:,i].ravel().tolist()
+                "P": [P * 10 for P in feature_array[:,:,0].ravel().tolist()],
+                "T": [T - 273 for T in feature_array[:,:,1].ravel().tolist()],
+                param: target_array[:,:,i].ravel().tolist()
             }
 
             results_mgm = None
@@ -4001,8 +3994,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
         # Reshape results and transform units for ML model
         results_rocml = {
-            "P": [P * 10 for P in features_array_val[:,:,0].ravel().tolist()],
-            "T": [T - 273 for T in features_array_val[:,:,1].ravel().tolist()],
+            "P": [P * 10 for P in feature_array_val[:,:,0].ravel().tolist()],
+            "T": [T - 273 for T in feature_array_val[:,:,1].ravel().tolist()],
             param: valid_pred_array_original[:,:,i].ravel().tolist()
         }
 
@@ -4074,7 +4067,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # run rocml training !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=True,
+def run_rocml_training(sample_id, res, parameters, mask_geotherm=True, magemin=True,
                        perplex=True, model="DT", tune=False, kfolds=os.cpu_count()-2,
                        parallel=True, nprocs=os.cpu_count()-2, seed=42, palette="bone",
                        out_dir="runs", fig_dir="figs", data_dir="assets/data"):
@@ -4104,9 +4097,9 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
         results_mgm = process_magemin_results(sample_id, "train", res, out_dir)
         results_mgm_val = process_magemin_results(sample_id, "valid", res, out_dir)
 
-        # Get features arrays
-        P_mgm, T_mgm, features_mgm = extract_features_array(results_mgm)
-        P_mgm_val, T_mgm_val, features_mgm_val = extract_features_array(results_mgm_val)
+        # Get feature arrays
+        P_mgm, T_mgm, feature_mgm = create_feature_array(results_mgm)
+        P_mgm_val, T_mgm_val, feature_mgm_val = create_feature_array(results_mgm_val)
 
     if perplex:
         # Get results
@@ -4127,9 +4120,9 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
             0.0 if np.isnan(x) else x for x in results_ppx_val["melt_fraction"]
         ]
 
-        # Get features arrays
-        P_ppx, T_ppx, features_ppx = extract_features_array(results_ppx)
-        P_ppx_val, T_ppx_val, features_ppx_val = extract_features_array(results_ppx_val)
+        # Get feature arrays
+        P_ppx, T_ppx, feature_ppx = create_feature_array(results_ppx)
+        P_ppx_val, T_ppx_val, feature_ppx_val = create_feature_array(results_ppx_val)
 
     # Create empty lists
     units = []
@@ -4261,7 +4254,7 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
     # Train models, predict, analyze
     if magemin:
         model_mgm, info_mgm = train_cv_rocml(
-            features_mgm, targets_mgm, features_mgm_val,
+            feature_mgm, targets_mgm, feature_mgm_val,
             targets_mgm_val, parameters, units, "MAGEMin", sample_id,
             model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
             filename=f"MAGEMin-{sample_id}-{model_label}", fig_dir=fig_dir
@@ -4274,7 +4267,7 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
 
     if perplex:
         model_ppx, info_ppx = train_cv_rocml(
-            features_ppx, targets_ppx, features_ppx_val,
+            feature_ppx, targets_ppx, feature_ppx_val,
             targets_ppx_val, parameters, units, "Perple_X", sample_id,
             model, tune, seed, kfolds, parallel, nprocs, vmin, vmax,
             filename=f"Perple_X-{sample_id}-{model_label}", fig_dir=fig_dir
@@ -4349,7 +4342,8 @@ def extract_info_geotherm(results, parameter, thermal_gradient=0.5,
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # crop geotherms !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def crop_geotherms(P_array, T_array):
+def crop_geotherms(P_array, T_array, T_mantle1=273, T_mantle2=1773,
+                   grad_mantle1=1, grad_mantle2=0.5):
     """
     Crop geotherms within PT bounds.
 
@@ -4388,14 +4382,6 @@ def crop_geotherms(P_array, T_array):
     # Get min and max PT
     T_min, T_max = np.array(T_array).min(), np.array(T_array).max()
     P_min, P_max = np.array(P_array).min(), np.array(P_array).max()
-
-    # Mantle potential temps
-    T_mantle1 = 0 + 273
-    T_mantle2 = 1500 + 273
-
-    # Thermal gradients
-    grad_mantle1 = 1
-    grad_mantle2 = 0.5
 
     # Create geotherm arrays
     T1 = np.linspace(T_mantle1, T_max, num=100)
@@ -4555,10 +4541,10 @@ def combine_plots_vertically(image1_path, image2_path, output_path, caption1, ca
 # visualize target array  !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_target_array(P, T, target_array, parameter, geotherm=False,
-                         geotherm_linetype="-.", geotherm_color="white", T_unit="K",
-                         P_unit="GPa", title=None, palette="blues", color_discrete=False,
-                         color_reverse=False, vmin=None, vmax=None, figwidth=6.3,
-                         figheight=4.725, fontsize=22, filename=None, fig_dir="figs"):
+                           geotherm_linetype="-.", geotherm_color="white", title=None,
+                           palette="blues", color_discrete=False, color_reverse=False,
+                           vmin=None, vmax=None, figwidth=6.3, figheight=4.725, fontsize=22,
+                           filename=None, fig_dir="figs"):
     """
     Plot the results of a pseudosection calculation.
 
@@ -4664,8 +4650,8 @@ def visualize_target_array(P, T, target_array, parameter, geotherm=False,
             vmax=num_colors + 1
         )
 
-        ax.set_xlabel(f"T ({T_unit})")
-        ax.set_ylabel(f"P ({P_unit})")
+        ax.set_xlabel("T (K)")
+        ax.set_ylabel("P (GPa)")
         plt.colorbar(
             im,
             ax=ax,
@@ -4748,24 +4734,14 @@ def visualize_target_array(P, T, target_array, parameter, geotherm=False,
             vmax=vmax
         )
 
-        ax.set_xlabel(f"T ({T_unit})")
-        ax.set_ylabel(f"P ({P_unit})")
+        ax.set_xlabel("T (K)")
+        ax.set_ylabel("P (GPa)")
 
         if palette == "seismic":
-            cbar = plt.colorbar(
-                im,
-                ax=ax,
-                ticks=[vmin, 0, vmax],
-                label=""
-            )
+            cbar = plt.colorbar(im, ax=ax, ticks=[vmin, 0, vmax], label="")
 
         else:
-            cbar = plt.colorbar(
-                im,
-                ax=ax,
-                ticks=np.linspace(vmin, vmax, num=4),
-                label=""
-            )
+            cbar = plt.colorbar(im, ax=ax, ticks=np.linspace(vmin, vmax, num=4), label="")
 
         if parameter in ["Vp", "Vs", "rho"]:
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
@@ -4957,7 +4933,8 @@ def visualize_benchmark_efficiency(filepath, palette="tab10", fontsize=12, figwi
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training PT range !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_PT_range(P_unit="GPa", T_unit="K", palette="tab10",
+def visualize_training_PT_range(T_mantle1=273, T_mantle2=1773,
+                                grad_mantle1=1, grad_mantle2=0.5, palette="tab10",
                                 fontsize=12, figwidth=6.3, figheight=3.54,
                                 filename="training-dataset-design.png", fig_dir="figs"):
     """
@@ -5110,14 +5087,6 @@ def visualize_training_PT_range(P_unit="GPa", T_unit="K", palette="tab10",
         alpha=0.2
     )
 
-    # Mantle potential temps
-    T_mantle1 = 0 + 273
-    T_mantle2 = 1500 + 273
-
-    # Thermal gradients
-    grad_mantle1 = 1
-    grad_mantle2 = 0.5
-
     # Calculate mantle geotherms
     geotherm1 = (T - T_mantle1) / (grad_mantle1 * 35)
     geotherm2 = (T - T_mantle2) / (grad_mantle2 * 35)
@@ -5222,8 +5191,8 @@ def visualize_training_PT_range(P_unit="GPa", T_unit="K", palette="tab10",
         key=lambda x: desired_order.index(x.get_label())
     )
 
-    plt.xlabel(f"Temperature ({T_unit})")
-    plt.ylabel(f"Pressure ({P_unit})")
+    plt.xlabel("Temperature (K)")
+    plt.ylabel("Pressure (GPa)")
     plt.title("RocML Traning Dataset")
     plt.xlim(700, 2346)
     plt.ylim(0, 29)
@@ -5255,7 +5224,7 @@ def visualize_training_PT_range(P_unit="GPa", T_unit="K", palette="tab10",
 # visualize prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_PREM(filepath, parameter, param_unit, results_mgm=None, results_ppx=None,
-                   results_rocml=None, model=None, geotherm_threshold=0.1, P_unit="GPa",
+                   results_rocml=None, model=None, geotherm_threshold=0.1,
                    depth=True, metrics=None, palette="tab10", title=None, figwidth=6.3,
                    figheight=4.725, fontsize=22, filename=None, fig_dir="figs"):
     """
@@ -5278,8 +5247,6 @@ def visualize_PREM(filepath, parameter, param_unit, results_mgm=None, results_pp
             (e.g., "kg/m^3").
         geotherm_threshold (float, optional): The geotherm threshold used to subset the data
             along the geotherm. Default is 1.
-        P_unit (str, optional): The unit of pressure to be displayed in the plot.
-            Default is "GPa".
         palette (str, optional): The name of the color palette for plotting.
             Default is "tab10".
         title (str, optional): The title of the plot. Default is None.
@@ -5415,7 +5382,7 @@ def visualize_PREM(filepath, parameter, param_unit, results_mgm=None, results_pp
         parameter_label = parameter
 
     ax1.set_xlabel(f"{parameter_label } ({param_unit})")
-    ax1.set_ylabel(f"P ({P_unit})")
+    ax1.set_ylabel("P (GPa)")
     ax1.set_xlim(param_min - (param_min * 0.05), param_max + (param_max * 0.05))
     ax1.set_xticks(np.linspace(param_min, param_max, num=4))
 
@@ -5790,9 +5757,9 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_rocml_performance(filepath="assets/data/benchmark-rocmls-performance.csv",
                                 benchmark_times="assets/data/benchmark-efficiency.csv",
-                                sample_id="PUM", parameter="rho",
-                                res=128, palette="tab10", fontsize=22, figwidth=6.3,
-                                figheight=4.725, filename="rocml", fig_dir="figs"):
+                                sample_id="PUM", parameter="rho", res=128, palette="tab10",
+                                fontsize=22, figwidth=6.3, figheight=4.725, filename="rocml",
+                                fig_dir="figs"):
     """
     Visualize regression metrics using a facet barplot.
 
@@ -5921,6 +5888,11 @@ def visualize_rocml_performance(filepath="assets/data/benchmark-rocmls-performan
         # Bar positions
         x_positions = np.arange(len(summary_df[metric]))
 
+        # Show MAGEMin and Perple_X compute times
+        if metric == f"inference_time_mean":
+            mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin")
+            ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X")
+
         # Plot the bars for each program
         bars = plt.bar(
             x_positions * bar_width,
@@ -5930,11 +5902,6 @@ def visualize_rocml_performance(filepath="assets/data/benchmark-rocmls-performan
             label=models_order if i == 1 else "",
             width=bar_width
         )
-
-        # Show MAGEMin and Perple_X compute times
-        if metric == f"inference_time_mean":
-            mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin")
-            ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X")
 
         plt.gca().set_xticks([])
         plt.gca().set_xticklabels([])
@@ -5952,7 +5919,7 @@ def visualize_rocml_performance(filepath="assets/data/benchmark-rocmls-performan
             handles = [mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
-            legend.set_bbox_to_anchor((0.48, 0.94))
+            legend.set_bbox_to_anchor((0.46, 0.92))
 
         elif metric == f"rmse_test_mean_{parameter}":
             # Calculate limits
