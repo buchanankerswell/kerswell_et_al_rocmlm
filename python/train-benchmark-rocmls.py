@@ -30,7 +30,7 @@ if (mgm_results_train and ppx_results_train and mgm_results_valid and ppx_result
         )
 
         for p in params:
-            if p in ["DensityOfFullAssemblage", "Vp", "Vs"]:
+            if p in ["rho", "Vp", "Vs"]:
                 # First row
                 combine_plots_horizontally(
                     f"{figdir}/MAGEMin-{sampleid}-{m}-{p}-prem.png",

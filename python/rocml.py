@@ -1,7 +1,9 @@
 #######################################################
 ## .0.              Load Libraries               !!! ##
 #######################################################
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# utilities !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 import re
 import sys
@@ -19,25 +21,35 @@ import warnings
 import platform
 import itertools
 import subprocess
-import numpy as np
-import pandas as pd
 import pkg_resources
 from git import Repo
 import urllib.request
-import seaborn as sns
 from scipy import stats
 import multiprocessing as mp
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# dataframes and arrays !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import numpy as np
+import pandas as pd
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# plotting !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.ticker as ticker
-from sklearn.cluster import KMeans
 import matplotlib.patches as mpatches
-from sklearn.impute import KNNImputer
-from sklearn.decomposition import PCA
-from matplotlib.ticker import FixedLocator
-from multiprocessing import Pool, cpu_count
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# machine learning !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from sklearn.cluster import KMeans
+from sklearn.impute import KNNImputer
+from sklearn.decomposition import PCA
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neural_network import MLPRegressor
@@ -52,7 +64,9 @@ from sklearn.metrics import mean_squared_error, r2_score
 ## .1.  General Helper Functions for Scripting   !!! ##
 #######################################################
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # read makefile variable !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def read_makefile_variable(makefile, variable):
     """
     Read a variable's value from a Makefile.
@@ -83,13 +97,15 @@ def read_makefile_variable(makefile, variable):
 
     return None
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # read conda packages !!
-def get_conda_packages(conda_file):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_conda_packages(condafile):
     """
     Read Conda packages from a YAML file.
 
     Parameters:
-        conda_file (str): The path to the Conda YAML file.
+        condafile (str): The path to the Conda YAML file.
 
     Returns:
         list: A list of Conda package dependencies specified in the YAML file.
@@ -106,7 +122,7 @@ def get_conda_packages(conda_file):
     raised and an empty list is returned.
     """
     try:
-        with open(conda_file, "r") as file:
+        with open(condafile, "r") as file:
             conda_data = yaml.safe_load(file)
 
         return conda_data.get("dependencies", [])
@@ -116,13 +132,15 @@ def get_conda_packages(conda_file):
 
         return []
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # print session info !!
-def print_session_info(conda_file=None, makefile=None):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def print_session_info(condafile=None, makefile=None):
     """
     Print session information for logging.
 
     Parameters:
-        conda_file (str, optional): The path to the Conda YAML file. Defaults to None.
+        condafile (str, optional): The path to the Conda YAML file. Defaults to None.
         makefile (str, optional): The path to the Makefile. Defaults to None.
 
     This function prints session information for logging purposes, including:
@@ -144,8 +162,8 @@ def print_session_info(conda_file=None, makefile=None):
     # Print package versions
     print("    Loaded packages:")
 
-    if conda_file:
-        conda_packages = get_conda_packages(conda_file)
+    if condafile:
+        conda_packages = get_conda_packages(condafile)
 
         for package in conda_packages:
             if isinstance(package, str) and package != "python":
@@ -166,20 +184,91 @@ def print_session_info(conda_file=None, makefile=None):
 
     print(f"    Operating System: {os_info}")
 
-    # Print random seed
     if makefile:
-        seed = read_makefile_variable(makefile, "SEED")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print("Makefile variables:")
 
-        if seed:
-            print(f"    Random Seed (from Makefile): {seed}")
+        # Makefile assets
+        makefile_vars_assets = ["DATADIR", "CONFIGDIR", "PERPLEX"]
 
-        else:
-            print("    SEED variable not found in Makefile ...")
+        # Get Makefile variables
+        makefile_dict = {}
+
+        for variable in makefile_vars_assets:
+            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
+
+        # Print variables
+        print("    Assets:")
+        for key, value in makefile_dict.items():
+            print(f"        {key}: {value}")
+
+        # Makefile dataset build options
+        makefile_vars_dataset_build_options = [
+            "SAMPLEID", "PMIN", "PMAX", "TMIN", "TMAX", "RES", "EMSONLY", "DATASET", "NORMOX",
+            "SEED", "PARALLEL", "NPROCS", "KFOLDS", "OUTDIR", "VERBOSE"
+        ]
+
+        # Get Makefile variables
+        makefile_dict = {}
+
+        for variable in makefile_vars_dataset_build_options:
+            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
+
+        # Print variables
+        print("    Dataset build options:")
+        for key, value in makefile_dict.items():
+            print(f"        {key}: {value}")
+
+        # Makefile rocml options
+        makefile_vars_rocml_options = ["MLPARAMS", "MLMODS", "MLTUNE"]
+
+        # Get Makefile variables
+        makefile_dict = {}
+
+        for variable in makefile_vars_rocml_options:
+            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
+
+        # Print variables
+        print("    RocML options:")
+        for key, value in makefile_dict.items():
+            print(f"        {key}: {value}")
+
+        # Makefile pca sampling options
+        makefile_vars_pca_options = ["OXIDES", "NPCA", "KCLUSTER"]
+
+        # Get Makefile variables
+        makefile_dict = {}
+
+        for variable in makefile_vars_pca_options:
+            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
+
+        # Print variables
+        print("    PCA options:")
+        for key, value in makefile_dict.items():
+            print(f"        {key}: {value}")
+
+        # Makefile visualization options
+        makefile_vars_visualization_options = ["FIGDIR", "VISPARAMS", "COLORMAP"]
+
+        # Get Makefile variables
+        makefile_dict = {}
+
+        for variable in makefile_vars_visualization_options:
+            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
+
+        # Print variables
+        print("    Visualization options:")
+        for key, value in makefile_dict.items():
+            print(f"        {key}: {value}")
+
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     else:
         print("No Makefile provided.")
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # download and unzip !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def download_and_unzip(url, destination):
     """
     Download a zip file from a given URL and extract its contents to a specified destination.
@@ -202,7 +291,9 @@ def download_and_unzip(url, destination):
     # Remove the zip file
     os.remove("assets.zip")
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # download github submodule !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def download_github_submodule(repository_url, submodule_dir):
     """
     Download a GitHub repository as a submodule.
@@ -229,7 +320,9 @@ def download_github_submodule(repository_url, submodule_dir):
     except Exception as e:
         print(f"An error occurred while cloning the GitHub repository: {e} ...")
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # check non-matching strings !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def check_non_matching_strings(list1, list2):
     """
     Check for non-matching strings between two lists.
@@ -248,7 +341,9 @@ def check_non_matching_strings(list1, list2):
 
     return bool(non_matching_strings)
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parse list of numbers !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def parse_list_of_numbers(arg):
     """
     Parse a string argument as a list of numbers.
@@ -282,7 +377,9 @@ def parse_list_of_numbers(arg):
             f"Invalid list: {arg} ...\nIt must contain exactly 11 numerical values ..."
         )
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parse list of strings !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def parse_list_of_strings(arg):
     """
     Parse a string argument as a list of strings.
@@ -318,7 +415,9 @@ def parse_list_of_strings(arg):
             f"Invalid list: {arg} ...\nIt must contain a valid list of strings ..."
         )
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parse arguments !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def parse_arguments():
     """
     Parse the command-line arguments for the build-database.py script.
@@ -541,7 +640,9 @@ def parse_arguments():
 
     return args
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # check arguments !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def check_arguments(args, script):
     """
     Validate and print the arguments for a specific script.
@@ -554,8 +655,8 @@ def check_arguments(args, script):
     Returns:
         dict: A dictionary containing the valid arguments with their corresponding values.
 
-    This function takes the argparse.Namespace object 'args', which contains parsed
-    command-line arguments, and the 'script' name for which the arguments are being checked.
+    This function takes the argparse.Namespace object "args", which contains parsed
+    command-line arguments, and the "script" name for which the arguments are being checked.
     It validates the arguments one by one, prints their values, and stores them in a
     dictionary of valid_args. If any argument is invalid, it raises a ValueError with the
     corresponding error message.
@@ -662,7 +763,7 @@ def check_arguments(args, script):
         valid_args["frac"] = frac
 
     if source is not None:
-        print(f"    samples datafile: {source}")
+        print(f"    source: {source}")
 
         valid_args["source"] = source
 
@@ -786,7 +887,7 @@ def check_arguments(args, script):
         if nprocs > os.cpu_count():
             raise ValueError(
                 "Invalid --nprocs argument ...\n"
-                f"--nprocs cannot be greater than cores on system ({os.cpu_count}) ..."
+                f"--nprocs cannot be greater than cores on system ({os.cpu_count()}) ..."
             )
 
         print(f"    nprocs: {nprocs}")
@@ -879,26 +980,30 @@ def check_arguments(args, script):
 #+ .2.0            Helper Functions              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # count lines !!
-def count_lines(filename):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def count_lines(filepath):
     """
     Count the number of lines in a file.
 
     Args:
-        filename (str): The path to the file.
+        filepath (str): The path to the file.
 
     Returns:
         int: The number of lines in the file.
     """
     line_count = 0
 
-    with open(filename, "r") as file:
+    with open(filepath, "r") as file:
         for line in file:
             line_count += 1
 
     return line_count
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # merge dictionaries !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def merge_dictionaries(dictionaries):
     """
     Merge a list of dictionaries by key terms.
@@ -939,29 +1044,33 @@ def merge_dictionaries(dictionaries):
 
     return merged_dict
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # replace in file !!
-def replace_in_file(file_path, replacements):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def replace_in_file(filepath, replacements):
     """
     Replace specific strings in a text file with new values.
 
     Args:
-        file_path (str): The path to the text file to be modified.
+        filepath (str): The path to the text file to be modified.
         replacements (dict): A dictionary where keys are the strings to be
             replaced, and values are the new strings to replace them with.
 
     Returns:
         None
     """
-    with open(file_path, "r") as file:
+    with open(filepath, "r") as file:
         file_data = file.read()
 
         for key, value in replacements.items():
             file_data = file_data.replace(key, value)
 
-    with open(file_path, "w") as file:
+    with open(filepath, "w") as file:
         file.write(file_data)
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # cleanup output dir !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def move_magemin_results(sample_id, dataset, res, out_dir="runs"):
     """
     Move files from the MAGEMin output directory to a new directory based on the run name.
@@ -1003,20 +1112,22 @@ def move_magemin_results(sample_id, dataset, res, out_dir="runs"):
             os.remove(old_filepath)
 
     # Move input data file into directory
-    input_data_file = f"{out_dir}/magemin-{sample_id}-{dataset}-{res}.dat"
+    input_datafile = f"{out_dir}/magemin-{sample_id}-{dataset}-{res}.dat"
     input_data_destination = f"{model_out_dir}/magemin-{sample_id}-{dataset}-{res}.dat"
 
-    if os.path.isfile(input_data_file):
+    if os.path.isfile(input_datafile):
         # Copy the input data file to the new location
-        shutil.copy(input_data_file, input_data_destination)
+        shutil.copy(input_datafile, input_data_destination)
 
         # Remove the old input data file
-        os.remove(input_data_file)
+        os.remove(input_datafile)
 
     # Remove MAGEMin output directory
     shutil.rmtree("output")
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get comp time !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/data"):
     """
     Extracts computation time information from a log file and appends it to a CSV file.
@@ -1037,7 +1148,7 @@ def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/da
     formatted_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
     # Define the CSV filename
-    csv_filename = f'benchmark-efficiency-{formatted_date}.csv'
+    csv_filename = f"benchmark-efficiency-{formatted_date}.csv"
 
     # Define the full path to the CSV file
     csv_filepath = f"{data_dir}/{csv_filename}"
@@ -1048,7 +1159,7 @@ def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/da
         time_values_ppx = []
 
         # Open the log file and read its lines
-        with open(log_file, 'r') as log_file:
+        with open(log_file, "r") as log_file:
             lines = log_file.readlines()
 
         # Iterate over the lines in reverse order
@@ -1093,7 +1204,7 @@ def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/da
 
             # Check if the CSV file already exists
             if not os.path.exists(csv_filepath):
-                # If the file doesn't exist, write the header line first
+                # If the file does not exist, write the header line first
                 header_line = "sample,program,size,time"
                 with open(csv_filepath, "w") as csv_file:
                     csv_file.write(header_line + "\n")
@@ -1111,7 +1222,7 @@ def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/da
 
             # Check if the CSV file already exists
             if not os.path.exists(csv_filepath):
-                # If the file doesn't exist, write the header line first
+                # If the file does not exist, write the header line first
                 header_line = "sample,program,size,time"
                 with open(csv_filepath, "w") as csv_file:
                     csv_file.write(header_line + "\n")
@@ -1124,7 +1235,9 @@ def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/da
 #+ .2.1     Sampling Bulk Rock Compositions      !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # read earthchem data !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def read_earthchem_data(oxides, data_dir="assets/data/"):
     """
     Reads a CSV file containing geochemical data and returns the data as a pandas DataFrame.
@@ -1144,18 +1257,18 @@ def read_earthchem_data(oxides, data_dir="assets/data/"):
     of the combined and filtered dataset.
     """
     # Find earthchem data files
-    datafiles = [
+    filepaths = [
         file for file in os.listdir(data_dir) if file.startswith("earthchem-igneous")
     ]
 
     # Filter criteria
     metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
 
-    # Read all datafiles into dataframes
+    # Read all filepaths into dataframes
     dataframes = {}
     df_name = []
 
-    for file in datafiles:
+    for file in filepaths:
         df_name.append(file.split("-")[-1].split(".")[0])
 
         idx = file.split("-")[-1].split(".")[0]
@@ -1206,14 +1319,16 @@ def read_earthchem_data(oxides, data_dir="assets/data/"):
 
     return data
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get sample composition !!
-def get_sample_composition(datafile, sample_id):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_sample_composition(filepath, sample_id):
     """
     Extracts the oxide compositions needed for the "MAGEMin" and "Perple_X" analyses
-    for a single sample specified by name from the given datafile.
+    for a single sample specified by name from the given filepath.
 
     Args:
-        datafile (str): Path to the CSV data file.
+        filepath (str): Path to the CSV data file.
         sample_id (str): Name of the sample to select.
 
     Returns:
@@ -1231,7 +1346,7 @@ def get_sample_composition(datafile, sample_id):
     ]
 
     # Read the data file
-    df = pd.read_csv(datafile)
+    df = pd.read_csv(filepath)
 
     # Subset the DataFrame based on the sample name
     subset_df = df[df["NAME"] == sample_id]
@@ -1255,14 +1370,16 @@ def get_sample_composition(datafile, sample_id):
 
     return composition
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get random sample composition !!
-def get_random_sample_composition(datafile, n=1, seed=None):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_random_sample_composition(filepath, n=1, seed=None):
     """
-    Randomly samples n rows from the given datafile and
+    Randomly samples n rows from the given filepath and
     extracts the oxide compositions needed for the "MAGEMin" analysis.
 
     Args:
-        datafile (str): Path to the CSV data file.
+        filepath (str): Path to the CSV data file.
         n (int): Number of random samples to extract (default: 1).
         seed (int): Random seed for reproducibility (default: None).
 
@@ -1283,7 +1400,7 @@ def get_random_sample_composition(datafile, n=1, seed=None):
     ]
 
     # Read the data file
-    df = pd.read_csv(datafile)
+    df = pd.read_csv(filepath)
 
     # Random sampling
     random_rows = df.sample(n, random_state=seed)
@@ -1308,14 +1425,16 @@ def get_random_sample_composition(datafile, n=1, seed=None):
 
     return sample_ids, compositions
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get batch sample composition !!
-def get_batch_sample_composition(datafile, batch_size=1, k=0):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_batch_sample_composition(filepath, batch_size=1, k=0):
     """
-    Splits the data from the given datafile into batches of size `batch_size`
+    Splits the data from the given filepath into batches of size `batch_size`
     and returns the k-th batch.
 
     Args:
-        datafile (str): Path to the CSV data file.
+        filepath (str): Path to the CSV data file.
         batch_size (int): Size of each batch (default: 1).
         k (int): Index of the batch to retrieve (default: 0).
 
@@ -1334,8 +1453,8 @@ def get_batch_sample_composition(datafile, batch_size=1, k=0):
         "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
     ]
 
-    # Read the datafile in chunks of size batch_size
-    df_iterator = pd.read_csv(datafile, chunksize=batch_size)
+    # Read the filepath in chunks of size batch_size
+    df_iterator = pd.read_csv(filepath, chunksize=batch_size)
 
     # Initialize variables for the k-th batch
     sample_ids = []
@@ -1363,7 +1482,9 @@ def get_batch_sample_composition(datafile, batch_size=1, k=0):
 
     return sample_ids, compositions
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # normalize composition !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def normalize_composition(sample, components="all"):
     """
     Normalize the concentrations for a subset of components.
@@ -1433,7 +1554,9 @@ def normalize_composition(sample, components="all"):
 #+ .2.2            MAGEMin Functions             !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # configure magemin model !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def configure_magemin_model(P_min, P_max, T_min, T_max, res, source,
                             sample_id, normox, dataset, out_dir="runs"):
     """
@@ -1524,7 +1647,9 @@ def configure_magemin_model(P_min, P_max, T_min, T_max, res, source,
     with open(f"{model_out_dir}/magemin-{sample_id}-{dataset}-{res}.dat", "w") as f:
         f.write(magemin_input)
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # run magemin !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def run_magemin(sample_id, res, dataset, emsonly=True, parallel=True,
                 nprocs=os.cpu_count()-2, out_dir="runs", verbose=False):
     """
@@ -1632,7 +1757,9 @@ def run_magemin(sample_id, res, dataset, emsonly=True, parallel=True,
 #+ .2.3           Perple_X Functions             !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # configure perplex model !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def configure_perplex_model(P_min, P_max, T_min, T_max, res, source, sample_id, normox,
                       dataset, emsonly=True, config_dir="assets/config",
                       perplex_dir="assets/perplex", out_dir="runs"):
@@ -1766,7 +1893,9 @@ def configure_perplex_model(P_min, P_max, T_min, T_max, res, source, sample_id, 
         {"{SAMPLEID}": f"{sample_id}-{dataset}-{res}"}
     )
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # run perplex !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def run_perplex(sample_id, dataset, res, emsonly=True, perplex_dir="assets/perplex",
                 out_dir="runs", verbose=False):
     """
@@ -1924,8 +2053,10 @@ def run_perplex(sample_id, dataset, res, emsonly=True, perplex_dir="assets/perpl
 #+ .3.0             Helper Functions             !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # encode phases !!
-def encode_phases(phases, filename=None):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def encode_phases(phases, filepath=None):
     """
     Encode unique phase assemblages and their corresponding numbers.
 
@@ -1949,11 +2080,13 @@ def encode_phases(phases, filename=None):
             unique_assemblages[assemblage_tuple] = len(unique_assemblages) + 1
 
     # Save list of unique phase assemblages
-    if filename is not None:
+    if filepath is not None:
         df = pd.DataFrame(list(unique_assemblages.items()), columns=["Assemblage", "Index"])
+
         df = df[["Index", "Assemblage"]]
         df["Assemblage"] = df["Assemblage"].apply(" ".join)
-        df.to_csv(filename, index=False)
+
+        df.to_csv(filepath, index=False)
 
     # Encoding phase assemblage numbers
     for phase_assemblage in phases:
@@ -1970,13 +2103,15 @@ def encode_phases(phases, filename=None):
 #+ .3.1             Process MAGEMin              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process magemin output !!
-def process_magemin_output(filename):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def process_magemin_output(filepath):
     """
     Read and process pseudosection data from a file.
 
     Args:
-        filename (str): The path to the file containing the pseudosection data.
+        filepath (str): The path to the file containing the pseudosection data.
 
     Returns:
         dict: A dictionary containing the processed pseudosection data.
@@ -1986,7 +2121,7 @@ def process_magemin_output(filename):
         ValueError: If there is an error in parsing the data.
     """
     # Open file
-    with open(filename, "r") as file:
+    with open(filepath, "r") as file:
         lines = file.readlines()
 
     # Skip the comment line
@@ -2094,34 +2229,36 @@ def process_magemin_output(filename):
 
         # Append results to the list
         results.append({
-            "Point": num_point,
-            "Status": status,
+            "point": num_point,
+            "status": status,
             "P": p,
             "T": t,
-            "Gibbs": gibbs,
-            "BrNorm": br_norm,
-            "Gamma": [gamma],
+            "gibbs": gibbs,
+            "br_norm": br_norm,
+            "gamma": [gamma],
             "Vp": vp,
             "Vs": vs,
-            "Entropy": entropy,
-            "StableSolutions": [stable_solutions],
-            "StableFractions": [stable_fractions],
-            "Density": density,
-            "CompositionalVar": [compositional_var],
-            "EMList": [em_list],
-            "EMFractions": [em_fractions],
-            "LiquidFraction": liq,
-            "DensityOfFullAssemblage": density_total,
-            "DensityOfLiquid": density_liq,
-            "DensityOfSolid": density_sol,
-            "DensityOfMixture": density_mix
+            "entropy": entropy,
+            "assemblage": [stable_solutions],
+            "assemblage_mode": [stable_fractions],
+            "assemblage_density": density,
+            "assemblage_variance": [compositional_var],
+            "endmember_list": [em_list],
+            "endmember_mode": [em_fractions],
+            "melt_fraction": liq,
+            "rho": density_total,
+            "rho_liquid": density_liq,
+            "rho_solid": density_sol,
+            "rho_mixture": density_mix
         })
 
         i_point += 1
 
     return results
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process magemin results !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
@@ -2157,22 +2294,24 @@ def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
     for root, dirs, files in os.walk(directory):
         for filename in fnmatch.filter(files, pattern):
             filepath = os.path.join(root, filename)
+
             file_results = process_magemin_output(filepath)
+
             results.extend(file_results)
 
     merged_results = merge_dictionaries(results)
 
     # Compute assemblage variance (number of phases)
-    assemblages = merged_results.get("StableSolutions")
+    assemblages = merged_results.get("assemblage")
 
-    variance = []
+    assemblage_variance = []
 
     for assemblage in assemblages:
         unique_phases = set(assemblage)
         count = len(unique_phases)
-        variance.append(count)
+        assemblage_variance.append(count)
 
-    merged_results["StableVariance"] = variance
+    merged_results["assemblage_variance"] = assemblage_variance
 
     return merged_results
 
@@ -2180,13 +2319,15 @@ def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
 #+ .3.1            Process Perple_X              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process perplex assemblage !!
-def process_perplex_assemblage(file_path):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def process_perplex_assemblage(filepath):
     """
     Process the Perple_X assemblage file and extract the phase assemblages.
 
     Args:
-        file_path (str): The path to the Perple_X assemblage file.
+        filepath (str): The path to the Perple_X assemblage file.
 
     Returns:
         dict: A dictionary where the keys represent line numbers in the file and the values
@@ -2197,7 +2338,7 @@ def process_perplex_assemblage(file_path):
     """
     phase_dict = {}
 
-    with open(file_path, "r") as file:
+    with open(filepath, "r") as file:
         for line_number, line in enumerate(file, start=1):
             phases = line.split("-")[1].strip().split()
             cleaned_phases = [phase.split("(")[0].lower() for phase in phases]
@@ -2205,13 +2346,15 @@ def process_perplex_assemblage(file_path):
 
     return phase_dict
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process perplex results !!
-def process_perplex_results(file_path_targets, file_path_assemblages):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def process_perplex_results(filepath_targets, filepath_assemblages):
     """
     Process the Perple_X assemblage file and extract the phase assemblages.
 
     Args:
-        file_path_assemblages (str): The path to the Perple_X assemblage file.
+        filepath_assemblages (str): The path to the Perple_X assemblage file.
 
     Returns:
         list: A list of phase assemblages, where each assemblage is represented
@@ -2224,17 +2367,17 @@ def process_perplex_results(file_path_targets, file_path_assemblages):
     results = {
         "T": [],
         "P": [],
-        "DensityOfFullAssemblage": [],
+        "rho": [],
         "Vp": [],
         "Vs": [],
-        "Entropy": [],
-        "AssemblageIndex": [],
-        "LiquidFraction": [],
-        "StableSolutions": [],
-        "StableVariance": []
+        "entropy": [],
+        "assemblage_index": [],
+        "melt_fraction": [],
+        "assemblage": [],
+        "assemblage_variance": []
     }
 
-    with open(file_path_targets, "r") as file:
+    with open(filepath_targets, "r") as file:
         # Skip lines until column headers are found
         for line in file:
             if line.strip().startswith("T(K)"):
@@ -2253,21 +2396,21 @@ def process_perplex_results(file_path_targets, file_path_assemblages):
                             else math.nan
                         )
 
-                        if i == 0:  # "T" column
-                            value -= 273  # Subtract 273 from "T"
+                        if i == 0:  # T column
+                            value -= 273  # Subtract 273 from T
 
-                        if i == 1:  # "P" column
-                            value /= 1000  # Divide "P" by 1000
+                        if i == 1:  # P column
+                            value /= 1000  # Divide P by 1000
 
-                        if i == 6:  # "AssemblageIndex" column
+                        if i == 6:  # assemblage index column
                             value = (
                                 int(value)
                                 if not math.isnan(value)
                                 else math.nan
                             )
 
-                        if i == 7:  # "LiquidFraction" column
-                            value /= 100  # Divide "LiquidFraction" by 100
+                        if i == 7:  # melt fraction column
+                            value /= 100  # Divide melt fraction by 100
 
                         results[list(results.keys())[i]].append(value)
 
@@ -2275,19 +2418,19 @@ def process_perplex_results(file_path_targets, file_path_assemblages):
                     continue
 
     # Get assemblages from file
-    assemblages = process_perplex_assemblage(file_path_assemblages)
+    assemblages = process_perplex_assemblage(filepath_assemblages)
 
     # Add assemblage to dictionary
-    for index in results.get("AssemblageIndex"):
+    for index in results.get("assemblage_index"):
         if math.isnan(index):
-            results["StableSolutions"].append("")
+            results["assemblage"].append("")
 
         else:
             phases = assemblages[index]
-            results["StableSolutions"].append(phases)
+            results["assemblage"].append(phases)
 
     # Add assemblage variance to dictionary
-    for assemblage in results.get("StableSolutions"):
+    for assemblage in results.get("assemblage"):
         if assemblage is None:
             count = math.nan
 
@@ -2295,11 +2438,13 @@ def process_perplex_results(file_path_targets, file_path_assemblages):
             unique_phases = set(assemblage)
             count = len(unique_phases)
 
-        results["StableVariance"].append(count)
+        results["assemblage_variance"].append(count)
 
     return results
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # create target array !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def create_target_array(P, T, targets, mask=False):
     """
     Create a 2D NumPy array representing a target array of parameter values across PT space.
@@ -2384,13 +2529,15 @@ def create_target_array(P, T, targets, mask=False):
 #+ .4.0            Helper Functions              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # append to csv !!
-def append_to_csv(file_path, data_dict):
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def append_to_csv(filepath, data_dict):
     """
     Append data from a dictionary to a CSV file.
 
     Parameters:
-        file_path (str): The path to the CSV file where data will be appended or created.
+        filepath (str): The path to the CSV file where data will be appended or created.
         data_dict (dict): A dictionary containing the data to be appended to the CSV file.
                           Keys represent column names, and values are lists or arrays
                           containing the data to be appended.
@@ -2398,18 +2545,18 @@ def append_to_csv(file_path, data_dict):
     Returns:
         None
 
-    This function checks if the specified CSV file exists. If it doesn't exist, a new
+    This function checks if the specified CSV file exists. If it does not exist, a new
     DataFrame is created using the data from data_dict and saved as a new CSV file.
     If the CSV file already exists, the function loads the existing DataFrame,
     appends the new data from data_dict, and sorts the DataFrame by specified columns.
     The updated DataFrame is then saved back to the CSV file.
     """
     # Check if the CSV file already exists
-    if not pd.io.common.file_exists(file_path):
+    if not pd.io.common.file_exists(filepath):
         df = pd.DataFrame(data_dict)
 
     else:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(filepath)
 
         # Append the new data dictionary to the DataFrame
         new_data = pd.DataFrame(data_dict)
@@ -2420,9 +2567,11 @@ def append_to_csv(file_path, data_dict):
     df = df.sort_values(by=["sample", "model", "program", "size"])
 
     # Save the updated DataFrame back to the CSV file
-    df.to_csv(file_path, index=False)
+    df.to_csv(filepath, index=False)
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # extract features !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def extract_features_array(results):
     """
     Parameters:
@@ -2464,11 +2613,12 @@ def extract_features_array(results):
 #+ .4.1          PCA and Synthetic Sampling      !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # pca mixing arrays !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42,
-                          palette="tab10", figwidth=6.3, figheight=6.3, fontsize=22,
-                          filename="earthchem-samples", fig_dir="figs",
-                          data_dir="assets/data"):
+                      palette="tab10", figwidth=6.3, figheight=6.3, fontsize=22,
+                      filename="earthchem-samples", fig_dir="figs", data_dir="assets/data"):
     """
     Parameters:
         res (int): The resolution value.
@@ -2608,7 +2758,7 @@ def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42
         ax.set_xlabel("")
         ax.set_ylim([-1, 1])
         ax.set_ylabel("")
-        ax.xaxis.set_major_locator(FixedLocator(range(len(oxides))))
+        ax.xaxis.set_major_locator(ticker.FixedLocator(range(len(oxides))))
         ax.set_xticklabels(oxides, rotation=90)
         plt.title(f"PC{i+1} Loadings")
 
@@ -2660,7 +2810,7 @@ def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42
                 (loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1),
                 (loadings.at[n+1, oxide] * 3) + (loadings.at[n+1, oxide] * 1),
                 oxide,
-                bbox=dict(boxstyle="round", facecolor="white", alpha=0.6, pad=0.1),
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
                 fontsize=fontsize * 0.579,
                 color="black",
                 ha = "center",
@@ -2871,39 +3021,39 @@ def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42
                     x="SIO2",
                     y=y,
                     linewidth=0,
-                    s=10,
-                    zorder=100,
+                    s=15,
                     color=".2",
                     legend=False,
-                    ax=ax
+                    ax=ax,
+                    zorder=3
                 )
                 ax.annotate(
                     f"{i+1}",
                     xy=(first_element["SIO2"], first_element[y]),
                     xytext=(0, 0),
-                    textcoords='offset points',
+                    textcoords="offset points",
                     bbox=dict(
                         boxstyle="round,pad=0.1",
                         edgecolor="black",
                         facecolor="white",
-                        alpha=0.6
+                        alpha=0.8
                     ),
                     fontsize=fontsize * 0.579,
-                    zorder=200,
+                    zorder=4
                 )
                 ax.annotate(
                     f"{j+1}",
                     xy=(last_element["SIO2"], last_element[y]),
                     xytext=(0, 0),
-                    textcoords='offset points',
+                    textcoords="offset points",
                     bbox=dict(
                         boxstyle="round,pad=0.1",
                         edgecolor="black",
                         facecolor="white",
-                        alpha=0.6
+                        alpha=0.8
                     ),
                     fontsize=fontsize * 0.579,
-                    zorder=200,
+                    zorder=5
                 )
 
         sns.kdeplot(
@@ -2914,7 +3064,8 @@ def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42
             hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
             fill=False,
             ax=ax,
-            levels=5
+            levels=5,
+            zorder=2
         )
         sns.scatterplot(
             data=data,
@@ -2924,9 +3075,9 @@ def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42
             hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
             linewidth=0,
             s=5,
-            zorder=1,
             legend=False,
-            ax=ax
+            ax=ax,
+            zorder=1
         )
 
         ax.set_title(f"{y}")
@@ -2976,7 +3127,9 @@ def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42
 # use fork method for parallel processing
 mp.set_start_method("fork")
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process_fold !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def process_fold(fold_data, verbose=False):
     """
     Process a single fold of k-fold cross-validation for ML model.
@@ -3012,7 +3165,7 @@ def process_fold(fold_data, verbose=False):
     Notes:
         This function performs the following steps for a single fold of k-fold cross
         validation for ML models:
-            1. Unpacks the necessary data from the 'fold_data' tuple.
+            1. Unpacks the necessary data from the "fold_data" tuple.
             2. Trains the ML model on the training data.
             3. Makes predictions on the test and validation sets.
             4. Performs inverse scaling to obtain predictions in their original units.
@@ -3098,10 +3251,12 @@ def process_fold(fold_data, verbose=False):
 
     return rmse_test, r2_test, rmse_val, r2_val, training_time, inference_time
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # train cv rocml !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def train_cv_rocml(features_array, targets_array, features_array_val, targets_array_val,
                    parameters, units, program, sample_id, model="DT", tune=False, seed=42,
-                   kfolds=10, parallel=True, nprocs=cpu_count()-2, vmin=None, vmax=None,
+                   kfolds=10, parallel=True, nprocs=os.cpu_count()-2, vmin=None, vmax=None,
                    palette="bone", figwidth=6.3, figheight=4.725, fontsize=22, filename=None,
                    fig_dir="figs"):
     """
@@ -3138,7 +3293,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams['figure.constrained_layout.use'] = "True"
+    plt.rcParams["figure.constrained_layout.use"] = "True"
     plt.rcParams["figure.dpi"] = 330
     plt.rcParams["savefig.bbox"] = "tight"
 
@@ -3148,7 +3303,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
     # Check parameters list for density
     try:
-        index_rho = parameters.index("DensityOfFullAssemblage")
+        index_rho = parameters.index("rho")
 
     except:
         print("Density not found in parameters")
@@ -3167,12 +3322,12 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
     except:
         print("Vs not found in parameters")
 
-    # Check parameters list for melt
+    # Check parameters list for melt fraction
     try:
-        index_liq = parameters.index("LiquidFraction")
+        index_liq = parameters.index("melt_fraction")
 
     except:
-        print("LiquidFraction not found in parameters")
+        print("melt_fraction not found in parameters")
 
     # Transform units
     if index_rho is not None:
@@ -3259,7 +3414,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
     elif parallel:
         if nprocs is None:
-            nprocs = cpu_count() - 2
+            nprocs = os.cpu_count() - 2
 
         else:
             nprocs = nprocs
@@ -3327,8 +3482,8 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         print(f"    model: {model_label_full}")
         print(f"    k folds: {kfolds}")
         print(f"    features:")
-        print(f"        Pressure (GPa)")
-        print(f"        Temperature (K)")
+        print(f"        P (GPa)")
+        print(f"        T (K)")
         print(f"    targets:")
         for param, unit in zip(parameters, units_labels):
             print(f"        {param} {unit}")
@@ -3511,7 +3666,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
     ]
 
     # Initialize the pool of processes
-    with Pool(processes=nprocs) as pool:
+    with mp.Pool(processes=nprocs) as pool:
         results = pool.map(process_fold, fold_data_list)
 
         # Wait for all processes
@@ -3828,7 +3983,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
             results_ppx = None
 
-            if param == "DensityOfFullAssemblage":
+            if param == "rho":
                 results_mgm[param] = [x * 1000 for x in results_mgm[param]]
 
         # Reshape results and transform units for Perple_X
@@ -3841,7 +3996,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
             results_mgm = None
 
-            if param == "DensityOfFullAssemblage":
+            if param == "rho":
                 results_ppx[param] = [x * 1000 for x in results_ppx[param]]
 
         # Reshape results and transform units for ML model
@@ -3851,7 +4006,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
             param: valid_pred_array_original[:,:,i].ravel().tolist()
         }
 
-        if param == "DensityOfFullAssemblage":
+        if param == "rho":
             results_rocml[param] = [x * 1000 for x in results_rocml[param]]
 
         # Plot PREM comparisons
@@ -3878,7 +4033,7 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
         else:
             geotherm_threshold = 0.125
 
-        if param == "DensityOfFullAssemblage":
+        if param == "rho":
             visualize_PREM(
                 "assets/data/prem.csv",
                 param,
@@ -3916,10 +4071,12 @@ def train_cv_rocml(features_array, targets_array, features_array_val, targets_ar
 
     return model, model_info
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # run rocml training !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=True,
-                       perplex=True, model="DT", tune=False, kfolds=cpu_count()-2,
-                       parallel=True, nprocs=cpu_count()-2, seed=42, palette="bone",
+                       perplex=True, model="DT", tune=False, kfolds=os.cpu_count()-2,
+                       parallel=True, nprocs=os.cpu_count()-2, seed=42, palette="bone",
                        out_dir="runs", fig_dir="figs", data_dir="assets/data"):
     """
     Perform ML model regression.
@@ -3963,11 +4120,11 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
         )
 
         # Make liquid fraction consistent
-        results_ppx["LiquidFraction"] = [
-            0.0 if np.isnan(x) else x for x in results_ppx["LiquidFraction"]
+        results_ppx["melt_fraction"] = [
+            0.0 if np.isnan(x) else x for x in results_ppx["melt_fraction"]
         ]
-        results_ppx_val["LiquidFraction"] = [
-            0.0 if np.isnan(x) else x for x in results_ppx_val["LiquidFraction"]
+        results_ppx_val["melt_fraction"] = [
+            0.0 if np.isnan(x) else x for x in results_ppx_val["melt_fraction"]
         ]
 
         # Get features arrays
@@ -3981,13 +4138,13 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
 
     for i, parameter in enumerate(parameters):
         # Units
-        if parameter == "DensityOfFullAssemblage":
+        if parameter == "rho":
             units.append("g/cm$^3$")
 
         if parameter in ["Vp", "Vs"]:
             units.append("km/s")
 
-        if parameter == "LiquidFraction":
+        if parameter == "melt_fraction":
             units.append("%")
 
         if magemin:
@@ -4077,13 +4234,13 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
             ))
 
         # Transform units
-        if parameter == "DensityOfFullAssemblage":
+        if parameter == "rho":
             vmin[i] = vmin[i] / 1000
             vmax[i] = vmax[i] / 1000
             vmin_val[i] = vmin_val[i] / 1000
             vmax_val[i] = vmax_val[i] / 1000
 
-        if parameter == "LiquidFraction":
+        if parameter == "melt_fraction":
             vmin[i] = vmin[i] * 100
             vmax[i] = vmax[i] * 100
             vmin_val[i] = vmin_val[i] * 100
@@ -4138,7 +4295,9 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=False, magemin=
 #+ .5.1            Helper Functions              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # extract info geotherm !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def extract_info_geotherm(results, parameter, thermal_gradient=0.5,
                           mantle_potential_T=1573, threshold=0.1):
     """
@@ -4187,7 +4346,9 @@ def extract_info_geotherm(results, parameter, thermal_gradient=0.5,
 
     return P_values, T_values, targets
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # crop geotherms !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def crop_geotherms(P_array, T_array):
     """
     Crop geotherms within PT bounds.
@@ -4263,7 +4424,9 @@ def crop_geotherms(P_array, T_array):
 
     return cropped_P, cropped_T
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # combine plots horizontally !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def combine_plots_horizontally(image1_path, image2_path, output_path, caption1, caption2,
                                font_size=150, caption_margin=25, dpi=330):
     """
@@ -4324,7 +4487,9 @@ def combine_plots_horizontally(image1_path, image2_path, output_path, caption1, 
     # Save the combined image with captions
     combined_image.save(output_path, dpi=(dpi, dpi))
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # combine plots vertically !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def combine_plots_vertically(image1_path, image2_path, output_path, caption1, caption2,
                              font_size=150, caption_margin=25, dpi=330):
     """
@@ -4386,7 +4551,9 @@ def combine_plots_vertically(image1_path, image2_path, output_path, caption1, ca
 #+ .5.2          Plotting Functions              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize target array  !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_target_array(P, T, target_array, parameter, geotherm=False,
                          geotherm_linetype="-.", geotherm_color="white", T_unit="K",
                          P_unit="GPa", title=None, palette="blues", color_discrete=False,
@@ -4399,7 +4566,7 @@ def visualize_target_array(P, T, target_array, parameter, geotherm=False,
         P (list or array-like): A 1D array or list of P values.
         T (list or array-like): A 1D array or list of T values.
         target_array (numpy.ndarray): A 2D array representing the pseudosection.
-        parameter (str): The parameter to plot. If "StableSolutions", phase assemblages
+        parameter (str): The parameter to plot. If "assemblage", phase assemblages
             will be plotted, otherwise, the specified parameter values will be plotted.
         title (str, optional): The title of the plot.
         palette (str, optional): The color palette to use for the plot.
@@ -4600,7 +4767,7 @@ def visualize_target_array(P, T, target_array, parameter, geotherm=False,
                 label=""
             )
 
-        if parameter in ["Vp", "Vs", "DensityOfFullAssemblage"]:
+        if parameter in ["Vp", "Vs", "rho"]:
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
 
         if palette == "seismic":
@@ -4648,15 +4815,17 @@ def visualize_target_array(P, T, target_array, parameter, geotherm=False,
     # Close device
     plt.close()
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize benchmark efficiency !!
-def visualize_benchmark_efficiency(datafile, palette="tab10", fontsize=12, figwidth=6.3,
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_benchmark_efficiency(filepath, palette="tab10", fontsize=12, figwidth=6.3,
                                    figheight=3.54, filename="benchmark-efficiency.png",
                                    fig_dir="figs"):
     """
     Visualize benchmark computation times.
 
     Parameters:
-        datafile (str): Path to the benchmark data file in .csv format.
+        filepath (str): Path to the benchmark data file in .csv format.
         palette (str, optional): The color palette for sample colors. Default is "tab10".
         fontsize (int, optional): The font size for text elements in the plot. Default is 12.
         filename (str, optional): The filename to save the plot. If not provided,
@@ -4668,7 +4837,7 @@ def visualize_benchmark_efficiency(datafile, palette="tab10", fontsize=12, figwi
 
     Notes:
         - The function creates a directory named "figs" to save the plots.
-        - The function reads the data from the provided datafile in .csv format.
+        - The function reads the data from the provided filepath in .csv format.
         - The function sets plot styles and settings.
         - The function creates a dictionary to map samples to colors using a colormap.
         - The function groups the data by sample.
@@ -4684,7 +4853,7 @@ def visualize_benchmark_efficiency(datafile, palette="tab10", fontsize=12, figwi
         os.makedirs(fig_dir, exist_ok=True)
 
     # Read data
-    data = pd.read_csv(datafile)
+    data = pd.read_csv(filepath)
 
     # Arrange data by dataset resolution and sample
     data.sort_values(by=["size", "sample", "program"], inplace=True)
@@ -4785,7 +4954,9 @@ def visualize_benchmark_efficiency(datafile, palette="tab10", fontsize=12, figwi
     # Close device
     plt.close()
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training PT range !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_training_PT_range(P_unit="GPa", T_unit="K", palette="tab10",
                                 fontsize=12, figwidth=6.3, figheight=3.54,
                                 filename="training-dataset-design.png", fig_dir="figs"):
@@ -5080,8 +5251,10 @@ def visualize_training_PT_range(P_unit="GPa", T_unit="K", palette="tab10",
     # Close device
     plt.close()
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize prem !!
-def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_ppx=None,
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_PREM(filepath, parameter, param_unit, results_mgm=None, results_ppx=None,
                    results_rocml=None, model=None, geotherm_threshold=0.1, P_unit="GPa",
                    depth=True, metrics=None, palette="tab10", title=None, figwidth=6.3,
                    figheight=4.725, fontsize=22, filename=None, fig_dir="figs"):
@@ -5094,13 +5267,13 @@ def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_pp
     and units, and subsets the data based on a geotherm threshold.
 
     Parameters:
-        datafile (str): The file path to the CSV data containing the PREM model.
+        filepath (str): The file path to the CSV data containing the PREM model.
         results_mgm (dict): A dictionary containing the results of the MGM model with
         pressure (P) and temperature (T) values and the parameter of interest.
         results_ppx (dict): A dictionary containing the results of the PPX model with
         pressure (P) and temperature (T) values and the parameter of interest.
         parameter (str): The parameter of interest to be plotted (e.g.,
-            DensityOfFullAssemblage).
+            rho).
         param_unit (str): The unit of the parameter to be displayed in the plot
             (e.g., "kg/m^3").
         geotherm_threshold (float, optional): The geotherm threshold used to subset the data
@@ -5126,7 +5299,7 @@ def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_pp
     Note:
         - The function relies on the matplotlib and pandas libraries for data visualization
             and manipulation.
-        - Make sure the datafile contains the necessary columns (e.g., "depth", "P") for
+        - Make sure the filepath contains the necessary columns (e.g., "depth", "P") for
             calculating pressure and depth conversions.
     """
     # Check for figs directory
@@ -5134,7 +5307,7 @@ def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_pp
         os.makedirs(fig_dir, exist_ok=True)
 
     # Read the CSV file into a pandas DataFrame
-    df_prem = pd.read_csv(datafile)
+    df_prem = pd.read_csv(filepath)
 
     # Extract depth and parameter values
     param_prem = df_prem[parameter]
@@ -5194,7 +5367,7 @@ def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_pp
         )
 
     # Transform units
-    if parameter == "DensityOfFullAssemblage":
+    if parameter == "rho":
         param_min = param_min / 1000
         param_max = param_max / 1000
 
@@ -5235,7 +5408,7 @@ def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_pp
     if results_rocml:
         ax1.plot(param_rocml, P_rocml, "-", linewidth=3, color=colormap(1), label=f"{model}")
 
-    if parameter == "DensityOfFullAssemblage":
+    if parameter == "rho":
         parameter_label = "Density"
 
     else:
@@ -5246,7 +5419,7 @@ def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_pp
     ax1.set_xlim(param_min - (param_min * 0.05), param_max + (param_max * 0.05))
     ax1.set_xticks(np.linspace(param_min, param_max, num=4))
 
-    if parameter in ["Vp", "Vs", "DensityOfFullAssemblage"]:
+    if parameter in ["Vp", "Vs", "rho"]:
         ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
@@ -5305,7 +5478,9 @@ def visualize_PREM(datafile, parameter, param_unit, results_mgm=None, results_pp
     # Close device
     plt.close()
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_training_dataset(program, sample_id, res, dataset, parameters,
                                mask_geotherm=True, palette="bone", out_dir="runs",
                                fig_dir="figs", data_dir="assets/data"):
@@ -5325,14 +5500,14 @@ def visualize_training_dataset(program, sample_id, res, dataset, parameters,
             Default is "./assets/data".
 
     Raises:
-        ValueError: If an invalid value for 'program' is provided. It must be either
+        ValueError: If an invalid value for "program" is provided. It must be either
             "MAGEMin" or "Perple_X".
 
     Notes:
-        - This function first processes the training dataset results for a 'program'.
+        - This function first processes the training dataset results for a "program".
         - It then transforms the results to appropriate units and creates 2D numpy arrays
             for visualization.
-        - The visualization is done using the 'visualize_target_array' function, which
+        - The visualization is done using the "visualize_target_array" function, which
             generates plots of the target array.
     """
     # Get training dataset results
@@ -5359,11 +5534,11 @@ def visualize_training_dataset(program, sample_id, res, dataset, parameters,
 
     for parameter in parameters:
         # Transform results into 2D numpy arrays
-        if parameter == "StableSolutions":
+        if parameter == "assemblage":
             # Encode unique phase assemblages MAGEMin
             encoded, unique = encode_phases(
                 results[parameter],
-                filename=f"{data_dir}/{sample_id}_{program}_assemblages.csv"
+                filepath=f"{data_dir}/{sample_id}_{program}_assemblages.csv"
             )
             target_array = create_target_array(P, T, encoded, mask_geotherm)
 
@@ -5371,11 +5546,11 @@ def visualize_training_dataset(program, sample_id, res, dataset, parameters,
             target_array = create_target_array(P, T, results[parameter], mask_geotherm)
 
         # Transform units
-        if parameter == "DensityOfFullAssemblage":
+        if parameter == "rho":
             target_array = target_array / 1000
 
         # Use discrete colorscale
-        if parameter in ["StableSolutions", "StableVariance"]:
+        if parameter in ["assemblage", "assemblage_variance"]:
             color_discrete = True
 
         else:
@@ -5383,14 +5558,14 @@ def visualize_training_dataset(program, sample_id, res, dataset, parameters,
 
         # Reverse color scale
         if palette in ["grey"]:
-            if parameter in ["StableVariance"]:
+            if parameter in ["assemblage_variance"]:
                 color_reverse = True
 
             else:
                 color_reverse = False
 
         else:
-            if parameter in ["StableVariance"]:
+            if parameter in ["assemblage_variance"]:
                 color_reverse = False
 
             else:
@@ -5423,7 +5598,9 @@ def visualize_training_dataset(program, sample_id, res, dataset, parameters,
             fig_dir=fig_dir
         )
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset diff !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_geotherm=True,
                                     palette="bone", out_dir="runs", fig_dir="figs",
                                     data_dir="assets/data"):
@@ -5445,7 +5622,7 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
             "MAGEMin" and "Perple_X" for the given sample.
         - It transforms the results to appropriate units and creates 2D numpy arrays for
             visualization.
-        - The visualization is done using the 'visualize_target_array' function, which
+        - The visualization is done using the "visualize_target_array" function, which
             generates plots of the differences between the training dataset results.
         - The function also computes and visualizes the normalized difference and the
           maximum gradient between the results of the two programs for a more comprehensive
@@ -5470,7 +5647,7 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
 
     for parameter in parameters:
         # Transform results into 2D numpy arrays
-        if parameter == "StableSolutions":
+        if parameter == "assemblage":
             # Encode unique phase assemblages MAGEMin
             encoded_mgm, unique_mgm = encode_phases(results_mgm[parameter])
             target_array_mgm = create_target_array(P_mgm, T_mgm, encoded_mgm, mask_geotherm)
@@ -5487,12 +5664,12 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
             )
 
         # Transform units
-        if parameter == "DensityOfFullAssemblage":
+        if parameter == "rho":
             target_array_mgm = target_array_mgm / 1000
             target_array_ppx = target_array_ppx / 1000
 
         # Use discrete colorscale
-        if parameter in ["StableSolutions", "StableVariance"]:
+        if parameter in ["assemblage", "assemblage_variance"]:
             color_discrete = True
 
         else:
@@ -5500,14 +5677,14 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
 
         # Reverse color scale
         if palette in ["grey"]:
-            if parameter in ["StableVariance"]:
+            if parameter in ["assemblage_variance"]:
                 color_reverse = True
 
             else:
                 color_reverse = False
 
         else:
-            if parameter in ["StableVariance"]:
+            if parameter in ["assemblage_variance"]:
                 color_reverse = False
 
             else:
@@ -5582,7 +5759,7 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
                 geotherm_threshold = 0.125
 
             # Plot PREM comparisons
-            if parameter == "DensityOfFullAssemblage":
+            if parameter == "rho":
                 visualize_PREM(
                     f"{data_dir}/prem.csv",
                     parameter,
@@ -5608,17 +5785,19 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
                     fig_dir=fig_dir
                 )
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize rocml performance !!
-def visualize_rocml_performance(datafile="assets/data/benchmark-rocmls-performance.csv",
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_rocml_performance(filepath="assets/data/benchmark-rocmls-performance.csv",
                                 benchmark_times="assets/data/benchmark-efficiency.csv",
-                                sample_id="PUM", parameter="DensityOfFullAssemblage",
+                                sample_id="PUM", parameter="rho",
                                 res=128, palette="tab10", fontsize=22, figwidth=6.3,
                                 figheight=4.725, filename="rocml", fig_dir="figs"):
     """
     Visualize regression metrics using a facet barplot.
 
     Parameters:
-        datafile (str): The path to the CSV file containing the data to be visualized.
+        filepath (str): The path to the CSV file containing the data to be visualized.
         palette (str, optional): The color palette to use for plotting the bars. Default is
             "tab10".
         fontsize (int, optional): The font size for the plot's text. Default is 12.
@@ -5639,7 +5818,7 @@ def visualize_rocml_performance(datafile="assets/data/benchmark-rocmls-performan
         different models and programs.
 
         The CSV file should contain columns "model", "program", "training_time_mean",
-        "inference_time_mean", "rmse_valid_mean", and "units". The "units" column is used to
+        "inference_time_mean", "rmse_val_mean", and "units". The "units" column is used to
         label the y-axis of the RMSE plot.
 
         The function uses Matplotlib for plotting and sets various plot style and settings to
@@ -5660,7 +5839,7 @@ def visualize_rocml_performance(datafile="assets/data/benchmark-rocmls-performan
         os.makedirs(fig_dir, exist_ok=True)
 
     # Read regression data
-    data = pd.read_csv(datafile)
+    data = pd.read_csv(filepath)
     data = data[data["sample"] == sample_id]
     data = data[data["size"] == res**2]
 
@@ -5776,6 +5955,19 @@ def visualize_rocml_performance(datafile="assets/data/benchmark-rocmls-performan
             legend.set_bbox_to_anchor((0.48, 0.94))
 
         elif metric == f"rmse_test_mean_{parameter}":
+            # Calculate limits
+            max_error = np.max(np.concatenate([
+                summary_df.loc[order][f"rmse_test_std_{parameter}"].values * 2,
+                summary_df.loc[order][f"rmse_val_std_{parameter}"].values * 2
+            ]))
+
+            max_mean = np.max(np.concatenate([
+                summary_df.loc[order][f"rmse_test_mean_{parameter}"].values,
+                summary_df.loc[order][f"rmse_val_mean_{parameter}"].values
+            ]))
+
+            vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
+
             plt.errorbar(
                 x_positions * bar_width,
                 summary_df.loc[order][f"rmse_test_mean_{parameter}"],
@@ -5788,14 +5980,27 @@ def visualize_rocml_performance(datafile="assets/data/benchmark-rocmls-performan
 
             plt.title(f"{metric_names[i]}")
             plt.ylabel("RMSE (%)")
-            plt.ylim(bottom=0)
+            plt.ylim(0, vmax)
             plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
 
-        elif metric == f"rmse_valid_mean_{parameter}":
+        elif metric == f"rmse_val_mean_{parameter}":
+            # Calculate limits
+            max_error = np.max(np.concatenate([
+                summary_df.loc[order][f"rmse_test_std_{parameter}"].values * 2,
+                summary_df.loc[order][f"rmse_val_std_{parameter}"].values * 2
+            ]))
+
+            max_mean = np.max(np.concatenate([
+                summary_df.loc[order][f"rmse_test_mean_{parameter}"].values,
+                summary_df.loc[order][f"rmse_val_mean_{parameter}"].values
+            ]))
+
+            vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
+
             plt.errorbar(
                 x_positions * bar_width,
-                summary_df.loc[order][f"rmse_valid_mean_{parameter}"],
-                yerr=summary_df.loc[order][f"rmse_valid_std_{parameter}"] * 2,
+                summary_df.loc[order][f"rmse_val_mean_{parameter}"],
+                yerr=summary_df.loc[order][f"rmse_val_std_{parameter}"] * 2,
                 fmt="none",
                 capsize=5,
                 color="black",
@@ -5804,7 +6009,7 @@ def visualize_rocml_performance(datafile="assets/data/benchmark-rocmls-performan
 
             plt.title(f"{metric_names[i]}")
             plt.ylabel("RMSE (%)")
-            plt.ylim(bottom=0)
+            plt.ylim(0, vmax)
             plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
 
         # Save the plot to a file if a filename is provided

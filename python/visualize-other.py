@@ -23,9 +23,9 @@ if os.path.exists("assets/data"):
     # Visualize benchmark computation times
     visualize_benchmark_efficiency("assets/data/benchmark-efficiency.csv")
 
-    for param in params:
+    for p in params:
         # Visualize rocml performance metrics
-        visualize_rocml_performance(sample_id=sampleid, parameter=param, res=res)
+        visualize_rocml_performance(sample_id=sampleid, parameter=p, res=res)
 
         # First row
         combine_plots_horizontally(
@@ -41,21 +41,21 @@ if os.path.exists("assets/data"):
 
         # Second row
         combine_plots_horizontally(
-            f"figs/rocml-rmse-test-mean-{param}-{sampleid}-{res}.png",
-            f"figs/rocml-rmse-val-mean-{param}-{sampleid}-{res}.png",
+            f"figs/rocml-rmse-test-mean-{p.replace('_', '-')}-{sampleid}-{res}.png",
+            f"figs/rocml-rmse-val-mean-{p.replace('_', '-')}-{sampleid}-{res}.png",
             "figs/temp2.png",
             caption1="c)",
             caption2="d)"
         )
 
-        os.remove(f"figs/rocml-rmse-test-mean-{param}-{sampleid}-{res}.png")
-        os.remove(f"figs/rocml-rmse-val-mean-{param}-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-rmse-test-mean-{p.replace('_', '-')}-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-rmse-val-mean-{p.replace('_', '-')}-{sampleid}-{res}.png")
 
         # Stack rows
         combine_plots_vertically(
             "figs/temp1.png",
             "figs/temp2.png",
-            f"figs/benchmark-rocmls-metrics-{param}.png",
+            f"figs/benchmark-rocmls-metrics-{p.replace('_', '-')}.png",
             caption1="",
             caption2=""
         )

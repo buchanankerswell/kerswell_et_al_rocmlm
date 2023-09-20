@@ -6,11 +6,12 @@ from rocml import (
 
 # Parse arguments and check
 args = parse_arguments()
-valid_args = check_arguments(args, "earthchem-pca-mixing-arrays.py")
+valid_args = check_arguments(args, "make-pca-arrays.py")
 
 # Load valid arguments
 locals().update(valid_args)
 
+# Make PCA mixing arrays
 pca_mixing_arrays(
     res=res,
     oxides=oxides,
@@ -20,4 +21,4 @@ pca_mixing_arrays(
     data_dir=datadir
 )
 
-print("earthchem-pca-mixing-arrays.py done!")
+print("make-pca-arrays.py done!")

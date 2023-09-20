@@ -22,7 +22,7 @@ mgm_results_valid = os.path.exists(f"{outdir}/magemin_{sampleid}_valid_{res}")
 ppx_results_train = os.path.exists(f"{outdir}/perplex_{sampleid}_train_{res}")
 ppx_results_valid = os.path.exists(f"{outdir}/perplex_{sampleid}_valid_{res}")
 
-print(f"Plotting results for {sampleid}:")
+print(f"Plotting results for {sampleid} ...")
 
 # Plot MAGEMin output
 if (mgm_results_train and mgm_results_valid):
@@ -42,7 +42,7 @@ if (mgm_results_train and mgm_results_valid and ppx_results_train and ppx_result
     # Plot MAGEMin Perple_X compositions
     for p in params:
         # Create composition for continuous variables
-        if p not in ["StableSolutions", "StableVariance"]:
+        if p not in ["assemblage", "assemblage_variance"]:
             for ds in ["train", "valid"]:
                 # First row
                 combine_plots_horizontally(
@@ -57,7 +57,7 @@ if (mgm_results_train and mgm_results_valid and ppx_results_train and ppx_result
                 os.remove(f"{figdir}/Perple_X-{sampleid}-{ds}-{p}.png")
 
                 # Second row
-                if p in ["DensityOfFullAssemblage", "Vp", "Vs"]:
+                if p in ["rho", "Vp", "Vs"]:
                     combine_plots_horizontally(
                         f"{figdir}/diff-{sampleid}-{ds}-{p}.png",
                         f"{figdir}/prem-{sampleid}-{ds}-{p}.png",
@@ -82,7 +82,7 @@ if (mgm_results_train and mgm_results_valid and ppx_results_train and ppx_result
                 os.remove(f"{figdir}/temp2.png")
 
         # Create composition for discrete variables
-        if p in ["StableSolutions", "StableVariance"]:
+        if p in ["assemblage", "assemblage_variance"]:
             # First row
             combine_plots_horizontally(
                 f"{figdir}/MAGEMin-{sampleid}-train-{p}.png",

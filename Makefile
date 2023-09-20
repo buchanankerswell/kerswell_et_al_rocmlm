@@ -14,15 +14,15 @@ CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
 # Magemin programs
 MAGEMIN = MAGEMin
 # Perplex programs
-PERPLEX = assets/perplex
+PERPLEXDIR = assets/perplex
 # Directories with data and scripts
 DATADIR = assets/data
-CONFIG = assets/config
+CONFIGDIR = assets/config
 PYTHON = python/build-magemin-dataset.py \
 				 python/build-perplex-dataset.py \
 				 python/clone-magemin.py \
 				 python/download-assets.py \
-				 python/earthchem-pca-mixing-arrays.py \
+				 python/make-pca-arrays.py \
 				 python/rocml.py \
 				 python/session-info.py \
 				 python/submit-jobs.py \
@@ -37,28 +37,27 @@ PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 8
+RES ?= 64
 EMSONLY ?= True
 DATASET ?= train
 NORMOX ?= all
 SEED = 42
 PARALLEL ?= True
-NPROCS ?= $(shell expr $(shell nproc) - 2)
-KFOLDS ?= $(shell expr $(shell nproc) - 2)
+NPROCS ?= 6
+KFOLDS ?= 6
 OUTDIR ?= runs
 VERBOSE ?= False
 # RocML options
-MLPARAMS ?= ["DensityOfFullAssemblage", "Vp", "Vs", "LiquidFraction"]
-MLMODS ?= ["KN", "RF", "DT", "NN1"]
-#MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
+MLPARAMS ?= ["rho", "Vp", "Vs", "melt_fraction"]
+MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
 MLTUNE ?= False
-# Bulk rock composition sampling options
+# PCA options
 OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
 NPCA ?= 3
 KCLUSTER ?= 3
 # Visualization options
 FIGDIR ?= figs
-PARAMS ?= ["StableSolutions", "StableVariance", "DensityOfFullAssemblage"]
+VISPARAMS ?= ["assemblage", "assemblage_variance", "rho"]
 COLORMAP ?= bone
 # Cleanup directories
 DATAPURGE = python/__pycache__ \
@@ -71,7 +70,7 @@ DATACLEAN = assets log MAGEMin runs
 FIGSPURGE =
 FIGSCLEAN = figs
 
-all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
@@ -84,7 +83,7 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAG
 	@$(MAKE) visualize_dataset
 	@$(MAKE) visualize_other
 
-init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIG) $(PERPLEX) $(MAGEMIN)
+init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 	@$(CONDAPYTHON) python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
@@ -115,7 +114,7 @@ visualize_dataset: $(LOGFILE) $(PYTHON)
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
 		--dataset $(DATASET) \
-		--params '$(PARAMS)' \
+		--params '$(VISPARAMS)' \
 		--colormap $(COLORMAP) \
 		--outdir $(OUTDIR) \
 		--figdir $(FIGDIR) \
@@ -123,7 +122,7 @@ visualize_dataset: $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-train_all_benchmark_rocmls: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
+train_all_benchmarks: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEXDIR)
 	@for sample in DMM NMORB PUM RE46; do \
 		for res in 8 16 32 64 128; do \
 			$(MAKE) train_benchmark_rocmls SAMPLEID=$$sample RES=$$res; \
@@ -149,7 +148,7 @@ train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-build_all_benchmarks_datasets: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN) $(PERPLEX)
+build_all_benchmarks: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEXDIR)
 	@for sample in DMM NMORB PUM RE46; do \
 		for res in 8 16 32 64 128; do \
 			for dataset in train valid; do \
@@ -159,7 +158,7 @@ build_all_benchmarks_datasets: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEM
 		done; \
   done
 
-magemin_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN)
+magemin_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN)
 	@$(CONDAPYTHON) python/build-magemin-dataset.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
@@ -179,11 +178,8 @@ magemin_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(MAGEMIN)
 		--verbose $(VERBOSE) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
-	@echo "To visualize dataset, run:" $(LOG)
-	@echo "make visualize_dataset SAMPLEID=$(SAMPLEID) RES=$(RES)" $(LOG)
-	@echo "=============================================" $(LOG)
 
-perplex_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX)
+perplex_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR)
 	@$(CONDAPYTHON) python/build-perplex-dataset.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
@@ -199,18 +195,15 @@ perplex_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIG) $(PERPLEX)
 		--nprocs $(NPROCS) \
 		--outdir $(OUTDIR) \
 		--datadir $(DATADIR) \
-		--configdir $(CONFIG) \
-		--perplexdir $(PERPLEX) \
+		--configdir $(CONFIGDIR) \
+		--perplexdir $(PERPLEXDIR) \
 		--logfile log/log-perplex-$(SAMPLEID)-$(DATASET)-$(RES)-$(DATE) \
 		--verbose $(VERBOSE) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
-	@echo "To visualize dataset, run:" $(LOG)
-	@echo "make visualize_dataset SAMPLEID=$(SAMPLEID) RES=$(RES)" $(LOG)
-	@echo "=============================================" $(LOG)
 
 earthchem_pca_mixing_arrays:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/earthchem-pca-mixing-arrays.py \
+	@$(CONDAPYTHON) python/make-pca-arrays.py \
 		--res $(RES) \
 		--oxides '$(OXIDES)' \
 		--npca $(NPCA) \
@@ -237,29 +230,29 @@ $(MAGEMIN): $(LOGFILE) $(PYTHON)
 		echo "MAGEMin programs found!" $(LOG); \
 	fi
 
-remove_conda_env: $(LOGFILE)
-	@echo "Removing conda env $(CONDAENVNAME) ..." $(LOG)
-	@conda remove --name $(CONDAENVNAME) --all --yes $(LOG)
+remove_conda_env:
+	@echo "Removing conda env $(CONDAENVNAME) ..."
+	@conda remove --name $(CONDAENVNAME) --all --yes
 
 create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	@if [ "$(HASCONDA)" = "false" ]; then \
-		echo "conda not found in PATH, install conda first!" $(LOG); \
+		echo "conda not found in PATH ..." $(LOG); \
+		echo "install conda first!" $(LOG); \
 		echo "See: https://github.com/buchanankerswell/kerswell_et_al_rocml" $(LOG); \
 		exit 1; \
 	fi
 	@if [ -d "$(MY_ENV_DIR)" ]; then \
 		echo "Conda environment \"$(CONDAENVNAME)\" found!" $(LOG); \
 	else \
-		echo "Creating environment $(CONDAENVNAME) from:" $(LOG); \
-		echo "	$(CONDASPECSFILE)" $(LOG); \
-		conda env create --file $(CONDASPECSFILE) $(LOG); \
-		echo "	Conda environment $(CONDAENVNAME) created ..." $(LOG); \
+		echo "Creating environment $(CONDAENVNAME) ..." $(LOG); \
+		conda env create --file $(CONDASPECSFILE) $(LOG) > /dev/null 2>&1; \
+		echo "Conda environment $(CONDAENVNAME) created!" $(LOG); \
 	fi
 
 find_conda_env: $(LOGFILE)
 	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
 
-$(PERPLEX): $(LOGFILE) $(PYTHON)
+$(PERPLEXDIR): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
@@ -273,8 +266,8 @@ $(DATADIR): $(LOGFILE) $(PYTHON)
 		echo "Data files found!" $(LOG); \
 	fi
 
-$(CONFIG): $(LOGFILE) $(PYTHON)
-	@if [ ! -e "$(CONFIG)" ]; then \
+$(CONFIGDIR): $(LOGFILE) $(PYTHON)
+	@if [ ! -e "$(CONFIGDIR)" ]; then \
 		$(CONDAPYTHON) python/download-assets.py $(LOG); \
 	else \
 		echo "Config files found!" $(LOG); \
