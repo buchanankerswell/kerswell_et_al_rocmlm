@@ -1002,49 +1002,6 @@ def count_lines(filepath):
     return line_count
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# merge dictionaries !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def merge_dictionaries(dictionaries):
-    """
-    Merge a list of dictionaries by key terms.
-
-    Args:
-        dictionaries (list): A list of dictionaries to merge.
-
-    Returns:
-        dict: A single dictionary with merged key-value pairs.
-
-    Raises:
-        ValueError: If the dictionaries list is empty.
-    """
-    if not dictionaries:
-        raise ValueError("The dictionaries list is empty.")
-
-    merged_dict = {}
-
-    for dictionary in dictionaries:
-        for key, value in dictionary.items():
-            if key in merged_dict:
-                if isinstance(merged_dict[key], list):
-                    if isinstance(value, list):
-                        merged_dict[key].extend(value)
-
-                    else:
-                        merged_dict[key].append(value)
-
-                else:
-                    if isinstance(value, list):
-                        merged_dict[key] = [merged_dict[key]] + value
-
-                    else:
-                        merged_dict[key] = [merged_dict[key], value]
-
-            else:
-                merged_dict[key] = value
-
-    return merged_dict
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # replace in file !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def replace_in_file(filepath, replacements):
@@ -1171,11 +1128,12 @@ def get_comp_time(log_file, sample_id, dataset, res, nprocs, data_dir="assets/da
                 if match:
                     time_ms = float(match.group(1))
 
-                    if nprocs <= 0:
+                    if nprocs <= 1:
                         time_s = time_ms / 1000
 
                     else:
-                        time_s = time_ms / 1000 * nprocs
+                        # Divide by 2 because MPI computes each PT point twice!! (wtf??)
+                        time_s = time_ms / 1000 * nprocs / 2
 
                     time_values_mgm.append(time_s)
 
@@ -1761,8 +1719,8 @@ def run_magemin(sample_id, res, dataset, emsonly=True, parallel=True,
 # configure perplex model !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def configure_perplex_model(P_min, P_max, T_min, T_max, res, source, sample_id, normox,
-                      dataset, emsonly=True, config_dir="assets/config",
-                      perplex_dir="assets/perplex", out_dir="runs"):
+                            dataset, emsonly=True, config_dir="assets/config",
+                            perplex_dir="assets/perplex", out_dir="runs"):
     """
     Configures the Perple_X thermodynamic modeling software for a specific dataset and sample.
 
@@ -1896,8 +1854,8 @@ def configure_perplex_model(P_min, P_max, T_min, T_max, res, source, sample_id, 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # run perplex !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def run_perplex(sample_id, dataset, res, emsonly=True, perplex_dir="assets/perplex",
-                out_dir="runs", verbose=False):
+def run_perplex(sample_id, dataset, res, emsonly=True,
+                perplex_dir="assets/perplex", out_dir="runs", verbose=False):
     """
     Runs Perple_X with the specified parameters.
 
@@ -1990,7 +1948,8 @@ def run_perplex(sample_id, dataset, res, emsonly=True, perplex_dir="assets/perpl
                     print(f"Error executing {program}: {stderr.decode()}")
 
                 elif verbose:
-                    print(f"{program} output:\n{stdout.decode()}")
+                    print(f"{program} output:")
+                    print(f"{stdout.decode()}")
 
                 if program == "werami" and i == 0:
                     # Copy werami pseudosection output
@@ -2054,6 +2013,50 @@ def run_perplex(sample_id, dataset, res, emsonly=True, perplex_dir="assets/perpl
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# merge dictionaries !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def merge_dictionaries(dictionaries):
+    """
+    Merge a list of dictionaries by key terms.
+
+    Args:
+        dictionaries (list): A list of dictionaries to merge.
+
+    Returns:
+        dict: A single dictionary with merged key-value pairs.
+
+    Raises:
+        ValueError: If the dictionaries list is empty.
+    """
+    # Check for empty list
+    if not dictionaries:
+        raise ValueError("The dictionaries list is empty.")
+
+    merged_dict = {}
+
+    for dictionary in dictionaries:
+        for key, value in dictionary.items():
+            if key in merged_dict:
+                if isinstance(merged_dict[key], list):
+                    if isinstance(value, list):
+                        merged_dict[key].extend(value)
+
+                    else:
+                        merged_dict[key].append(value)
+
+                else:
+                    if isinstance(value, list):
+                        merged_dict[key] = [merged_dict[key]] + value
+
+                    else:
+                        merged_dict[key] = [merged_dict[key], value]
+
+            else:
+                merged_dict[key] = value
+
+    return merged_dict
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # encode phases !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def encode_phases(phases, filepath=None):
@@ -2091,7 +2094,7 @@ def encode_phases(phases, filepath=None):
     # Encoding phase assemblage numbers
     for phase_assemblage in phases:
         if phase_assemblage == "":
-            encoded_assemblages.append(math.nan)
+            encoded_assemblages.append(np.nan)
 
         else:
             encoded_assemblage = unique_assemblages[tuple(sorted(phase_assemblage))]
@@ -2102,7 +2105,7 @@ def encode_phases(phases, filepath=None):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # create feature array !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def create_feature_array(results):
+def create_feature_array(results, square_pt_array=True):
     """
     Parameters:
         results (dict): A dictionary containing the training dataset results.
@@ -2123,19 +2126,30 @@ def create_feature_array(results):
     P = [P / 10 for P in results["P"]]
     T = [T + 273 for T in results["T"]]
 
-    # Reshape into (W, 1) arrays
-    P_unique = np.unique(np.array(P)).reshape(-1, 1)
-    T_unique = np.unique(np.array(T)).reshape(1, -1)
+    print(len(P))
+    print(len(T))
 
-    # Get array dimensions
-    W = P_unique.shape[0]
+    if square_pt_array:
+        # Reshape into (W, 1) arrays
+        P_unique = np.unique(np.array(P)).reshape(-1, 1)
+        T_unique = np.unique(np.array(T)).reshape(1, -1)
 
-    # Reshape into (W, W) arrays by repeating values
-    P_array = np.tile(P_unique, (1, W))
-    T_array = np.tile(T_unique, (W, 1))
+        # Get array dimensions
+        W = P_unique.shape[0]
 
-    # Combine P and T arrays into a single feature dataset with shape (W, W, 2)
-    feature_array = np.stack((P_array, T_array), axis=-1)
+        # Reshape into square (W, W) arrays by repeating values
+        P_array = np.tile(P_unique, (1, W))
+        T_array = np.tile(T_unique, (W, 1))
+
+        # Combine P and T arrays into a single feature dataset with shape (W, W, 2)
+        feature_array = np.stack((P_array, T_array), axis=-1)
+
+    else:
+        # Transform into np arrays
+        P_array = np.array(P)
+        T_array = np.array(T)
+
+        feature_array = np.stack((P_array, T_array), axis=-1)
 
     return P, T, feature_array
 
@@ -2239,41 +2253,50 @@ def process_magemin_output(filepath):
     # Skip the comment line
     lines = lines[1:]
 
-    # Extract results
+    # Initialize results
     results = []
-    i_point = 0
 
+    # Read lines
     while lines:
-        # Read line with PT, Gamma, etc.
+        # Get line with PT, Gamma, etc.
         line = lines.pop(0)
+
+        # Split line at whitespace and transform into floats
         a = list(map(float, line.split()))
-        num_point = int(a[0])
-        status = int(a[1])
 
-        p = a[2]
-        t = a[3]
-        gibbs = a[4]
-        br_norm = a[5]
-        gamma = a[6:17]
-        vp = a[17]
-        vs = a[18]
-        entropy = a[19]
+        # Get parameters
+        num_point = int(a[0]) # PT point
+        status = int(a[1]) # solution status
+        p = a[2] # P kbar
+        t = a[3] # T celcius
+        gibbs = a[4] # gibbs free energy J
+        br_norm = a[5] # normalized mass residual
+        gamma = a[6:15] # chemical potential of pure components (gibbs hyperplane)
+        unknown = a[16] # unknown parameter following gamma in output ???
+        vp = a[17] # P-wave velocity km/s
+        vs = a[18] # S-wave velocity km/s
+        entropy = a[19] # entropy J/K
 
-        # Get stable solutions and endmember info
-        stable_solutions = []
-        stable_fractions = []
-        density = []
-        compositional_var = []
+        # Initialize empty lists for stable solutions and endmember info
+        assemblage = []
+        assemblage_mode = []
+        assemblage_rho = []
+        compositional_vars = []
         em_fractions = []
         em_list = []
 
-        i = 0
+        # Get line with stable solutions and endmember info
         line = lines.pop(0)
 
+        # Read line
         while line.strip():
+            # Split line at whitespace
             out = line.split()
+
+            # Initialize empty list to store stable solutions info
             data = []
 
+            # Store stable solutions info as floats or strings (if not numeric)
             for value in out:
                 try:
                     data.append(float(value))
@@ -2281,57 +2304,62 @@ def process_magemin_output(filepath):
                 except ValueError:
                     data.append(value)
 
-            stable_solutions.append(data[0])
-            stable_fractions.append(data[1])
-            density.append(data[2])
+            # Store stable solutions info
+            assemblage.append(data[0]) # phase assemblage
+            assemblage_mode.append(data[1]) # assemblage mode
+            assemblage_rho.append(data[2]) # assemblage density
 
+            # Initialize empty lists for endmember info
             comp_var = []
             em_frac = []
             em = []
 
             if len(data) > 4:
-                n_xeos = int(data[3])
-                comp_var = data[4:4 + n_xeos]
-                em = out[4 + n_xeos::2]
-                em_frac = data[5 + n_xeos::2]
+                n_xeos = int(data[3]) # number of compositional variables
+                comp_var = data[4:4 + n_xeos] # compositional variables
+                em = out[4 + n_xeos::2] # endmembers
+                em_frac = data[5 + n_xeos::2] # endmember fractions
 
-            compositional_var.append(comp_var)
+            # Store endmember info
+            compositional_vars.append(comp_var)
             em_fractions.append(em_frac)
             em_list.append(em)
 
-            i += 1
             line = lines.pop(0)
 
-        # Extract melt fraction
-        ind_liq = [idx for idx, sol in enumerate(stable_solutions) if sol == "liq"]
+        # Get indices of melt
+        ind_liq = [idx for idx, sol in enumerate(assemblage) if sol == "liq"]
 
+        # Get melt fraction
         if ind_liq:
-            liq = stable_fractions[ind_liq[0]]
+            liq = assemblage_mode[ind_liq[0]]
 
         else:
             liq = 0
 
         # Compute average density of full assemblage
-        density_total = sum(frac * dens for frac, dens in zip(stable_fractions, density))
+        density_total = sum(
+            frac * dens for frac, dens in zip(assemblage_mode, assemblage_rho)
+        )
 
         # Compute density of liq
         if liq > 0:
-            density_liq = density[ind_liq[0]]
+            density_liq = assemblage_rho[ind_liq[0]]
 
-            ind_sol = [idx for idx, sol in enumerate(stable_solutions) if sol != "liq"]
+            # Get indices of stable phases
+            ind_sol = [idx for idx, sol in enumerate(assemblage) if sol != "liq"]
 
+            # Compute average density of stable phases
             if ind_sol:
-                density_sol =\
-                    sum(
-                        frac * dens for frac, dens in zip(
-                            [stable_fractions[idx] for idx in ind_sol],
-                            [density[idx] for idx in ind_sol]
-                        )
-                    ) / sum([stable_fractions[idx] for idx in ind_sol])
+                density_sol = sum(frac * dens for frac, dens in zip(
+                    [assemblage_mode[idx] for idx in ind_sol],
+                    [assemblage_rho[idx] for idx in ind_sol]
+                )) / sum([assemblage_mode[idx] for idx in ind_sol])
 
             else:
                 density_sol = 0
 
+            # Compute density of solid-melt mixture
             density_mix = (liq * density_liq + (1 - liq) * density_sol)
 
         else:
@@ -2339,39 +2367,37 @@ def process_magemin_output(filepath):
             density_sol = 0
             density_mix = 0
 
-        # Append results to the list
+        # Append results dictionary
         results.append({
-            "point": num_point,
-            "status": status,
-            "P": p,
-            "T": t,
-            "gibbs": gibbs,
-            "br_norm": br_norm,
-            "gamma": [gamma],
-            "Vp": vp,
-            "Vs": vs,
-            "entropy": entropy,
-            "assemblage": [stable_solutions],
-            "assemblage_mode": [stable_fractions],
-            "assemblage_density": density,
-            "assemblage_variance": [compositional_var],
-            "endmember_list": [em_list],
-            "endmember_mode": [em_fractions],
-            "melt_fraction": liq,
-            "rho": density_total,
-            "rho_liquid": density_liq,
-            "rho_solid": density_sol,
-            "rho_mixture": density_mix
+            "point": num_point, # point
+#            "status": status, # solution status
+            "T": t, # temperature celcius
+            "P": p, # pressure kbar
+            "rho": density_total, # density of full assemblage kg/m3
+#            "gibbs": gibbs, # gibbs free energy
+#            "br_norm": br_norm, # bulk residual norm (system mass constraint residual norm)
+#            "gamma": [gamma], # chemical potential of the pure components (gibbs hyperplane)
+            "Vp": vp, # pressure wave velocity km/s
+            "Vs": vs, # shear wave velocity km/s
+            "entropy": entropy, # entropy J/K
+            "melt_fraction": liq, # melt fraction
+            "assemblage": [assemblage], # stable assemblage
+#            "assemblage_mode": [assemblage_mode], # stable assemblage fractions
+#            "assemblage_rho": [assemblage_rho], # stable assemblage density kg/m3
+#            "compositional_vars": [compositional_vars],
+#            "endmember_list": [em_list], # list of endmembers
+#            "endmember_mode": [em_fractions], # modes of endmembers
+#            "rho_liquid": density_liq, # density of liquid kg/m3
+#            "rho_solid": density_sol, # density of solid kg/m3
+#            "rho_mixture": density_mix # density of mixture kg/m3
         })
-
-        i_point += 1
 
     return results
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process magemin results !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
+def process_magemin_results(sample_id, dataset, res, out_dir="runs", verbose=True):
     """
     Process multiple MAGEMin output files in a directory based on a filename pattern.
 
@@ -2391,15 +2417,16 @@ def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
     """
     # Check for MAGEMin output files
     if not os.path.exists(f"{out_dir}"):
-        sys.exit("No MAGEMin output files to process ...")
+        sys.exit("No MAGEMin files to process ...")
 
     if not os.path.exists(f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"):
-        sys.exit("No MAGEMin output files to process ...")
+        sys.exit("No MAGEMin files to process ...")
 
     # Get filenames directory for files
     directory = f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"
     pattern = f"magemin-{sample_id}-{dataset}-{res}_*.txt"
 
+    # Initialize empty list to store results
     results = []
 
     # Process files
@@ -2423,7 +2450,67 @@ def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
         count = len(unique_phases)
         assemblage_variance.append(count)
 
+    # Add assemblage variance to merged results
     merged_results["assemblage_variance"] = assemblage_variance
+
+    # Remove duplicates for results
+    # For some reason the MPI implementation in MAGEMin duplicates points!! (wtf??)
+    seen = set()
+    duplicate_indices = []
+
+    # Get duplicate indices according to the PT points
+    for i, item in enumerate(merged_results["point"]):
+        if item in seen:
+            duplicate_indices.append(i)
+        else:
+            seen.add(item)
+
+    # Remove duplicates
+    for key, value in merged_results.items():
+        merged_results[key] = [
+            merged_results[key][i] for i in range(len(merged_results[key]))
+            if i not in duplicate_indices
+        ]
+
+    # Get sorted indices according to the PT points
+    sorted_indices = sorted(
+        range(len(merged_results["point"])), key=lambda x: merged_results["point"][x]
+    )
+
+    # Sort results
+    for key, value in merged_results.items():
+        merged_results[key] = [merged_results[key][i] for i in sorted_indices]
+
+    # Remove point index
+    merged_results.pop("point")
+
+    # Point parameters that can be converted to numpy arrays
+    point_params = ["T", "P", "rho", "Vp", "Vs", "entropy",
+                    "melt_fraction", "assemblage_variance"]
+
+    # Convert numeric point parameters into numpy arrays
+    for key, value in merged_results.items():
+        if key in point_params:
+            if key == "P":
+                # Convert from kbar to GPa
+                merged_results[key] = np.array(value) / 10
+            elif key == "T":
+                # Convert from C to K
+                merged_results[key] = np.array(value) + 273
+            else:
+                merged_results[key] = np.array(value)
+
+    # Print results
+    if verbose:
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
+        print(f"MAGEMin results: {out_dir}/magemin_{sample_id}_{dataset}_{res}")
+        for key, value in merged_results.items():
+            if isinstance(value, list):
+                print(f"    ({len(value)},) list:      : {key}")
+
+            elif isinstance(value, np.ndarray):
+                print(f"    {value.shape} numpy array: {key}")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     return merged_results
 
@@ -2436,37 +2523,45 @@ def process_magemin_results(sample_id, dataset, res, out_dir="runs"):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def process_perplex_assemblage(filepath):
     """
-    Process the Perple_X assemblage file and extract the phase assemblages.
+    Process the Perple_X assemblage file and extract the assemblage assemblages.
 
     Args:
         filepath (str): The path to the Perple_X assemblage file.
 
     Returns:
         dict: A dictionary where the keys represent line numbers in the file and the values
-            are lists of phase names that form the corresponding phase assemblages.
+            are lists of assemblage names that form the corresponding assemblage assemblages.
 
     Raises:
         FileNotFoundError: If the specified assemblage file does not exist.
     """
-    phase_dict = {}
+    # Initialize dictionary to store assemblage info
+    assemblage_dict = {}
 
+    # Open assemblage file
     with open(filepath, "r") as file:
-        for line_number, line in enumerate(file, start=1):
-            phases = line.split("-")[1].strip().split()
-            cleaned_phases = [phase.split("(")[0].lower() for phase in phases]
-            phase_dict[line_number] = cleaned_phases
+        for i, line in enumerate(file, start=1):
+            assemblages = line.split("-")[1].strip().split()
 
-    return phase_dict
+            # Make string formatting consistent
+            cleaned_assemblages = [
+                assemblage.split("(")[0].lower() for assemblage in assemblages
+            ]
+
+            # Add assemblage to dict
+            assemblage_dict[i] = cleaned_assemblages
+
+    return assemblage_dict
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process perplex results !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def process_perplex_results(filepath_targets, filepath_assemblages):
+def process_perplex_results(sample_id, dataset, res, out_dir="runs", verbose=True):
     """
     Process the Perple_X assemblage file and extract the phase assemblages.
 
     Args:
-        filepath_assemblages (str): The path to the Perple_X assemblage file.
+        filepath_assemblage (str): The path to the Perple_X assemblage file.
 
     Returns:
         list: A list of phase assemblages, where each assemblage is represented
@@ -2476,6 +2571,23 @@ def process_perplex_results(filepath_targets, filepath_assemblages):
         FileNotFoundError: If the specified assemblage file does not exist.
         ValueError: If there is an error in parsing the assemblage data.
     """
+    # Check for Perple_X output files
+    if not os.path.exists(f"{out_dir}"):
+        sys.exit("No Perple_X files to process ...")
+
+    # Get filepaths for targets and assemblage files
+    filepath_targets = f"{out_dir}/perplex_{sample_id}_train_{res}/target-array.tab"
+    filepath_assemblage = f"{out_dir}/perplex_{sample_id}_train_{res}/assemblages.txt"
+
+    # Check for targets
+    if not os.path.exists(filepath_targets):
+        sys.exit("No Perple_X target file to process ...")
+
+    # Check for assemblages
+    if not os.path.exists(filepath_assemblage):
+        sys.exit("No Perple_X assemblage file to process ...")
+
+    # Initialize results
     results = {
         "T": [],
         "P": [],
@@ -2489,6 +2601,7 @@ def process_perplex_results(filepath_targets, filepath_assemblages):
         "assemblage_variance": []
     }
 
+    # Open file
     with open(filepath_targets, "r") as file:
         # Skip lines until column headers are found
         for line in file:
@@ -2497,60 +2610,84 @@ def process_perplex_results(filepath_targets, filepath_assemblages):
 
         # Read the data
         for line in file:
+            # Split line on whitespace
             values = line.split()
 
+            # Read the table of P, T, rho etc.
             if len(values) >= 8:
                 try:
                     for i in range(8):
+                        # Make values floats or assign nan
                         value = (
                             float(values[i])
-                            if not math.isnan(float(values[i]))
-                            else math.nan
+                            if not np.isnan(float(values[i]))
+                            else np.nan
                         )
 
-                        if i == 0:  # T column
-                            value -= 273  # Subtract 273 from T
+                        # Convert from bar to GPa
+                        if i == 1: # P column
+                            value /= 1e4
 
-                        if i == 1:  # P column
-                            value /= 1000  # Divide P by 1000
+                        # Convert assemblage index to an integer
+                        if i == 6: # assemblage index column
+                            value = int(value) if not np.isnan(value) else np.nan
 
-                        if i == 6:  # assemblage index column
-                            value = (
-                                int(value)
-                                if not math.isnan(value)
-                                else math.nan
-                            )
+                        # Convert from % to fraction
+                        if i == 7: # melt fraction column
+                            value /= 100
 
-                        if i == 7:  # melt fraction column
-                            value /= 100  # Divide melt fraction by 100
-
+                        # Append results
                         results[list(results.keys())[i]].append(value)
 
                 except ValueError:
                     continue
 
     # Get assemblages from file
-    assemblages = process_perplex_assemblage(filepath_assemblages)
+    assemblages = process_perplex_assemblage(filepath_assemblage)
 
-    # Add assemblage to dictionary
+    # Parse assemblages by index
     for index in results.get("assemblage_index"):
-        if math.isnan(index):
+        if np.isnan(index):
             results["assemblage"].append("")
 
         else:
             phases = assemblages[index]
             results["assemblage"].append(phases)
 
-    # Add assemblage variance to dictionary
+    # Count unique phases (assemblage variance)
     for assemblage in results.get("assemblage"):
         if assemblage is None:
-            count = math.nan
+            results["assemblage_variance"].append(np.nan)
 
         else:
             unique_phases = set(assemblage)
             count = len(unique_phases)
 
-        results["assemblage_variance"].append(count)
+            results["assemblage_variance"].append(count)
+
+    # Remove assemblage index
+    results.pop("assemblage_index")
+
+    # Point parameters that can be converted to numpy arrays
+    point_params = ["T", "P", "rho", "Vp", "Vs", "entropy",
+                    "melt_fraction", "assemblage_variance"]
+
+    # Convert numeric point parameters into numpy arrays
+    for key, value in results.items():
+        if key in point_params:
+            results[key] = np.array(value)
+
+    # Print results
+    if verbose:
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
+        print(f"Perple_X results: {out_dir}/perplex_{sample_id}_{dataset}_{res}")
+        for key, value in results.items():
+            if isinstance(value, list):
+                print(f"    ({len(value)},) list       : {key}")
+
+            elif isinstance(value, np.ndarray):
+                print(f"    {value.shape} numpy array: {key}")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     return results
 
@@ -4092,6 +4229,23 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=True, magemin=T
         - The results of ML model, including plots and performance information, are saved to
             appropriate files.
     """
+    # Check for MAGEMin and Perple_X output files
+    if not os.path.exists(f"{out_dir}"):
+        sys.exit("No MAGEMin and/or Perple_X files to process ...")
+
+    if not os.path.exists(f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"):
+        sys.exit("No MAGEMin files to process ...")
+
+    # Get filenames directory for files
+    filepath_targets = f"{out_dir}/perplex_{sample_id}_train_{res}/target-array.tab"
+    filepath_assemblage = f"{out_dir}/perplex_{sample_id}_train_{res}/assemblages.txt"
+
+    if not os.path.exists(filepath_targets):
+        sys.exit("No Perple_X files to process ...")
+
+    if not os.path.exists(filepath_assemblage):
+        sys.exit("No Perple_X files to process ...")
+
     if magemin:
         # Get results
         results_mgm = process_magemin_results(sample_id, "train", res, out_dir)
@@ -4103,14 +4257,8 @@ def run_rocml_training(sample_id, res, parameters, mask_geotherm=True, magemin=T
 
     if perplex:
         # Get results
-        results_ppx = process_perplex_results(
-            f"{out_dir}/perplex_{sample_id}_train_{res}/target-array.tab",
-            f"{out_dir}/perplex_{sample_id}_train_{res}/assemblages.txt"
-        )
-        results_ppx_val = process_perplex_results(
-            f"{out_dir}/perplex_{sample_id}_valid_{res}/target-array.tab",
-            f"{out_dir}/perplex_{sample_id}_valid_{res}/assemblages.txt"
-        )
+        results_ppx = process_perplex_results(sample_id, "train", res, out_dir)
+        results_ppx_val = process_perplex_results(sample_id, "valid", res, out_dir)
 
         # Make liquid fraction consistent
         results_ppx["melt_fraction"] = [
@@ -5147,7 +5295,7 @@ def visualize_training_PT_range(T_mantle1=273, T_mantle2=1773,
 
     # Phase boundaries legend handles
     ref_line_handles = [
-        mlines.Line2D([], [], color=color, label=label) \
+        mlines.Line2D([], [], color=color, label=label)
         for label, color in label_color_mapping.items() if label
     ]
 
@@ -5484,10 +5632,7 @@ def visualize_training_dataset(program, sample_id, res, dataset, parameters,
 
     elif program == "Perple_X":
         # Get perplex results
-        results = process_perplex_results(
-            f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/target-array.tab",
-            f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/assemblages.txt"
-        )
+        results = process_perplex_results(sample_id, dataset, res, out_dir)
 
     else:
         raise ValueError(
@@ -5599,10 +5744,7 @@ def visualize_training_dataset_diff(sample_id, res, dataset, parameters, mask_ge
     results_mgm = process_magemin_results(sample_id, dataset, res, out_dir)
 
     # Get perplex results
-    results_ppx = process_perplex_results(
-        f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/target-array.tab",
-        f"{out_dir}/perplex_{sample_id}_{dataset}_{res}/assemblages.txt"
-    )
+    results_ppx = process_perplex_results(sample_id, dataset, res, out_dir)
 
     # Get PT values MAGEMin and transform units
     P_mgm = [P / 10 for P in results_mgm["P"]]

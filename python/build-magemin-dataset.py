@@ -14,12 +14,13 @@ valid_args = check_arguments(args, "build-magemin-dataset.py")
 locals().update(valid_args)
 
 # Configure MAGEMin model
-configure_magemin_model(Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset)
+configure_magemin_model(Pmin, Pmax, Tmin, Tmax, res, source,
+                        sampleid, normox, dataset, outdir)
 
 # Run MAGEMin
-run_magemin(sampleid, res, dataset)
+run_magemin(sampleid, res, dataset, emsonly, parallel, nprocs, outdir, verbose)
 
 # Get MAGEMin comp time and write to csv
-get_comp_time(logfile, sampleid, dataset, res, nprocs)
+get_comp_time(logfile, sampleid, dataset, res, nprocs, datadir)
 
 print("build-magemin-dataset.py done!")

@@ -37,7 +37,7 @@ PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 64
+RES ?= 8
 EMSONLY ?= True
 DATASET ?= train
 NORMOX ?= all
@@ -129,6 +129,26 @@ train_all_benchmarks: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(
 		done; \
 		$(MAKE) visualize_dataset SAMPLEID=$$sample RES=$$res; \
   done
+
+test:  $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) python/test.py \
+		--sampleid '$(SAMPLEID)' \
+		--res $(RES) \
+		--dataset $(DATASET) \
+		--params '$(MLPARAMS)' \
+		--models '$(MLMODS)' \
+		--tune $(MLTUNE) \
+		--seed $(SEED) \
+		--kfolds $(KFOLDS) \
+		--parallel $(PARALLEL) \
+		--nprocs $(NPROCS) \
+		--colormap $(COLORMAP) \
+		--outdir $(OUTDIR) \
+		--figdir $(FIGDIR) \
+		--datadir $(DATADIR) \
+		--verbose $(VERBOSE) \
+	$(LOG)
+	@echo "=============================================" $(LOG)
 
 train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
 	@$(CONDAPYTHON) python/train-benchmark-rocmls.py \

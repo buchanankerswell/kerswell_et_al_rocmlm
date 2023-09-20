@@ -14,12 +14,13 @@ valid_args = check_arguments(args, "build-perplex-dataset.py")
 locals().update(valid_args)
 
 # Configure Perple_X model
-configure_perplex_model(Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset)
+configure_perplex_model(Pmin, Pmax, Tmin, Tmax, res, source, sampleid,
+                        normox, dataset, emsonly, configdir, perplexdir, outdir)
 
 # Run Perple_X
-run_perplex(sampleid, dataset, res)
+run_perplex(sampleid, dataset, res, emsonly, perplexdir, outdir, verbose)
 
 # Get Perple_X comp time and write to csv
-get_comp_time(logfile, sampleid, dataset, res, nprocs)
+get_comp_time(logfile, sampleid, dataset, res, nprocs, datadir)
 
 print("build-perplex-dataset.py done!")
