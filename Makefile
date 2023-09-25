@@ -1,12 +1,8 @@
-# Makefile config
-SHELL = /bin/bash -o pipefail
-UNAMES := $(shell uname -s)
+# Logging config
 DATE = $(shell date +"%d-%m-%Y")
-DATELONG = $(shell date +"%d-%B-%Y")
-# Logging
-LOGFILE := log/log-$(shell date +"%d-%m-%Y")
+LOGFILE := log/log-$(DATE)
 LOG := 2>&1 | tee -a $(LOGFILE)
-# Conda env
+# Conda config
 CONDAENVNAME = rocml
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = python/conda-environment.yaml
@@ -37,28 +33,28 @@ PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 8
-EMSONLY ?= True
-DATASET ?= train
+RES ?= 128
+EMSONLY ?= False
 NORMOX ?= all
 SEED = 42
 PARALLEL ?= True
 NPROCS ?= 6
 KFOLDS ?= 6
-OUTDIR ?= runs
-VERBOSE ?= False
+VERBOSE ?= 1
 # RocML options
-MLPARAMS ?= ["rho", "Vp", "Vs", "melt_fraction"]
-MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
-MLTUNE ?= False
+TARGETS ?= ["rho", "Vp", "Vs", "melt_fraction"]
+MLMODS ?= ["KN", "DT"]
+#MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
+MLTUNE ?= True
+MASKGEOTHERM ?= False
 # PCA options
 OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
 NPCA ?= 3
 KCLUSTER ?= 3
 # Visualization options
 FIGDIR ?= figs
-VISPARAMS ?= ["assemblage", "assemblage_variance", "rho"]
-COLORMAP ?= bone
+VISTARGETS ?= ["assemblage", "assemblage_variance", "rho", "Vp", "Vs", "melt_fraction"]
+PALETTE ?= bone
 # Cleanup directories
 DATAPURGE = python/__pycache__ \
 						.job \
@@ -72,29 +68,25 @@ FIGSCLEAN = figs
 
 all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
-	@$(CONDAPYTHON) python/session-info.py $(LOG)
+	@$(CONDAPYTHON) -u python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
 	@$(MAKE) earthchem_pca_mixing_arrays
-	@$(MAKE) magemin_dataset DATASET=train
-	@$(MAKE) magemin_dataset DATASET=valid
-	@$(MAKE) perplex_dataset DATASET=train
-	@$(MAKE) perplex_dataset DATASET=valid
+	@$(MAKE) magemin_dataset
+	@$(MAKE) perplex_dataset
 	@$(MAKE) train_benchmark_rocmls
 	@$(MAKE) visualize_dataset
 	@$(MAKE) visualize_other
 
 init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR) $(MAGEMIN)
 	@echo "=============================================" $(LOG)
-	@$(CONDAPYTHON) python/session-info.py $(LOG)
+	@$(CONDAPYTHON) -u python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
 	@echo "Run the following in order:" $(LOG)
 	@echo "    make earthchem_pca_mixing_arrays" $(LOG)
-	@echo "    make magemin_dataset DATASET=train" $(LOG)
-	@echo "    make magemin_dataset DATASET=valid" $(LOG)
-	@echo "    make perplex_dataset DATASET=train" $(LOG)
-	@echo "    make perplex_dataset DATASET=valid" $(LOG)
-	@echo "    make train_benchmark_rocmls" $(LOG)
+	@echo "    make magemin_dataset" $(LOG)
+	@echo "    make perplex_dataset" $(LOG)
 	@echo "    make visualize_dataset" $(LOG)
+	@echo "    make train_benchmark_rocmls" $(LOG)
 	@echo "    make visualize_other" $(LOG)
 	@echo "To clean up the directory:" $(LOG)
 	@echo "    make purge" $(LOG)
@@ -102,23 +94,26 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR
 	@echo "=============================================" $(LOG)
 
 visualize_other: $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/visualize-other.py \
+	@$(CONDAPYTHON) -u python/visualize-other.py \
+		--Pmin $(PMIN) \
+		--Pmax $(PMAX) \
+		--Tmin $(TMIN) \
+		--Tmax $(TMAX) \
 		--sampleid '$(SAMPLEID)' \
-		--params '$(MLPARAMS)' \
+		--targets '$(TARGETS)' \
 		--res $(RES) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
 visualize_dataset: $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/visualize-dataset.py \
+	@$(CONDAPYTHON) -u python/visualize-dataset.py \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
-		--dataset $(DATASET) \
-		--params '$(VISPARAMS)' \
-		--colormap $(COLORMAP) \
-		--outdir $(OUTDIR) \
+		--vistargets '$(VISTARGETS)' \
+		--maskgeotherm $(MASKGEOTHERM) \
+		--palette $(PALETTE) \
 		--figdir $(FIGDIR) \
-		--datadir $(DATADIR) \
+		--verbose $(VERBOSE) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
@@ -131,55 +126,56 @@ train_all_benchmarks: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(
   done
 
 test:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/test.py \
+	@$(CONDAPYTHON) -u python/test.py \
+		--Pmin $(PMIN) \
+		--Pmax $(PMAX) \
+		--Tmin $(TMIN) \
+		--Tmax $(TMAX) \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
-		--dataset $(DATASET) \
-		--params '$(MLPARAMS)' \
+		--targets '$(TARGETS)' \
+		--maskgeotherm $(MASKGEOTHERM) \
 		--models '$(MLMODS)' \
 		--tune $(MLTUNE) \
 		--seed $(SEED) \
 		--kfolds $(KFOLDS) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
-		--colormap $(COLORMAP) \
-		--outdir $(OUTDIR) \
+		--palette $(PALETTE) \
 		--figdir $(FIGDIR) \
-		--datadir $(DATADIR) \
 		--verbose $(VERBOSE) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
 train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/train-benchmark-rocmls.py \
+	@$(CONDAPYTHON) -u python/train-benchmark-rocmls.py \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
-		--params '$(MLPARAMS)' \
+		--targets '$(TARGETS)' \
+		--maskgeotherm $(MASKGEOTHERM) \
 		--models '$(MLMODS)' \
 		--tune $(MLTUNE) \
-		--seed $(SEED) \
 		--kfolds $(KFOLDS) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
-		--colormap $(COLORMAP) \
-		--outdir $(OUTDIR) \
+		--seed $(SEED) \
+		--palette $(PALETTE) \
 		--figdir $(FIGDIR) \
-		--datadir $(DATADIR) \
+		--verbose $(VERBOSE) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
 build_all_benchmarks: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEXDIR)
 	@for sample in DMM NMORB PUM RE46; do \
 		for res in 8 16 32 64 128; do \
-			for dataset in train valid; do \
-				$(MAKE) magemin_dataset SAMPLEID=$$sample RES=$$res DATASET=$$dataset; \
-				$(MAKE) perplex_dataset SAMPLEID=$$sample RES=$$res DATASET=$$dataset; \
+			$(MAKE) magemin_dataset SAMPLEID=$$sample RES=$$res; \
+			$(MAKE) perplex_dataset SAMPLEID=$$sample RES=$$res; \
 			done; \
 		done; \
   done
 
 magemin_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN)
-	@$(CONDAPYTHON) python/build-magemin-dataset.py \
+	@$(CONDAPYTHON) -u python/build-magemin-dataset.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
 		--Tmin $(TMIN) \
@@ -188,19 +184,15 @@ magemin_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN)
 		--source $(SOURCE) \
 		--sampleid $(SAMPLEID) \
 		--normox '$(NORMOX)' \
-		--dataset $(DATASET) \
 		--emsonly $(EMSONLY) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
-		--outdir $(OUTDIR) \
-		--datadir $(DATADIR) \
-		--logfile log/log-magemin-$(SAMPLEID)-$(DATASET)-$(RES)-$(DATE) \
 		--verbose $(VERBOSE) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
 perplex_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR)
-	@$(CONDAPYTHON) python/build-perplex-dataset.py \
+	@$(CONDAPYTHON) -u python/build-perplex-dataset.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
 		--Tmin $(TMIN) \
@@ -209,43 +201,36 @@ perplex_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR)
 		--source $(SOURCE) \
 		--sampleid $(SAMPLEID) \
 		--normox '$(NORMOX)' \
-		--dataset $(DATASET) \
 		--emsonly $(EMSONLY) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
-		--outdir $(OUTDIR) \
-		--datadir $(DATADIR) \
-		--configdir $(CONFIGDIR) \
-		--perplexdir $(PERPLEXDIR) \
-		--logfile log/log-perplex-$(SAMPLEID)-$(DATASET)-$(RES)-$(DATE) \
 		--verbose $(VERBOSE) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
 earthchem_pca_mixing_arrays:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) python/make-pca-arrays.py \
+	@$(CONDAPYTHON) -u python/make-pca-arrays.py \
 		--res $(RES) \
 		--oxides '$(OXIDES)' \
 		--npca $(NPCA) \
 		--kcluster $(KCLUSTER) \
 		--seed $(SEED) \
 		--figdir $(FIGDIR) \
-		--datadir $(DATADIR) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
 write_tables: $(LOGFILE)
 	@echo "Writing markdown tables ..." $(LOG)
-	@$(CONDAPYTHON) python/write-markdown-tables.py
+	@$(CONDAPYTHON) -u python/write-markdown-tables.py
 
 submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
 	@echo "Submitting job to SLURM ..." $(LOG)
-	@$(CONDAPYTHON) python/submit-jobs.py $(LOG)
+	@$(CONDAPYTHON) -u python/submit-jobs.py $(LOG)
 
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
 		chmod +x python/clone-magemin.py; \
-		$(CONDAPYTHON) python/clone-magemin.py $(LOG); \
+		$(CONDAPYTHON) -u python/clone-magemin.py $(LOG); \
 	else \
 		echo "MAGEMin programs found!" $(LOG); \
 	fi
@@ -274,21 +259,21 @@ find_conda_env: $(LOGFILE)
 
 $(PERPLEXDIR): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
-		$(CONDAPYTHON) python/download-assets.py $(LOG); \
+		$(CONDAPYTHON) -u python/download-assets.py $(LOG); \
 	else \
 		echo "Perplex programs found!" $(LOG); \
 	fi
 
 $(DATADIR): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
-		$(CONDAPYTHON) python/download-assets.py $(LOG); \
+		$(CONDAPYTHON) -u python/download-assets.py $(LOG); \
 	else \
 		echo "Data files found!" $(LOG); \
 	fi
 
 $(CONFIGDIR): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(CONFIGDIR)" ]; then \
-		$(CONDAPYTHON) python/download-assets.py $(LOG); \
+		$(CONDAPYTHON) -u python/download-assets.py $(LOG); \
 	else \
 		echo "Config files found!" $(LOG); \
 	fi

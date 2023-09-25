@@ -12,13 +12,6 @@ valid_args = check_arguments(args, "make-pca-arrays.py")
 locals().update(valid_args)
 
 # Make PCA mixing arrays
-pca_mixing_arrays(
-    res=res,
-    oxides=oxides,
-    n_pca_components=npca,
-    k_pca_clusters=kcluster,
-    fig_dir=figdir,
-    data_dir=datadir
-)
+pca_mixing_arrays(res, oxides, npca, kcluster, fig_dir=figdir)
 
 print("make-pca-arrays.py done!")

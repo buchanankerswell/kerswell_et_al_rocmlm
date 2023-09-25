@@ -2,11 +2,11 @@ import os
 from rocml import (
     parse_arguments,
     check_arguments,
-    combine_plots_vertically,
-    combine_plots_horizontally,
-    visualize_training_PT_range,
+    visualize_training_dataset_design,
+    visualize_benchmark_efficiency,
     visualize_rocml_performance,
-    visualize_benchmark_efficiency
+    combine_plots_vertically,
+    combine_plots_horizontally
 )
 
 # Parse arguments and check
@@ -18,14 +18,14 @@ locals().update(valid_args)
 
 if os.path.exists("assets/data"):
     # Visualize Clapeyron slopes for 660 transition
-    visualize_training_PT_range()
+    visualize_training_dataset_design(Pmin, Pmax, Tmin, Tmax)
 
     # Visualize benchmark computation times
-    visualize_benchmark_efficiency("assets/data/benchmark-efficiency.csv")
+    visualize_benchmark_efficiency(figdir, "benchmark-efficiency.png")
 
-    for p in params:
+    for t in targets:
         # Visualize rocml performance metrics
-        visualize_rocml_performance(sample_id=sampleid, parameter=p, res=res)
+        visualize_rocml_performance(sampleid, t, res, figdir, "rocml")
 
         # First row
         combine_plots_horizontally(
@@ -41,21 +41,21 @@ if os.path.exists("assets/data"):
 
         # Second row
         combine_plots_horizontally(
-            f"figs/rocml-rmse-test-mean-{p.replace('_', '-')}-{sampleid}-{res}.png",
-            f"figs/rocml-rmse-val-mean-{p.replace('_', '-')}-{sampleid}-{res}.png",
+            f"figs/rocml-rmse-test-mean-{t.replace('_', '-')}-{sampleid}-{res}.png",
+            f"figs/rocml-rmse-val-mean-{t.replace('_', '-')}-{sampleid}-{res}.png",
             "figs/temp2.png",
             caption1="c)",
             caption2="d)"
         )
 
-        os.remove(f"figs/rocml-rmse-test-mean-{p.replace('_', '-')}-{sampleid}-{res}.png")
-        os.remove(f"figs/rocml-rmse-val-mean-{p.replace('_', '-')}-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-rmse-test-mean-{t.replace('_', '-')}-{sampleid}-{res}.png")
+        os.remove(f"figs/rocml-rmse-val-mean-{t.replace('_', '-')}-{sampleid}-{res}.png")
 
         # Stack rows
         combine_plots_vertically(
             "figs/temp1.png",
             "figs/temp2.png",
-            f"figs/benchmark-rocmls-metrics-{p.replace('_', '-')}.png",
+            f"figs/benchmark-rocmls-metrics-{t.replace('_', '-')}.png",
             caption1="",
             caption2=""
         )
