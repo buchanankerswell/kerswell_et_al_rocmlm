@@ -240,7 +240,7 @@ def download_and_unzip(url, destination):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # download github submodule !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def download_github_submodule(repository_url, submodule_dir):
+def download_github_submodule(repository_url, submodule_dir, commit_hash):
     """
     """
     # Check if submodule directory already exists and delete it
@@ -250,6 +250,7 @@ def download_github_submodule(repository_url, submodule_dir):
     # Clone submodule and recurse its contents
     try:
         repo = Repo.clone_from(repository_url, submodule_dir, recursive=True)
+        repo.git.checkout(commit_hash)
 
     except Exception as e:
         print(f"An error occurred while cloning the GitHub repository: {e} ...")
@@ -266,32 +267,6 @@ def check_non_matching_strings(list1, list2):
     non_matching_strings = set1 - set2
 
     return bool(non_matching_strings)
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# parse list of numbers !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def parse_list_of_numbers(arg):
-    """
-    """
-    try:
-        num_list = ast.literal_eval(arg)
-
-        if (
-            isinstance(num_list, list) and
-            len(num_list) == 11 and
-            all(isinstance(num, (int, float)) for num in num_list)
-        ):
-            return num_list
-
-        else:
-            raise argparse.ArgumentTypeError(
-                f"Invalid list: {arg} ...\nIt must contain exactly 11 numerical values ..."
-            )
-
-    except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"Invalid list: {arg} ...\nIt must contain exactly 11 numerical values ..."
-        )
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parse list of strings !!
@@ -331,180 +306,30 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     # Add the command-line arguments
-    parser.add_argument(
-        "--Pmin",
-        type=int,
-        help="Specify the Pmin argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--Pmax",
-        type=int,
-        help="Specify the Pmax argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--Tmin",
-        type=int,
-        help="Specify the Tmin argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--Tmax",
-        type=int,
-        help="Specify the Tmax argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--res",
-        type=int,
-        help="Specify the res argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--comp",
-        type=parse_list_of_numbers,
-        help="Specify the comp argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--frac",
-        type=str,
-        help="Specify the frac argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--source",
-        type=str,
-        help="Specify the source argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--sampleid",
-        type=str,
-        help="Specify the sampleid argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--vistargets",
-        type=parse_list_of_strings,
-        help="Specify the vistargets argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--targets",
-        type=parse_list_of_strings,
-        help="Specify the targets argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--models",
-        type=parse_list_of_strings,
-        help="Specify the models argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--normox",
-        type=parse_list_of_strings,
-        help="Specify the normox argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--oxides",
-        type=parse_list_of_strings,
-        help="Specify the oxides argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--npca",
-        type=int,
-        help="Specify the npca argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--kcluster",
-        type=int,
-        help="Specify the kcluster argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--n",
-        type=int,
-        help="Specify the n argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--k",
-        type=int,
-        help="Specify the k argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--parallel",
-        type=str,
-        help="Specify the parallel argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--nprocs",
-        type=int,
-        help="Specify the nprocs argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--kfolds",
-        type=int,
-        help="Specify the kfolds argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        help="Specify the seed argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--palette",
-        type=str,
-        help="Specify the palette argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--figdir",
-        type=str,
-        help="Specify the figdir argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--emsonly",
-        type=str,
-        help="Specify the emsonly argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        help="Specify the dataset argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--tune",
-        type=str,
-        help="Specify the tune argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--maskgeotherm",
-        type=str,
-        help="Specify the maskgeotherm argument ...",
-        required=False
-    )
-    parser.add_argument(
-        "--verbose",
-        type=int,
-        help="Specify the verbose argument ...",
-        required=False
-    )
+    parser.add_argument("--Pmin", type=int, required=False)
+    parser.add_argument("--Pmax", type=int, required=False)
+    parser.add_argument("--Tmin", type=int, required=False)
+    parser.add_argument("--Tmax", type=int, required=False)
+    parser.add_argument("--sampleid", type=str, required=False)
+    parser.add_argument("--source", type=str, required=False)
+    parser.add_argument("--normox", type=parse_list_of_strings, required=False)
+    parser.add_argument("--dataset", type=str, required=False)
+    parser.add_argument("--res", type=int, required=False)
+    parser.add_argument("--emsonly", type=str, required=False)
+    parser.add_argument("--maskgeotherm", type=str, required=False)
+    parser.add_argument("--targets", type=parse_list_of_strings, required=False)
+    parser.add_argument("--models", type=parse_list_of_strings, required=False)
+    parser.add_argument("--tune", type=str, required=False)
+    parser.add_argument("--kfolds", type=int, required=False)
+    parser.add_argument("--oxides", type=parse_list_of_strings, required=False)
+    parser.add_argument("--npca", type=int, required=False)
+    parser.add_argument("--kcluster", type=int, required=False)
+    parser.add_argument("--parallel", type=str, required=False)
+    parser.add_argument("--nprocs", type=int, required=False)
+    parser.add_argument("--seed", type=int, required=False)
+    parser.add_argument("--palette", type=str, required=False)
+    parser.add_argument("--figdir", type=str, required=False)
+    parser.add_argument("--verbose", type=int, required=False)
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -522,37 +347,30 @@ def check_arguments(args, script):
     Pmax = args.Pmax
     Tmin = args.Tmin
     Tmax = args.Tmax
-    res = args.res
-    dataset = args.dataset
-    emsonly = args.emsonly
-    comp = args.comp
-    frac = args.frac
-    source = args.source
     sampleid = args.sampleid
-    vistargets = args.vistargets
+    source = args.source
+    normox = args.normox
+    dataset = args.dataset
+    res = args.res
+    emsonly = args.emsonly
+    maskgeotherm = args.maskgeotherm
     targets = args.targets
     models = args.models
     tune = args.tune
-    maskgeotherm = args.maskgeotherm
-    normox = args.normox
+    kfolds = args.kfolds
     oxides = args.oxides
     npca = args.npca
     kcluster = args.kcluster
-    n = args.n
-    k = args.k
     parallel = args.parallel
     nprocs = args.nprocs
-    kfolds = args.kfolds
     seed = args.seed
     palette = args.palette
     figdir = args.figdir
     verbose = args.verbose
 
     # MAGEMin oxide options
-    oxide_list_magemin = [
-        "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O",
-        "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
-    ]
+    oxide_list_magemin = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O",
+                          "TIO2", "FE2O3", "CR2O3", "H2O" ]
 
     valid_args = {}
 
@@ -561,137 +379,49 @@ def check_arguments(args, script):
     print(f"Running {script} with:")
 
     if Pmin is not None:
-        print(f"    Pmin: {Pmin}")
+        print(f"    P min: {Pmin}")
 
         valid_args["Pmin"] = Pmin
 
     if Pmax is not None:
-        print(f"    Pmax: {Pmax}")
+        print(f"    P max: {Pmax}")
 
         valid_args["Pmax"] = Pmax
 
     if Tmin is not None:
-        print(f"    Tmin: {Tmin}")
+        print(f"    T min: {Tmin}")
 
         valid_args["Tmin"] = Tmin
 
     if Tmax is not None:
-        print(f"    Tmax: {Tmax}")
+        print(f"    T max: {Tmax}")
 
         valid_args["Tmax"] = Tmax
-
-    if res is not None:
-        if res > 128:
-            raise ValueError(
-                "Invalid --res argument ...\n"
-                "--res must be <= 128"
-            )
-
-        print(f"    dataset resolution: {res}")
-
-        if Tmin is not None and Tmax is not None:
-            print(f"    Trange: [{Tmin}, {Tmax}, {res}]")
-
-        if Pmin is not None and Pmax is not None:
-            print(f"    Prange: [{Pmin}, {Pmax}, {res}]")
-
-        valid_args["res"] = res
-
-    if comp is not None:
-        print(f"    comp: {comp}")
-
-        sample_comp = comp
-
-        valid_args["comp"] = comp
-
-    if frac is not None:
-        if frac not in ["mol", "wt"]:
-            raise ValueError(
-                "Invalid --frac argument ...\n"
-                "Use --frac=mol or --frac=wt"
-            )
-
-        print(f"    frac: {frac}")
-
-        valid_args["frac"] = frac
-
-    if source is not None:
-        print(f"    source: {source}")
-
-        valid_args["source"] = source
 
     if sampleid is not None:
         if source is not None:
             sample_comp = get_sample_composition(source, sampleid)
 
-        print(f"    sampleid: {sampleid}")
+        print(f"    sample id: {sampleid}")
 
         valid_args["sampleid"] = sampleid
 
-    if vistargets is not None:
-        print(f"    visualizations: {vistargets}")
+    if source is not None:
+        print(f"    sample source: {source}")
 
-        valid_args["vistargets"] = vistargets
-
-    if targets is not None:
-        print(f"    targets: {targets}")
-
-        valid_args["targets"] = targets
-
-    if models is not None:
-        print(f"    ML models: {models}")
-
-        valid_args["models"] = models
-
-    if tune is not None:
-        tune = tune.lower() == "true" if tune else False
-
-        if not isinstance(tune, bool):
-            raise ValueError(
-                "Invalid --tune argument ...\n"
-                "--tune must be either True or False"
-            )
-
-        print(f"    tune: {tune}")
-
-        valid_args["tune"] = tune
-
-    if maskgeotherm is not None:
-        maskgeotherm = maskgeotherm.lower() == "true" if maskgeotherm else False
-
-        if not isinstance(maskgeotherm, bool):
-            raise ValueError(
-                "Invalid --maskgeotherm argument ...\n"
-                "--maskgeotherm must be either True or False"
-            )
-
-        print(f"    maskgeotherm: {maskgeotherm}")
-
-        valid_args["maskgeotherm"] = maskgeotherm
-
-    if palette is not None:
-        if palette not in ["viridis", "bone", "pink", "seismic", "grey", "blues"]:
-            raise ValueError(
-                "Invalid --palette argument ...\n"
-                f"Use --palette=viridis or bone or pink or seismic or grey or blues"
-            )
-
-        print(f"    palette: {palette}")
-
-        valid_args["palette"] = palette
+        valid_args["source"] = source
 
     if normox is not None:
         if normox != "all":
             if check_non_matching_strings(normox, oxide_list_magemin):
-                raise ValueError(
-                    "Invalid --normox argument ...\n"
-                    f"Can only normalize to oxides {oxide_list_magemin}"
-                )
+                print("Warning: invalid --normox argument!")
+                print(f"    Can only normalize to oxides {oxide_list_magemin}")
+                print("Using normox = 'all'")
 
-            print(f"    Normalizing composition to:")
+                normox = "all"
 
-            for oxide in normox:
-                print(f"        {oxide}")
+            else:
+                print(f"    Normalizing composition to: {oxide}")
 
         if sample_comp is not None:
             sample_norm = normalize_composition(sample=sample_comp, components=normox)
@@ -705,17 +435,95 @@ def check_arguments(args, script):
 
         valid_args["normox"] = normox
 
+    if dataset is not None:
+        print(f"    dataset: {dataset}")
+
+        valid_args["dataset"] = dataset
+
+    if res is not None:
+        if res > 128:
+            print("Warning: invalid --res argument!")
+            print("    --res must be <= 128")
+            print("Using res = 128")
+
+            res = 128
+
+        print(f"    dataset resolution: {res}")
+
+        if Tmin is not None and Tmax is not None:
+            print(f"    T range: [{Tmin}, {Tmax}, {res}]")
+
+        if Pmin is not None and Pmax is not None:
+            print(f"    P range: [{Pmin}, {Pmax}, {res}]")
+
+        valid_args["res"] = res
+
+    if emsonly is not None:
+        emsonly = emsonly.lower() == "true" if emsonly else False
+
+        if not isinstance(emsonly, bool):
+            print("Warning: invalid --emsonly argument!")
+            print("    --emsonly must be True or False")
+            print("Using emsonly = False")
+
+            emsonly = False
+
+        print(f"    endmembers only: {emsonly}")
+
+        valid_args["emsonly"] = emsonly
+
+    if maskgeotherm is not None:
+        maskgeotherm = maskgeotherm.lower() == "true" if maskgeotherm else False
+
+        if not isinstance(maskgeotherm, bool):
+            print("Warning: invalid --maskgeotherm argument!")
+            print("    --maskgeotherm must be True or False")
+            print("Using maskgeotherm = True")
+
+            maskgeotherm = True
+
+        print(f"    mask geotherm: {maskgeotherm}")
+
+        valid_args["maskgeotherm"] = maskgeotherm
+
+    if targets is not None:
+        print(f"    targets: {targets}")
+
+        valid_args["targets"] = targets
+
+    if models is not None:
+        print(f"    RocML models: {models}")
+
+        valid_args["models"] = models
+
+    if tune is not None:
+        tune = tune.lower() == "true" if tune else False
+
+        if not isinstance(tune, bool):
+            print("Warning: invalid --tune argument!")
+            print("    --tune must be True or False")
+            print("Using tune = False")
+
+            tune = False
+
+        print(f"    hyperparameter tuning: {tune}")
+
+        valid_args["tune"] = tune
+
+    if kfolds is not None:
+        print(f"    kfolds: {kfolds}")
+
+        valid_args["kfolds"] = kfolds
+
     if oxides is not None:
         if check_non_matching_strings(oxides, oxide_list_magemin[:-1]):
-            raise ValueError(
-                "Invalid --oxides argument ...\n"
-                f"Can only use oxides {oxide_list_magemin[:-1]}"
-            )
+            print("Warning: invalid --oxides argument!")
+            print(f"    Can only use: {oxide_list_magemin[:-1]}")
+            print(f"Using oxides = {oxide_list_magemin[:-1]}")
 
-        print(f"    Selected oxides:")
+            oxides = oxide_list_magemin[:-1]
 
-        for oxide in oxides:
-            print(f"        {oxide}")
+        print(f"    Selected oxides: {oxides}")
 
         valid_args["oxides"] = oxides
 
@@ -729,24 +537,15 @@ def check_arguments(args, script):
 
         valid_args["kcluster"] = kcluster
 
-    if n is not None:
-        print(f"    n: {n}")
-
-        valid_args["n"] = n
-
-    if k is not None:
-        print(f"    k: {k}")
-
-        valid_args["k"] = k
-
     if parallel is not None:
         parallel = parallel.lower() == "true" if parallel else False
 
         if not isinstance(parallel, bool):
-            raise ValueError(
-                "Invalid --parallel argument ...\n"
-                "--parallel must be either True or False"
-            )
+            print("Warning: invalid --parallel argument!")
+            print("    --parallel must be True or False")
+            print("Using parallel = True")
+
+            parallel = True
 
         print(f"    parallel: {parallel}")
 
@@ -754,12 +553,12 @@ def check_arguments(args, script):
 
     if nprocs is not None:
         if nprocs > os.cpu_count():
-            raise ValueError(
-                "Invalid --nprocs argument ...\n"
-                f"--nprocs cannot be greater than cores on system ({os.cpu_count()}) ..."
-            )
+            print(f"Warning: {nprocs} is greater than {os.cpu_count()} available processors!")
+            print(f"Setting number of processors to: {os.cpu_count() - 2} ...")
 
-        print(f"    nprocs: {nprocs}")
+            nprocs = os.cpu_count() - 2
+
+        print(f"    processors: {nprocs}")
 
         valid_args["nprocs"] = nprocs
 
@@ -768,35 +567,31 @@ def check_arguments(args, script):
 
         valid_args["seed"] = seed
 
-    if kfolds is not None:
-        print(f"    kfolds: {kfolds}")
+    if palette is not None:
+        if palette not in ["viridis", "bone", "pink", "seismic", "grey", "blues"]:
+            print(f"Warning: invalid --palette argument ({palette})!")
+            print("    Palettes: viridis, bone, pink, seismic, grey, blues")
+            print("Using palette = 'bone'")
 
-        valid_args["kfolds"] = kfolds
+            palette = "bone"
+
+        print(f"    palette: {palette}")
+
+        valid_args["palette"] = palette
 
     if figdir is not None:
-        print(f"    figdir: {figdir}")
+        print(f"    fig directory: {figdir}")
 
         valid_args["figdir"] = figdir
 
-    if dataset is not None:
-        print(f"    dataset: {dataset}")
-
-        valid_args["dataset"] = dataset
-
-    if emsonly is not None:
-        emsonly = emsonly.lower() == "true" if emsonly else False
-
-        if not isinstance(emsonly, bool):
-            raise ValueError(
-                "Invalid --emsonly argument ...\n"
-                "--emsonly must be either True or False"
-            )
-
-        print(f"    endmembers only: {emsonly}")
-
-        valid_args["emsonly"] = emsonly
-
     if verbose is not None:
+        if not isinstance(verbose, int):
+            print("Warning: invalid --verbose argument!")
+            print("    --verbose must be an integer or 0")
+            print("Using verbose = 1")
+
+            verbose = 1
+
         print(f"    verbose: {verbose}")
 
         valid_args["verbose"] = verbose
@@ -1993,34 +1788,32 @@ def process_magemin_output(filepath):
             liq = np.nan
 
         # Compute average density of full assemblage
-        density_total = sum(
-            frac * dens for frac, dens in zip(assemblage_mode, assemblage_rho)
-        )
+        rho_total = sum(mode * rho for mode, rho in zip(assemblage_mode, assemblage_rho))
 
         # Compute density of liq
         if liq > 0:
-            density_liq = assemblage_rho[ind_liq[0]]
+            rho_liq = assemblage_rho[ind_liq[0]]
 
             # Get indices of stable phases
             ind_sol = [idx for idx, sol in enumerate(assemblage) if sol != "liq"]
 
             # Compute average density of stable phases
             if ind_sol:
-                density_sol = sum(frac * dens for frac, dens in zip(
+                rho_sol = sum(mode * rho for mode, rho in zip(
                     [assemblage_mode[idx] for idx in ind_sol],
                     [assemblage_rho[idx] for idx in ind_sol]
                 )) / sum([assemblage_mode[idx] for idx in ind_sol])
 
             else:
-                density_sol = 0
+                rho_sol = 0
 
             # Compute density of solid-melt mixture
-            density_mix = (liq * density_liq + (1 - liq) * density_sol)
+            rho_mix = (liq * rho_liq + (1 - liq) * rho_sol)
 
         else:
-            density_liq = 0
-            density_sol = 0
-            density_mix = 0
+            rho_liq = 0
+            rho_sol = 0
+            rho_mix = 0
 
         # Append results dictionary
         results.append({
@@ -2028,7 +1821,7 @@ def process_magemin_output(filepath):
 #            "status": status, # solution status
             "T": t, # temperature celcius
             "P": p, # pressure kbar
-            "rho": density_total, # density of full assemblage kg/m3
+            "rho": rho_total, # density of full assemblage kg/m3
 #            "gibbs": gibbs, # gibbs free energy
 #            "br_norm": br_norm, # bulk residual norm (system mass constraint residual norm)
 #            "gamma": [gamma], # chemical potential of the pure components (gibbs hyperplane)
@@ -2042,9 +1835,9 @@ def process_magemin_output(filepath):
 #            "compositional_vars": [compositional_vars],
 #            "endmember_list": [em_list], # list of endmembers
 #            "endmember_mode": [em_fractions], # modes of endmembers
-#            "rho_liquid": density_liq, # density of liquid kg/m3
-#            "rho_solid": density_sol, # density of solid kg/m3
-#            "rho_mixture": density_mix # density of mixture kg/m3
+#            "rho_liquid": rho_liq, # density of liquid kg/m3
+#            "rho_solid": rho_sol, # density of solid kg/m3
+#            "rho_mixture": rho_mix # density of mixture kg/m3
         })
 
     return results
@@ -2450,20 +2243,20 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
         elif model_label == "NN1":
             model = MLPRegressor(random_state=seed, max_iter=5000, activation="relu",
                                  alpha=0.001, learning_rate_init=0.001,
-                                 hidden_layer_sizes=(int(y.shape[0] * 0.1)))
+                                 hidden_layer_sizes=(int(y_scaled.shape[0] * 0.1)))
 
         elif model_label == "NN2":
             model = MLPRegressor(random_state=seed, max_iter=5000, activation="relu",
                                  alpha=0.001, learning_rate_init=0.001,
-                                 hidden_layer_sizes=(int(y.shape[0] * 0.5),
-                                                     int(y.shape[0] * 0.2)))
+                                 hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
+                                                     int(y_scaled.shape[0] * 0.2)))
 
         elif model_label == "NN3":
             model = MLPRegressor(random_state=seed, max_iter=5000, activation="relu",
                                  alpha=0.001, learning_rate_init=0.001,
-                                 hidden_layer_sizes=(int(y.shape[0] * 0.5),
-                                                     int(y.shape[0] * 0.2),
-                                                     int(y.shape[0] * 0.1)))
+                                 hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
+                                                     int(y_scaled.shape[0] * 0.2),
+                                                     int(y_scaled.shape[0] * 0.1)))
 
     else:
         # Define ML model and grid search param space for hyperparameter tuning
@@ -2492,34 +2285,34 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
             model = MLPRegressor(random_state=seed, max_iter=5000,
                                  activation="relu", alpha=0.001)
 
-            param_grid = dict(hidden_layer_sizes=[(int(y.shape[0] * 0.1)),
-                                                  (int(y.shape[0] * 0.2)),
-                                                  (int(y.shape[0] * 0.5))])
+            param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1)),
+                                                  (int(y_scaled.shape[0] * 0.2)),
+                                                  (int(y_scaled.shape[0] * 0.5))])
 
         elif model_label == "NN2":
             model = MLPRegressor(random_state=seed, max_iter=5000,
                                  activation="relu", alpha=0.001)
 
-            param_grid = dict(hidden_layer_sizes=[(int(y.shape[0] * 0.1),
-                                                   int(y.shape[0] * 0.2)),
-                                                  (int(y.shape[0] * 0.2),
-                                                   int(y.shape[0] * 0.2)),
-                                                  (int(y.shape[0] * 0.5),
-                                                   int(y.shape[0] * 0.2))])
+            param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
+                                                   int(y_scaled.shape[0] * 0.2)),
+                                                  (int(y_scaled.shape[0] * 0.2),
+                                                   int(y_scaled.shape[0] * 0.2)),
+                                                  (int(y_scaled.shape[0] * 0.5),
+                                                   int(y_scaled.shape[0] * 0.2))])
 
         elif model_label == "NN3":
             model = MLPRegressor(random_state=seed, max_iter=5000,
                                  activation="relu", alpha=0.001)
 
-            param_grid = dict(hidden_layer_sizes=[(int(y.shape[0] * 0.1),
-                                                   int(y.shape[0] * 0.2),
-                                                   int(y.shape[0] * 0.1)),
-                                                  (int(y.shape[0] * 0.2),
-                                                   int(y.shape[0] * 0.2),
-                                                   int(y.shape[0] * 0.1)),
-                                                  (int(y.shape[0] * 0.5),
-                                                   int(y.shape[0] * 0.2),
-                                                   int(y.shape[0] * 0.1))])
+            param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
+                                                   int(y_scaled.shape[0] * 0.2),
+                                                   int(y_scaled.shape[0] * 0.1)),
+                                                  (int(y_scaled.shape[0] * 0.2),
+                                                   int(y_scaled.shape[0] * 0.2),
+                                                   int(y_scaled.shape[0] * 0.1)),
+                                                  (int(y_scaled.shape[0] * 0.5),
+                                                   int(y_scaled.shape[0] * 0.2),
+                                                   int(y_scaled.shape[0] * 0.1))])
 
         # K-fold cross-validation
         kf = KFold(n_splits=3, shuffle=True, random_state=seed)
@@ -2568,7 +2361,7 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
 
     return model_label, model_label_full, model, model_hyperparams
 
-# use fork method for parallel processing
+# Use fork method for parallel processing
 mp.set_start_method("fork")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2579,18 +2372,89 @@ def process_fold(fold_data):
     """
     # Unpack arguments
     (train_index, test_index), X_scaled, y_scaled, X_scaled_val, y_scaled_val, \
-        model, scaler_X, scaler_y, scaler_X_val, scaler_y_val, verbose = fold_data
+        model, model_label, scaler_X, scaler_y, scaler_X_val, scaler_y_val, \
+        fig_dir, verbose = fold_data
 
     # Split the data into training and testing sets
     X_train, X_test = X_scaled[train_index], X_scaled[test_index]
     y_train, y_test = y_scaled[train_index], y_scaled[test_index]
     X_val, y_val = X_scaled_val, y_scaled_val
 
-    # Train ML model
-    training_start_time = time.time()
-    model.fit(X_train, y_train)
-    training_end_time = time.time()
+    if "NN" in model_label:
+        # Initialize lists to store loss values
+        epoch_, train_loss_, valid_loss_ = [], [], []
 
+        # Set batch size as a proportion of the training dataset size
+        batch_proportion = 0.2
+        batch_size = int(len(y_train) * batch_proportion)
+
+        # Ensure a minimum batch size
+        batch_size = max(batch_size, 8)
+
+        # Start training timer
+        training_start_time = time.time()
+
+        # Set number of epochs
+        n_epochs = 40
+
+        # Partial training
+        for epoch in range(n_epochs):
+            # Shuffle the training data for each epoch
+            indices = np.arange(len(y_train))
+            np.random.shuffle(indices)
+
+            for start_idx in range(0, len(indices), batch_size):
+                end_idx = start_idx + batch_size
+
+                # Ensure that the batch size doesn't exceed the dataset size
+                end_idx = min(end_idx, len(indices))
+
+                # Subset training data
+                batch_indices = indices[start_idx:end_idx]
+                X_batch, y_batch = X_train[batch_indices], y_train[batch_indices]
+
+                # Train NN model on batch
+                model.partial_fit(X_batch, y_batch)
+
+            # Calculate and store training loss
+            train_loss = model.loss_
+            train_loss_.append(train_loss)
+
+            # Calculate and store validation loss
+            valid_loss = mean_squared_error(y_val, model.predict(X_val) / 2)
+            valid_loss_.append(valid_loss)
+
+            # Store epoch
+            epoch_.append(epoch + 1)
+
+            if verbose >= 1:
+                # Print loss values for the current epoch
+                print(
+                    f"Epoch {epoch + 1}/{n_epochs}"
+                    f" | Train Loss: {train_loss:.4f}"
+                    f" | Validation Loss: {valid_loss:.4f}"
+                )
+
+        # End training timer
+        training_end_time = time.time()
+
+        # Create loss curve dict
+        loss_curve = {"epoch": epoch_, "train_loss": train_loss_, "valid_loss": valid_loss_}
+
+    else:
+        # Start training timer
+        training_start_time = time.time()
+
+        # Train ML model
+        model.fit(X_train, y_train)
+
+        # End training timer
+        training_end_time = time.time()
+
+        # Empty loss curve
+        loss_curve = None
+
+    # Calculate training time
     training_time = (training_end_time - training_start_time) * 1000
 
     # Make predictions on the test dataset
@@ -2614,9 +2478,6 @@ def process_fold(fold_data):
     y_test_original = scaler_y.inverse_transform(y_test)
     y_val_original = scaler_y_val.inverse_transform(y_val)
 
-    # Get the ranges for each of the targets
-    target_ranges = np.max(y_val_original, axis=0) - np.min(y_val_original, axis=0)
-
     # Calculate performance metrics to evaluate the model
     rmse_test = np.sqrt(mean_squared_error(y_test_original, y_pred_original,
                                            multioutput="raw_values"))
@@ -2627,16 +2488,17 @@ def process_fold(fold_data):
     r2_test = r2_score(y_test_original, y_pred_original, multioutput="raw_values")
     r2_val = r2_score(y_val_original, y_pred_original_val, multioutput="raw_values")
 
-    return rmse_test, r2_test, rmse_val, r2_val, training_time, inference_time
+    return loss_curve, rmse_test, r2_test, rmse_val, r2_val, training_time, inference_time
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # process_kfold_results !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def process_kfold_results(results, sample_id, model_label, model_label_full,
-                          program, W, n_features, targets, units, kfolds, verbose):
+def process_kfold_results(results, sample_id, model_label, model_label_full, program,
+                          W, n_features, targets, units, kfolds, fig_dir, verbose):
     """
     """
     # Unpack the results from the parallel kfolds
+    loss_curves = []
     rmse_test_scores = []
     r2_test_scores = []
     rmse_val_scores = []
@@ -2644,13 +2506,66 @@ def process_kfold_results(results, sample_id, model_label, model_label_full,
     training_times = []
     inference_times = []
 
-    for (rmse_test, r2_test, rmse_val, r2_val, training_time, inference_time) in results:
+    for (loss_curve, rmse_test, r2_test, rmse_val, r2_val,
+         training_time, inference_time) in results:
+        # Store performance metrics
+        loss_curves.append(loss_curve)
         rmse_test_scores.append(rmse_test)
         r2_test_scores.append(r2_test)
         rmse_val_scores.append(rmse_val)
         r2_val_scores.append(r2_val)
         training_times.append(training_time)
         inference_times.append(inference_time)
+
+    if "NN" in model_label:
+        # Initialize empty dict for combined loss curves
+        merged_curves = {}
+
+        # Merge loss curves
+        for curve in loss_curves:
+            for key, value in curve.items():
+                if key in merged_curves:
+                    if isinstance(merged_curves[key], list):
+                        merged_curves[key].extend(value)
+                    else:
+                        merged_curves[key] = [merged_curves[key], value]
+                        merged_curves[key].extend(value)
+                else:
+                    merged_curves[key] = value
+
+        # Make dict into pandas df
+        df = pd.DataFrame.from_dict(merged_curves, orient="index").transpose()
+        df.sort_values(by="epoch", inplace=True)
+
+        # Set plot style and settings
+        plt.rcParams["legend.facecolor"] = "0.9"
+        plt.rcParams["legend.loc"] = "upper left"
+        plt.rcParams["legend.fontsize"] = "small"
+        plt.rcParams["legend.frameon"] = "False"
+        plt.rcParams["axes.facecolor"] = "0.9"
+        plt.rcParams["font.size"] = 12
+        plt.rcParams["figure.autolayout"] = "True"
+        plt.rcParams["figure.dpi"] = 330
+        plt.rcParams["savefig.bbox"] = "tight"
+
+        # Plot loss curve
+        fig = plt.figure(figsize=(6.3, 3.54))
+
+        # Colormap
+        colormap = plt.cm.get_cmap("tab10")
+
+        plt.plot(df["epoch"], df["train_loss"], label="train loss", color=colormap(0))
+        plt.plot(df["epoch"], df["valid_loss"], label="valid loss", color=colormap(1))
+        plt.xlabel("Epoch")
+        plt.ylabel(f"Loss")
+        plt.title(f"{model_label_full} Loss Curve [{program}]")
+        plt.legend()
+
+        # Save the plot to a file if a filename is provided
+        plt.savefig(f"{fig_dir}/{program}-{sample_id}-{model_label}-loss-curve.png")
+
+        # Close plot
+        plt.close()
 
     # Stack arrays
     rmse_test_scores = np.stack(rmse_test_scores)
@@ -2698,6 +2613,7 @@ def process_kfold_results(results, sample_id, model_label, model_label_full,
         cv_info[f"r2_val_std_{target}"] = round(r2_val_std[i], 3)
 
     if verbose >= 1:
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         # Print performance
         print(f"{model_label_full} performance:")
         print(f"    training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
@@ -3271,8 +3187,8 @@ def cv_rocml(features_array, targets_array, features_array_val, targets_array_va
     # Combine the data and targets needed for each fold into a list
     fold_data_list = [
         (
-            (train_index, test_index), X_scaled, y_scaled, X_scaled_val, y_scaled_val,
-            model, scaler_X, scaler_y, scaler_X_val, scaler_y_val, verbose
+            (train_index, test_index), X_scaled, y_scaled, X_scaled_val, y_scaled_val, model,
+            model_label, scaler_X, scaler_y, scaler_X_val, scaler_y_val, fig_dir, verbose
         )
         for fold_idx, (train_index, test_index) in enumerate(kf.split(X))
     ]
@@ -3294,7 +3210,8 @@ def cv_rocml(features_array, targets_array, features_array_val, targets_array_va
 
     # Get cv info
     cv_info = process_kfold_results(results, sample_id, model_label, model_label_full,
-                                    program, W, n_features, targets, units, kfolds, verbose)
+                                    program, W, n_features, targets, units, kfolds,
+                                    fig_dir, verbose)
 
     # Visualize cv results
     visualize_cv_results(program, model, model_label, model_label_full, targets,
@@ -3374,7 +3291,7 @@ def train_rocml(program, sample_id, res, targets, mask_geotherm, model, tune, kf
                            fig_dir, fname, verbose)
 
     # Write ML model config and performance info to csv
-    append_to_csv(f"{data_dir}/benchmark-rocmls-performance.csv", info)
+    append_to_csv(f"{data_dir}/rocml-performance.csv", info)
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
@@ -3387,10 +3304,9 @@ def train_rocml(program, sample_id, res, targets, mask_geotherm, model, tune, kf
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# extract info geotherm !!
+# get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def extract_info_geotherm(results, target, thermal_gradient=0.5,
-                          mantle_potential_T=1573, threshold=0.1):
+def get_geotherm(results, target, threshold, thermal_gradient=0.5, mantle_potential_T=1573):
     """
     """
     # Get PT and target values and transform units
@@ -3493,10 +3409,10 @@ def combine_plots_vertically(image1_path, image2_path, output_path, caption1, ca
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# compose_dataset_plots !!
+# compose dataset plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fig_dir,
-                          verbose):
+def compose_dataset_plots(magemin, perplex, sample_id, dataset,
+                          res, targets, fig_dir, verbose):
     """
     """
     # Set geotherm threshold for extracting depth profiles
@@ -3647,6 +3563,439 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
 
                     os.remove(f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png")
                     os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# compose rocml plots !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def compose_rocml_plots(magemin, perplex, sample_id, models, targets, fig_dir):
+    """
+    """
+    # Rename targets
+    targets_rename = [target.replace("_", "-") for target in targets]
+
+    # Combine plots
+    for model in models:
+        if "NN" in model:
+            # First row
+            combine_plots_vertically(
+                f"{fig_dir}/magemin-{sample_id}-{model}-loss-curve.png",
+                f"{fig_dir}/perplex-{sample_id}-{model}-loss-curve.png",
+                f"{fig_dir}/loss-{sample_id}-{model}.png",
+                caption1="a)",
+                caption2="b)"
+            )
+
+        for target in targets_rename:
+            if target in ["rho", "Vp", "Vs"]:
+                # First row
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{model}-{target}-prem.png",
+                    f"{fig_dir}/perplex-{sample_id}-{model}-{target}-prem.png",
+                    f"{fig_dir}/prem-{sample_id}-{model}-{target}.png",
+                    caption1="a)",
+                    caption2="b)"
+                )
+
+            # First row
+            combine_plots_horizontally(
+                f"{fig_dir}/magemin-{sample_id}-{model}-{target}-targets-surf.png",
+                f"{fig_dir}/perplex-{sample_id}-{model}-{target}-targets-surf.png",
+                f"{fig_dir}/temp1.png",
+                caption1="a)",
+                caption2="b)"
+            )
+
+            # Second row
+            combine_plots_horizontally(
+                f"{fig_dir}/magemin-{sample_id}-{model}-{target}-surf.png",
+                f"{fig_dir}/perplex-{sample_id}-{model}-{target}-surf.png",
+                f"{fig_dir}/temp2.png",
+                caption1="c)",
+                caption2="d)"
+            )
+
+            # Third row
+            combine_plots_horizontally(
+                f"{fig_dir}/magemin-{sample_id}-{model}-{target}-diff-surf.png",
+                f"{fig_dir}/perplex-{sample_id}-{model}-{target}-diff-surf.png",
+                f"{fig_dir}/temp4.png",
+                caption1="e)",
+                caption2="f)"
+            )
+
+            # Stack rows
+            combine_plots_vertically(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp2.png",
+                f"{fig_dir}/temp3.png",
+                caption1="",
+                caption2=""
+            )
+
+            # Stack rows
+            combine_plots_vertically(
+                f"{fig_dir}/temp3.png",
+                f"{fig_dir}/temp4.png",
+                f"{fig_dir}/surf-{sample_id}-{model}-{target}.png",
+                caption1="",
+                caption2=""
+            )
+
+            # First row
+            combine_plots_horizontally(
+                f"{fig_dir}/magemin-{sample_id}-{model}-{target}-targets.png",
+                f"{fig_dir}/perplex-{sample_id}-{model}-{target}-targets.png",
+                f"{fig_dir}/temp1.png",
+                caption1="a)",
+                caption2="b)"
+            )
+
+            # Second row
+            combine_plots_horizontally(
+                f"{fig_dir}/magemin-{sample_id}-{model}-{target}-predictions.png",
+                f"{fig_dir}/perplex-{sample_id}-{model}-{target}-predictions.png",
+                f"{fig_dir}/temp2.png",
+                caption1="c)",
+                caption2="d)"
+            )
+
+            # Third row
+            combine_plots_horizontally(
+                f"{fig_dir}/magemin-{sample_id}-{model}-{target}-diff.png",
+                f"{fig_dir}/perplex-{sample_id}-{model}-{target}-diff.png",
+                f"{fig_dir}/temp4.png",
+                caption1="e)",
+                caption2="f)"
+            )
+
+            # Stack rows
+            combine_plots_vertically(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp2.png",
+                f"{fig_dir}/temp3.png",
+                caption1="",
+                caption2=""
+            )
+
+            # Stack rows
+            combine_plots_vertically(
+                f"{fig_dir}/temp3.png",
+                f"{fig_dir}/temp4.png",
+                f"{fig_dir}/image6-{sample_id}-{model}-{target}.png",
+                caption1="",
+                caption2=""
+            )
+
+        os.remove(f"{fig_dir}/temp1.png")
+        os.remove(f"{fig_dir}/temp2.png")
+        os.remove(f"{fig_dir}/temp3.png")
+        os.remove(f"{fig_dir}/temp4.png")
+
+    if len(models) == 6:
+        # First row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-surf.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-surf.png",
+            f"{fig_dir}/temp1.png",
+            caption1="a)",
+            caption2="b)"
+        )
+
+        # Second row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-surf.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-surf.png",
+            f"{fig_dir}/temp2.png",
+            caption1="c)",
+            caption2="d)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp1.png",
+            f"{fig_dir}/temp2.png",
+            f"{fig_dir}/temp3.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Third row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-surf.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-surf.png",
+            f"{fig_dir}/temp4.png",
+            caption1="e)",
+            caption2="f)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp3.png",
+            f"{fig_dir}/temp4.png",
+            f"{fig_dir}/magemin-{sample_id}-{target}-comp-surf.png",
+            caption1="",
+            caption2=""
+        )
+
+        # First row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-surf.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-surf.png",
+            f"{fig_dir}/temp1.png",
+            caption1="g)",
+            caption2="h)"
+        )
+
+        # Second row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-surf.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-surf.png",
+            f"{fig_dir}/temp2.png",
+            caption1="i)",
+            caption2="j)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp1.png",
+            f"{fig_dir}/temp2.png",
+            f"{fig_dir}/temp3.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Third row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-surf.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-surf.png",
+            f"{fig_dir}/temp4.png",
+            caption1="k)",
+            caption2="l)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp3.png",
+            f"{fig_dir}/temp4.png",
+            f"{fig_dir}/perplex-{sample_id}-{target}-comp-surf.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Stack rows
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{target}-comp-surf.png",
+            f"{fig_dir}/perplex-{sample_id}-{target}-comp-surf.png",
+            f"{fig_dir}/all-surf-{sample_id}-{target}.png",
+            caption1="",
+            caption2=""
+        )
+
+        # First row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-predictions.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-predictions.png",
+            f"{fig_dir}/temp1.png",
+            caption1="a)",
+            caption2="b)"
+        )
+
+        # Second row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-predictions.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-predictions.png",
+            f"{fig_dir}/temp2.png",
+            caption1="c)",
+            caption2="d)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp1.png",
+            f"{fig_dir}/temp2.png",
+            f"{fig_dir}/temp3.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Third row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-predictions.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-predictions.png",
+            f"{fig_dir}/temp4.png",
+            caption1="e)",
+            caption2="f)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp3.png",
+            f"{fig_dir}/temp4.png",
+            f"{fig_dir}/magemin-{sample_id}-{target}-comp-image.png",
+            caption1="",
+            caption2=""
+        )
+
+        # First row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-predictions.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-predictions.png",
+            f"{fig_dir}/temp1.png",
+            caption1="g)",
+            caption2="h)"
+        )
+
+        # Second row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-predictions.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-predictions.png",
+            f"{fig_dir}/temp2.png",
+            caption1="i)",
+            caption2="j)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp1.png",
+            f"{fig_dir}/temp2.png",
+            f"{fig_dir}/temp3.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Third row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-predictions.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-predictions.png",
+            f"{fig_dir}/temp4.png",
+            caption1="k)",
+            caption2="l)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp3.png",
+            f"{fig_dir}/temp4.png",
+            f"{fig_dir}/perplex-{sample_id}-{target}-comp-image.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Stack rows
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{target}-comp-image.png",
+            f"{fig_dir}/perplex-{sample_id}-{target}-comp-image.png",
+            f"{fig_dir}/all-image-{sample_id}-{target}.png",
+            caption1="",
+            caption2=""
+        )
+
+        # First row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-prem.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-prem.png",
+            f"{fig_dir}/temp1.png",
+            caption1="a)",
+            caption2="b)"
+        )
+
+        # Second row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-prem.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-prem.png",
+            f"{fig_dir}/temp2.png",
+            caption1="c)",
+            caption2="d)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp1.png",
+            f"{fig_dir}/temp2.png",
+            f"{fig_dir}/temp3.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Third row
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-prem.png",
+            f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-prem.png",
+            f"{fig_dir}/temp4.png",
+            caption1="e)",
+            caption2="f)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp3.png",
+            f"{fig_dir}/temp4.png",
+            f"{fig_dir}/magemin-{sample_id}-{target}-comp-prem.png",
+            caption1="",
+            caption2=""
+        )
+
+        # First row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-prem.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-prem.png",
+            f"{fig_dir}/temp1.png",
+            caption1="g)",
+            caption2="h)"
+        )
+
+        # Second row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-prem.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-prem.png",
+            f"{fig_dir}/temp2.png",
+            caption1="i)",
+            caption2="j)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp1.png",
+            f"{fig_dir}/temp2.png",
+            f"{fig_dir}/temp3.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Third row
+        combine_plots_horizontally(
+            f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-prem.png",
+            f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-prem.png",
+            f"{fig_dir}/temp4.png",
+            caption1="k)",
+            caption2="l)"
+        )
+
+        # Stack rows
+        combine_plots_vertically(
+            f"{fig_dir}/temp3.png",
+            f"{fig_dir}/temp4.png",
+            f"{fig_dir}/perplex-{sample_id}-{target}-comp-prem.png",
+            caption1="",
+            caption2=""
+        )
+
+        # Stack rows
+        combine_plots_horizontally(
+            f"{fig_dir}/magemin-{sample_id}-{target}-comp-prem.png",
+            f"{fig_dir}/perplex-{sample_id}-{target}-comp-prem.png",
+            f"{fig_dir}/all-prem-{sample_id}-{target}.png",
+            caption1="",
+            caption2=""
+        )
+
+    # Clean up directory
+    tmp_files = glob.glob(f"{fig_dir}/temp*.png")
+    mgm_files = glob.glob(f"{fig_dir}/magemin*.png")
+    ppx_files = glob.glob(f"{fig_dir}/perplex*.png")
+
+    for file in tmp_files + mgm_files + ppx_files:
+        os.remove(file)
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #+ .5.2          Plotting Functions              !!! ++
@@ -3963,7 +4312,7 @@ def visualize_benchmark_efficiency(fig_dir, filename, fontsize=12,
 # visualize prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_prem(target, target_unit, results_mgm=None, results_ppx=None,
-                   results_rocml=None, model=None, geotherm_threshold=0.1, metrics=None,
+                   results_ml=None, model=None, geotherm_threshold=0.1, metrics=None,
                    title=None, fig_dir="figs", filename=None, figwidth=6.3, figheight=4.725,
                    fontsize=22):
     """
@@ -3985,57 +4334,48 @@ def visualize_prem(target, target_unit, results_mgm=None, results_ppx=None,
     # Transform depth to pressure
     P_prem = depth_prem / 30
 
-    # Check valid lists and get minimum and maximum values
-    P_results = [
-        results["P"] for results in
-        [results_mgm, results_ppx, results_rocml] if
-        results is not None
-    ]
-
-    if not P_results:
-        raise ValueError(
-            "No valid results lists for MAGEMin, Perple_X, or ML model ...\n"
-            "Please provide at least one list of results"
-        )
-
-    P_min = min(np.min(lst) for lst in P_results)
-    P_max = max(np.max(lst) for lst in P_results)
-
-    target_results = [
-        results[target] for results in
-        [results_mgm, results_ppx, results_rocml] if
-        results is not None
-    ]
-
-    target_min = min(np.nanmin(lst) for lst in target_results)
-    target_max = max(np.nanmax(lst) for lst in target_results)
-
-    # Create cropping mask for P
-    mask = P_prem >= P_min
-
-    # Crop pressure and target values atmax lims of results
-    P_prem = P_prem[mask]
-    target_prem = target_prem[mask]
-
-    # Create cropping mask for P
-    mask = P_prem <= P_max + 1
-
-    # Crop pressure and target values at min lims of results
-    P_prem = P_prem[mask]
-    target_prem = target_prem[mask]
+    # Initialize geotherms
+    P_mgm, P_ppx, P_ml = None, None, None
+    target_mgm, target_ppx, target_ml = None, None, None
 
     # Extract target values along a geotherm
     if results_mgm:
-        P_mgm, T_mgm, target_mgm = extract_info_geotherm(results_mgm, target,
-                                                         threshold=geotherm_threshold)
+        P_mgm, _, target_mgm = get_geotherm(results_mgm, target, geotherm_threshold)
 
     if results_ppx:
-        P_ppx, T_ppx, target_ppx = extract_info_geotherm(results_ppx, target,
-                                                         threshold=geotherm_threshold)
+        P_ppx, _, target_ppx = get_geotherm(results_ppx, target, geotherm_threshold)
 
-    if results_rocml:
-        P_rocml, T_rocml, target_rocml = extract_info_geotherm(results_rocml, target,
-                                                               threshold=geotherm_threshold)
+    if results_ml:
+        P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold)
+
+    # Get min and max P from geotherms
+    P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml] if P is not None)
+    P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml] if P is not None)
+
+    # Create cropping mask for prem
+    mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
+
+    # Crop pressure and target values
+    P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
+
+    # Crop results
+    if results_mgm:
+        mask_mgm = (P_mgm >= P_min) & (P_mgm <= P_max)
+        P_mgm, target_mgm = P_mgm[mask_mgm], target_mgm[mask_mgm]
+
+    if results_ppx:
+        mask_ppx = (P_ppx >= P_min) & (P_ppx <= P_max)
+        P_ppx, target_ppx = P_ppx[mask_ppx], target_ppx[mask_ppx]
+
+    if results_ml:
+        mask_ml = (P_ml >= P_min) & (P_ml <= P_max)
+        P_ml, target_ml = P_ml[mask_ml], target_ml[mask_ml]
+
+    # Get min max
+    target_min = min(min(np.nanmin(lst) for lst in [target_mgm, target_ppx, target_ml]
+                         if lst is not None), min(target_prem))
+    target_max = max(max(np.nanmax(lst) for lst in [target_mgm, target_ppx, target_ml]
+                         if lst is not None), max(target_prem))
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -4057,13 +4397,13 @@ def visualize_prem(target, target_unit, results_mgm=None, results_ppx=None,
     ax1.plot(target_prem, P_prem, "-", linewidth=3, color="black", label="PREM")
 
     if results_mgm:
-        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(0), label="magemin")
+        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(0), label="MAGEMin")
 
     if results_ppx:
-        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(2), label="perplex")
+        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(2), label="Perple_X")
 
-    if results_rocml:
-        ax1.plot(target_rocml, P_rocml, "-", linewidth=3, color=colormap(1), label=f"{model}")
+    if results_ml:
+        ax1.plot(target_ml, P_ml, "-.", linewidth=3, color=colormap(1), label=f"{model}")
 
     if target == "rho":
         target_label = "Density"
@@ -4935,9 +5275,8 @@ def visualize_rocml_performance(sample_id, target, res, fig_dir, filename,
         os.makedirs(fig_dir, exist_ok=True)
 
     # Read regression data
-    data = pd.read_csv(f"{data_dir}/benchmark-rocmls-performance.csv")
+    data = pd.read_csv(f"{data_dir}/rocml-performance.csv")
     data = data[data["sample"] == sample_id]
-    data = data[data["size"] == res**2]
 
     # Summarize data
     numeric_columns = data.select_dtypes(include=[float, int]).columns

@@ -14,7 +14,8 @@ PERPLEXDIR = assets/perplex
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIGDIR = assets/config
-PYTHON = python/build-magemin-dataset.py \
+PYTHON = \
+				 python/build-magemin-dataset.py \
 				 python/build-perplex-dataset.py \
 				 python/clone-magemin.py \
 				 python/download-assets.py \
@@ -22,10 +23,9 @@ PYTHON = python/build-magemin-dataset.py \
 				 python/rocml.py \
 				 python/session-info.py \
 				 python/submit-jobs.py \
-				 python/train-benchmark-rocmls.py \
+				 python/train-rocml.py \
 				 python/visualize-dataset.py \
 				 python/visualize-other.py \
-				 python/write-markdown-tables.py \
 # Dataset build options
 SOURCE ?= $(DATADIR)/benchmark-samples.csv
 SAMPLEID ?= PUM
@@ -33,8 +33,7 @@ PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 128
-EMSONLY ?= False
+RES ?= 32
 NORMOX ?= all
 SEED = 42
 PARALLEL ?= True
@@ -43,9 +42,8 @@ KFOLDS ?= 6
 VERBOSE ?= 1
 # RocML options
 TARGETS ?= ["rho", "Vp", "Vs", "melt_fraction"]
-MLMODS ?= ["KN", "DT"]
-#MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
-MLTUNE ?= True
+MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
+MLTUNE ?= False
 MASKGEOTHERM ?= False
 # PCA options
 OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
@@ -56,7 +54,8 @@ FIGDIR ?= figs
 VISTARGETS ?= ["assemblage", "assemblage_variance", "rho", "Vp", "Vs", "melt_fraction"]
 PALETTE ?= bone
 # Cleanup directories
-DATAPURGE = python/__pycache__ \
+DATAPURGE = \
+						python/__pycache__ \
 						.job \
 						output \
 						$(DATADIR)/*assemblages.csv \
@@ -73,7 +72,7 @@ all: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR)
 	@$(MAKE) earthchem_pca_mixing_arrays
 	@$(MAKE) magemin_dataset
 	@$(MAKE) perplex_dataset
-	@$(MAKE) train_benchmark_rocmls
+	@$(MAKE) train_rocml
 	@$(MAKE) visualize_dataset
 	@$(MAKE) visualize_other
 
@@ -86,7 +85,7 @@ init: $(LOGFILE) $(PYTHON) create_conda_env $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR
 	@echo "    make magemin_dataset" $(LOG)
 	@echo "    make perplex_dataset" $(LOG)
 	@echo "    make visualize_dataset" $(LOG)
-	@echo "    make train_benchmark_rocmls" $(LOG)
+	@echo "    make train_rocml" $(LOG)
 	@echo "    make visualize_other" $(LOG)
 	@echo "To clean up the directory:" $(LOG)
 	@echo "    make purge" $(LOG)
@@ -102,6 +101,7 @@ visualize_other: $(LOGFILE) $(PYTHON)
 		--sampleid '$(SAMPLEID)' \
 		--targets '$(TARGETS)' \
 		--res $(RES) \
+		--figdir $(FIGDIR) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
@@ -109,7 +109,7 @@ visualize_dataset: $(LOGFILE) $(PYTHON)
 	@$(CONDAPYTHON) -u python/visualize-dataset.py \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
-		--vistargets '$(VISTARGETS)' \
+		--targets '$(VISTARGETS)' \
 		--maskgeotherm $(MASKGEOTHERM) \
 		--palette $(PALETTE) \
 		--figdir $(FIGDIR) \
@@ -120,35 +120,13 @@ visualize_dataset: $(LOGFILE) $(PYTHON)
 train_all_benchmarks: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEXDIR)
 	@for sample in DMM NMORB PUM RE46; do \
 		for res in 8 16 32 64 128; do \
-			$(MAKE) train_benchmark_rocmls SAMPLEID=$$sample RES=$$res; \
+			$(MAKE) train_rocml SAMPLEID=$$sample RES=$$res; \
 		done; \
 		$(MAKE) visualize_dataset SAMPLEID=$$sample RES=$$res; \
   done
 
-test:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) -u python/test.py \
-		--Pmin $(PMIN) \
-		--Pmax $(PMAX) \
-		--Tmin $(TMIN) \
-		--Tmax $(TMAX) \
-		--sampleid '$(SAMPLEID)' \
-		--res $(RES) \
-		--targets '$(TARGETS)' \
-		--maskgeotherm $(MASKGEOTHERM) \
-		--models '$(MLMODS)' \
-		--tune $(MLTUNE) \
-		--seed $(SEED) \
-		--kfolds $(KFOLDS) \
-		--parallel $(PARALLEL) \
-		--nprocs $(NPROCS) \
-		--palette $(PALETTE) \
-		--figdir $(FIGDIR) \
-		--verbose $(VERBOSE) \
-	$(LOG)
-	@echo "=============================================" $(LOG)
-
-train_benchmark_rocmls:  $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) -u python/train-benchmark-rocmls.py \
+train_rocml:  $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) -u python/train-rocml.py \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
 		--targets '$(TARGETS)' \
@@ -184,7 +162,7 @@ magemin_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(MAGEMIN)
 		--source $(SOURCE) \
 		--sampleid $(SAMPLEID) \
 		--normox '$(NORMOX)' \
-		--emsonly $(EMSONLY) \
+		--emsonly True \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
 		--verbose $(VERBOSE) \
@@ -201,7 +179,7 @@ perplex_dataset: $(LOGFILE) $(PYTHON) $(DATADIR) $(CONFIGDIR) $(PERPLEXDIR)
 		--source $(SOURCE) \
 		--sampleid $(SAMPLEID) \
 		--normox '$(NORMOX)' \
-		--emsonly $(EMSONLY) \
+		--emsonly False \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
 		--verbose $(VERBOSE) \
@@ -218,10 +196,6 @@ earthchem_pca_mixing_arrays:  $(LOGFILE) $(PYTHON)
 		--figdir $(FIGDIR) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
-
-write_tables: $(LOGFILE)
-	@echo "Writing markdown tables ..." $(LOG)
-	@$(CONDAPYTHON) -u python/write-markdown-tables.py
 
 submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
 	@echo "Submitting job to SLURM ..." $(LOG)
@@ -241,12 +215,11 @@ remove_conda_env:
 
 create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	@if [ "$(HASCONDA)" = "false" ]; then \
-		echo "conda not found in PATH ..." $(LOG); \
-		echo "install conda first!" $(LOG); \
+		echo "Install conda first!" $(LOG); \
 		echo "See: https://github.com/buchanankerswell/kerswell_et_al_rocml" $(LOG); \
 		exit 1; \
 	fi
-	@if [ -d "$(MY_ENV_DIR)" ]; then \
+	@if [ -d "$(MYENVDIR)" ]; then \
 		echo "Conda environment \"$(CONDAENVNAME)\" found!" $(LOG); \
 	else \
 		echo "Creating environment $(CONDAENVNAME) ..." $(LOG); \
@@ -255,7 +228,7 @@ create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	fi
 
 find_conda_env: $(LOGFILE)
-	$(eval MY_ENV_DIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
+	$(eval MYENVDIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
 
 $(PERPLEXDIR): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
@@ -290,4 +263,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs write_tables earthchem_pca_mixing_arrays perplex_dataset magemin_dataset build_all_benchmarks train_benchmark_rocmls train_all_benchmark_rocmls visualize_dataset visualize_other init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs earthchem_pca_mixing_arrays perplex_dataset magemin_dataset build_all_benchmarks train_rocml train_all_benchmark_rocml visualize_dataset visualize_other init all

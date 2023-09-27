@@ -1,60 +1,43 @@
-# Makefile config
-SHELL = /bin/bash -o pipefail
-WORKDIR = $(shell pwd)
-MAINDIR = $(shell dirname $(WORKDIR))
-ASSETSDIR = $(WORKDIR)/assets
-UNAMES := $(shell uname -s)
+# Logging config
 DATE = $(shell date +"%d-%m-%Y")
-DATELONG = $(shell date +"%d-%B-%Y")
-# Logging
-LOGDIR = $(ASSETSDIR)/log
-LOGFILE := $(LOGDIR)/log-$(shell date +"%d-%m-%Y")
-LOG := 2>&1 | tee -a $(LOGFILE)
+LOGFILE := log/log
+LOG := 2>&1 | tee -a log/log
+# Conda config
+CONDAENVNAME = rocml
+HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
+CONDASPECSFILE = python/conda-environment.yaml
+CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
 # Manuscript
 MS = rocml
-# Figures
-FIGDIRMAIN = $(MAINDIR)/figs
-FIGDIRDRAFT = $(ASSETSDIR)/figs
-# Data
-DATADIR = $(ASSETSDIR)/data
-# Tex
-TEXDIR = $(ASSETSDIR)/tex
-AGUTEMPLATE = $(TEXDIR)/template-agu.latex
-EITEMPLATE = $(TEXDIR)/template-eisvogel.latex
-# Bib
-BIBDIR = $(ASSETSDIR)/bib
-BIB = $(BIBDIR)/main.bib
-CSL = $(BIBDIR)/agu.csl
-# Pandoc
-PANDIR = $(ASSETSDIR)/pandoc
-AGUMETA = $(PANDIR)/agu.yaml
-EIMETA = $(PANDIR)/eisvogel.yaml
-TABLES = \
-	$(PANDIR)/benchmark-samples.md \
-	$(PANDIR)/benchmark-model-efficiency.md \
-	$(PANDIR)/benchmark-model-metrics.md \
-# Purging and cleaning
+# Python scripts
+PYTHON = \
+				 python/draft.py \
+				 python/place-md-tables.py \
+				 python/copy-assets-and-figs.py \
+# Cleanup directories
 DATAPURGE = \
-	$(LOGDIR) \
-	$(PANDIR)/benchmark-samples.md \
-	$(PANDIR)/benchmark-gfem-efficiency.md \
-	$(PANDIR)/benchmark-rocmls-performance.md \
-	tmp.md \
-	eisvogel-draft-rocml.pdf \
-	agu-draft-rocml.pdf
-DATACLEAN = $(DATADIR)
+						log \
+						tmp.md \
+						python/__pycache__ \
+						agu-draft-rocml.pdf \
+						eisvogel-draft-rocml.pdf \
+						assets/pandoc/mlm-pro-con.md \
+						assets/pandoc/rocml-performance.md \
+						assets/pandoc/benchmark-samples.md \
+						assets/pandoc/benchmark-efficiency.md \
+DATACLEAN = assets/data
 FIGSPURGE =
-FIGSCLEAN = $(FIGDIRDRAFT)
+FIGSCLEAN = assets/figs
 
-agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md copy_assets $(TABLES)
+agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md $(TABLES)
 	@pandoc $(MS).md \
 		-o agu-draft-$(MS).pdf \
 		--verbose \
 		--from markdown \
 		--pdf-engine pdflatex \
-		--metadata-file $(AGUMETA) \
+		--metadata-file assets/pandoc/agu.yaml \
 		--metadata date=$(DATE) \
-		--template $(AGUTEMPLATE) \
+		--template assets/tex/template-agu.latex \
 		--number-sections \
 		--highlight-style tango \
 		--filter pandoc-crossref \
@@ -62,70 +45,50 @@ agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md copy_assets $(TABLES)
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
-eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md copy_assets $(TABLES)
-	@awk -v pandir="$(PANDIR)" '{ \
-		while (match($$0, /{{ ([^}]+) }}/)) { \
-			file = substr($$0, RSTART + 3, RLENGTH - 6); \
-			replacement = ""; \
-			if (file in filenames) { \
-				replacement = filenames[file]; \
-			} else { \
-				cmd = "cat \047" pandir "/" file "\047"; \
-				while ((cmd | getline line) > 0) { \
-					replacement = replacement line "\\n"; \
-				} \
-				close(cmd); \
-				filenames[file] = replacement; \
-			} \
-			gsub(/\\n/, "\n", replacement); \
-			sub(/{{ [^}]+ }}/, replacement); \
-		} \
-		print; \
-	}' $(MS).md > tmp.md
+eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md place_md_tables
 	@pandoc tmp.md \
 		-o eisvogel-draft-$(MS).pdf \
 		--verbose \
 		--from markdown \
 		--pdf-engine pdflatex \
-		--metadata-file $(EIMETA) \
-		--metadata date=$(DATELONG) \
-		--template $(EITEMPLATE) \
+		--metadata-file assets/pandoc/eisvogel.yaml \
+		--metadata date=$(shell date +"%d-%B-%Y") \
+		--template assets/tex/template-eisvogel.latex \
 		--number-sections \
 		--highlight-style tango \
 		--filter pandoc-crossref \
 		--citeproc \
 		$(LOG)
-	@rm -rf tmp.md
 	@echo "=============================================" $(LOG)
 
-copy_assets: $(LOGFILE) copy_data copy_figs
+place_md_tables: $(LOGFILE) copy_assets_and_figs
+	@$(CONDAPYTHON) -u python/place-md-tables.py --ms $(MS) $(LOG)
+	@echo "=============================================" $(LOG)
 
-copy_figs: $(LOGFILE) $(MS).md
-	@echo "Copying figs:" $(LOG)
-	@mkdir -p $(FIGDIRDRAFT)
-	@if [ ! -f "$(MS).md" ]; then \
-		echo "Error: The markdown file $(MS).md does not exist ..." $(LOG); \
+copy_assets_and_figs: $(LOGFILE) $(PYTHON) $(MS).md
+	@$(CONDAPYTHON) -u python/copy-assets-and-figs.py --ms $(MS) $(LOG)
+	@echo "=============================================" $(LOG)
+
+create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
+	@if [ "$(HASCONDA)" = "false" ]; then \
+		echo "Install conda first!" $(LOG); \
+		echo "See: https://github.com/buchanankerswell/kerswell_et_al_rocml" $(LOG); \
 		exit 1; \
 	fi
-	@for pngfile in $$(grep -o -E '\([^\)]+\.png\)' $(MS).md | tr -d '()'); do \
-		basename=$$(basename $$pngfile); \
-		fullpath=$$(find $(FIGDIRMAIN) -type f -name $$basename); \
-		if [ -z "$$fullpath" ]; then \
-			echo "Warning: $$basename not found in $(FIGDIRMAIN)" $(LOG); \
-		else \
-			cp "$$fullpath" "$(FIGDIRDRAFT)/$$basename"; \
-			echo "	$$basename" $(LOG); \
-		fi \
-	done
+	@if [ -d "$(MYENVDIR)" ]; then \
+		echo "Conda environment \"$(CONDAENVNAME)\" found!" $(LOG); \
+	else \
+		echo "Creating environment $(CONDAENVNAME) ..." $(LOG); \
+		conda env create --file $(CONDASPECSFILE) $(LOG) > /dev/null 2>&1; \
+		echo "Conda environment $(CONDAENVNAME) created!" $(LOG); \
+	fi
 
-copy_data: $(LOGFILE)
-	@echo "Copying data ..." $(LOG)
-	@cp -r $(MAINDIR)/assets/data $(ASSETSDIR)
-	@(cd $(shell dirname $(WORKDIR)) && $(MAKE) write_tables)
+find_conda_env: $(LOGFILE)
+	$(eval MYENVDIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
 
 $(LOGFILE):
 	@if [ ! -e "$(LOGFILE)" ]; then \
-		mkdir -p $(LOGDIR); \
+		mkdir -p log; \
 		touch $(LOGFILE); \
 	fi
 
@@ -136,4 +99,4 @@ clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 	@rm -f *.{html,acr,alg,gz,glg,gls,ilg,nls,acn,glo,ist,lof,lot,nlo,aux,dvi,log,bbl,blg,brf,fls,toc,thm,out,fdb_latexmk,tex,pdf}
 
-.PHONY: create_conda_env find_conda_env copy_assets eisvogel agu all purge clean
+.PHONY: find_conda_env create_conda_env copy_assets_and_figs place_md_tables eisvogel agu all purge clean

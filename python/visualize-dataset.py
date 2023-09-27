@@ -36,20 +36,20 @@ print(f"Plotting results for {sampleid} ...")
 
 # Plot magemin output
 if magemin:
-    visualize_training_dataset("magemin", sampleid, res, "train", vistargets,
+    visualize_training_dataset("magemin", sampleid, res, "train", targets,
                                maskgeotherm, palette, figdir, verbose)
 
 # Plot perplex output
 if perplex:
-    visualize_training_dataset("perplex", sampleid, res, "train", vistargets,
+    visualize_training_dataset("perplex", sampleid, res, "train", targets,
                                maskgeotherm, palette, figdir, verbose)
 
 # Plot magemin perplex difference
 if magemin and perplex:
-    visualize_training_dataset_diff(sampleid, res, "train", vistargets,
+    visualize_training_dataset_diff(sampleid, res, "train", targets,
                                     maskgeotherm, palette, figdir, verbose)
 
 # Compose plots
-compose_dataset_plots(magemin, perplex, sampleid, "train", res, vistargets, figdir, verbose)
+compose_dataset_plots(magemin, perplex, sampleid, "train", res, targets, figdir, verbose)
 
 print("visualize-dataset.py done!")
