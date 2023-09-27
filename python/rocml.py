@@ -694,7 +694,7 @@ def get_comp_time(program, sample_id, dataset, res, nprocs):
     formatted_date = datetime.datetime.now().strftime("%d-%m-%Y")
 
     # Define the CSV filename
-    csv_filename = f"benchmark-efficiency-{formatted_date}.csv"
+    csv_filename = f"benchmark-efficiency.csv"
 
     # Data assets dir
     data_dir = "assets/data"
@@ -2241,19 +2241,16 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
                                           min_samples_split=2)
 
         elif model_label == "NN1":
-            model = MLPRegressor(random_state=seed, max_iter=5000, activation="relu",
-                                 alpha=0.001, learning_rate_init=0.001,
+            model = MLPRegressor(random_state=seed
                                  hidden_layer_sizes=(int(y_scaled.shape[0] * 0.1)))
 
         elif model_label == "NN2":
-            model = MLPRegressor(random_state=seed, max_iter=5000, activation="relu",
-                                 alpha=0.001, learning_rate_init=0.001,
+            model = MLPRegressor(random_state=seed
                                  hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
                                                      int(y_scaled.shape[0] * 0.2)))
 
         elif model_label == "NN3":
-            model = MLPRegressor(random_state=seed, max_iter=5000, activation="relu",
-                                 alpha=0.001, learning_rate_init=0.001,
+            model = MLPRegressor(random_state=seed
                                  hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
                                                      int(y_scaled.shape[0] * 0.2),
                                                      int(y_scaled.shape[0] * 0.1)))
@@ -2282,27 +2279,26 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
                               min_samples_split=[2, 4, 6])
 
         elif model_label == "NN1":
-            model = MLPRegressor(random_state=seed, max_iter=5000,
-                                 activation="relu", alpha=0.001)
+            model = MLPRegressor(random_state=seed)
 
             param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1)),
                                                   (int(y_scaled.shape[0] * 0.2)),
-                                                  (int(y_scaled.shape[0] * 0.5))])
+                                                  (int(y_scaled.shape[0] * 0.5))],
+                              learning_rate_init=[0.0005, 0.001, 0.002])
 
         elif model_label == "NN2":
-            model = MLPRegressor(random_state=seed, max_iter=5000,
-                                 activation="relu", alpha=0.001)
+            model = MLPRegressor(random_state=seed)
 
             param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
                                                    int(y_scaled.shape[0] * 0.2)),
                                                   (int(y_scaled.shape[0] * 0.2),
                                                    int(y_scaled.shape[0] * 0.2)),
                                                   (int(y_scaled.shape[0] * 0.5),
-                                                   int(y_scaled.shape[0] * 0.2))])
+                                                   int(y_scaled.shape[0] * 0.2))],
+                              learning_rate_init=[0.0005, 0.001, 0.002])
 
         elif model_label == "NN3":
-            model = MLPRegressor(random_state=seed, max_iter=5000,
-                                 activation="relu", alpha=0.001)
+            model = MLPRegressor(random_state=seed)
 
             param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
                                                    int(y_scaled.shape[0] * 0.2),
@@ -2312,7 +2308,8 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
                                                    int(y_scaled.shape[0] * 0.1)),
                                                   (int(y_scaled.shape[0] * 0.5),
                                                    int(y_scaled.shape[0] * 0.2),
-                                                   int(y_scaled.shape[0] * 0.1))])
+                                                   int(y_scaled.shape[0] * 0.1))],
+                              learning_rate_init=[0.0005, 0.001, 0.002])
 
         # K-fold cross-validation
         kf = KFold(n_splits=3, shuffle=True, random_state=seed)
@@ -2349,9 +2346,7 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
 
         elif model_label in ["NN1", "NN2", "NN3"]:
             model = MLPRegressor(
-                random_state=seed, max_iter=5000,
-                activation=grid_search.best_params_["activation"],
-                alpha=grid_search.best_params_["alpha"],
+                random_state=seed,
                 learning_rate_init=grid_search.best_params_["learning_rate_init"],
                 hidden_layer_sizes=grid_search.best_params_["hidden_layer_sizes"]
             )
@@ -2395,7 +2390,7 @@ def process_fold(fold_data):
         training_start_time = time.time()
 
         # Set number of epochs
-        n_epochs = 40
+        n_epochs = 30
 
         # Partial training
         for epoch in range(n_epochs):
@@ -2558,6 +2553,13 @@ def process_kfold_results(results, sample_id, model_label, model_label_full, pro
         plt.plot(df["epoch"], df["valid_loss"], label="valid loss", color=colormap(1))
         plt.xlabel("Epoch")
         plt.ylabel(f"Loss")
+
+        if program == "magemin":
+            program_label = "MAGEMin"
+
+        if program == "perplex":
+            program_label = "Perple_X"
+
         plt.title(f"{model_label_full} Loss Curve [{program}]")
         plt.legend()
 
@@ -3686,308 +3688,309 @@ def compose_rocml_plots(magemin, perplex, sample_id, models, targets, fig_dir):
                 caption2=""
             )
 
-        os.remove(f"{fig_dir}/temp1.png")
-        os.remove(f"{fig_dir}/temp2.png")
-        os.remove(f"{fig_dir}/temp3.png")
-        os.remove(f"{fig_dir}/temp4.png")
+            os.remove(f"{fig_dir}/temp1.png")
+            os.remove(f"{fig_dir}/temp2.png")
+            os.remove(f"{fig_dir}/temp3.png")
+            os.remove(f"{fig_dir}/temp4.png")
 
-    if len(models) == 6:
-        # First row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-surf.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-surf.png",
-            f"{fig_dir}/temp1.png",
-            caption1="a)",
-            caption2="b)"
-        )
+            if len(models) == 6:
+                # First row
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-surf.png",
+                    f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-surf.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1="a)",
+                    caption2="b)"
+                )
 
-        # Second row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-surf.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-surf.png",
-            f"{fig_dir}/temp2.png",
-            caption1="c)",
-            caption2="d)"
-        )
+                # Second row
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-surf.png",
+                    f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-surf.png",
+                    f"{fig_dir}/temp2.png",
+                    caption1="c)",
+                    caption2="d)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp1.png",
-            f"{fig_dir}/temp2.png",
-            f"{fig_dir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/temp2.png",
+                    f"{fig_dir}/temp3.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # Third row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-surf.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-surf.png",
-            f"{fig_dir}/temp4.png",
-            caption1="e)",
-            caption2="f)"
-        )
+                # Third row
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-surf.png",
+                    f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-surf.png",
+                    f"{fig_dir}/temp4.png",
+                    caption1="e)",
+                    caption2="f)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp3.png",
-            f"{fig_dir}/temp4.png",
-            f"{fig_dir}/magemin-{sample_id}-{target}-comp-surf.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp3.png",
+                    f"{fig_dir}/temp4.png",
+                    f"{fig_dir}/magemin-{sample_id}-{target}-comp-surf.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # First row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-surf.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-surf.png",
-            f"{fig_dir}/temp1.png",
-            caption1="g)",
-            caption2="h)"
-        )
+                # First row
+                combine_plots_horizontally(
+                    f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-surf.png",
+                    f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-surf.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1="g)",
+                    caption2="h)"
+                )
 
-        # Second row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-surf.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-surf.png",
-            f"{fig_dir}/temp2.png",
-            caption1="i)",
-            caption2="j)"
-        )
+                # Second row
+                combine_plots_horizontally(
+                    f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-surf.png",
+                    f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-surf.png",
+                    f"{fig_dir}/temp2.png",
+                    caption1="i)",
+                    caption2="j)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp1.png",
-            f"{fig_dir}/temp2.png",
-            f"{fig_dir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/temp2.png",
+                    f"{fig_dir}/temp3.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # Third row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-surf.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-surf.png",
-            f"{fig_dir}/temp4.png",
-            caption1="k)",
-            caption2="l)"
-        )
+                # Third row
+                combine_plots_horizontally(
+                    f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-surf.png",
+                    f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-surf.png",
+                    f"{fig_dir}/temp4.png",
+                    caption1="k)",
+                    caption2="l)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp3.png",
-            f"{fig_dir}/temp4.png",
-            f"{fig_dir}/perplex-{sample_id}-{target}-comp-surf.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp3.png",
+                    f"{fig_dir}/temp4.png",
+                    f"{fig_dir}/perplex-{sample_id}-{target}-comp-surf.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # Stack rows
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{target}-comp-surf.png",
-            f"{fig_dir}/perplex-{sample_id}-{target}-comp-surf.png",
-            f"{fig_dir}/all-surf-{sample_id}-{target}.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{target}-comp-surf.png",
+                    f"{fig_dir}/perplex-{sample_id}-{target}-comp-surf.png",
+                    f"{fig_dir}/all-surf-{sample_id}-{target}.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # First row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-predictions.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-predictions.png",
-            f"{fig_dir}/temp1.png",
-            caption1="a)",
-            caption2="b)"
-        )
+                # First row
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-predictions.png",
+                    f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-predictions.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1="a)",
+                    caption2="b)"
+                )
 
-        # Second row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-predictions.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-predictions.png",
-            f"{fig_dir}/temp2.png",
-            caption1="c)",
-            caption2="d)"
-        )
+                # Second row
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-predictions.png",
+                    f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-predictions.png",
+                    f"{fig_dir}/temp2.png",
+                    caption1="c)",
+                    caption2="d)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp1.png",
-            f"{fig_dir}/temp2.png",
-            f"{fig_dir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/temp2.png",
+                    f"{fig_dir}/temp3.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # Third row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-predictions.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-predictions.png",
-            f"{fig_dir}/temp4.png",
-            caption1="e)",
-            caption2="f)"
-        )
+                # Third row
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-predictions.png",
+                    f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-predictions.png",
+                    f"{fig_dir}/temp4.png",
+                    caption1="e)",
+                    caption2="f)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp3.png",
-            f"{fig_dir}/temp4.png",
-            f"{fig_dir}/magemin-{sample_id}-{target}-comp-image.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp3.png",
+                    f"{fig_dir}/temp4.png",
+                    f"{fig_dir}/magemin-{sample_id}-{target}-comp-image.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # First row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-predictions.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-predictions.png",
-            f"{fig_dir}/temp1.png",
-            caption1="g)",
-            caption2="h)"
-        )
+                # First row
+                combine_plots_horizontally(
+                    f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-predictions.png",
+                    f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-predictions.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1="g)",
+                    caption2="h)"
+                )
 
-        # Second row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-predictions.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-predictions.png",
-            f"{fig_dir}/temp2.png",
-            caption1="i)",
-            caption2="j)"
-        )
+                # Second row
+                combine_plots_horizontally(
+                    f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-predictions.png",
+                    f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-predictions.png",
+                    f"{fig_dir}/temp2.png",
+                    caption1="i)",
+                    caption2="j)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp1.png",
-            f"{fig_dir}/temp2.png",
-            f"{fig_dir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/temp2.png",
+                    f"{fig_dir}/temp3.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # Third row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-predictions.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-predictions.png",
-            f"{fig_dir}/temp4.png",
-            caption1="k)",
-            caption2="l)"
-        )
+                # Third row
+                combine_plots_horizontally(
+                    f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-predictions.png",
+                    f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-predictions.png",
+                    f"{fig_dir}/temp4.png",
+                    caption1="k)",
+                    caption2="l)"
+                )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp3.png",
-            f"{fig_dir}/temp4.png",
-            f"{fig_dir}/perplex-{sample_id}-{target}-comp-image.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_vertically(
+                    f"{fig_dir}/temp3.png",
+                    f"{fig_dir}/temp4.png",
+                    f"{fig_dir}/perplex-{sample_id}-{target}-comp-image.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # Stack rows
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{target}-comp-image.png",
-            f"{fig_dir}/perplex-{sample_id}-{target}-comp-image.png",
-            f"{fig_dir}/all-image-{sample_id}-{target}.png",
-            caption1="",
-            caption2=""
-        )
+                # Stack rows
+                combine_plots_horizontally(
+                    f"{fig_dir}/magemin-{sample_id}-{target}-comp-image.png",
+                    f"{fig_dir}/perplex-{sample_id}-{target}-comp-image.png",
+                    f"{fig_dir}/all-image-{sample_id}-{target}.png",
+                    caption1="",
+                    caption2=""
+                )
 
-        # First row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-prem.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-prem.png",
-            f"{fig_dir}/temp1.png",
-            caption1="a)",
-            caption2="b)"
-        )
+                if target in ["rho", "Vp", "Vs"]:
+                    # First row
+                    combine_plots_horizontally(
+                        f"{fig_dir}/magemin-{sample_id}-{models[0]}-{target}-prem.png",
+                        f"{fig_dir}/magemin-{sample_id}-{models[1]}-{target}-prem.png",
+                        f"{fig_dir}/temp1.png",
+                        caption1="a)",
+                        caption2="b)"
+                    )
 
-        # Second row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-prem.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-prem.png",
-            f"{fig_dir}/temp2.png",
-            caption1="c)",
-            caption2="d)"
-        )
+                    # Second row
+                    combine_plots_horizontally(
+                        f"{fig_dir}/magemin-{sample_id}-{models[2]}-{target}-prem.png",
+                        f"{fig_dir}/magemin-{sample_id}-{models[3]}-{target}-prem.png",
+                        f"{fig_dir}/temp2.png",
+                        caption1="c)",
+                        caption2="d)"
+                    )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp1.png",
-            f"{fig_dir}/temp2.png",
-            f"{fig_dir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
+                    # Stack rows
+                    combine_plots_vertically(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/temp2.png",
+                        f"{fig_dir}/temp3.png",
+                        caption1="",
+                        caption2=""
+                    )
 
-        # Third row
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-prem.png",
-            f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-prem.png",
-            f"{fig_dir}/temp4.png",
-            caption1="e)",
-            caption2="f)"
-        )
+                    # Third row
+                    combine_plots_horizontally(
+                        f"{fig_dir}/magemin-{sample_id}-{models[4]}-{target}-prem.png",
+                        f"{fig_dir}/magemin-{sample_id}-{models[5]}-{target}-prem.png",
+                        f"{fig_dir}/temp4.png",
+                        caption1="e)",
+                        caption2="f)"
+                    )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp3.png",
-            f"{fig_dir}/temp4.png",
-            f"{fig_dir}/magemin-{sample_id}-{target}-comp-prem.png",
-            caption1="",
-            caption2=""
-        )
+                    # Stack rows
+                    combine_plots_vertically(
+                        f"{fig_dir}/temp3.png",
+                        f"{fig_dir}/temp4.png",
+                        f"{fig_dir}/magemin-{sample_id}-{target}-comp-prem.png",
+                        caption1="",
+                        caption2=""
+                    )
 
-        # First row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-prem.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-prem.png",
-            f"{fig_dir}/temp1.png",
-            caption1="g)",
-            caption2="h)"
-        )
+                    # First row
+                    combine_plots_horizontally(
+                        f"{fig_dir}/perplex-{sample_id}-{models[0]}-{target}-prem.png",
+                        f"{fig_dir}/perplex-{sample_id}-{models[1]}-{target}-prem.png",
+                        f"{fig_dir}/temp1.png",
+                        caption1="g)",
+                        caption2="h)"
+                    )
 
-        # Second row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-prem.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-prem.png",
-            f"{fig_dir}/temp2.png",
-            caption1="i)",
-            caption2="j)"
-        )
+                    # Second row
+                    combine_plots_horizontally(
+                        f"{fig_dir}/perplex-{sample_id}-{models[2]}-{target}-prem.png",
+                        f"{fig_dir}/perplex-{sample_id}-{models[3]}-{target}-prem.png",
+                        f"{fig_dir}/temp2.png",
+                        caption1="i)",
+                        caption2="j)"
+                    )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp1.png",
-            f"{fig_dir}/temp2.png",
-            f"{fig_dir}/temp3.png",
-            caption1="",
-            caption2=""
-        )
+                    # Stack rows
+                    combine_plots_vertically(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/temp2.png",
+                        f"{fig_dir}/temp3.png",
+                        caption1="",
+                        caption2=""
+                    )
 
-        # Third row
-        combine_plots_horizontally(
-            f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-prem.png",
-            f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-prem.png",
-            f"{fig_dir}/temp4.png",
-            caption1="k)",
-            caption2="l)"
-        )
+                    # Third row
+                    combine_plots_horizontally(
+                        f"{fig_dir}/perplex-{sample_id}-{models[4]}-{target}-prem.png",
+                        f"{fig_dir}/perplex-{sample_id}-{models[5]}-{target}-prem.png",
+                        f"{fig_dir}/temp4.png",
+                        caption1="k)",
+                        caption2="l)"
+                    )
 
-        # Stack rows
-        combine_plots_vertically(
-            f"{fig_dir}/temp3.png",
-            f"{fig_dir}/temp4.png",
-            f"{fig_dir}/perplex-{sample_id}-{target}-comp-prem.png",
-            caption1="",
-            caption2=""
-        )
+                    # Stack rows
+                    combine_plots_vertically(
+                        f"{fig_dir}/temp3.png",
+                        f"{fig_dir}/temp4.png",
+                        f"{fig_dir}/perplex-{sample_id}-{target}-comp-prem.png",
+                        caption1="",
+                        caption2=""
+                    )
 
-        # Stack rows
-        combine_plots_horizontally(
-            f"{fig_dir}/magemin-{sample_id}-{target}-comp-prem.png",
-            f"{fig_dir}/perplex-{sample_id}-{target}-comp-prem.png",
-            f"{fig_dir}/all-prem-{sample_id}-{target}.png",
-            caption1="",
-            caption2=""
-        )
+                    # Stack rows
+                    combine_plots_horizontally(
+                        f"{fig_dir}/magemin-{sample_id}-{target}-comp-prem.png",
+                        f"{fig_dir}/perplex-{sample_id}-{target}-comp-prem.png",
+                        f"{fig_dir}/all-prem-{sample_id}-{target}.png",
+                        caption1="",
+                        caption2=""
+                    )
 
     # Clean up directory
     tmp_files = glob.glob(f"{fig_dir}/temp*.png")
