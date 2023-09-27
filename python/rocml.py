@@ -320,6 +320,7 @@ def parse_arguments():
     parser.add_argument("--targets", type=parse_list_of_strings, required=False)
     parser.add_argument("--models", type=parse_list_of_strings, required=False)
     parser.add_argument("--tune", type=str, required=False)
+    parser.add_argument("--epochs", type=int, required=False)
     parser.add_argument("--kfolds", type=int, required=False)
     parser.add_argument("--oxides", type=parse_list_of_strings, required=False)
     parser.add_argument("--npca", type=int, required=False)
@@ -357,6 +358,7 @@ def check_arguments(args, script):
     targets = args.targets
     models = args.models
     tune = args.tune
+    epochs = args.epochs
     kfolds = args.kfolds
     oxides = args.oxides
     npca = args.npca
@@ -509,6 +511,11 @@ def check_arguments(args, script):
         print(f"    hyperparameter tuning: {tune}")
 
         valid_args["tune"] = tune
+
+    if epochs is not None:
+        print(f"    NN epochs: {epochs}")
+
+        valid_args["epochs"] = epochs
 
     if kfolds is not None:
         print(f"    kfolds: {kfolds}")
@@ -1059,7 +1066,7 @@ def configure_magemin_model(P_min, P_max, T_min, T_max, res,
         P_step, T_step = 1, 25
 
         # Print shift
-        print("Shifting training dataset by a small amount:")
+        print("Training --> validation set shift:")
         print(f"P_min: {P_min/10} GPa --> P_min: {P_min/10 + P_step/10} GPa")
         print(f"P_max: {P_max/10} GPa --> P_max: {P_max/10 - P_step/10} GPa")
         print(f"T_min: {T_min+273} K --> T_min: {T_min+273 + T_step} K")
@@ -1126,6 +1133,8 @@ def run_magemin(sample_id, dataset, res, parallel, nprocs, verbose):
 
     # Log file
     log_file = f"log/log-magemin-{sample_id}-{dataset}-{res}-{formatted_date}"
+
+    print(f"Building MAGEMin model: {sample_id} {dataset} {res}...")
 
     # Check for MAGEMin repo
     if os.path.exists("MAGEMin"):
@@ -1252,7 +1261,7 @@ def configure_perplex_model(P_min, P_max, T_min, T_max, res, source,
         P_step, T_step = 1e3, 25
 
         # Print shift
-        print("Shifting training dataset by a small amount:")
+        print("Training --> validation set shift:")
         print(f"P_min: {P_min/1e4} GPa --> P_min: {P_min/1e4 + P_step/1e4} GPa")
         print(f"P_max: {P_max/1e4} GPa --> P_max: {P_max/1e4 - P_step/1e4} GPa")
         print(f"T_min: {T_min} K --> T_min: {T_min + T_step} K")
@@ -1358,6 +1367,8 @@ def run_perplex(sample_id, dataset, res, verbose):
 
     # Log file
     log_file = f"log/log-perplex-{sample_id}-{dataset}-{res}-{formatted_date}"
+
+    print(f"Building Perple_X model: {sample_id} {dataset} {res} ...")
 
     # Run programs with corresponding configuration files
     for program in ["build", "vertex", "werami", "pssect"]:
@@ -2225,6 +2236,8 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
         else:
             nprocs = nprocs
 
+    print(f"Configuring RocML model: {model_label_full} ...")
+
     if not tune:
         # Define ML models without tuning
         if model_label == "KN":
@@ -2241,16 +2254,16 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
                                           min_samples_split=2)
 
         elif model_label == "NN1":
-            model = MLPRegressor(random_state=seed
+            model = MLPRegressor(random_state=seed,
                                  hidden_layer_sizes=(int(y_scaled.shape[0] * 0.1)))
 
         elif model_label == "NN2":
-            model = MLPRegressor(random_state=seed
+            model = MLPRegressor(random_state=seed,
                                  hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
                                                      int(y_scaled.shape[0] * 0.2)))
 
         elif model_label == "NN3":
-            model = MLPRegressor(random_state=seed
+            model = MLPRegressor(random_state=seed,
                                  hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
                                                      int(y_scaled.shape[0] * 0.2),
                                                      int(y_scaled.shape[0] * 0.1)))
@@ -2279,15 +2292,15 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
                               min_samples_split=[2, 4, 6])
 
         elif model_label == "NN1":
-            model = MLPRegressor(random_state=seed)
+            model = MLPRegressor(random_state=seed, max_iter=1000)
 
             param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1)),
                                                   (int(y_scaled.shape[0] * 0.2)),
                                                   (int(y_scaled.shape[0] * 0.5))],
-                              learning_rate_init=[0.0005, 0.001, 0.002])
+                              learning_rate_init=[0.0005, 0.001, 0.002, 0.005])
 
         elif model_label == "NN2":
-            model = MLPRegressor(random_state=seed)
+            model = MLPRegressor(random_state=seed, max_iter=1000)
 
             param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
                                                    int(y_scaled.shape[0] * 0.2)),
@@ -2295,10 +2308,10 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
                                                    int(y_scaled.shape[0] * 0.2)),
                                                   (int(y_scaled.shape[0] * 0.5),
                                                    int(y_scaled.shape[0] * 0.2))],
-                              learning_rate_init=[0.0005, 0.001, 0.002])
+                              learning_rate_init=[0.0005, 0.001, 0.002, 0.005])
 
         elif model_label == "NN3":
-            model = MLPRegressor(random_state=seed)
+            model = MLPRegressor(random_state=seed, max_iter=1000)
 
             param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
                                                    int(y_scaled.shape[0] * 0.2),
@@ -2309,7 +2322,7 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, see
                                                   (int(y_scaled.shape[0] * 0.5),
                                                    int(y_scaled.shape[0] * 0.2),
                                                    int(y_scaled.shape[0] * 0.1))],
-                              learning_rate_init=[0.0005, 0.001, 0.002])
+                              learning_rate_init=[0.0005, 0.001, 0.002, 0.005])
 
         # K-fold cross-validation
         kf = KFold(n_splits=3, shuffle=True, random_state=seed)
@@ -2367,7 +2380,7 @@ def process_fold(fold_data):
     """
     # Unpack arguments
     (train_index, test_index), X_scaled, y_scaled, X_scaled_val, y_scaled_val, \
-        model, model_label, scaler_X, scaler_y, scaler_X_val, scaler_y_val, \
+        model, model_label, epochs, scaler_X, scaler_y, scaler_X_val, scaler_y_val, \
         fig_dir, verbose = fold_data
 
     # Split the data into training and testing sets
@@ -2389,11 +2402,8 @@ def process_fold(fold_data):
         # Start training timer
         training_start_time = time.time()
 
-        # Set number of epochs
-        n_epochs = 30
-
         # Partial training
-        for epoch in range(n_epochs):
+        for epoch in range(epochs):
             # Shuffle the training data for each epoch
             indices = np.arange(len(y_train))
             np.random.shuffle(indices)
@@ -2425,7 +2435,7 @@ def process_fold(fold_data):
             if verbose >= 1:
                 # Print loss values for the current epoch
                 print(
-                    f"Epoch {epoch + 1}/{n_epochs}"
+                    f"Epoch {epoch + 1}/{epochs}"
                     f" | Train Loss: {train_loss:.4f}"
                     f" | Validation Loss: {valid_loss:.4f}"
                 )
@@ -3134,8 +3144,8 @@ def pca_mixing_arrays(res, oxides, n_pca_components=3, k_pca_clusters=3, seed=42
 # cv rocml !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def cv_rocml(features_array, targets_array, features_array_val, targets_array_val, targets,
-             units, program, sample_id, model, tune, seed, kfolds, parallel, nprocs, vmin,
-             vmax, palette, fig_dir, filename, verbose, figwidth=6.3, figheight=4.725,
+             units, program, sample_id, model, tune, epochs, seed, kfolds, parallel, nprocs,
+             vmin, vmax, palette, fig_dir, filename, verbose, figwidth=6.3, figheight=4.725,
              fontsize=22):
     """
     """
@@ -3177,6 +3187,8 @@ def cv_rocml(features_array, targets_array, features_array_val, targets_array_va
         print(f"        {target} {unit}")
     print(f"    features array shape: {features_array.shape}")
     print(f"    targets array shape: {targets_array.shape}")
+    if "NN" in model_label:
+        print(f"epochs: {epochs}")
     print(f"    hyperparameters:")
     for key, value in model_hyperparams.items():
         print(f"        {key}: {value}")
@@ -3190,7 +3202,8 @@ def cv_rocml(features_array, targets_array, features_array_val, targets_array_va
     fold_data_list = [
         (
             (train_index, test_index), X_scaled, y_scaled, X_scaled_val, y_scaled_val, model,
-            model_label, scaler_X, scaler_y, scaler_X_val, scaler_y_val, fig_dir, verbose
+            model_label, epochs, scaler_X, scaler_y, scaler_X_val, scaler_y_val, fig_dir,
+            verbose
         )
         for fold_idx, (train_index, test_index) in enumerate(kf.split(X))
     ]
@@ -3226,7 +3239,7 @@ def cv_rocml(features_array, targets_array, features_array_val, targets_array_va
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # train rocml !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def train_rocml(program, sample_id, res, targets, mask_geotherm, model, tune, kfolds,
+def train_rocml(program, sample_id, res, targets, mask_geotherm, model, tune, epochs, kfolds,
                 parallel, nprocs, seed, palette, fig_dir, verbose):
     """
     """
@@ -3289,7 +3302,7 @@ def train_rocml(program, sample_id, res, targets, mask_geotherm, model, tune, kf
     # Train models, predict, analyze
     model, info = cv_rocml(features_array, targets_array, features_array_val,
                            targets_array_val, targets, units, program, sample_id, model,
-                           tune, seed, kfolds, parallel, nprocs, vmin, vmax, palette,
+                           tune, epochs, seed, kfolds, parallel, nprocs, vmin, vmax, palette,
                            fig_dir, fname, verbose)
 
     # Write ML model config and performance info to csv
@@ -5329,6 +5342,16 @@ def visualize_rocml_performance(sample_id, target, res, fig_dir, filename,
     # Get the corresponding colors for each model
     colors = [color_mapping[model] for model in models]
 
+    # Define units
+    if target == "rho":
+        unit = "(kg/m$^3$)"
+    elif target in ["Vp", "Vs"]:
+        unit = "(km/s)"
+    elif target == "melt_fraction":
+        unit = "(%)"
+    else:
+        unit = ""
+
     # Loop through each metric and create a subplot
     for i, metric in enumerate(metrics):
         # Create the facet barplot
@@ -5345,7 +5368,7 @@ def visualize_rocml_performance(sample_id, target, res, fig_dir, filename,
         x_positions = np.arange(len(summary_df[metric]))
 
         # Show MAGEMin and Perple_X compute times
-        if metric == f"inference_time_mean":
+        if metric == "inference_time_mean":
             mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin")
             ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X")
 
@@ -5359,19 +5382,19 @@ def visualize_rocml_performance(sample_id, target, res, fig_dir, filename,
         plt.gca().set_xticklabels([])
 
         # Plot titles
-        if metric == f"training_time_mean":
+        if metric == "training_time_mean":
             plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"Elapsed Time (ms)")
+            plt.ylabel("Elapsed Time (ms)")
             plt.yscale("log")
 
-        elif metric == f"inference_time_mean":
+        elif metric == "inference_time_mean":
             plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"Elapsed Time (ms)")
+            plt.ylabel("Elapsed Time (ms)")
             plt.yscale("log")
             handles = [mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
-            legend.set_bbox_to_anchor((0.46, 0.92))
+            legend.set_bbox_to_anchor((0.44, 0.89))
 
         elif metric == f"rmse_test_mean_{target}":
             # Calculate limits
@@ -5393,9 +5416,14 @@ def visualize_rocml_performance(sample_id, target, res, fig_dir, filename,
                          fmt="none", capsize=5, color="black", linewidth=2)
 
             plt.title(f"{metric_names[i]}")
-            plt.ylabel("RMSE (%)")
+            plt.ylabel(f"RMSE {unit}")
             plt.ylim(0, vmax)
-            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+
+            if target != "melt_fraction":
+                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+
+            else:
+                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
         elif metric == f"rmse_val_mean_{target}":
             # Calculate limits
@@ -5417,9 +5445,14 @@ def visualize_rocml_performance(sample_id, target, res, fig_dir, filename,
                          fmt="none", capsize=5, color="black", linewidth=2)
 
             plt.title(f"{metric_names[i]}")
-            plt.ylabel("RMSE (%)")
+            plt.ylabel(f"RMSE {unit}")
             plt.ylim(0, vmax)
-            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+
+            if target != "melt_fraction":
+                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+
+            else:
+                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
         # Save the plot to a file if a filename is provided
         if filename:

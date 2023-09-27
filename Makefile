@@ -43,7 +43,8 @@ VERBOSE ?= 1
 # RocML options
 TARGETS ?= ["rho", "Vp", "Vs", "melt_fraction"]
 MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
-MLTUNE ?= False
+MLTUNE ?= True
+EPOCHS ?= 40
 MASKGEOTHERM ?= False
 # PCA options
 OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
@@ -133,6 +134,7 @@ train_rocml:  $(LOGFILE) $(PYTHON)
 		--maskgeotherm $(MASKGEOTHERM) \
 		--models '$(MLMODS)' \
 		--tune $(MLTUNE) \
+		--epochs $(EPOCHS) \
 		--kfolds $(KFOLDS) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \

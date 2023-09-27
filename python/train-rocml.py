@@ -29,10 +29,10 @@ else:
 # Train and visualize RocML models
 for model in models:
     if magemin:
-        train_rocml("magemin", sampleid, res, targets, maskgeotherm, model, tune,
+        train_rocml("magemin", sampleid, res, targets, maskgeotherm, model, tune, epochs,
                     kfolds, parallel, nprocs, seed, palette, figdir, verbose)
     if perplex:
-        train_rocml("perplex", sampleid, res, targets, maskgeotherm, model, tune,
+        train_rocml("perplex", sampleid, res, targets, maskgeotherm, model, tune, epochs,
                     kfolds, parallel, nprocs, seed, palette, figdir, verbose)
 
 # Compose plots
