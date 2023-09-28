@@ -30,10 +30,10 @@ else:
 for model in models:
     if magemin:
         train_rocml("magemin", sampleid, res, targets, maskgeotherm, model, tune, epochs,
-                    kfolds, parallel, nprocs, seed, palette, figdir, verbose)
+                    batchp, kfolds, parallel, nprocs, seed, palette, figdir, verbose)
     if perplex:
         train_rocml("perplex", sampleid, res, targets, maskgeotherm, model, tune, epochs,
-                    kfolds, parallel, nprocs, seed, palette, figdir, verbose)
+                    batchp, kfolds, parallel, nprocs, seed, palette, figdir, verbose)
 
 # Compose plots
 compose_rocml_plots(magemin, perplex, sampleid, models, targets, figdir)

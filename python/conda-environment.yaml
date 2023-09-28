@@ -13,4 +13,5 @@ dependencies:
   - matplotlib
   - gitpython
   - tabulate
+  - tqdm
 prefix: /opt/homebrew/Caskroom/miniforge/base/envs/rocml
