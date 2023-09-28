@@ -112,7 +112,7 @@ visualize_dataset: $(LOGFILE) $(PYTHON)
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-train_rocml_on_all_benchmark_dataset: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
+train_rocml_on_all_benchmark_dataset:
 	@for sample in DMM NMORB PUM RE46; do \
 		for res in 8 16 32 64 128; do \
 			$(MAKE) train_rocml SAMPLEID=$$sample RES=$$res; \
@@ -139,13 +139,13 @@ train_rocml: $(LOGFILE) $(PYTHON) assets
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-all_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
-	for res in 8 16 32 64 128; do \
+all_benchmark_datasets:
+	@for res in 8 16 32 64 128; do \
 		$(MAKE) benchmark_datasets RES=$$res; \
 		for sample in DMM NMORB PUM RE46; do \
 			$(MAKE) visualize_dataset SAMPLEID=$$sample RES=$$res; \
-		done;
-	done;
+		done; \
+	done
 
 benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
 	@$(CONDAPYTHON) -u python/build-gfem-models.py \

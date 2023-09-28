@@ -3478,7 +3478,7 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
 
     elif magemin and not perplex:
         # Get magemin results
-        results_mgm = process_magemin_results(sample_id, dataset, res, verbose)
+        results_mgm = read_gfem_results("magemin", sample_id, dataset, res, verbose)
 
         for target in targets_rename:
             if target not in ["assemblage", "assemblage-variance"]:
@@ -3508,7 +3508,7 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
 
     elif perplex and not magemin:
         # Get perplex results
-        results_ppx = process_perplex_results(sample_id, dataset, res, verbose)
+        results_ppx = read_gfem_results("perplex", sample_id, dataset, res, verbose)
 
         for target in targets_rename:
             if target not in ["assemblage", "assemblage-variance"]:
@@ -4947,10 +4947,10 @@ def visualize_training_dataset_diff(sample_id, res, dataset, targets, mask_geoth
     out_dir = "runs"
 
     # Get MAGEMin results
-    results_mgm = process_magemin_results(sample_id, dataset, res, verbose)
+    results_mgm = read_gfem_results("magemin", sample_id, dataset, res, verbose)
 
     # Get perplex results
-    results_ppx = process_perplex_results(sample_id, dataset, res, verbose)
+    results_ppx = read_gfem_results("perplex", sample_id, dataset, res, verbose)
 
     # Get PT values
     P_mgm, T_mgm = results_mgm["P"], results_mgm["T"]

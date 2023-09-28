@@ -10,7 +10,7 @@ locals().update(valid_args)
 # Samples
 if benchmarks:
     source = "assets/data/benchmark-samples.csv"
-    sampleids = ["PUM", "DMM", "NMORB"]
+    sampleids = ["PUM", "DMM", "NMORB", "RE46"]
 
 elif not benchmarks:
     source = f"assets/data/synthetic-samples-pca{npca}-clusters13.csv"
