@@ -34,8 +34,8 @@ NORMOX ?= all
 NSAMPLES ?= 3
 SEED = 42
 PARALLEL ?= True
-NPROCS ?= 6
-KFOLDS ?= 6
+NPROCS ?= 8
+KFOLDS ?= 8
 VERBOSE ?= 1
 # RocML options
 TARGETS ?= ["rho", "Vp", "Vs", "melt_fraction"]

@@ -1064,8 +1064,8 @@ def iterate_magemin_sample(args):
             return None
 
         except Exception as e:
-            print(f"Error occurred in magemin iteration {retry + 1}")
-            print(f"    {e}")
+            print(f"Error occurred in magemin iteration {retry + 1}!")
+            print(f"!!! {e} !!!")
 
             if retry < max_retries - 1:
                 print(f"Retrying in 5 seconds ...")
@@ -1115,26 +1115,19 @@ def build_magemin_model(sample_id, dataset, res, verbose):
     try:
         # Run MAGEMin
         process = subprocess.Popen([exec], stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT, shell=True,
+                                   stderr=subprocess.PIPE, shell=True,
                                    cwd=f"{model_out_dir}")
 
         # Wait for the process to complete and capture its output
         stdout, stderr = process.communicate()
 
-        if process.returncode != 0:
-            print(f"Error executing '{exec}':")
-
-            if stderr is not None:
-                print(f"{stderr.decode()}")
-            else:
-                print("No standard error output.")
-
         # Write to logfile
         with open(log_file, "a") as log:
             log.write(stdout.decode())
+            log.write(stderr.decode())
 
-            if stderr is not None:
-                log.write(stderr.decode())
+        if process.returncode != 0:
+            raise RuntimeError(f"Error executing magemin {model_out_dir}!")
 
         if verbose >= 2:
             print(f"MAGEMin output:")
@@ -1276,8 +1269,8 @@ def iterate_perplex_sample(args):
             return None
 
         except Exception as e:
-            print(f"Error occurred in perplex iteration {retry + 1}")
-            print(f"    {e}")
+            print(f"Error occurred in perplex iteration {retry + 1}!")
+            print(f"{e}")
 
             if retry < max_retries - 1:
                 print(f"Retrying in 5 seconds ...")
@@ -1361,7 +1354,7 @@ def build_perplex_model(sample_id, dataset, res, verbose):
                     log.write(stderr.decode())
 
                 if process.returncode != 0:
-                    print(f"Error executing perplex program '{program}'!")
+                    raise RuntimeError(f"Error executing perplex program '{program}'!")
 
                 elif verbose >= 2:
                     print(f"{program} output:")
@@ -3534,8 +3527,6 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
                     os.remove(f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png")
                     os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
 
-    print("Composing done!")
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose rocml plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4011,8 +4002,6 @@ def compose_rocml_plots(magemin, perplex, sample_id, res, models, targets, fig_d
 
     for file in tmp_files + mgm_files + ppx_files:
         os.remove(file)
-
-    print("Composing done!")
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #+ .5.2          Plotting Functions              !!! ++
