@@ -274,6 +274,8 @@ def compile_magemin(emsonly, verbose):
     # Check for MAGEMin repo
     if os.path.exists("MAGEMin"):
         if emsonly:
+            print("Compiling MAGEMin with HP endmembers ...")
+
             # Move modified MAGEMin config file with HP mantle endmembers
             config = f"{config_dir}/magemin-init-hp-endmembers"
             old_config = "MAGEMIN/src/initialize.h"
@@ -281,6 +283,8 @@ def compile_magemin(emsonly, verbose):
             if os.path.exists(config):
                 # Replace MAGEMin config file with modified (endmembers only) file
                 subprocess.run(f"cp {config} {old_config}", shell=True)
+        else:
+            print("Compiling MAGEMin ...")
 
         # Compile MAGEMin
         if verbose >= 2:
@@ -293,6 +297,8 @@ def compile_magemin(emsonly, verbose):
     else:
         # MAGEMin repo not found
         sys.exit("MAGEMin does not exist!")
+
+    print("Compiling done!")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # check non-matching strings !!
@@ -756,12 +762,12 @@ def get_comp_time(program, sample_id, dataset, res):
             last_value_mgm = time_values_mgm[-1]
 
             # Create the line to append to the CSV file
-            line_to_append = f"{sample_id},magemin,{res*res},{last_value_mgm:.1f}"
+            line_to_append = f"{sample_id},magemin,{dataset},{res*res},{last_value_mgm:.1f}"
 
             # Check if the CSV file already exists
             if not os.path.exists(csv_filepath):
                 # If the file does not exist, write the header line first
-                header_line = "sample,program,size,time"
+                header_line = "sample,program,dataset,size,time"
                 with open(csv_filepath, "w") as csv_file:
                     csv_file.write(header_line + "\n")
 
@@ -774,12 +780,12 @@ def get_comp_time(program, sample_id, dataset, res):
             last_value_ppx = time_values_ppx[-1]
 
             # Create the line to append to the CSV file
-            line_to_append = f"{sample_id},perplex,{res*res},{last_value_ppx:.1f}"
+            line_to_append = f"{sample_id},perplex,{dataset},{res*res},{last_value_ppx:.1f}"
 
             # Check if the CSV file already exists
             if not os.path.exists(csv_filepath):
                 # If the file does not exist, write the header line first
-                header_line = "sample,program,size,time"
+                header_line = "sample,program,dataset,size,time"
                 with open(csv_filepath, "w") as csv_file:
                     csv_file.write(header_line + "\n")
 
@@ -1058,7 +1064,8 @@ def iterate_magemin_sample(args):
             return None
 
         except Exception as e:
-            print(f"Error occurred in attempt {retry + 1}: {e}")
+            print(f"Error occurred in magemin iteration {retry + 1}")
+            print(f"    {e}")
 
             if retry < max_retries - 1:
                 print(f"Retrying in 5 seconds ...")
@@ -1269,7 +1276,8 @@ def iterate_perplex_sample(args):
             return None
 
         except Exception as e:
-            print(f"Error occurred in attempt {retry + 1}: {e}")
+            print(f"Error occurred in perplex iteration {retry + 1}")
+            print(f"    {e}")
 
             if retry < max_retries - 1:
                 print(f"Retrying in 5 seconds ...")
@@ -1471,8 +1479,7 @@ def build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, n
 
     for result in results:
         if result is not None:
-            if verbose >= 2:
-                print("Error occurred with GFEM model:", result)
+            print("Error occurred with GFEM model:", result)
 
             error_count += 1
 
@@ -1594,7 +1601,7 @@ def read_gfem_results(program, sample_id, dataset, res, verbose):
     if not os.path.exists(filepath):
         sys.exit("No results to read!")
 
-    if verbose >= 1:
+    if verbose >= 2:
         print(f"Reading results: {model_out_dir} ...")
 
     # Read results
@@ -1879,7 +1886,7 @@ def process_magemin_results(sample_id, dataset, res, verbose):
     if not os.path.exists(filepath):
         sys.exit("No MAGEMin files to process!")
 
-    if verbose >= 1:
+    if verbose >= 2:
         print(f"Reading MAGEMin output: {model_out_dir} ...")
 
     # Read results
@@ -1956,7 +1963,7 @@ def process_magemin_results(sample_id, dataset, res, verbose):
     # Save as pandas df
     df = pd.DataFrame.from_dict(results)
 
-    if verbose >= 1:
+    if verbose >= 2:
         print(f"Writing MAGEMin results: {model_out_dir} ...")
 
     # Write to csv file
@@ -2076,7 +2083,7 @@ def process_perplex_results(sample_id, dataset, res, verbose):
     if not os.path.exists(filepath_assemblage):
         sys.exit("No Perple_X assemblage file to process ...")
 
-    if verbose >= 1:
+    if verbose >= 2:
         print(f"Reading Perple_X output: {model_out_dir} ...")
 
     # Read results
@@ -2158,7 +2165,7 @@ def process_perplex_results(sample_id, dataset, res, verbose):
     # Save as pandas df
     df = pd.DataFrame.from_dict(results)
 
-    if verbose >= 1:
+    if verbose >= 2:
         print(f"Writing Perple_X results: {model_out_dir} ...")
 
     # Write to csv file
@@ -2255,7 +2262,7 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, epo
         else:
             nprocs = nprocs
 
-    print(f"Configuring RocML model: {model_label_full} ...")
+    print(f"Configuring RocML model {model_label_full} ...")
 
     if not tune:
         # Define ML models without tuning
@@ -3407,19 +3414,11 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
 
-    print("Composing plots ...")
+    print(f"Composing dataset plots: {fig_dir}")
 
     # Compose plots
     if magemin and perplex:
         for target in targets_rename:
-            combine_plots_horizontally(
-                f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
-                f"{fig_dir}/image2-{sample_id}-{dataset}-{target}.png",
-                caption1="a)",
-                caption2="b)"
-            )
-
             if target not in ["assemblage", "assemblage-variance"]:
                 combine_plots_horizontally(
                     f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
@@ -3439,7 +3438,6 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
 
                 os.remove(f"{fig_dir}/temp1.png")
 
-            # PREM variables
             if target in ["rho", "Vp", "Vs"]:
                 combine_plots_horizontally(
                     f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
@@ -3541,13 +3539,13 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose rocml plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_rocml_plots(magemin, perplex, sample_id, models, targets, fig_dir):
+def compose_rocml_plots(magemin, perplex, sample_id, res, models, targets, fig_dir):
     """
     """
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
 
-    print("Composing plots ...")
+    print(f"Composing rocml plots: {fig_dir}")
 
     # Compose plots
     for model in models:
@@ -3562,6 +3560,46 @@ def compose_rocml_plots(magemin, perplex, sample_id, models, targets, fig_dir):
             )
 
         for target in targets_rename:
+            # Visualize rocml performance metrics
+            visualize_rocml_performance(sample_id, target.replace("-", "_"), res, fig_dir,
+                                        "rocml")
+
+            # First row
+            combine_plots_horizontally(
+                f"{fig_dir}/rocml-inference-time-mean-{sample_id}-{res}.png",
+                f"{fig_dir}/rocml-training-time-mean-{sample_id}-{res}.png",
+                f"{fig_dir}/temp1.png",
+                caption1="a)",
+                caption2="b)"
+            )
+
+            os.remove(f"{fig_dir}/rocml-inference-time-mean-{sample_id}-{res}.png")
+            os.remove(f"{fig_dir}/rocml-training-time-mean-{sample_id}-{res}.png")
+
+            # Second row
+            combine_plots_horizontally(
+                f"{fig_dir}/rocml-rmse-test-mean-{target}-{sample_id}-{res}.png",
+                f"{fig_dir}/rocml-rmse-val-mean-{target}-{sample_id}-{res}.png",
+                f"{fig_dir}/temp2.png",
+                caption1="c)",
+                caption2="d)"
+            )
+
+            os.remove(f"{fig_dir}/rocml-rmse-test-mean-{target}-{sample_id}-{res}.png")
+            os.remove(f"{fig_dir}/rocml-rmse-val-mean-{target}-{sample_id}-{res}.png")
+
+            # Stack rows
+            combine_plots_vertically(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp2.png",
+                f"{fig_dir}/rocml-performance-{target}.png",
+                caption1="",
+                caption2=""
+            )
+
+            os.remove(f"{fig_dir}/temp1.png")
+            os.remove(f"{fig_dir}/temp2.png")
+
             if target in ["rho", "Vp", "Vs"]:
                 # First row
                 combine_plots_horizontally(
@@ -3983,9 +4021,9 @@ def compose_rocml_plots(magemin, perplex, sample_id, models, targets, fig_dir):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset design !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset_design(P_min, P_max, T_min, T_max, T_mantle1=273,
-                                      T_mantle2=1773, grad_mantle1=1, grad_mantle2=0.5,
-                                      fig_dir="figs", fontsize=12, figwidth=6.3,
+def visualize_training_dataset_design(P_min, P_max, T_min, T_max, fig_dir,
+                                      T_mantle1=273, T_mantle2=1773, grad_mantle1=1,
+                                      grad_mantle2=0.5, fontsize=12, figwidth=6.3,
                                       figheight=3.54):
     """
     """
@@ -4207,6 +4245,9 @@ def visualize_benchmark_efficiency(fig_dir, filename, fontsize=12, figwidth=6.3,
     # Read data
     data = pd.read_csv(f"{data_dir}/benchmark-efficiency.csv")
 
+    # Filter out validation dataset
+    data = data[data["dataset"] == "train"]
+
     # Arrange data by resolution and sample
     data.sort_values(by=["size", "sample", "program"], inplace=True)
 
@@ -4234,8 +4275,8 @@ def visualize_benchmark_efficiency(fig_dir, filename, fontsize=12, figwidth=6.3,
 
     # Plot the data for MAGEMin lines
     for group, group_data in grouped_data:
-        sample_val = group[0]
-        color_val = sample_colors[sample_val]
+        sample_id = group[0]
+        color_val = sample_colors[sample_id]
 
         # Filter out rows with missing time values for mgm column
         mgm_data = group_data[group_data["program"] == "magemin"]
@@ -4249,17 +4290,17 @@ def visualize_benchmark_efficiency(fig_dir, filename, fontsize=12, figwidth=6.3,
 
         # Plot mgm data points and connect them with lines
         line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color=color_val,
-                             linestyle="-", label=f"[MAGEMin] {sample_val}")
+                             linestyle="-", label=f"[MAGEMin] {sample_id}")
 
         legend_handles.append(line_mgm)
-        legend_labels.append(f"[MAGEMin] {sample_val}")
+        legend_labels.append(f"[MAGEMin] {sample_id}")
 
         # Plot ppx data points and connect them with lines
         line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color=color_val,
-                             linestyle="--", label=f"[Perple_X] {sample_val}")
+                             linestyle="--", label=f"[Perple_X] {sample_id}")
 
         legend_handles.append(line_ppx)
-        legend_labels.append(f"[Perple_X] {sample_val}")
+        legend_labels.append(f"[Perple_X] {sample_id}")
 
     # Set labels and title
     plt.xlabel("Number of Minimizations (PT Points)")
@@ -4925,7 +4966,7 @@ def visualize_training_dataset(program, sample_id, res, dataset, targets, mask_g
         target_rename = target.replace('_', '-')
 
         # Print filepath
-        if verbose >= 1:
+        if verbose >= 2:
             print(f"Saving figure: {program}-{sample_id}-{dataset}-{target_rename}.png")
 
         # Plot targets
@@ -5021,7 +5062,7 @@ def visualize_training_dataset_diff(sample_id, res, dataset, targets, mask_geoth
             target_rename = target.replace('_', '-')
 
             # Print filepath
-            if verbose >= 1:
+            if verbose >= 2:
                 print(f"Saving figure: diff-{sample_id}-{dataset}-{target_rename}.png")
 
             # Plot target array normalized diff mgm-ppx
@@ -5051,7 +5092,7 @@ def visualize_training_dataset_diff(sample_id, res, dataset, targets, mask_geoth
             # Plot PREM comparisons
             if target == "rho":
                 # Print filepath
-                if verbose >= 1:
+                if verbose >= 2:
                     print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
 
                 visualize_prem(target, "g/cm$^3$", results_mgm, results_ppx,
@@ -5061,7 +5102,7 @@ def visualize_training_dataset_diff(sample_id, res, dataset, targets, mask_geoth
 
             if target in ["Vp", "Vs"]:
                 # Print filepath
-                if verbose >= 1:
+                if verbose >= 2:
                     print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
 
                 visualize_prem(target, "km/s", results_mgm, results_ppx,

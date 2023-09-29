@@ -22,28 +22,26 @@ PYTHON = \
 				 python/rocml.py \
 				 python/session-info.py \
 				 python/submit-jobs.py \
-				 python/train-rocml.py \
-				 python/visualize-dataset.py \
-				 python/visualize-other.py \
+				 python/train-rocml-models.py \
 # Dataset build options
 SAMPLEID ?= PUM
 PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 128
+RES ?= 8
 NORMOX ?= all
 NSAMPLES ?= 3
 SEED = 42
 PARALLEL ?= True
-NPROCS ?= 8
-KFOLDS ?= 8
+NPROCS ?= 6
+KFOLDS ?= 6
 VERBOSE ?= 1
 # RocML options
 TARGETS ?= ["rho", "Vp", "Vs", "melt_fraction"]
 MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
 MLTUNE ?= False
-EPOCHS ?= 50
+EPOCHS ?= 40
 BATCHP ?= 0.2
 MASKGEOTHERM ?= False
 # PCA options
@@ -60,7 +58,7 @@ DATAPURGE = \
 						.job \
 						output \
 						$(DATADIR)/*assemblages.csv \
-						$(DATADIR)/benchmark-rocmls-performance.csv \
+						$(DATADIR)/benchmark-rocml-performance.csv \
 						$(DATADIR)/benchmark-efficiency-$(DATE).csv
 DATACLEAN = assets log MAGEMin runs
 FIGSPURGE =
@@ -71,8 +69,7 @@ all: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@$(CONDAPYTHON) -u python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
 	@$(MAKE) benchmark_datasets
-	@$(MAKE) train_rocml
-	@$(MAKE) visualize_other
+	@$(MAKE) train_rocml_models
 
 init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
@@ -80,47 +77,21 @@ init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 	@echo "Run the following in order:" $(LOG)
 	@echo "    make benchmark_datasets" $(LOG)
-	@echo "    make train_rocml" $(LOG)
-	@echo "    make visualize_other" $(LOG)
+	@echo "    make train_rocml_models" $(LOG)
 	@echo "To clean up the directory:" $(LOG)
 	@echo "    make purge" $(LOG)
 	@echo "    make remove_conda_env" $(LOG)
 	@echo "=============================================" $(LOG)
 
-visualize_other: $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) -u python/visualize-other.py \
-		--Pmin $(PMIN) \
-		--Pmax $(PMAX) \
-		--Tmin $(TMIN) \
-		--Tmax $(TMAX) \
-		--sampleid '$(SAMPLEID)' \
-		--targets '$(TARGETS)' \
-		--res $(RES) \
-		--figdir $(FIGDIR) \
-		$(LOG)
-	@echo "=============================================" $(LOG)
-
-visualize_dataset: $(LOGFILE) $(PYTHON)
-	@$(CONDAPYTHON) -u python/visualize-dataset.py \
-		--sampleid '$(SAMPLEID)' \
-		--targets '$(VISTARGETS)' \
-		--res $(RES) \
-		--maskgeotherm $(MASKGEOTHERM) \
-		--palette $(PALETTE) \
-		--figdir $(FIGDIR) \
-		--verbose $(VERBOSE) \
-	$(LOG)
-	@echo "=============================================" $(LOG)
-
-train_rocml_on_all_benchmark_dataset:
+train_all_benchmark_rocml_models:
 	@for sample in DMM NMORB PUM RE46; do \
 		for res in 8 16 32 64 128; do \
-			$(MAKE) train_rocml SAMPLEID=$$sample RES=$$res; \
+			$(MAKE) train_rocml_models SAMPLEID=$$sample RES=$$res; \
 		done; \
   done
 
-train_rocml: $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/train-rocml.py \
+train_rocml_models: $(LOGFILE) $(PYTHON) assets
+	@$(CONDAPYTHON) -u python/train-rocml-models.py \
 		--sampleid '$(SAMPLEID)' \
 		--res $(RES) \
 		--targets '$(TARGETS)' \
@@ -140,12 +111,7 @@ train_rocml: $(LOGFILE) $(PYTHON) assets
 	@echo "=============================================" $(LOG)
 
 all_benchmark_datasets:
-	@for res in 8 16 32 64 128; do \
-		$(MAKE) benchmark_datasets RES=$$res; \
-		for sample in DMM NMORB PUM RE46; do \
-			$(MAKE) visualize_dataset SAMPLEID=$$sample RES=$$res; \
-		done; \
-	done
+	@for res in 8 16 32 64 128; do $(MAKE) benchmark_datasets RES=$$res; done
 
 benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
 	@$(CONDAPYTHON) -u python/build-gfem-models.py \
@@ -156,8 +122,12 @@ benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
 		--res $(RES) \
 		--benchmarks True \
 		--normox '$(NORMOX)' \
+		--targets '$(VISTARGETS)' \
+		--maskgeotherm $(MASKGEOTHERM) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
+		--palette $(PALETTE) \
+		--figdir $(FIGDIR) \
 		--verbose $(VERBOSE) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
@@ -170,11 +140,15 @@ earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) pca_mixing_arrays
 		--Tmax $(TMAX) \
 		--res $(RES) \
 		--benchmarks False \
+		--normox '$(NORMOX)' \
+		--targets '$(VISTARGETS)' \
+		--maskgeotherm $(MASKGEOTHERM) \
 		--npca $(NPCA) \
 		--nsamples $(NSAMPLES) \
-		--normox '$(NORMOX)' \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
+		--palette $(PALETTE) \
+		--figdir $(FIGDIR) \
 		--verbose $(VERBOSE) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
@@ -261,4 +235,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs assets pca_mixing_arrays earthchem_datasets benchmark_datasets all_benchmark_datasets train_rocml train_rocml_on_all_benchmark_dataset visualize_dataset visualize_other init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs assets pca_mixing_arrays earthchem_datasets benchmark_datasets all_benchmark_datasets train_rocml_models train_all_benchmark_rocml_models init all
