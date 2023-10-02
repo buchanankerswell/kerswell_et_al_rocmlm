@@ -29,7 +29,7 @@ PMIN ?= 1
 PMAX ?= 28
 TMIN ?= 773
 TMAX ?= 2273
-RES ?= 8
+RES ?= 128
 NORMOX ?= all
 NSAMPLES ?= 3
 SEED = 42
@@ -43,7 +43,7 @@ MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
 MLTUNE ?= False
 EPOCHS ?= 40
 BATCHP ?= 0.2
-MASKGEOTHERM ?= False
+MASKGEOTHERM ?= True
 # PCA options
 OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
 NPCA ?= 3
@@ -54,14 +54,13 @@ VISTARGETS ?= ["assemblage", "assemblage_variance", "rho", "Vp", "Vs", "melt_fra
 PALETTE ?= bone
 # Cleanup directories
 DATAPURGE = \
+						log \
+						runs \
 						python/__pycache__ \
-						.job \
-						output \
-						$(DATADIR)/*assemblages.csv \
-						$(DATADIR)/benchmark-rocml-performance.csv \
-						$(DATADIR)/benchmark-efficiency-$(DATE).csv
-DATACLEAN = assets log MAGEMin runs
-FIGSPURGE =
+						$(DATADIR)/gfem-efficiency.csv \
+						$(DATADIR)/benchmark-rocml-performance.csv
+DATACLEAN = assets MAGEMin
+FIGSPURGE = figs
 FIGSCLEAN = figs
 
 all: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)

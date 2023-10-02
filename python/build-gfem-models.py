@@ -18,39 +18,41 @@ locals().update(valid_args)
 # Samples
 if benchmarks:
     source = "assets/data/benchmark-samples.csv"
-    sampleids = ["PUM", "DMM", "NMORB"]
+    sampleids = ["PUM", "DMM", "NMORB", "RE46"]
 
 elif not benchmarks:
     source = f"assets/data/synthetic-samples-pca{npca}-clusters13.csv"
     sampleids = get_random_sampleids(source, n=nsamples)
 
-# Run magemin and perplex
+# Initiate empty list to store models
+models = []
+
+# Build models
 for program in ["magemin", "perplex"]:
-    build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, normox,
-                      parallel, nprocs, verbose)
+    models.extend(build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids,
+                                    normox, targets, maskgeotherm, parallel, nprocs, verbose))
 
 # Visualize results
+for model in models:
+    visualize_training_dataset(model, palette)
+
+# Visualize diffs
+magemin_models = [model for model in models if model.program == "magemin"]
+perplex_models = [model for model in models if model.program == "perplex"]
+
+for magemin_model, perplex_model in zip(magemin_models, perplex_models):
+    visualize_training_dataset_diff(magemin_model, perplex_model, palette)
+
+# Compose plots
 for sampleid in sampleids:
-    # Plot magemin output
-    visualize_training_dataset("magemin", sampleid, res, "train", targets, maskgeotherm,
-                               palette, f"{figdir}/{sampleid}_{res}", verbose)
-
-    # Plot perplex output
-    visualize_training_dataset("perplex", sampleid, res, "train", targets, maskgeotherm,
-                               palette, f"{figdir}/{sampleid}_{res}", verbose)
-
-    # Plot magemin perplex difference
-    visualize_training_dataset_diff(sampleid, res, "train", targets, maskgeotherm, palette,
-                                    f"{figdir}/{sampleid}_{res}", verbose)
-
-    # Compose plots
-    compose_dataset_plots(True, True, sampleid, "train", res, targets,
-                          f"{figdir}/{sampleid}_{res}", verbose)
+    for dataset in ["train", "valid"]:
+        compose_dataset_plots(True, True, sampleid, dataset, res, targets,
+                              f"{figdir}/{sampleid}_{res}", verbose)
 
 # Visualize Clapeyron slopes for 660 transition
 visualize_training_dataset_design(Pmin, Pmax, Tmin, Tmax, f"{figdir}/other")
 
 # Visualize benchmark computation times
-visualize_benchmark_efficiency(f"{figdir}/other", "benchmark-efficiency.png")
+visualize_benchmark_efficiency(f"{figdir}/other", "gfem-efficiency.png")
 
 print("build-gfem-models.py done!")

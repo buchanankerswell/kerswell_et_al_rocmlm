@@ -19,6 +19,7 @@ import datetime
 import argparse
 import warnings
 import platform
+import traceback
 import itertools
 import subprocess
 import pkg_resources
@@ -70,42 +71,6 @@ from sklearn.metrics import mean_squared_error, r2_score
 #######################################################
 ## .1.  General Helper Functions for Scripting   !!! ##
 #######################################################
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# read makefile variable !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def read_makefile_variable(makefile, variable):
-    """
-    """
-    try:
-        with open(makefile, "r") as file:
-            lines = file.readlines()
-
-            for line in lines:
-                if line.strip().startswith(variable):
-                    return line.split("=")[1].strip()
-
-    except IOError as e:
-        print(f"Error reading Makefile: {e}")
-
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# read conda packages !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_conda_packages(condafile):
-    """
-    """
-    try:
-        with open(condafile, "r") as file:
-            conda_data = yaml.safe_load(file)
-
-        return conda_data.get("dependencies", [])
-
-    except (IOError, yaml.YAMLError) as e:
-        print(f"Error reading Conda file: {e}")
-
-        return []
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # print session info !!
@@ -229,6 +194,42 @@ def print_session_info(condafile=None, makefile=None):
         print("No Makefile provided.")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# read makefile variable !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def read_makefile_variable(makefile, variable):
+    """
+    """
+    try:
+        with open(makefile, "r") as file:
+            lines = file.readlines()
+
+            for line in lines:
+                if line.strip().startswith(variable):
+                    return line.split("=")[1].strip()
+
+    except IOError as e:
+        print(f"Error reading Makefile: {e}")
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# read conda packages !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_conda_packages(condafile):
+    """
+    """
+    try:
+        with open(condafile, "r") as file:
+            conda_data = yaml.safe_load(file)
+
+        return conda_data.get("dependencies", [])
+
+    except (IOError, yaml.YAMLError) as e:
+        print(f"Error reading Conda file: {e}")
+
+        return []
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # download and unzip !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def download_and_unzip(url, destination):
@@ -298,7 +299,7 @@ def compile_magemin(emsonly, verbose):
         # MAGEMin repo not found
         sys.exit("MAGEMin does not exist!")
 
-    print("Compiling done!")
+    print("Compiling successful!")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # check non-matching strings !!
@@ -671,241 +672,6 @@ def check_arguments(args, script):
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# count lines !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def count_lines(filepath):
-    """
-    """
-    line_count = 0
-
-    with open(filepath, "r") as file:
-        for line in file:
-            line_count += 1
-
-    return line_count
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# replace in file !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def replace_in_file(filepath, replacements):
-    """
-    """
-    with open(filepath, "r") as file:
-        file_data = file.read()
-
-        for key, value in replacements.items():
-            file_data = file_data.replace(key, value)
-
-    with open(filepath, "w") as file:
-        file.write(file_data)
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# get comp time !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_comp_time(program, sample_id, dataset, res):
-    """
-    """
-    # Get current date
-    formatted_date = datetime.datetime.now().strftime("%d-%m-%Y")
-
-    # Define the CSV filename
-    csv_filename = f"benchmark-efficiency.csv"
-
-    # Data assets dir
-    data_dir = "assets/data"
-
-    # Define the full path to the CSV file
-    csv_filepath = f"{data_dir}/{csv_filename}"
-
-    # Log file
-    log_file = f"log/log-{program}-{sample_id}-{dataset}-{res}-{formatted_date}"
-
-    if os.path.exists(log_file) and os.path.exists(data_dir):
-        # Define a list to store the time values
-        time_values_mgm = []
-        time_values_ppx = []
-
-        # Open the log file and read its lines
-        with open(log_file, "r") as log_file:
-            lines = log_file.readlines()
-
-        # Iterate over the lines in reverse order
-        for line in reversed(lines):
-            # Look for the line containing "MAGEMin comp time:"
-            if "MAGEMin comp time:" in line:
-                match = re.search(r"\+([\d.]+) ms", line)
-
-                if match:
-                    time_ms = float(match.group(1))
-                    time_s = time_ms / 1000
-
-                    time_values_mgm.append(time_s)
-
-                # Break the loop after finding the first match
-                break
-
-        # Iterate over the lines in reverse order
-        for line in reversed(lines):
-            if "Total elapsed time" in line:
-                match = re.search(r"\s+([\d.]+)", line)
-
-                if match:
-                    time_m = float(match.group(1))
-                    time_s = time_m * 60
-                    time_values_ppx.append(time_s)
-
-                # Break the loop after finding the first match
-                break
-
-        if time_values_mgm:
-            # Get the last time value (most recent)
-            last_value_mgm = time_values_mgm[-1]
-
-            # Create the line to append to the CSV file
-            line_to_append = f"{sample_id},magemin,{dataset},{res*res},{last_value_mgm:.1f}"
-
-            # Check if the CSV file already exists
-            if not os.path.exists(csv_filepath):
-                # If the file does not exist, write the header line first
-                header_line = "sample,program,dataset,size,time"
-                with open(csv_filepath, "w") as csv_file:
-                    csv_file.write(header_line + "\n")
-
-            # Append the line to the CSV file
-            with open(csv_filepath, "a") as csv_file:
-                csv_file.write(line_to_append + "\n")
-
-        if time_values_ppx:
-            # Get the last time value (most recent)
-            last_value_ppx = time_values_ppx[-1]
-
-            # Create the line to append to the CSV file
-            line_to_append = f"{sample_id},perplex,{dataset},{res*res},{last_value_ppx:.1f}"
-
-            # Check if the CSV file already exists
-            if not os.path.exists(csv_filepath):
-                # If the file does not exist, write the header line first
-                header_line = "sample,program,dataset,size,time"
-                with open(csv_filepath, "w") as csv_file:
-                    csv_file.write(header_line + "\n")
-
-            # Append the line to the CSV file
-            with open(csv_filepath, "a") as csv_file:
-                csv_file.write(line_to_append + "\n")
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#+ .2.1     Sampling Bulk Rock Compositions      !!! ++
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# read earthchem data !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def read_earthchem_data(oxides, verbose):
-    """
-    """
-    # Data assets dir
-    data_dir = "assets/data"
-
-    # Find earthchem data files
-    filepaths = [
-        file for file in os.listdir(data_dir) if file.startswith("earthchem-igneous")
-    ]
-
-    # Filter criteria
-    metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
-
-    # Read all filepaths into dataframes
-    dataframes = {}
-    df_name = []
-
-    for file in filepaths:
-        df_name.append(file.split("-")[-1].split(".")[0])
-
-        idx = file.split("-")[-1].split(".")[0]
-
-        dataframes[f"df_{idx}"] = pd.read_csv(f"{data_dir}/{file}", delimiter="\t")
-        dataframes[f"df_{idx}"] = dataframes[f"df_{idx}"][metadata + oxides]
-
-    data = pd.concat(dataframes, ignore_index=True)
-
-    if "SIO2" in oxides:
-        data = data[data["SIO2"] >= 25]
-        data = data[data["SIO2"] <= 90]
-
-    if "CAO" in oxides:
-        data = data[data["CAO"] <= 25]
-
-    if "FE2O3" in oxides:
-        data = data[data["FE2O3"] <= 20]
-
-    if "TIO2" in oxides:
-        data = data[data["TIO2"] <= 10]
-
-    if verbose >= 2:
-        # Print info
-        print("+++++++++++++++++++++++++++++++++++++++++++++")
-        print("Eartchem search portal critera:")
-        print("    material: bulk")
-        print("    normalization: oxides as reported")
-        print("    sample type:")
-        for name in df_name:
-            print(f"        igneos > {name}")
-        print("    oxides: (and/or)")
-        for oxide in oxides:
-            print(f"        {oxide}")
-        print("Dataset filtering:")
-        if "SIO2" in oxides:
-            print("    SIO2 >= 25 wt.%")
-            print("    SIO2 <= 90 wt.%")
-        if "CAO" in oxides:
-            print("    CAO <= 25 wt.%")
-        if "FE2O3" in oxides:
-            print("    FE2O3 <= 20 wt.%")
-        if "TIO2" in oxides:
-            print("    TIO2 <= 10 wt.%")
-        print("+++++++++++++++++++++++++++++++++++++++++++++")
-        print(f"Combined and filtered samples summary:")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        print(data[oxides].describe().map("{:.4g}".format))
-
-    return data
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# get sample composition !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_sample_composition(filepath, sample_id):
-    """
-    """
-    # All oxides needed for MAGEMin
-    oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3",
-              "H2O"]
-
-    # Read the data file
-    df = pd.read_csv(filepath)
-
-    # Subset the DataFrame based on the sample name
-    subset_df = df[df["NAME"] == sample_id]
-
-    if subset_df.empty:
-        raise ValueError("Sample name not found in the dataset ...")
-
-    # Get the oxide compositions for the selected sample
-    composition = []
-
-    for oxide in oxides:
-        if oxide in subset_df.columns and pd.notnull(subset_df[oxide].iloc[0]):
-            composition.append(float(subset_df[oxide].iloc[0]))
-
-        else:
-            if oxide != "H2O":
-                composition.append(0.01)
-
-            else:
-                composition.append(0.00)
-
-    return composition
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get random sampleids !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_random_sampleids(filepath, n=1, seed=None):
@@ -920,509 +686,40 @@ def get_random_sampleids(filepath, n=1, seed=None):
     return random_sampleids.values
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# normalize composition !!
+# gfem_iteration !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def normalize_composition(sample, components="all"):
+def gfem_iteration(args):
     """
     """
-    # No normalizing for all components
-    if components == "all":
-        return sample
+    # Unpack arguments
+    program, Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset, targets, \
+        maskgeotherm, verbose = args
 
-    # MAGEMin req components
-    oxides = [
-        "SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O",
-        "NA2O", "TIO2", "FE2O3", "CR2O3", "H2O"
-    ]
+    # Initiate GFEM model
+    iteration = GFEMModel(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox,
+                          dataset, targets, maskgeotherm, verbose)
 
-    # Check input
-    if len(sample) != 11:
-        error_message = (
-            f"The input sample list must have exactly 11 components ...\n" +
-            f"{oxides}"
-        )
+    if iteration.model_built:
+        return iteration
 
-        raise ValueError(error_message)
+    else:
+        iteration.build_model()
 
-    # Filter components
-    subset_sample = [
-        c if comp in components else 0.01 for c, comp in zip(sample, oxides)
-    ]
+        if not iteration.model_build_error:
+            iteration.get_results()
+            iteration.get_feature_array()
+            iteration.get_target_array()
 
-    # Normalize
-    total_subset_concentration = sum([c for c in subset_sample if c != 0.01])
-
-    normalized_concentrations = []
-
-    for c, comp in zip(sample, oxides):
-        if comp in components:
-            normalized_concentration = (
-                (c / total_subset_concentration) * 100 if c != 0.01 else 0.01
-            )
+            return iteration
 
         else:
-            normalized_concentration = 0.01
-
-        normalized_concentrations.append(normalized_concentration)
-
-    return normalized_concentrations
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#+ .2.2            MAGEMin Functions             !!! ++
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# configure magemin model !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def configure_magemin_model(P_min, P_max, T_min, T_max, res, source, sample_id, normox,
-                            dataset):
-    """
-    """
-    # Config dir
-    config_dir = "assets/config"
-
-    # Model output dir
-    out_dir = "runs"
-
-    # Model prefix
-    model_prefix = f"{sample_id}-{dataset}-{res}"
-
-    # Create directory for storing magemin model outputs
-    model_out_dir = f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"
-    os.makedirs(model_out_dir, exist_ok=True)
-
-    # Get sample composition
-    sample_comp = get_sample_composition(source, sample_id)
-
-    # Normalize composition
-    norm_comp = normalize_composition(sample_comp, normox)
-
-    # Transform units to kbar C
-    P_min, P_max, T_min, T_max = P_min * 10, P_max * 10, T_min - 273, T_max - 273
-
-    if dataset != "train":
-        # Define small P T step to shift training dataset
-        P_step, T_step = 1, 25
-
-        # Shift PT range
-        P_min, P_max = P_min + P_step, P_max - P_step
-        T_min, T_max = T_min + T_step, T_max - T_step
-
-    # PT range
-    P_range, T_range = [P_min, P_max, (P_max-P_min)/res], [T_min, T_max, (T_max-T_min)/res]
-
-    # Setup PT vectors
-    magemin_input = ""
-
-    P_array = np.arange(float(P_range[0]), float(P_range[1]) + float(P_range[2]),
-                        float(P_range[2])).round(3)
-
-    T_array = np.arange(float(T_range[0]), float(T_range[1]) + float(T_range[2]),
-                        float(T_range[2])).round(3)
-
-    # Expand PT vectors into grid
-    combinations = list(itertools.product(P_array, T_array))
-
-    for p, t in combinations:
-        magemin_input += (
-            f"0 {p} {t} {norm_comp[0]} {norm_comp[1]} {norm_comp[2]} "
-            f"{norm_comp[3]} {norm_comp[4]} {norm_comp[5]} {norm_comp[6]} "
-            f"{norm_comp[7]} {norm_comp[8]} {norm_comp[9]} {norm_comp[10]}\n"
-        )
-
-    # Write input file
-    with open(f"{model_out_dir}/in.dat", "w") as f:
-        f.write(magemin_input)
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# iterate magemin sample !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def iterate_magemin_sample(args):
-    """
-    """
-    # Set retries
-    max_retries = 3
-
-    for retry in range(max_retries):
-        try:
-            # Unpack arguments
-            Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset, verbose = args
-
-            # Configure Perple_X model
-            configure_magemin_model(Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox,
-                                    dataset)
-
-            # Run Perple_X
-            build_magemin_model(sampleid, dataset, res, verbose)
-
-            # Get Perple_X comp time and write to csv
-            get_comp_time("magemin", sampleid, dataset, res)
-
-            # Process results
-            process_magemin_results(sampleid, dataset, res, verbose)
-
-            return None
-
-        except Exception as e:
-            print(f"Error occurred in magemin iteration {retry + 1}!")
-            print(f"!!! {e} !!!")
-
-            if retry < max_retries - 1:
-                print(f"Retrying in 5 seconds ...")
-                time.sleep(5)
-
-            else:
-                return e
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# build magemin model !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_magemin_model(sample_id, dataset, res, verbose):
-    """
-    """
-    # Model output dir
-    out_dir = "runs"
-
-    # Model prefix
-    model_prefix = f"{sample_id}-{dataset}-{res}"
-
-    # Create directory for storing magemin model outputs
-    model_out_dir = f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"
-    os.makedirs(model_out_dir, exist_ok=True)
-
-    # Model config file
-    input_path = f"{model_out_dir}/in.dat"
-
-    # Check for input MAGEMin input files
-    if not os.path.exists(input_path):
-        sys.exit("No MAGEMin input files to run!")
-
-    # Get current date
-    formatted_date = datetime.datetime.now().strftime("%d-%m-%Y")
-
-    # Log file
-    log_file = f"log/log-magemin-{model_prefix}-{formatted_date}"
-
-    print(f"Building MAGEMin model: {sample_id} {dataset} {res}...")
-
-    # Get number of pt points
-    n_points = count_lines(input_path)
-
-    # Execute MAGEMin
-    exec = (f"../../MAGEMin/MAGEMin --File=../../{input_path} --n_points={n_points} "
-            "--sys_in=wt --db=ig")
-
-    try:
-        # Run MAGEMin
-        process = subprocess.Popen([exec], stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE, shell=True,
-                                   cwd=f"{model_out_dir}")
-
-        # Wait for the process to complete and capture its output
-        stdout, stderr = process.communicate()
-
-        # Write to logfile
-        with open(log_file, "a") as log:
-            log.write(stdout.decode())
-            log.write(stderr.decode())
-
-        if process.returncode != 0:
-            raise RuntimeError(f"Error executing magemin {model_out_dir}!")
-
-        if verbose >= 2:
-            print(f"MAGEMin output:")
-            print(f"{stdout.decode()}")
-
-    except subprocess.CalledProcessError as e:
-        if verbose >= 2:
-            print(f"Error: {e}")
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#+ .2.3           Perple_X Functions             !!! ++
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# configure perplex model !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def configure_perplex_model(P_min, P_max, T_min, T_max, res, source, sample_id, normox,
-                            dataset):
-    """
-    """
-    # Get current working dir for making absolute paths
-    cwd = os.getcwd()
-
-    # Perple_X program dir
-    perplex_dir = "assets/perplex"
-
-    # Perple_X config dir
-    config_dir = "assets/config"
-
-    # Model output dir
-    out_dir = "runs"
-
-    # Create directory
-    abs_out_dir = f"{cwd}/{out_dir}"
-    os.makedirs(abs_out_dir, exist_ok=True)
-
-    # Get absolute path to perplex programs
-    abs_perplex_dir = f"{cwd}/{perplex_dir}"
-
-    # Create directory for storing perplex model outputs
-    model_out_dir = f"{cwd}/{out_dir}/perplex_{sample_id}_{dataset}_{res}"
-
-    # Remove old model
-    if os.path.exists(model_out_dir):
-        shutil.rmtree(model_out_dir)
-
-    # Make new dir
-    os.makedirs(model_out_dir, exist_ok=True)
-
-    # Model prefix
-    model_prefix = f"{sample_id}-{dataset}-{res}"
-
-    # Get sample composition
-    sample_comp = get_sample_composition(source, sample_id)
-
-    # Normalize composition
-    norm_comp = normalize_composition(sample_comp, normox)
-
-    # Transform units to kbar C
-    P_min, P_max = P_min * 1e4, P_max * 1e4
-
-    if dataset != "train":
-        # Define small P T step to shift training dataset
-        P_step, T_step = 1e3, 25
-
-        # Shift PT range
-        P_min, P_max = P_min + P_step, P_max - P_step
-        T_min, T_max = T_min + T_step, T_max - T_step
-
-    # Copy endmembers only or solid solution config
-    shutil.copy(
-        f"{config_dir}/perplex-build-solutions",
-        f"{config_dir}/perplex-build-model"
-    )
-
-    # Configuration files
-    build = "perplex-build-model"
-    min = "perplex-vertex-min"
-    targets = "perplex-werami-targets"
-    phase = "perplex-werami-phase"
-    options = "perplex-build-options"
-    draw = "perplex-pssect-draw"
-    plot = "perplex-plot-options"
-
-    # Copy original configuration files to the perplex directory
-    shutil.copy(f"{config_dir}/{build}", f"{model_out_dir}/{build}")
-    shutil.copy(f"{config_dir}/{min}", f"{model_out_dir}/{min}")
-    shutil.copy(f"{config_dir}/{targets}", f"{model_out_dir}/{targets}")
-    shutil.copy(f"{config_dir}/{phase}", f"{model_out_dir}/{phase}")
-    shutil.copy(f"{config_dir}/{options}", f"{model_out_dir}/{options}")
-    shutil.copy(f"{config_dir}/{draw}", f"{model_out_dir}/{draw}")
-    shutil.copy(f"{config_dir}/{plot}", f"{model_out_dir}/perplex_plot_option.dat")
-
-    # Modify the copied configuration files within the perplex directory
-    replace_in_file(f"{model_out_dir}/{build}",
-                    {"{SAMPLEID}": f"{model_prefix}",
-                     "{PERPLEX}": f"{abs_perplex_dir}",
-                     "{OUTDIR}": f"{model_out_dir}",
-                     "{TMIN}": str(T_min),
-                     "{TMAX}": str(T_max),
-                     "{PMIN}": str(P_min),
-                     "{PMAX}": str(P_max),
-                     "{SAMPLECOMP}": " ".join(map(str, norm_comp))})
-    replace_in_file(f"{model_out_dir}/{min}", {"{SAMPLEID}": f"{model_prefix}"})
-    replace_in_file(f"{model_out_dir}/{targets}", {"{SAMPLEID}": f"{model_prefix}"})
-    replace_in_file(f"{model_out_dir}/{phase}", {"{SAMPLEID}": f"{model_prefix}"})
-    replace_in_file(f"{model_out_dir}/{options}",
-                    {"{XNODES}": f"{int(res / 4)} {res + 1}",
-                     "{YNODES}": f"{int(res / 4)} {res + 1}"})
-    replace_in_file(f"{model_out_dir}/{draw}", {"{SAMPLEID}": f"{model_prefix}"})
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# iterate perplex sample !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def iterate_perplex_sample(args):
-    """
-    """
-    # Set retries
-    max_retries = 3
-
-    for retry in range(max_retries):
-        try:
-            # Unpack arguments
-            Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset, verbose = args
-
-            # Configure Perple_X model
-            configure_perplex_model(Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox,
-                                    dataset)
-
-            # Run Perple_X
-            build_perplex_model(sampleid, dataset, res, verbose)
-
-            # Get Perple_X comp time and write to csv
-            get_comp_time("perplex", sampleid, dataset, res)
-
-            # Process results
-            process_perplex_results(sampleid, dataset, res, verbose)
-
-            return None
-
-        except Exception as e:
-            print(f"Error occurred in perplex iteration {retry + 1}!")
-            print(f"{e}")
-
-            if retry < max_retries - 1:
-                print(f"Retrying in 5 seconds ...")
-                time.sleep(5)
-
-            else:
-                return e
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# build perplex model !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_perplex_model(sample_id, dataset, res, verbose):
-    """
-    """
-    # Get current working dir for making absolute paths
-    cwd = os.getcwd()
-
-    # Perple_X program path
-    perplex_dir = "assets/perplex"
-
-    # Model output dir
-    out_dir = "runs"
-
-    # Get absolute path to perplex programs
-    abs_perplex_dir = f"{cwd}/{perplex_dir}"
-
-    # Create directory for storing perplex model outputs
-    model_out_dir = f"{cwd}/{out_dir}/perplex_{sample_id}_{dataset}_{res}"
-    os.makedirs(model_out_dir, exist_ok=True)
-
-    # Model prefix
-    model_prefix = f"{sample_id}-{dataset}-{res}"
-
-    # Get current date
-    formatted_date = datetime.datetime.now().strftime("%d-%m-%Y")
-
-    # Log file
-    log_file = f"log/log-perplex-{model_prefix}-{formatted_date}"
-
-    print(f"Building Perple_X model: {sample_id} {dataset} {res} ...")
-
-    # Run programs with corresponding configuration files
-    for program in ["build", "vertex", "werami", "pssect"]:
-        # Get config files
-        config_files = []
-
-        if program == "build":
-            config_files.append(f"{model_out_dir}/perplex-build-model")
-
-        elif program == "vertex":
-            config_files.append(f"{model_out_dir}/perplex-vertex-min")
-
-        elif program == "werami":
-            config_files.append(f"{model_out_dir}/perplex-werami-targets")
-            config_files.append(f"{model_out_dir}/perplex-werami-phase")
-
-        elif program == "pssect":
-            config_files.append(f"{model_out_dir}/perplex-pssect-draw")
-
-        # Get program path
-        program_path = f"{cwd}/{perplex_dir}/{program}"
-
-        for i, config in enumerate(config_files):
-            try:
-                # Set permissions
-                os.chmod(program_path, 0o755)
-
-                # Open the subprocess and redirect input from the input file
-                with open(config, "rb") as input_stream:
-                    process = subprocess.Popen([program_path], stdin=input_stream,
-                                               stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE,
-                                               shell=True, cwd=model_out_dir)
-
-                # Wait for the process to complete and capture its output
-                stdout, stderr = process.communicate()
-
-                # Write to logfile
-                with open(log_file, "a") as log:
-                    log.write(stdout.decode())
-                    log.write(stderr.decode())
-
-                if process.returncode != 0:
-                    raise RuntimeError(f"Error executing perplex program '{program}'!")
-
-                elif verbose >= 2:
-                    print(f"{program} output:")
-                    print(f"{stdout.decode()}")
-
-                if program == "werami" and i == 0:
-                    # Copy werami pseudosection output
-                    shutil.copy(
-                        f"{model_out_dir}/{model_prefix}_1.tab",
-                        f"{model_out_dir}/target-array.tab"
-                    )
-
-                    # Remove old output
-                    os.remove(f"{model_out_dir}/{model_prefix}_1.tab")
-
-                elif program == "werami" and i == 1:
-                    # Copy werami mineral assemblage output
-                    shutil.copy(
-                        f"{model_out_dir}/{model_prefix}_1.tab",
-                        f"{model_out_dir}/phases.tab"
-                    )
-
-                    # Remove old output
-                    os.remove(f"{model_out_dir}/{model_prefix}_1.tab")
-
-                elif program == "pssect":
-                    # Copy pssect assemblages output
-                    shutil.copy(
-                        f"{model_out_dir}/{model_prefix}_assemblages.txt",
-                        f"{model_out_dir}/assemblages.txt"
-                    )
-
-                    # Copy pssect auto refine output
-                    shutil.copy(
-                        f"{model_out_dir}/{model_prefix}_auto_refine.txt",
-                        f"{model_out_dir}/auto_refine.txt"
-                    )
-
-                    # Copy pssect seismic data output
-                    shutil.copy(
-                        f"{model_out_dir}/{model_prefix}_seismic_data.txt",
-                        f"{model_out_dir}/seismic_data.txt"
-                    )
-
-                    # Remove old output
-                    os.remove(f"{model_out_dir}/{model_prefix}_assemblages.txt")
-                    os.remove(f"{model_out_dir}/{model_prefix}_auto_refine.txt")
-                    os.remove(f"{model_out_dir}/{model_prefix}_seismic_data.txt")
-
-                    # Convert postscript file to pdf
-                    ps = f"{model_out_dir}/{model_prefix}.ps"
-                    pdf = f"{model_out_dir}/{model_prefix}.pdf"
-
-                    subprocess.run(f"ps2pdf {ps} {pdf}", shell=True)
-
-            except subprocess.CalledProcessError as e:
-                if verbose >= 2:
-                    print(f"Error: {e}")
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#+ .2.3       Build GFEM Models Functions        !!! ++
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            return iteration
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, normox,
-                      parallel, nprocs, verbose):
+                      targets, maskgeotherm, parallel, nprocs, verbose):
     """
     """
     # Datasets to iterate over
@@ -1447,69 +744,320 @@ def build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, n
         nprocs = len(combinations)
 
     # Create list of args for mp pooling
-    run_args = [
-        (Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset, verbose
-        ) for sampleid, dataset in combinations
-    ]
+    run_args = [(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset,
+                 targets, maskgeotherm, verbose) for sampleid, dataset in combinations]
 
     # Create a multiprocessing pool
     with mp.Pool(processes=nprocs) as pool:
-        if program == "magemin":
-            results = pool.map(iterate_magemin_sample, run_args)
-
-        elif program == "perplex":
-            results = pool.map(iterate_perplex_sample, run_args)
-
-        else:
-            sys.exit("Program must be 'magemin' or 'perplex'")
+        models = pool.map(gfem_iteration, run_args)
 
         # Wait for all processes
         pool.close()
         pool.join()
 
-    # Check for errors in the results
+    # Check for errors in the models
     error_count = 0
 
-    for result in results:
-        if result is not None:
-            print("Error occurred with GFEM model:", result)
+    for model in models:
+        if model.model_build_error:
+            print(f"Error occurred with GFEM model: {model.model_prefix}")
+            print(f"!!! {model.model_error} !!!")
 
             error_count += 1
 
     if error_count > 0:
-        print(f"Total errors: {error_count}")
+        print(f"Total models with errors: {error_count}")
 
     else:
         print("All GFEM models built successfully!")
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-#######################################################
-## .3.   Post-processing MAGEMin and Perple_X    !!! ##
-#######################################################
+    successful_models = [model for model in models if not model.model_build_error]
+
+    return successful_models
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#+ .3.0             Helper Functions             !!! ++
+#+ .2.1             GFEMModel class              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GFEMModel:
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # init !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def __init__(self, program, P_min, P_max, T_min, T_max, res, source, sample_id, normox,
+                 dataset, targets, maskgeotherm, verbose):
+        # Input
+        self.program = program
+        self.P_min = P_min
+        self.P_max = P_max
+        self.T_min = T_min
+        self.T_max = T_max
+        self.res = res
+        self.source = source
+        self.sample_id = sample_id
+        self.normox = normox
+        self.dataset = dataset
+        self.targets = targets
+        self.mask_geotherm = maskgeotherm
+        self.verbose = verbose
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# encode assemblages !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def encode_assemblages(assemblages, filepath):
-    """
-    """
-    unique_assemblages = {}
-    encoded_assemblages = []
+        if self.program == "magemin":
+            # Magemin dirs and filepaths
+            self.model_out_dir = (f"runs/{self.program[:4]}_{self.sample_id}_"
+                                  f"{self.dataset[0]}{self.res}")
+            self.magemin_in_path = f"{self.model_out_dir}/in.dat"
+            self.magemin_out_path = f"{self.model_out_dir}/output/_pseudosection_output.txt"
 
-    # Encoding unique phase assemblages
-    for assemblage in assemblages:
-        assemblage_tuple = tuple(sorted(assemblage))
+        if self.program == "perplex":
+            # Perplex dirs and filepaths
+            cwd = os.getcwd()
+            self.perplex_dir = f"{cwd}/assets/perplex"
+            self.model_out_dir = (f"{cwd}/runs/{self.program[:4]}_{self.sample_id}_"
+                                  f"{self.dataset[0]}{self.res}")
+            self.perplex_targets = f"{self.model_out_dir}/target-array.tab"
+            self.perplex_assemblages = f"{self.model_out_dir}/assemblages.txt"
 
-        if assemblage_tuple not in unique_assemblages:
-            unique_assemblages[assemblage_tuple] = len(unique_assemblages) + 1
+        self.model_prefix = f"{self.sample_id}-{self.dataset}-{self.res}"
+        self.log_file = f"log/log-{self.program}-{self.model_prefix}"
 
-    # Save list of unique phase assemblages
-    if filepath is not None:
+        # Results
+        self.sample_composition = []
+        self.norm_sample_composition = []
+        self.comp_time = None
+        self.model_built = False
+        self.results = {}
+        self.feature_array = np.array([])
+        self.target_array = np.array([])
+
+        # Errors
+        self.model_build_error = False
+        self.model_error = None
+
+        # Check for existing model build
+        if os.path.exists(self.model_out_dir):
+            if (os.path.exists(f"{self.model_out_dir}/results.csv") and
+                    os.path.exists(f"{self.model_out_dir}/assemblages.csv")):
+                print(f"Found results for model {self.model_prefix}!")
+
+                self.model_built = True
+                self.results = self.get_results()
+
+                if self.targets:
+                    self.feature_array = self.get_feature_array()
+                    self.target_array = self.get_target_array()
+
+            else:
+                # Make new model if results not found
+                shutil.rmtree(self.model_out_dir)
+                os.makedirs(self.model_out_dir, exist_ok=True)
+        else:
+            os.makedirs(self.model_out_dir, exist_ok=True)
+
+        # Set np array printing option
+        np.set_printoptions(precision=3, suppress=True)
+
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #+ .2.1.0          Helper Functions              !!! ++
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # get sample composition !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _get_sample_composition(self):
+        """
+        """
+        # All oxides needed for MAGEMin
+        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
+                  "CR2O3", "H2O"]
+
+        # Read the data file
+        df = pd.read_csv(self.source)
+
+        # Subset the DataFrame based on the sample name
+        subset_df = df[df["NAME"] == self.sample_id]
+
+        if subset_df.empty:
+            raise ValueError("Sample name not found in the dataset!")
+
+        # Get the oxide compositions for the selected sample
+        composition = []
+
+        for oxide in oxides:
+            if oxide in subset_df.columns and pd.notnull(subset_df[oxide].iloc[0]):
+                composition.append(float(subset_df[oxide].iloc[0]))
+
+            else:
+                if oxide != "H2O":
+                    composition.append(0.01)
+
+                else:
+                    composition.append(0.00)
+
+        self.sample_composition = composition
+
+        return composition
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # normalize sample composition !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _normalize_sample_composition(self):
+        """
+        """
+        # Check for sample composition
+        if not self.sample_composition:
+            raise Exception("No sample composition! Call _get_sample_composition() first ...")
+
+        # No normalizing for all components
+        if self.normox == "all":
+            return self.sample_composition
+
+        # MAGEMin req components
+        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
+                  "CR2O3", "H2O"]
+
+        # Check input
+        if len(self.sample_composition) != 11:
+            error_message = ("The input sample list must have exactly 11 components!\n"
+                             f"{oxides}")
+
+            raise ValueError(error_message)
+
+        # Filter components
+        subset_sample = [comp if component in components else 0.01
+                         for comp, component in zip(sample, oxides)]
+
+        # Normalize
+        total_subset_concentration = sum([comp for comp in subset_sample if comp != 0.01])
+
+        normalized_concentrations = []
+
+        for comp, component in zip(sample, oxides):
+            if component in components:
+                normalized_concentration = (
+                    (comp / total_subset_concentration) * 100 if comp != 0.01 else 0.01
+                )
+
+            else:
+                normalized_concentration = 0.01
+
+            normalized_concentrations.append(normalized_concentration)
+
+        self.norm_sample_composition = normalized_concentrations
+
+        return normalized_concentrations
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # count lines !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _count_lines(self):
+        """
+        """
+        line_count = 0
+
+        with open(self.magemin_in_path, "r") as file:
+            for line in file:
+                line_count += 1
+
+        return line_count
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # replace in file !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _replace_in_file(self, filepath, replacements):
+        """
+        """
+        with open(filepath, "r") as file:
+            file_data = file.read()
+
+            for key, value in replacements.items():
+                file_data = file_data.replace(key, value)
+
+        with open(filepath, "w") as file:
+            file.write(file_data)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # get comp time !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _get_comp_time(self):
+        """
+        """
+        if os.path.exists(self.log_file) and os.path.exists("assets/data"):
+            # Define a list to store the time values
+            time_values_mgm = []
+            time_values_ppx = []
+
+            # Open the log file and read its lines
+            with open(self.log_file, "r") as log:
+                lines = log.readlines()
+
+            # Iterate over the lines in reverse order
+            for line in reversed(lines):
+                if "MAGEMin comp time:" in line:
+                    match = re.search(r"\+([\d.]+) ms", line)
+
+                    if match:
+                        time_ms = float(match.group(1))
+                        time_s = time_ms / 1000
+
+                        time_values_mgm.append(time_s)
+
+                    break
+
+            for line in reversed(lines):
+                if "Total elapsed time" in line:
+                    match = re.search(r"\s+([\d.]+)", line)
+
+                    if match:
+                        time_m = float(match.group(1))
+                        time_s = time_m * 60
+
+                        time_values_ppx.append(time_s)
+
+                    break
+
+            if self.program == "magemin":
+                last_value = time_values_mgm[-1]
+
+            elif self.program == "perplex":
+                last_value = time_values_ppx[-1]
+
+            # Create the line to append to the CSV file
+            line_to_append = (f"{self.sample_id},{self.program},{self.dataset},"
+                              f"{self.res**2},{last_value:.1f}")
+
+            csv_filepath = "assets/data/gfem-efficiency.csv"
+
+            # Check if the CSV file already exists
+            if not os.path.exists(csv_filepath):
+                header_line = "sample,program,dataset,size,time"
+
+                # If the file does not exist, write the header line first
+                with open(csv_filepath, "w") as csv_file:
+                    csv_file.write(header_line + "\n")
+
+            # Append the line to the CSV file
+            with open(csv_filepath, "a") as csv_file:
+                csv_file.write(line_to_append + "\n")
+
+            self.comp_time = round(last_value, 3)
+
+            return round(last_value, 3)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # encode assemblages !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _encode_assemblages(self, assemblages):
+        """
+        """
+        unique_assemblages = {}
+        encoded_assemblages = []
+
+        # Encoding unique phase assemblages
+        for assemblage in assemblages:
+            assemblage_tuple = tuple(sorted(assemblage))
+
+            if assemblage_tuple not in unique_assemblages:
+                unique_assemblages[assemblage_tuple] = len(unique_assemblages) + 1
+
         # Create dataframe
         df = pd.DataFrame(list(unique_assemblages.items()), columns=["assemblage", "index"])
 
@@ -1517,669 +1065,943 @@ def encode_assemblages(assemblages, filepath):
         df["assemblage"] = df["assemblage"].apply(" ".join)
 
         # Save to csv
-        df.to_csv(filepath, index=False)
+        assemblages_csv = f"{self.model_out_dir}/assemblages.csv"
+        df.to_csv(assemblages_csv, index=False)
 
-    # Encoding phase assemblage numbers
-    for assemblage in assemblages:
-        if assemblage == "":
-            encoded_assemblages.append(np.nan)
+        # Encoding phase assemblage numbers
+        for assemblage in assemblages:
+            if assemblage == "":
+                encoded_assemblages.append(np.nan)
 
-        else:
-            encoded_assemblage = unique_assemblages[tuple(sorted(assemblage))]
-            encoded_assemblages.append(encoded_assemblage)
+            else:
+                encoded_assemblage = unique_assemblages[tuple(sorted(assemblage))]
+                encoded_assemblages.append(encoded_assemblage)
 
-    return encoded_assemblages
+        return encoded_assemblages
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# create geotherm mask !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def create_geotherm_mask(results, T_mantle1=273, T_mantle2=1773, grad_mantle1=1,
-                         grad_mantle2=0.5):
-    """
-    """
-    # Get PT values
-    P, T = results["P"], results["T"]
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #+ .2.1.1           MAGEMin Functions            !!! ++
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # configure magemin model !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _configure_magemin_model(self):
+        """
+        """
+        # Get sample composition
+        sample_comp = self._get_sample_composition()
+        norm_comp = self._normalize_sample_composition()
 
-    # Get max PT
-    P_min, P_max, T_min, T_max = np.min(P), np.max(P), np.min(T), np.max(T)
+        # Transform units to kbar C
+        P_min, P_max = self.P_min * 10, self.P_max * 10
+        T_min, T_max = self.T_min - 273, self.T_max - 273
 
-    # Find geotherm boundaries
-    T1_Pmax = (P_max * grad_mantle1 * 35) + T_mantle1
-    P1_Tmin = (T_min - T_mantle1) / (grad_mantle1 * 35)
-    T2_Pmin = (P_min * grad_mantle2 * 35) + T_mantle2
-    T2_Pmax = (P_max * grad_mantle2 * 35) + T_mantle2
+        # Shift validation dataset
+        if self.dataset != "train":
+            P_step, T_step = 1, 25
 
-    # Iterate through PT array and set nan where PT is out of geotherm bounds
-    PT_array = np.stack((P, T), axis=-1)
+            P_min += P_step
+            P_max -= P_step
+            T_min += T_step
+            T_max -= T_step
 
-    for i in range(PT_array.shape[0]):
-        p = PT_array[i, 0]
-        t = PT_array[i, 1]
+        # Define PT arrays
+        P_range = [P_min, P_max, (P_max - P_min) / self.res]
+        T_range = [T_min, T_max, (T_max - T_min) / self.res]
 
-        # Calculate mantle geotherms
-        geotherm1 = (t - T_mantle1) / (grad_mantle1 * 35)
-        geotherm2 = (t - T_mantle2) / (grad_mantle2 * 35)
+        P_array = np.arange(float(P_range[0]),
+                            float(P_range[1]) + float(P_range[2]),
+                            float(P_range[2])).round(3)
 
-        # Set PT array to nan if outside of geotherm bounds
-        if (
-               ((t <= T1_Pmax) and (p >= geotherm1)) or
-               ((t >= T2_Pmin) and (p <= geotherm2))
-        ):
-            PT_array[i] = [np.nan, np.nan]
+        T_array = np.arange(float(T_range[0]),
+                            float(T_range[1]) + float(T_range[2]),
+                            float(T_range[2])).round(3)
 
-    # Create nan mask
-    mask = np.isnan(PT_array[:,0])
+        # Setup PT vectors
+        magemin_input = ""
 
-    return mask
+        # Expand PT vectors into grid
+        combinations = list(itertools.product(P_array, T_array))
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# read gfem results !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def read_gfem_results(program, sample_id, dataset, res, verbose):
-    """
-    """
-    # Model output dir
-    out_dir = "runs"
-
-    # Get directory with magemin model outputs
-    model_out_dir = f"{out_dir}/{program}_{sample_id}_{dataset}_{res}"
-
-    # Check for MAGEMin output files
-    if not os.path.exists(out_dir):
-        sys.exit("No results to read!")
-
-    # Get filepaths for magemin output
-    filepath = f"{model_out_dir}/results.csv"
-
-    if not os.path.exists(filepath):
-        sys.exit("No results to read!")
-
-    if verbose >= 2:
-        print(f"Reading results: {model_out_dir} ...")
-
-    # Read results
-    df = pd.read_csv(filepath)
-
-    # Initialize empty dict
-    results = {}
-
-    # Convert to dict of np arrays
-    for column in df.columns:
-        results[column] = df[column].values
-
-    return results
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# impute array with nans !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def impute_array_with_nans(array, n_neighbors=1):
-    """
-    """
-    # Create a copy of the input array to avoid modifying the original array
-    result_array = array.copy()
-
-    # Iterate through each element of the array
-    for i in range(len(result_array)):
-        if np.isnan(result_array[i]):
-            # Define the neighborhood indices
-            neighbors = ([i - j for j in range(1, n_neighbors + 1)] +
-                         [i + j for j in range(1, n_neighbors + 1)])
-
-            # Check if any of the surrounding values are also nan
-            is_nan_surrounded = any(
-                np.isnan(result_array[x]) for x in neighbors if 0 <= x < len(result_array)
+        for p, t in combinations:
+            magemin_input += (
+                f"0 {p} {t} "
+                f"{norm_comp[0]} {norm_comp[1]} {norm_comp[2]} "
+                f"{norm_comp[3]} {norm_comp[4]} {norm_comp[5]} "
+                f"{norm_comp[6]} {norm_comp[7]} {norm_comp[8]} "
+                f"{norm_comp[9]} {norm_comp[10]}\n"
             )
 
-            if is_nan_surrounded:
-                # If surrounded by nans, set the nan to 0
-                result_array[i] = 0
+        # Write input file
+        with open(self.magemin_in_path, "w") as f:
+            f.write(magemin_input)
 
-            else:
-                # If surrounded by numerical values, impute the mean value of neighbors
-                surrounding_values = [
-                    result_array[x] for x in neighbors
-                    if 0 <= x < len(result_array) and not np.isnan(result_array[x])
-                ]
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # run magemin !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _run_magemin(self):
+        """
+        """
+        # Check for input MAGEMin input files
+        if not os.path.exists(self.magemin_in_path):
+            raise Exception("No MAGEMin input files to run!"
+                            "Call _configure_magemin_model() first ...")
 
-                if surrounding_values:
-                    result_array[i] = np.mean(surrounding_values)
+        print(f"Building MAGEMin model: {self.model_prefix}...")
 
-                else:
-                    # If there are no surrounding numerical values, set to 0
-                    result_array[i] = 0
+        # Get number of pt points
+        n_points = self._count_lines()
 
-    return result_array
+        # Execute MAGEMin
+        exec = (f"../../MAGEMin/MAGEMin --File=../../{self.magemin_in_path} "
+                f"--n_points={n_points} --sys_in=wt --db=ig")
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# create feature array !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def create_feature_array(results, mask_geotherm):
-    """
-    """
-    # Get P T arrays
-    P, T = results["P"], results["T"]
+        try:
+            # Run MAGEMin
+            process = subprocess.Popen([exec], stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, shell=True,
+                                       cwd=self.model_out_dir)
 
-    # Mask geotherm
-    if mask_geotherm:
-        # Get geotherm mask
-        mask = create_geotherm_mask(results)
+            # Wait for the process to complete and capture its output
+            stdout, stderr = process.communicate()
 
-        # Apply mask to features
-        P[mask] = np.nan
-        T[mask] = np.nan
+            # Write to logfile
+            with open(self.log_file, "a") as log:
+                log.write(stdout.decode())
+                log.write(stderr.decode())
 
-    # Stack PT arrays
-    feature_array = np.stack((P, T), axis=-1)
+            if process.returncode != 0:
+                raise RuntimeError(f"Error executing magemin {self.model_out_dir}!")
 
-    return feature_array
+            if self.verbose >= 2:
+                print(f"MAGEMin output:")
+                print(f"{stdout.decode()}")
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# create target array !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def create_target_array(results, targets, mask_geotherm):
-    """
-    """
-    # Data assets dir
-    data_dir = "assets/data"
+        except subprocess.CalledProcessError as e:
+            print(f"Error: {e}")
 
-    # Initialize empty list for target arrays
-    target_array_list = []
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # read magemin output !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _read_magemin_output(self):
+        """
+        """
+        # Open file
+        with open(self.magemin_out_path, "r") as file:
+            lines = file.readlines()
 
-    # Rearrange results to match targets
-    results_rearranged = {key: results[key] for key in targets}
+        # Skip the comment line
+        lines = lines[1:]
 
-    # Get target arrays
-    for key, value in results_rearranged.items():
-        if key in targets:
-            target_array_list.append(impute_array_with_nans(value))
+        # Initialize results
+        results = []
 
-    # Stack target arrays
-    target_array = np.stack(target_array_list, axis=-1)
-
-    if mask_geotherm:
-        # Get geotherm mask
-        mask = create_geotherm_mask(results)
-
-        # Apply mask to all target arrays
-        for j in range(target_array.shape[1]):
-            target_array[:, j][mask] = np.nan
-
-    return target_array
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#+ .3.1             Process MAGEMin              !!! ++
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# read magemin output !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def read_magemin_output(filepath):
-    """
-    """
-    # Open file
-    with open(filepath, "r") as file:
-        lines = file.readlines()
-
-    # Skip the comment line
-    lines = lines[1:]
-
-    # Initialize results
-    results = []
-
-    # Read lines
-    while lines:
-        # Get line with PT, Gamma, etc.
-        line = lines.pop(0)
-
-        # Split line at whitespace and transform into floats
-        a = list(map(float, line.split()))
-
-        # Get results
-        num_point = int(a[0]) # PT point
-        status = int(a[1]) # solution status
-        p = a[2] # P kbar
-        t = a[3] # T celcius
-        gibbs = a[4] # gibbs free energy J
-        br_norm = a[5] # normalized mass residual
-        gamma = a[6:15] # chemical potential of pure components (gibbs hyperplane)
-        unknown = a[16] # unknown parameter following gamma in output ???
-        vp = a[17] # P-wave velocity km/s
-        vs = a[18] # S-wave velocity km/s
-        entropy = a[19] # entropy J/K
-
-        # Initialize empty lists for stable solutions and endmember info
-        assemblage = []
-        assemblage_mode = []
-        assemblage_rho = []
-        compositional_vars = []
-        em_fractions = []
-        em_list = []
-
-        # Get line with stable solutions and endmember info
-        line = lines.pop(0)
-
-        # Read line
-        while line.strip():
-            # Split line at whitespace
-            out = line.split()
-
-            # Initialize empty list to store stable solutions info
-            data = []
-
-            # Store stable solutions info as floats or strings (if not numeric)
-            for value in out:
-                try:
-                    data.append(float(value))
-
-                except ValueError:
-                    data.append(value)
-
-            # Store stable solutions info
-            assemblage.append(data[0]) # phase assemblage
-            assemblage_mode.append(data[1]) # assemblage mode
-            assemblage_rho.append(data[2]) # assemblage density
-
-            # Initialize empty lists for endmember info
-            comp_var = []
-            em_frac = []
-            em = []
-
-            if len(data) > 4:
-                n_xeos = int(data[3]) # number of compositional variables
-                comp_var = data[4:4 + n_xeos] # compositional variables
-                em = out[4 + n_xeos::2] # endmembers
-                em_frac = data[5 + n_xeos::2] # endmember fractions
-
-            # Store endmember info
-            compositional_vars.append(comp_var)
-            em_fractions.append(em_frac)
-            em_list.append(em)
-
+        # Read lines
+        while lines:
+            # Get line with PT, Gamma, etc.
             line = lines.pop(0)
 
-        # Get indices of melt
-        ind_liq = [idx for idx, sol in enumerate(assemblage) if sol == "liq"]
+            # Split line at whitespace and transform into floats
+            a = list(map(float, line.split()))
 
-        # Get melt fraction
-        if ind_liq:
-            liq = assemblage_mode[ind_liq[0]]
+            # Get results
+            num_point = int(a[0]) # PT point
+            status = int(a[1]) # solution status
+            p = a[2] # P kbar
+            t = a[3] # T celcius
+            gibbs = a[4] # gibbs free energy J
+            br_norm = a[5] # normalized mass residual
+            gamma = a[6:15] # chemical potential of pure components (gibbs hyperplane)
+            unknown = a[16] # unknown parameter following gamma in output ???
+            vp = a[17] # P-wave velocity km/s
+            vs = a[18] # S-wave velocity km/s
+            entropy = a[19] # entropy J/K
 
-            if liq <= 0.01:
+            # Initialize empty lists for stable solutions and endmember info
+            assemblage = []
+            assemblage_mode = []
+            assemblage_rho = []
+            compositional_vars = []
+            em_fractions = []
+            em_list = []
+
+            # Get line with stable solutions and endmember info
+            line = lines.pop(0)
+
+            # Read line
+            while line.strip():
+                # Split line at whitespace
+                out = line.split()
+
+                # Initialize empty list to store stable solutions info
+                data = []
+
+                # Store stable solutions info as floats or strings (if not numeric)
+                for value in out:
+                    try:
+                        data.append(float(value))
+
+                    except ValueError:
+                        data.append(value)
+
+                # Store stable solutions info
+                assemblage.append(data[0]) # phase assemblage
+                assemblage_mode.append(data[1]) # assemblage mode
+                assemblage_rho.append(data[2]) # assemblage density
+
+                # Initialize empty lists for endmember info
+                comp_var = []
+                em_frac = []
+                em = []
+
+                if len(data) > 4:
+                    n_xeos = int(data[3]) # number of compositional variables
+                    comp_var = data[4:4 + n_xeos] # compositional variables
+                    em = out[4 + n_xeos::2] # endmembers
+                    em_frac = data[5 + n_xeos::2] # endmember fractions
+
+                # Store endmember info
+                compositional_vars.append(comp_var)
+                em_fractions.append(em_frac)
+                em_list.append(em)
+
+                line = lines.pop(0)
+
+            # Get indices of melt
+            ind_liq = [idx for idx, sol in enumerate(assemblage) if sol == "liq"]
+
+            # Get melt fraction
+            if ind_liq:
+                liq = assemblage_mode[ind_liq[0]]
+
+                if liq <= 0.01:
+                    liq = np.nan
+
+            else:
                 liq = np.nan
 
-        else:
-            liq = np.nan
-
-        # Compute average density of full assemblage
-        rho_total = sum(mode * rho for mode, rho in zip(assemblage_mode, assemblage_rho))
-
-        # Compute density of liq
-        if liq > 0:
-            rho_liq = assemblage_rho[ind_liq[0]]
-
-            # Get indices of stable phases
-            ind_sol = [idx for idx, sol in enumerate(assemblage) if sol != "liq"]
-
-            # Compute average density of stable phases
-            if ind_sol:
-                rho_sol = sum(mode * rho for mode, rho in zip(
-                    [assemblage_mode[idx] for idx in ind_sol],
-                    [assemblage_rho[idx] for idx in ind_sol]
-                )) / sum([assemblage_mode[idx] for idx in ind_sol])
-
-            else:
-                rho_sol = 0
-
-            # Compute density of solid-melt mixture
-            rho_mix = (liq * rho_liq + (1 - liq) * rho_sol)
-
-        else:
-            rho_liq = 0
-            rho_sol = 0
-            rho_mix = 0
-
-        # Append results dictionary
-        results.append({"point": num_point, # point
-                        "T": t, # temperature celcius
-                        "P": p, # pressure kbar
-                        "rho": rho_total, # density of full assemblage kg/m3
-                        "Vp": vp, # pressure wave velocity km/s
-                        "Vs": vs, # shear wave velocity km/s
-                        "melt_fraction": liq, # melt fraction
-                        "assemblage": assemblage, # stable assemblage
-                        })
-
-    # Merge lists within dictionary
-    combined_results = {key: [d[key] for d in results] for key in results[0]}
-
-    return combined_results
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# process magemin results !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def process_magemin_results(sample_id, dataset, res, verbose):
-    """
-    """
-    # Data assets dir
-    data_dir = "assets/data"
-
-    # Model output dir
-    out_dir = "runs"
-
-    # Get directory with magemin model outputs
-    model_out_dir = f"{out_dir}/magemin_{sample_id}_{dataset}_{res}"
-
-    # Check for MAGEMin output files
-    if not os.path.exists(out_dir):
-        sys.exit("No MAGEMin files to process!")
-
-    # Get filepaths for magemin output
-    filepath = f"{model_out_dir}/output/_pseudosection_output.txt"
-
-    if not os.path.exists(filepath):
-        sys.exit("No MAGEMin files to process!")
-
-    if verbose >= 2:
-        print(f"Reading MAGEMin output: {model_out_dir} ...")
-
-    # Read results
-    results = read_magemin_output(filepath)
-
-    # Remove point index
-    results.pop("point")
-
-    # Compute assemblage variance (number of phases)
-    assemblages = results.get("assemblage")
-
-    assemblage_variance = []
-
-    for assemblage in assemblages:
-        unique_phases = set(assemblage)
-        count = len(unique_phases)
-        assemblage_variance.append(count)
-
-    # Add assemblage variance to merged results
-    results["assemblage_variance"] = assemblage_variance
-
-    # Encode assemblage
-    csv_filepath = f"{model_out_dir}/assemblages.csv"
-    encoded_assemblages = encode_assemblages(assemblages, csv_filepath)
-
-    # Replace assemblage with encoded assemblages
-    results["assemblage"] = encoded_assemblages
-
-    # Point results that can be converted to numpy arrays
-    point_params = ["T", "P", "rho", "Vp", "Vs", "melt_fraction", "assemblage",
-                    "assemblage_variance"]
-
-    # Convert numeric point results into numpy arrays
-    for key, value in results.items():
-        if key in point_params:
-            if key == "P":
-                # Convert from kbar to GPa
-                results[key] = np.array(value) / 10
-
-            elif key == "T":
-                # Convert from C to K
-                results[key] = np.array(value) + 273
-
-            elif key == "rho":
-                # Convert from kg/m3 to g/cm3
-                results[key] = np.array(value) / 1000
-
-            elif key == "melt_fraction":
-                # Convert from kg/m3 to g/cm3
-                results[key] = np.array(value) * 100
-
-            else:
-                results[key] = np.array(value)
-
-    # Print results
-    if verbose >= 2:
-        units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
-                 "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
-
-        print("+++++++++++++++++++++++++++++++++++++++++++++")
-        for key, value in results.items():
-            if isinstance(value, list):
-                print(f"    ({len(value)},) list:      : {key}")
-
-            elif isinstance(value, np.ndarray):
-                min, max = np.nanmin(value), np.nanmax(value)
-
-                print(
-                    f"    {value.shape} np array: {key} ({min:.1f}, {max:.1f}) {units[key]}"
-                )
-
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-    # Save as pandas df
-    df = pd.DataFrame.from_dict(results)
-
-    if verbose >= 2:
-        print(f"Writing MAGEMin results: {model_out_dir} ...")
-
-    # Write to csv file
-    df.to_csv(f"{model_out_dir}/results.csv", index=False)
-
-    # Clean up output directory
-    os.remove(f"{model_out_dir}/in.dat")
-    shutil.rmtree(f"{model_out_dir}/output")
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-#+ .3.1            Process Perple_X              !!! ++
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# read perplex output !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def read_perplex_output(filepath):
-    """
-    """
-    # Initialize results
-    results = {"T": [], "P": [], "rho": [], "Vp": [], "Vs": [], "entropy": [],
-               "assemblage_index": [], "melt_fraction": [], "assemblage": [],
-               "assemblage_variance": []}
-
-    # Open file
-    with open(filepath, "r") as file:
-        # Skip lines until column headers are found
-        for line in file:
-            if line.strip().startswith("T(K)"):
-                break
-
-        # Read the data
-        for line in file:
-            # Split line on whitespace
-            values = line.split()
-
-            # Read the table of P, T, rho etc.
-            if len(values) >= 8:
-                try:
-                    for i in range(8):
-                        # Make values floats or assign nan
-                        value = (float(values[i])
-                                 if not np.isnan(float(values[i]))
-                                 else np.nan)
-
-                        # Convert from bar to GPa
-                        if i == 1: # P column
-                            value /= 1e4
-
-                        # Convert assemblage index to an integer
-                        if i == 6: # assemblage index column
-                            value = int(value) if not np.isnan(value) else np.nan
-
-                        # Convert from % to fraction
-                        if i == 7: # melt fraction column
-                            value /= 100
-
-                        # Append results
-                        results[list(results.keys())[i]].append(value)
-
-                except ValueError:
-                    continue
-    return results
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# process perplex assemblage !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def process_perplex_assemblage(filepath):
-    """
-    """
-    # Initialize dictionary to store assemblage info
-    assemblage_dict = {}
-
-    # Open assemblage file
-    with open(filepath, "r") as file:
-        for i, line in enumerate(file, start=1):
-            assemblages = line.split("-")[1].strip().split()
-
-            # Make string formatting consistent
-            cleaned_assemblages = [
-                assemblage.split("(")[0].lower() for assemblage in assemblages
-            ]
-
-            # Add assemblage to dict
-            assemblage_dict[i] = cleaned_assemblages
-
-    return assemblage_dict
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# process perplex results !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def process_perplex_results(sample_id, dataset, res, verbose):
-    """
-    """
-    # Data assets dir
-    data_dir = "assets/data"
-
-    # Model output dir
-    out_dir = "runs"
-
-    # Get directory with perplex model outputs
-    model_out_dir = f"{out_dir}/perplex_{sample_id}_{dataset}_{res}"
-
-    # Check for Perple_X output files
-    if not os.path.exists(f"{out_dir}"):
-        sys.exit("No Perple_X files to process!")
-
-    # Get filepaths for targets and assemblage files
-    filepath_targets = f"{model_out_dir}/target-array.tab"
-    filepath_assemblage = f"{model_out_dir}/assemblages.txt"
-
-    # Check for targets
-    if not os.path.exists(filepath_targets):
-        sys.exit("No Perple_X target file to process ...")
-
-    # Check for assemblages
-    if not os.path.exists(filepath_assemblage):
-        sys.exit("No Perple_X assemblage file to process ...")
-
-    if verbose >= 2:
-        print(f"Reading Perple_X output: {model_out_dir} ...")
-
-    # Read results
-    results = read_perplex_output(filepath_targets)
-
-    # Remove entropy
-    results.pop("entropy")
-
-    # Get assemblages from file
-    assemblages = process_perplex_assemblage(filepath_assemblage)
-
-    # Parse assemblages by index
-    for index in results.get("assemblage_index"):
-        if np.isnan(index):
-            results["assemblage"].append("")
-
-        else:
-            phases = assemblages[index]
-            results["assemblage"].append(phases)
-
-    # Count unique phases (assemblage variance)
-    for assemblage in results.get("assemblage"):
-        if assemblage is None:
-            results["assemblage_variance"].append(np.nan)
-
-        else:
+            # Compute average density of full assemblage
+            rho_total = sum(mode * rho for mode, rho in zip(assemblage_mode, assemblage_rho))
+
+            # Append results dictionary
+            results.append({"point": num_point, # point
+                            "T": t, # temperature celcius
+                            "P": p, # pressure kbar
+                            "rho": rho_total, # density of full assemblage kg/m3
+                            "Vp": vp, # pressure wave velocity km/s
+                            "Vs": vs, # shear wave velocity km/s
+                            "melt_fraction": liq, # melt fraction
+                            "assemblage": assemblage, # stable assemblage
+                            })
+
+        # Merge lists within dictionary
+        combined_results = {key: [d[key] for d in results] for key in results[0]}
+
+        return combined_results
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # process magemin results !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _process_magemin_results(self):
+        """
+        """
+        # Check for MAGEMin output files
+        if not os.path.exists(self.model_out_dir):
+            raise Exception("No MAGEMin files to process!"
+                            "Call _run_magemin() first ...")
+
+        if not os.path.exists(self.magemin_out_path):
+            raise Exception("No MAGEMin files to process!"
+                            "Call _run_magemin() first ...")
+
+        if self.verbose >= 2:
+            print(f"Reading MAGEMin output: {self.model_prefix} ...")
+
+        # Read results
+        results = self._read_magemin_output()
+
+        # Remove point index
+        results.pop("point")
+
+        # Compute assemblage variance (number of phases)
+        assemblages = results.get("assemblage")
+
+        assemblage_variance = []
+
+        for assemblage in assemblages:
             unique_phases = set(assemblage)
             count = len(unique_phases)
 
-            results["assemblage_variance"].append(count)
+            assemblage_variance.append(count)
 
-    # Remove assemblage index
-    results.pop("assemblage_index")
+        # Add assemblage variance to merged results
+        results["assemblage_variance"] = assemblage_variance
 
-    # Encode assemblage
-    filepath_csv = f"{model_out_dir}/assemblages.csv"
-    encoded_assemblages = encode_assemblages(results["assemblage"], filepath_csv)
+        # Encode assemblage
+        encoded_assemblages = self._encode_assemblages(assemblages)
 
-    # Replace assemblage with encoded assemblages
-    results["assemblage"] = encoded_assemblages
+        # Replace assemblage with encoded assemblages
+        results["assemblage"] = encoded_assemblages
 
-    # Point results that can be converted to numpy arrays
-    point_params = ["T", "P", "rho", "Vp", "Vs", "melt_fraction", "assemblage",
-                    "assemblage_variance"]
+        # Point results that can be converted to numpy arrays
+        point_params = ["T", "P", "rho", "Vp", "Vs", "melt_fraction", "assemblage",
+                        "assemblage_variance"]
 
-    # Convert numeric point results into numpy arrays
-    for key, value in results.items():
-        if key in point_params:
-            if key == "rho":
-                # Convert from kg/m3 to g/cm3
-                results[key] = np.array(value) / 1000
+        # Convert numeric point results into numpy arrays
+        for key, value in results.items():
+            if key in point_params:
+                if key == "P":
+                    # Convert from kbar to GPa
+                    results[key] = np.array(value) / 10
 
-            elif key == "melt_fraction":
-                # Convert from kg/m3 to g/cm3
-                results[key] = np.array(value) * 100
+                elif key == "T":
+                    # Convert from C to K
+                    results[key] = np.array(value) + 273
+
+                elif key == "rho":
+                    # Convert from kg/m3 to g/cm3
+                    results[key] = np.array(value) / 1000
+
+                elif key == "melt_fraction":
+                    # Convert from kg/m3 to g/cm3
+                    results[key] = np.array(value) * 100
+
+                else:
+                    results[key] = np.array(value)
+
+        # Print results
+        if self.verbose >= 2:
+            units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
+                     "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
+
+            print("+++++++++++++++++++++++++++++++++++++++++++++")
+            for key, value in results.items():
+                if isinstance(value, list):
+                    print(f"    ({len(value)},) list:      : {key}")
+
+                elif isinstance(value, np.ndarray):
+                    min, max = np.nanmin(value), np.nanmax(value)
+
+                    print(f"    {value.shape} np array: {key} "
+                          f"({min:.1f}, {max:.1f}) {units[key]}")
+
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+        # Save as pandas df
+        df = pd.DataFrame.from_dict(results)
+
+        if self.verbose >= 2:
+            print(f"Writing MAGEMin results: {self.model_out_dir} ...")
+
+        # Write to csv file
+        df.to_csv(f"{self.model_out_dir}/results.csv", index=False)
+
+        # Clean up output directory
+        os.remove(self.magemin_in_path)
+        shutil.rmtree(f"{self.model_out_dir}/output")
+
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #+ .2.1.2          Perple_X Functions            !!! ++
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # configure perplex model !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _configure_perplex_model(self):
+        """
+        """
+        # Get sample composition
+        sample_comp = self._get_sample_composition()
+        norm_comp = self._normalize_sample_composition()
+
+        # Transform units to bar
+        P_min, P_max = self.P_min * 1e4, self.P_max * 1e4
+        T_min, T_max = self.T_min, self.T_max
+
+        # Shift validation dataset
+        if self.dataset != "train":
+            P_step, T_step = 1e3, 25
+
+            P_min += P_step
+            P_max -= P_step
+            T_min += T_step
+            T_max -= T_step
+
+        # Configuration files
+        build = "perplex-build-config"
+        minimize = "perplex-vertex-minimize"
+        targets = "perplex-werami-targets"
+        phase = "perplex-werami-phase"
+        options = "perplex-build-options"
+        draw = "perplex-pssect-draw"
+        plot = "perplex-plot-options"
+
+        # Copy original configuration files to the perplex directory
+        shutil.copy(f"assets/config/{build}", f"{self.model_out_dir}/{build}")
+        shutil.copy(f"assets/config/{minimize}", f"{self.model_out_dir}/{minimize}")
+        shutil.copy(f"assets/config/{targets}", f"{self.model_out_dir}/{targets}")
+        shutil.copy(f"assets/config/{phase}", f"{self.model_out_dir}/{phase}")
+        shutil.copy(f"assets/config/{options}", f"{self.model_out_dir}/{options}")
+        shutil.copy(f"assets/config/{draw}", f"{self.model_out_dir}/{draw}")
+        shutil.copy(f"assets/config/{plot}", f"{self.model_out_dir}/perplex_plot_option.dat")
+
+        # Modify the copied configuration files within the perplex directory
+        self._replace_in_file(f"{self.model_out_dir}/{build}",
+                              {"{SAMPLEID}": f"{self.model_prefix}",
+                               "{PERPLEX}": f"{self.perplex_dir}",
+                               "{OUTDIR}": f"{self.model_out_dir}",
+                               "{TMIN}": str(T_min), "{TMAX}": str(T_max),
+                               "{PMIN}": str(P_min), "{PMAX}": str(P_max),
+                               "{SAMPLECOMP}": " ".join(map(str, norm_comp))})
+        self._replace_in_file(f"{self.model_out_dir}/{minimize}",
+                              {"{SAMPLEID}": f"{self.model_prefix}"})
+        self._replace_in_file(f"{self.model_out_dir}/{targets}",
+                              {"{SAMPLEID}": f"{self.model_prefix}"})
+        self._replace_in_file(f"{self.model_out_dir}/{phase}",
+                              {"{SAMPLEID}": f"{self.model_prefix}"})
+        self._replace_in_file(f"{self.model_out_dir}/{options}",
+                              {"{XNODES}": f"{int(self.res / 4)} {self.res + 1}",
+                               "{YNODES}": f"{int(self.res / 4)} {self.res + 1}"})
+        self._replace_in_file(f"{self.model_out_dir}/{draw}",
+                              {"{SAMPLEID}": f"{self.model_prefix}"})
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # run perplex !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _run_perplex(self):
+        """
+        """
+        # Check for input MAGEMin input files
+        if not os.path.exists(f"{self.model_out_dir}/perplex-build-config"):
+            raise Exception("No Perple_X input files to run!"
+                            "Call _configure_perplex_model() first ...")
+
+        print(f"Building Perple_X model: {self.model_prefix} ...")
+
+        # Run programs with corresponding configuration files
+        for program in ["build", "vertex", "werami", "pssect"]:
+            # Get config files
+            config_files = []
+
+            if program == "build":
+                config_files.append(f"{self.model_out_dir}/perplex-build-config")
+
+            elif program == "vertex":
+                config_files.append(f"{self.model_out_dir}/perplex-vertex-minimize")
+
+            elif program == "werami":
+                config_files.append(f"{self.model_out_dir}/perplex-werami-targets")
+                config_files.append(f"{self.model_out_dir}/perplex-werami-phase")
+
+            elif program == "pssect":
+                config_files.append(f"{self.model_out_dir}/perplex-pssect-draw")
+
+            # Get program path
+            program_path = f"{self.perplex_dir}/{program}"
+
+            for i, config in enumerate(config_files):
+                try:
+                    # Set permissions
+                    os.chmod(program_path, 0o755)
+
+                    # Open the subprocess and redirect input from the input file
+                    with open(config, "rb") as input_stream:
+                        process = subprocess.Popen([program_path], stdin=input_stream,
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE,
+                                                   shell=True, cwd=self.model_out_dir)
+
+                    # Wait for the process to complete and capture its output
+                    stdout, stderr = process.communicate()
+
+                    # Write to logfile
+                    with open(self.log_file, "a") as log:
+                        log.write(stdout.decode())
+                        log.write(stderr.decode())
+
+                    if process.returncode != 0:
+                        raise RuntimeError(f"Error executing perplex program '{program}'!")
+
+                    elif self.verbose >= 2:
+                        print(f"{program} output:")
+                        print(f"{stdout.decode()}")
+
+                    if program == "werami" and i == 0:
+                        # Copy werami pseudosection output
+                        shutil.copy(
+                            f"{self.model_out_dir}/{self.model_prefix}_1.tab",
+                            f"{self.model_out_dir}/target-array.tab"
+                        )
+
+                        # Remove old output
+                        os.remove(f"{self.model_out_dir}/{self.model_prefix}_1.tab")
+
+                    elif program == "werami" and i == 1:
+                        # Copy werami mineral assemblage output
+                        shutil.copy(
+                            f"{self.model_out_dir}/{self.model_prefix}_1.tab",
+                            f"{self.model_out_dir}/phases.tab"
+                        )
+
+                        # Remove old output
+                        os.remove(f"{self.model_out_dir}/{self.model_prefix}_1.tab")
+
+                    elif program == "pssect":
+                        # Copy pssect assemblages output
+                        shutil.copy(f"{self.model_out_dir}/"
+                                    f"{self.model_prefix}_assemblages.txt",
+                                    f"{self.model_out_dir}/assemblages.txt")
+
+                        # Copy pssect auto refine output
+                        shutil.copy(f"{self.model_out_dir}/"
+                                    f"{self.model_prefix}_auto_refine.txt",
+                                    f"{self.model_out_dir}/auto_refine.txt")
+
+                        # Copy pssect seismic data output
+                        shutil.copy(f"{self.model_out_dir}/"
+                                    f"{self.model_prefix}_seismic_data.txt",
+                                    f"{self.model_out_dir}/seismic_data.txt")
+
+                        # Remove old output
+                        os.remove(f"{self.model_out_dir}/"
+                                  f"{self.model_prefix}_assemblages.txt")
+                        os.remove(f"{self.model_out_dir}/"
+                                  f"{self.model_prefix}_auto_refine.txt")
+                        os.remove(f"{self.model_out_dir}/"
+                                  f"{self.model_prefix}_seismic_data.txt")
+
+                        # Convert postscript file to pdf
+                        ps = f"{self.model_out_dir}/{self.model_prefix}.ps"
+                        pdf = f"{self.model_out_dir}/{self.model_prefix}.pdf"
+
+                        subprocess.run(f"ps2pdf {ps} {pdf}", shell=True)
+
+                except subprocess.CalledProcessError as e:
+                    print(f"Error: {e}")
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # read perplex targets !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _read_perplex_targets(self):
+        """
+        """
+        # Initialize results
+        results = {"T": [], "P": [], "rho": [], "Vp": [], "Vs": [], "entropy": [],
+                   "assemblage_index": [], "melt_fraction": [], "assemblage": [],
+                   "assemblage_variance": []}
+
+        # Open file
+        with open(self.perplex_targets, "r") as file:
+            # Skip lines until column headers are found
+            for line in file:
+                if line.strip().startswith("T(K)"):
+                    break
+
+            # Read the data
+            for line in file:
+                # Split line on whitespace
+                values = line.split()
+
+                # Read the table of P, T, rho etc.
+                if len(values) >= 8:
+                    try:
+                        for i in range(8):
+                            # Make values floats or assign nan
+                            value = (float(values[i])
+                                     if not np.isnan(float(values[i]))
+                                     else np.nan)
+
+                            # Convert from bar to GPa
+                            if i == 1: # P column
+                                value /= 1e4
+
+                            # Convert assemblage index to an integer
+                            if i == 6: # assemblage index column
+                                value = int(value) if not np.isnan(value) else np.nan
+
+                            # Convert from % to fraction
+                            if i == 7: # melt fraction column
+                                value /= 100
+
+                            # Append results
+                            results[list(results.keys())[i]].append(value)
+
+                    except ValueError:
+                        continue
+        return results
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # read perplex assemblages !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _read_perplex_assemblages(self):
+        """
+        """
+        # Initialize dictionary to store assemblage info
+        assemblage_dict = {}
+
+        # Open assemblage file
+        with open(self.perplex_assemblages, "r") as file:
+            for i, line in enumerate(file, start=1):
+                assemblages = line.split("-")[1].strip().split()
+
+                # Make string formatting consistent
+                cleaned_assemblages = [assemblage.split("(")[0].lower()
+                                       for assemblage in assemblages]
+
+                # Add assemblage to dict
+                assemblage_dict[i] = cleaned_assemblages
+
+        return assemblage_dict
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # process perplex results !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _process_perplex_results(self):
+        """
+        """
+        # Check for targets
+        if not os.path.exists(self.perplex_targets):
+            raise Exception("No Perple_X files to process!"
+                            "Call _run_perplex() first ...")
+
+        # Check for assemblages
+        if not os.path.exists(self.perplex_assemblages):
+            raise Exception("No Perple_X files to process!"
+                            "Call _run_perplex() first ...")
+
+        if self.verbose >= 2:
+            print(f"Reading Perple_X output: {model_out_dir} ...")
+
+        # Read results
+        results = self._read_perplex_targets()
+
+        # Remove entropy
+        results.pop("entropy")
+
+        # Get assemblages from file
+        assemblages = self._read_perplex_assemblages()
+
+        # Parse assemblages by index
+        for index in results.get("assemblage_index"):
+            if np.isnan(index):
+                results["assemblage"].append("")
 
             else:
-                results[key] = np.array(value)
+                phases = assemblages[index]
+                results["assemblage"].append(phases)
 
-    # Print results
-    if verbose >= 2:
-        units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
-                 "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
+        # Count unique phases (assemblage variance)
+        for assemblage in results.get("assemblage"):
+            if assemblage is None:
+                results["assemblage_variance"].append(np.nan)
 
-        print("+++++++++++++++++++++++++++++++++++++++++++++")
+            else:
+                unique_phases = set(assemblage)
+                count = len(unique_phases)
+
+                results["assemblage_variance"].append(count)
+
+        # Remove assemblage index
+        results.pop("assemblage_index")
+
+        # Encode assemblage
+        encoded_assemblages = self._encode_assemblages(results["assemblage"])
+
+        # Replace assemblage with encoded assemblages
+        results["assemblage"] = encoded_assemblages
+
+        # Point results that can be converted to numpy arrays
+        point_params = ["T", "P", "rho", "Vp", "Vs", "melt_fraction", "assemblage",
+                        "assemblage_variance"]
+
+        # Convert numeric point results into numpy arrays
         for key, value in results.items():
-            if isinstance(value, list):
-                print(f"    ({len(value)},) list       : {key}")
+            if key in point_params:
+                if key == "rho":
+                    # Convert from kg/m3 to g/cm3
+                    results[key] = np.array(value) / 1000
 
-            elif isinstance(value, np.ndarray):
-                min, max = np.nanmin(value), np.nanmax(value)
+                elif key == "melt_fraction":
+                    # Convert from kg/m3 to g/cm3
+                    results[key] = np.array(value) * 100
 
-                print(
-                    f"    {value.shape} np array: {key} ({min:.1f}, {max:.1f}) {units[key]}"
-                )
+                else:
+                    results[key] = np.array(value)
 
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        # Print results
+        if self.verbose >= 2:
+            units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
+                     "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
 
-    # Save as pandas df
-    df = pd.DataFrame.from_dict(results)
+            print("+++++++++++++++++++++++++++++++++++++++++++++")
+            for key, value in results.items():
+                if isinstance(value, list):
+                    print(f"    ({len(value)},) list       : {key}")
 
-    if verbose >= 2:
-        print(f"Writing Perple_X results: {model_out_dir} ...")
+                elif isinstance(value, np.ndarray):
+                    min, max = np.nanmin(value), np.nanmax(value)
 
-    # Write to csv file
-    df.to_csv(f"{model_out_dir}/results.csv", index=False)
+                    print(f"    {value.shape} np array: {key} "
+                          f"({min:.1f}, {max:.1f}) {units[key]}")
 
-    # Clean up output directory
-    files_to_keep = ["assemblages.csv", "results.csv"]
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-    try:
-        # List all files in the directory
-        all_files = os.listdir(model_out_dir)
+        # Save as pandas df
+        df = pd.DataFrame.from_dict(results)
 
-        # Iterate through the files and delete those not in the exclusion list
-        for filename in all_files:
-            file_path = os.path.join(model_out_dir, filename)
+        if self.verbose >= 2:
+            print(f"Writing Perple_X results: {self.model_prefix} ...")
 
-            if os.path.isfile(file_path) and filename not in files_to_keep:
-                os.remove(file_path)
+        # Write to csv file
+        df.to_csv(f"{self.model_out_dir}/results.csv", index=False)
 
-    except Exception as e:
-        print(f"Error: {e}")
+        # Clean up output directory
+        files_to_keep = ["assemblages.csv", "results.csv", f"{self.model_prefix}.pdf"]
+
+        try:
+            # List all files in the directory
+            all_files = os.listdir(self.model_out_dir)
+
+            # Iterate through the files and delete those not in the exclusion list
+            for filename in all_files:
+                file_path = os.path.join(self.model_out_dir, filename)
+
+                if os.path.isfile(file_path) and filename not in files_to_keep:
+                    os.remove(file_path)
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #+ .2.1.3        Post Process GFEM Models        !!! ++
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # get results !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def get_results(self):
+        """
+        """
+        # Check for model
+        if not self.model_built:
+            raise Exception("No GFEM model! Call build_model() first ...")
+
+        # Get filepaths for magemin output
+        filepath = f"{self.model_out_dir}/results.csv"
+
+        if not os.path.exists(filepath):
+            sys.exit("No results to read!")
+
+        if self.verbose >= 2:
+            print(f"Reading results: {filepath} ...")
+
+        # Read results
+        df = pd.read_csv(filepath)
+
+        # Convert to dict of np arrays
+        for column in df.columns:
+            self.results[column] = df[column].values
+
+        return self.results
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # create geotherm mask !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _create_geotherm_mask(self, T_mantle1=273, T_mantle2=1773, grad_mantle1=1,
+                              grad_mantle2=0.5):
+        """
+        """
+        # Get PT values
+        P, T = self.results["P"], self.results["T"]
+
+        # Get max PT
+        P_min, P_max, T_min, T_max = np.min(P), np.max(P), np.min(T), np.max(T)
+
+        # Find geotherm boundaries
+        T1_Pmax = (P_max * grad_mantle1 * 35) + T_mantle1
+        P1_Tmin = (T_min - T_mantle1) / (grad_mantle1 * 35)
+        T2_Pmin = (P_min * grad_mantle2 * 35) + T_mantle2
+        T2_Pmax = (P_max * grad_mantle2 * 35) + T_mantle2
+
+        # Iterate through PT array and set nan where PT is out of geotherm bounds
+        PT_array = np.stack((P, T), axis=-1)
+
+        for i in range(PT_array.shape[0]):
+            p = PT_array[i, 0]
+            t = PT_array[i, 1]
+
+            # Calculate mantle geotherms
+            geotherm1 = (t - T_mantle1) / (grad_mantle1 * 35)
+            geotherm2 = (t - T_mantle2) / (grad_mantle2 * 35)
+
+            # Set PT array to nan if outside of geotherm bounds
+            if (
+                   ((t <= T1_Pmax) and (p >= geotherm1)) or
+                   ((t >= T2_Pmin) and (p <= geotherm2))
+            ):
+                PT_array[i] = [np.nan, np.nan]
+
+        # Create nan mask
+        mask = np.isnan(PT_array[:,0])
+
+        return mask
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # get feature array !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def get_feature_array(self):
+        """
+        """
+        # Check for model
+        if not self.model_built:
+            raise Exception("No GFEM model! Call build_model() first ...")
+
+        # Check for results
+        if not self.results:
+            raise Exception("No GFEM model results! Call get_results() first ...")
+
+        # Get P T arrays
+        P, T = self.results["P"], self.results["T"]
+
+        # Mask geotherm
+        if self.mask_geotherm:
+            # Get geotherm mask
+            mask = self._create_geotherm_mask()
+
+            # Apply mask to features
+            P[mask] = np.nan
+            T[mask] = np.nan
+
+        # Stack PT arrays
+        self.feature_array = np.stack((P, T), axis=-1)
+
+        return self.feature_array
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # impute array with nans !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _impute_array_with_nans(self, array, n_neighbors=1):
+        """
+        """
+        # Create a copy of the input array to avoid modifying the original array
+        result_array = array.copy()
+
+        # Iterate through each element of the array
+        for i in range(len(result_array)):
+            if np.isnan(result_array[i]):
+                # Define the neighborhood indices
+                neighbors = ([i - j for j in range(1, n_neighbors + 1)] +
+                             [i + j for j in range(1, n_neighbors + 1)])
+
+                # Check if any of the surrounding values are also nan
+                is_nan_surrounded = any(np.isnan(result_array[x]) for x in neighbors
+                                        if 0 <= x < len(result_array))
+
+                if is_nan_surrounded:
+                    # If surrounded by nans, set the nan to 0
+                    result_array[i] = 0
+
+                else:
+                    # If surrounded by numerical values, impute the mean value of neighbors
+                    surrounding_values = [
+                        result_array[x] for x in neighbors
+                        if 0 <= x < len(result_array) and not np.isnan(result_array[x])
+                    ]
+
+                    if surrounding_values:
+                        result_array[i] = np.mean(surrounding_values)
+
+                    else:
+                        # If there are no surrounding numerical values, set to 0
+                        result_array[i] = 0
+
+        return result_array
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # get target array !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def get_target_array(self):
+        """
+        """
+        # Check for model
+        if not self.model_built:
+            raise Exception("No GFEM model! Call build_model() first ...")
+
+        # Check for results
+        if not self.results:
+            raise Exception("No GFEM model results! Call get_results() first ...")
+
+        # Initialize empty list for target arrays
+        target_array_list = []
+
+        # Rearrange results to match targets
+        results_rearranged = {key: self.results[key] for key in self.targets}
+
+        # Get target arrays
+        for key, value in results_rearranged.items():
+            if key in self.targets:
+                target_array_list.append(self._impute_array_with_nans(value))
+
+        # Stack target arrays
+        self.target_array = np.stack(target_array_list, axis=-1)
+
+        if self.mask_geotherm:
+            # Get geotherm mask
+            mask = self._create_geotherm_mask()
+
+            # Apply mask to all target arrays
+            for j in range(self.target_array.shape[1]):
+                self.target_array[:, j][mask] = np.nan
+
+        return self.target_array
+
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #+ .2.1.4           Build GFEM Models            !!! ++
+    #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # build model !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def build_model(self):
+        """
+        """
+        # Set retries
+        max_retries = 3
+
+        for retry in range(max_retries):
+            try:
+                if self.program == "magemin":
+                    # Build model and write results to csv
+                    self._configure_magemin_model()
+                    self._run_magemin()
+                    self._get_comp_time()
+                    self._process_magemin_results()
+
+                elif self.program == "perplex":
+                    # Build model and write results to csv
+                    self._configure_perplex_model()
+                    self._run_perplex()
+                    self._get_comp_time()
+                    self._process_perplex_results()
+
+                else:
+                    raise ValueError("Unrecognized GFEM program! "
+                                     "Use 'magemin' or 'perplex' ...")
+
+                self.model_built = True
+
+                return None
+
+            except Exception as e:
+                print(f"Error occurred during GFEM build {self.model_out_dir}!")
+                traceback.print_exc()
+
+                if retry < max_retries - 1:
+                    print(f"Retrying in 5 seconds ...")
+                    time.sleep(5)
+
+                else:
+                    self.model_build_error = True
+                    self.model_error = e
+
+                    return None
 
 #######################################################
 ## .4.                ML Methods                 !!! ##
@@ -2275,20 +2097,20 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, epo
         elif model_label == "NN1":
             model = MLPRegressor(random_state=seed, max_iter=epochs,
                                  learning_rate_init=0.001,
-                                 hidden_layer_sizes=(int(y_scaled.shape[0] * 0.1)))
+                                 hidden_layer_sizes=(int(max(y_scaled.shape[0] * 0.01, 8))))
 
         elif model_label == "NN2":
             model = MLPRegressor(random_state=seed, max_iter=epochs,
                                  learning_rate_init=0.0001,
-                                 hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
-                                                     int(y_scaled.shape[0] * 0.2)))
+                                 hidden_layer_sizes=(int(max(y_scaled.shape[0] * 0.05, 32)),
+                                                     int(max(y_scaled.shape[0] * 0.02, 16))))
 
         elif model_label == "NN3":
             model = MLPRegressor(random_state=seed, max_iter=epochs,
                                  learning_rate_init=0.0001,
-                                 hidden_layer_sizes=(int(y_scaled.shape[0] * 0.5),
-                                                     int(y_scaled.shape[0] * 0.2),
-                                                     int(y_scaled.shape[0] * 0.1)))
+                                 hidden_layer_sizes=(int(max(y_scaled.shape[0] * 0.05, 32)),
+                                                     int(max(y_scaled.shape[0] * 0.02, 16)),
+                                                     int(max(y_scaled.shape[0] * 0.01, 8))))
 
     else:
         # Set verbose
@@ -2323,36 +2145,36 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, epo
             model = MLPRegressor(random_state=seed, max_iter=epochs, verbose=verbose,
                                  batch_size=max(int(len(y_scaled) * batchp), 8))
 
-            param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1)),
-                                                  (int(y_scaled.shape[0] * 0.2)),
-                                                  (int(y_scaled.shape[0] * 0.5))],
+            param_grid = dict(hidden_layer_sizes=[(int(max(y_scaled.shape[0] * 0.01, 8))),
+                                                  (int(max(y_scaled.shape[0] * 0.02, 16))),
+                                                  (int(max(y_scaled.shape[0] * 0.05, 32)))],
                               learning_rate_init=[0.0001, 0.0005, 0.001])
 
         elif model_label == "NN2":
             model = MLPRegressor(random_state=seed, max_iter=epochs, verbose=verbose,
                                  batch_size=max(int(len(y_scaled) * batchp), 8))
 
-            param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
-                                                   int(y_scaled.shape[0] * 0.2)),
-                                                  (int(y_scaled.shape[0] * 0.2),
-                                                   int(y_scaled.shape[0] * 0.2)),
-                                                  (int(y_scaled.shape[0] * 0.5),
-                                                   int(y_scaled.shape[0] * 0.2))],
+            param_grid = dict(hidden_layer_sizes=[(int(max(y_scaled.shape[0] * 0.01, 8)),
+                                                   int(max(y_scaled.shape[0] * 0.02, 16))),
+                                                  (int(max(y_scaled.shape[0] * 0.02, 16)),
+                                                   int(max(y_scaled.shape[0] * 0.02, 16))),
+                                                  (int(max(y_scaled.shape[0] * 0.05, 32)),
+                                                   int(max(y_scaled.shape[0] * 0.02, 16)))],
                               learning_rate_init=[0.0001, 0.0005, 0.001])
 
         elif model_label == "NN3":
             model = MLPRegressor(random_state=seed, max_iter=epochs, verbose=verbose,
                                  batch_size=max(int(len(y_scaled) * batchp), 8))
 
-            param_grid = dict(hidden_layer_sizes=[(int(y_scaled.shape[0] * 0.1),
-                                                   int(y_scaled.shape[0] * 0.2),
-                                                   int(y_scaled.shape[0] * 0.1)),
-                                                  (int(y_scaled.shape[0] * 0.2),
-                                                   int(y_scaled.shape[0] * 0.2),
-                                                   int(y_scaled.shape[0] * 0.1)),
-                                                  (int(y_scaled.shape[0] * 0.5),
-                                                   int(y_scaled.shape[0] * 0.2),
-                                                   int(y_scaled.shape[0] * 0.1))],
+            param_grid = dict(hidden_layer_sizes=[(int(max(y_scaled.shape[0] * 0.01, 8)),
+                                                   int(max(y_scaled.shape[0] * 0.02, 16)),
+                                                   int(max(y_scaled.shape[0] * 0.01, 8))),
+                                                  (int(max(y_scaled.shape[0] * 0.02, 16)),
+                                                   int(max(y_scaled.shape[0] * 0.02, 16)),
+                                                   int(max(y_scaled.shape[0] * 0.01, 8))),
+                                                  (int(max(y_scaled.shape[0] * 0.05, 32)),
+                                                   int(max(y_scaled.shape[0] * 0.02, 16)),
+                                                   int(max(y_scaled.shape[0] * 0.01, 8)))],
                               learning_rate_init=[0.0001, 0.0005, 0.001])
 
         # K-fold cross-validation
@@ -2365,7 +2187,7 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, epo
 
         grid_search.fit(X_scaled, y_scaled)
 
-        print("Tuning done!")
+        print("Tuning successful!")
 
         # Define ML model with tuned hyperparameters
         if model_label == "KN":
@@ -2400,7 +2222,7 @@ def configure_rocml_model(X_scaled, y_scaled, model, parallel, nprocs, tune, epo
     # Get hyperparameters
     model_hyperparams = model.get_params()
 
-    print("Configuring done!")
+    print("Configuring successful!")
 
     return model_label, model_label_full, model, model_hyperparams
 
@@ -2700,6 +2522,79 @@ def append_to_csv(filepath, data_dict):
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #+ .4.1          PCA and Synthetic Sampling      !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# read earthchem data !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def read_earthchem_data(oxides, verbose):
+    """
+    """
+    # Data assets dir
+    data_dir = "assets/data"
+
+    # Find earthchem data files
+    filepaths = [
+        file for file in os.listdir(data_dir) if file.startswith("earthchem-igneous")
+    ]
+
+    # Filter criteria
+    metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
+
+    # Read all filepaths into dataframes
+    dataframes = {}
+    df_name = []
+
+    for file in filepaths:
+        df_name.append(file.split("-")[-1].split(".")[0])
+
+        idx = file.split("-")[-1].split(".")[0]
+
+        dataframes[f"df_{idx}"] = pd.read_csv(f"{data_dir}/{file}", delimiter="\t")
+        dataframes[f"df_{idx}"] = dataframes[f"df_{idx}"][metadata + oxides]
+
+    data = pd.concat(dataframes, ignore_index=True)
+
+    if "SIO2" in oxides:
+        data = data[data["SIO2"] >= 25]
+        data = data[data["SIO2"] <= 90]
+
+    if "CAO" in oxides:
+        data = data[data["CAO"] <= 25]
+
+    if "FE2O3" in oxides:
+        data = data[data["FE2O3"] <= 20]
+
+    if "TIO2" in oxides:
+        data = data[data["TIO2"] <= 10]
+
+    if verbose >= 2:
+        # Print info
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
+        print("Eartchem search portal critera:")
+        print("    material: bulk")
+        print("    normalization: oxides as reported")
+        print("    sample type:")
+        for name in df_name:
+            print(f"        igneos > {name}")
+        print("    oxides: (and/or)")
+        for oxide in oxides:
+            print(f"        {oxide}")
+        print("Dataset filtering:")
+        if "SIO2" in oxides:
+            print("    SIO2 >= 25 wt.%")
+            print("    SIO2 <= 90 wt.%")
+        if "CAO" in oxides:
+            print("    CAO <= 25 wt.%")
+        if "FE2O3" in oxides:
+            print("    FE2O3 <= 20 wt.%")
+        if "TIO2" in oxides:
+            print("    TIO2 <= 10 wt.%")
+        print("+++++++++++++++++++++++++++++++++++++++++++++")
+        print(f"Combined and filtered samples summary:")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print(data[oxides].describe().map("{:.4g}".format))
+
+    return data
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # pca mixing arrays !!
@@ -3166,7 +3061,7 @@ def cv_rocml(features_array, targets_array, features_array_val, targets_array_va
         pool.close()
         pool.join()
 
-    print("Kfold cross validation done!")
+    print("Kfold cross validation successful!")
 
     # Get number of features and targets
     n_features = features_array.shape[-1]
@@ -3407,7 +3302,7 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
 
-    print(f"Composing dataset plots: {fig_dir}")
+    print(f"Composing {dataset} dataset plots: {fig_dir}")
 
     # Compose plots
     if magemin and perplex:
@@ -4232,7 +4127,7 @@ def visualize_benchmark_efficiency(fig_dir, filename, fontsize=12, figwidth=6.3,
         os.makedirs(fig_dir, exist_ok=True)
 
     # Read data
-    data = pd.read_csv(f"{data_dir}/benchmark-efficiency.csv")
+    data = pd.read_csv(f"{data_dir}/gfem-efficiency.csv")
 
     # Filter out validation dataset
     data = data[data["dataset"] == "train"]
@@ -4552,7 +4447,8 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         # Plot as a raster using imshow
         fig, ax = plt.subplots(figsize=(figwidth, figheight))
 
-        im = ax.imshow(target_array, extent=[T.min(), T.max(), P.min(), P.max()],
+        im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
+                                             np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=1, vmax=num_colors + 1)
 
         ax.set_xlabel("T (K)")
@@ -4626,7 +4522,8 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         # Plot as a raster using imshow
         fig, ax = plt.subplots()
 
-        im = ax.imshow(target_array, extent=[T.min(), T.max(), P.min(), P.max()],
+        im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
+                                             np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
 
         ax.set_xlabel("T (K)")
@@ -4884,39 +4781,31 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset(program, sample_id, res, dataset, targets, mask_geotherm,
-                               palette, fig_dir, verbose):
+def visualize_training_dataset(model, palette):
     """
     """
-    # Data assets dir
-    data_dir = "assets/dir"
+    # Get model data
+    program = model.program
+    sample_id = model.sample_id
+    res = model.res
+    dataset = model.dataset
+    targets = model.targets
+    mask_geotherm = model.mask_geotherm
+    verbose = model.verbose
+    P, T = model.results["P"], model.results["T"]
+    target_array = model.target_array
 
-    # Model output dir
-    out_dir = "runs"
-
-    # Get training dataset results
     if program == "magemin":
-        # Get MAGEMin results
-        results = read_gfem_results(program, sample_id, dataset, res, verbose)
         program_title = "MAGEMin"
 
     elif program == "perplex":
-        # Get perplex results
-        results = read_gfem_results(program, sample_id, dataset, res, verbose)
         program_title = "Perple_X"
 
-    else:
-        raise ValueError("program argument must be MAGEMin or Perple_X!")
-
-    # Get PT values
-    P, T = results["P"], results["T"]
-
-    # Get target array
-    target_array = create_target_array(results, targets, mask_geotherm)
+    fig_dir = f"figs/{sample_id}_{res}"
 
     for i, target in enumerate(targets):
         # Reshape targets into square array
-        square_target = target_array[:, i].reshape(res+1, res+1)
+        square_target = target_array[:, i].reshape(res + 1, res + 1)
 
         # Use discrete colorscale
         if target in ["assemblage", "assemblage_variance"]:
@@ -4952,7 +4841,7 @@ def visualize_training_dataset(program, sample_id, res, dataset, targets, mask_g
             vmax = num_colors + 1
 
         # Rename target
-        target_rename = target.replace('_', '-')
+        target_rename = target.replace("_", "-")
 
         # Print filepath
         if verbose >= 2:
@@ -4966,34 +4855,46 @@ def visualize_training_dataset(program, sample_id, res, dataset, targets, mask_g
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset diff !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset_diff(sample_id, res, dataset, targets, mask_geotherm, palette,
-                                    fig_dir, verbose):
+def visualize_training_dataset_diff(magemin_model, perplex_model, palette):
     """
     """
-    # Data assets dir
-    data_dir = "assets/data"
-
-    # Model output dir
-    out_dir = "runs"
-
-    # Get MAGEMin results
-    results_mgm = read_gfem_results("magemin", sample_id, dataset, res, verbose)
-
-    # Get perplex results
-    results_ppx = read_gfem_results("perplex", sample_id, dataset, res, verbose)
-
-    # Get PT values
+    # Get model data
+    if magemin_model.sample_id == perplex_model.sample_id:
+        sample_id = magemin_model.sample_id
+    else:
+        raise ValueError("Model samples are not the same!")
+    if magemin_model.res == perplex_model.res:
+        res = magemin_model.res
+    else:
+        raise ValueError("Model resolutions are not the same!")
+    if magemin_model.dataset == perplex_model.dataset:
+        dataset = magemin_model.dataset
+    else:
+        raise ValueError("Model datasets are not the same!")
+    if magemin_model.targets == perplex_model.targets:
+        targets = magemin_model.targets
+    else:
+        raise ValueError("Model datasets are not the same!")
+    if magemin_model.mask_geotherm == perplex_model.mask_geotherm:
+        mask_geotherm = magemin_model.mask_geotherm
+    else:
+        raise ValueError("Model geotherm masks are not the same!")
+    if magemin_model.verbose == perplex_model.verbose:
+        verbose = magemin_model.verbose
+    else:
+        raise ValueError("Model verbosity settings are not the same!")
+    results_mgm, results_ppx = magemin_model.results, perplex_model.results
     P_mgm, T_mgm = results_mgm["P"], results_mgm["T"]
     P_ppx, T_ppx = results_ppx["P"], results_ppx["T"]
+    target_array_mgm = magemin_model.target_array
+    target_array_ppx = perplex_model.target_array
 
-    # Get target arrays
-    target_array_mgm = create_target_array(results_mgm, targets, mask_geotherm)
-    target_array_ppx = create_target_array(results_ppx, targets, mask_geotherm)
+    fig_dir = f"figs/{sample_id}_{res}"
 
     for i, target in enumerate(targets):
         # Reshape targets into square array
-        square_array_mgm = target_array_mgm[:, i].reshape(res+1, res+1)
-        square_array_ppx = target_array_ppx[:, i].reshape(res+1, res+1)
+        square_array_mgm = target_array_mgm[:, i].reshape(res + 1, res + 1)
+        square_array_ppx = target_array_ppx[:, i].reshape(res + 1, res + 1)
 
         # Use discrete colorscale
         if target in ["assemblage", "assemblage_variance"]:
@@ -5292,7 +5193,7 @@ def visualize_rocml_performance(sample_id, target, res, fig_dir, filename, fonts
     summary_df = data.groupby("model")[numeric_columns].mean().reset_index()
 
     # Get MAGEMin and Perple_X benchmark times
-    benchmark_times = pd.read_csv(f"{data_dir}/benchmark-efficiency.csv")
+    benchmark_times = pd.read_csv(f"{data_dir}/gfem-efficiency.csv")
 
     filtered_times = benchmark_times[(benchmark_times["sample"] == sample_id) &
                                      (benchmark_times["size"] == res**2)]
