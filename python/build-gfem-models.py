@@ -1,12 +1,10 @@
-from rocml import (parse_arguments,
-                   check_arguments,
-                   get_random_sampleids,
-                   build_gfem_models,
-                   visualize_training_dataset,
-                   visualize_training_dataset_diff,
-                   compose_dataset_plots,
-                   visualize_training_dataset_design,
-                   visualize_benchmark_efficiency)
+from scripting import parse_arguments, check_arguments
+from gfem import get_random_sampleids, build_gfem_models
+from visualize import (visualize_training_dataset_design,
+                       visualize_gfem_efficiency,
+                       visualize_training_dataset,
+                       visualize_training_dataset_diff,
+                       compose_dataset_plots)
 
 # Parse arguments and check
 args = parse_arguments()
@@ -15,44 +13,42 @@ valid_args = check_arguments(args, "build-gfem-models.py")
 # Load valid arguments
 locals().update(valid_args)
 
-# Samples
+# Get samples
 if benchmarks:
     source = "assets/data/benchmark-samples.csv"
     sampleids = ["PUM", "DMM", "NMORB", "RE46"]
 
 elif not benchmarks:
     source = f"assets/data/synthetic-samples-pca{npca}-clusters13.csv"
-    sampleids = get_random_sampleids(source, n=nsamples)
+    sampleids = get_random_sampleids(source, nsamples, seed)
 
-# Initiate empty list to store models
+# Build GFEM models
 models = []
+for p in ["magemin", "perplex"]:
+    models.extend(build_gfem_models(p, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, normox,
+                                    targets, maskgeotherm, parallel, nprocs, verbose))
 
-# Build models
-for program in ["magemin", "perplex"]:
-    models.extend(build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids,
-                                    normox, targets, maskgeotherm, parallel, nprocs, verbose))
+# Visualize GFEM models
+for m in models:
+    visualize_training_dataset(m, palette)
 
-# Visualize results
-for model in models:
-    visualize_training_dataset(model, palette)
+# Parse GFEM models
+mage_models = [m for m in models if m.program == "magemin"]
+perp_models = [m for m in models if m.program == "perplex"]
 
-# Visualize diffs
-magemin_models = [model for model in models if model.program == "magemin"]
-perplex_models = [model for model in models if model.program == "perplex"]
-
-for magemin_model, perplex_model in zip(magemin_models, perplex_models):
-    visualize_training_dataset_diff(magemin_model, perplex_model, palette)
+# Visualize GFEM model differences
+for m, p in zip(mage_models, perp_models):
+    visualize_training_dataset_diff(m, p, palette)
 
 # Compose plots
-for sampleid in sampleids:
-    for dataset in ["train", "valid"]:
-        compose_dataset_plots(True, True, sampleid, dataset, res, targets,
-                              f"{figdir}/{sampleid}_{res}", verbose)
+for s in sampleids:
+    for d in ["train", "valid"]:
+        compose_dataset_plots(True, True, s, d, res, targets, f"{figdir}/{s}_{res}", verbose)
 
-# Visualize Clapeyron slopes for 660 transition
+# Visualize RocML training dataset design
 visualize_training_dataset_design(Pmin, Pmax, Tmin, Tmax, f"{figdir}/other")
 
-# Visualize benchmark computation times
-visualize_benchmark_efficiency(f"{figdir}/other", "gfem-efficiency.png")
+# Visualize GFEM efficiency
+visualize_gfem_efficiency(f"{figdir}/other", "gfem-efficiency.png")
 
 print("build-gfem-models.py done!")

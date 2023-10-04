@@ -14,15 +14,6 @@ PERPLEXDIR = assets/perplex
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIGDIR = assets/config
-PYTHON = \
-				 python/build-gfem-models.py \
-				 python/clone-magemin.py \
-				 python/download-assets.py \
-				 python/make-pca-mixing-arrays.py \
-				 python/rocml.py \
-				 python/session-info.py \
-				 python/submit-jobs.py \
-				 python/train-rocml-models.py \
 # Dataset build options
 SAMPLEID ?= PUM
 PMIN ?= 1
@@ -40,10 +31,10 @@ VERBOSE ?= 1
 # RocML options
 TARGETS ?= ["rho", "Vp", "Vs", "melt_fraction"]
 MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
-MLTUNE ?= False
+MLTUNE ?= True
 EPOCHS ?= 40
-BATCHP ?= 0.2
-MASKGEOTHERM ?= True
+BATCHPROP ?= 0.2
+MASKGEOTHERM ?= False
 # PCA options
 OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
 NPCA ?= 3
@@ -52,12 +43,25 @@ KCLUSTER ?= 3
 FIGDIR ?= figs
 VISTARGETS ?= ["assemblage", "assemblage_variance", "rho", "Vp", "Vs", "melt_fraction"]
 PALETTE ?= bone
+# Python scripts
+PYTHON = \
+				 python/build-gfem-models.py \
+				 python/clone-magemin.py \
+				 python/download-assets.py \
+				 python/gfem.py \
+				 python/make-pca-mixing-arrays.py \
+				 python/pca.py \
+				 python/rocml.py \
+				 python/scripting.py \
+				 python/session-info.py \
+				 python/submit-jobs.py \
+				 python/train-rocml-models.py \
+				 python/visualize.py
 # Cleanup directories
 DATAPURGE = \
 						log \
 						runs \
 						python/__pycache__ \
-						$(DATADIR)/gfem-efficiency.csv \
 						$(DATADIR)/benchmark-rocml-performance.csv
 DATACLEAN = assets MAGEMin
 FIGSPURGE = figs
@@ -67,38 +71,36 @@ all: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 	@$(CONDAPYTHON) -u python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
-	@$(MAKE) benchmark_datasets
-	@$(MAKE) train_rocml_models
+	@$(MAKE) buiild_benchmark_datasets
+	@$(MAKE) train_benchmark_models
 
 init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 	@$(CONDAPYTHON) -u python/session-info.py $(LOG)
 	@echo "=============================================" $(LOG)
 	@echo "Run the following in order:" $(LOG)
-	@echo "    make benchmark_datasets" $(LOG)
-	@echo "    make train_rocml_models" $(LOG)
+	@echo "    make build_benchmark_datasets" $(LOG)
+	@echo "    make train_benchmark_models" $(LOG)
 	@echo "To clean up the directory:" $(LOG)
 	@echo "    make purge" $(LOG)
 	@echo "    make remove_conda_env" $(LOG)
 	@echo "=============================================" $(LOG)
 
-train_all_benchmark_rocml_models:
-	@for sample in DMM NMORB PUM RE46; do \
-		for res in 8 16 32 64 128; do \
-			$(MAKE) train_rocml_models SAMPLEID=$$sample RES=$$res; \
-		done; \
-  done
-
-train_rocml_models: $(LOGFILE) $(PYTHON) assets
+train_benchmark_models: $(LOGFILE) $(PYTHON) assets
 	@$(CONDAPYTHON) -u python/train-rocml-models.py \
-		--sampleid '$(SAMPLEID)' \
+		--Pmin $(PMIN) \
+		--Pmax $(PMAX) \
+		--Tmin $(TMIN) \
+		--Tmax $(TMAX) \
 		--res $(RES) \
+		--benchmarks True \
+		--normox '$(NORMOX)' \
 		--targets '$(TARGETS)' \
 		--maskgeotherm $(MASKGEOTHERM) \
-		--models '$(MLMODS)' \
+		--mlmodels '$(MLMODS)' \
 		--tune $(MLTUNE) \
 		--epochs $(EPOCHS) \
-		--batchp $(BATCHP) \
+		--batchprop $(BATCHPROP) \
 		--kfolds $(KFOLDS) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
@@ -109,10 +111,7 @@ train_rocml_models: $(LOGFILE) $(PYTHON) assets
 	$(LOG)
 	@echo "=============================================" $(LOG)
 
-all_benchmark_datasets:
-	@for res in 8 16 32 64 128; do $(MAKE) benchmark_datasets RES=$$res; done
-
-benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
+build_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
 	@$(CONDAPYTHON) -u python/build-gfem-models.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
@@ -131,7 +130,7 @@ benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
-earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) pca_mixing_arrays
+build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) pca_mixing_arrays
 	@$(CONDAPYTHON) -u python/build-gfem-models.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
@@ -234,4 +233,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs assets pca_mixing_arrays earthchem_datasets benchmark_datasets all_benchmark_datasets train_rocml_models train_all_benchmark_rocml_models init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs assets pca_mixing_arrays build_earthchem_datasets build_benchmark_datasets train_benchmark_models init all

@@ -1,4 +1,5 @@
-from rocml import parse_arguments, check_arguments, download_github_submodule, compile_magemin
+from scripting import (parse_arguments, check_arguments, download_github_submodule,
+                       compile_magemin)
 
 # Parse arguments and check
 args = parse_arguments()

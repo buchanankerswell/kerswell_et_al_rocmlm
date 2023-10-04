@@ -1,4 +1,5 @@
-from rocml import parse_arguments, check_arguments, pca_mixing_arrays
+from scripting import parse_arguments, check_arguments
+from pca import pca_mixing_arrays
 
 # Parse arguments and check
 args = parse_arguments()
