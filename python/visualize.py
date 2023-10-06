@@ -17,6 +17,7 @@ import pandas as pd
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # plotting !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.ticker as ticker
@@ -169,7 +170,7 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
 
-    print(f"Composing {dataset} dataset plots: {fig_dir}")
+    print(f"Composing {dataset} dataset: {fig_dir}")
 
     # Compose plots
     if magemin and perplex:
@@ -230,24 +231,9 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
             os.remove(f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png")
 
     elif magemin and not perplex:
-        # Get magemin results
-        results_mgm = read_gfem_results("magemin", sample_id, dataset, res, verbose)
-
         for target in targets_rename:
             if target not in ["assemblage", "assemblage-variance"]:
                 if target in ["rho", "Vp", "Vs"]:
-                    if target == "rho":
-                        visualize_prem(target, "g/cm$^3$", results_mgm, None,
-                                       geotherm_threshold=geotherm_threshold,
-                                       title="PREM Comparison", fig_dir=fig_dir,
-                                       filename=f"prem-{sample_id}-{dataset}-{target}.png")
-
-                    if target in ["Vp", "Vs"]:
-                        visualize_prem(target, "km/s", results_mgm, None,
-                                       geotherm_threshold=geotherm_threshold,
-                                       title="PREM Comparison", fig_dir=fig_dir,
-                                       filename=f"prem-{sample_id}-{dataset}-{target}.png")
-
                     combine_plots_horizontally(
                         f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
@@ -260,24 +246,9 @@ def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fi
                     os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
 
     elif perplex and not magemin:
-        # Get perplex results
-        results_ppx = read_gfem_results("perplex", sample_id, dataset, res, verbose)
-
         for target in targets_rename:
             if target not in ["assemblage", "assemblage-variance"]:
                 if target in ["rho", "Vp", "Vs"]:
-                    if target == "rho":
-                        visualize_prem(target, "g/cm$^3$", None, results_ppx,
-                                       geotherm_threshold=geotherm_threshold,
-                                       title="PREM Comparison", fig_dir=fig_dir,
-                                       filename=f"prem-{sample_id}-{dataset}-{target}.png")
-
-                    if target in ["Vp", "Vs"]:
-                        visualize_prem(target, "km/s", None, results_ppx,
-                                       geotherm_threshold=geotherm_threshold,
-                                       title="PREM Comparison", fig_dir=fig_dir,
-                                       filename=f"prem-{sample_id}-{dataset}-{target}.png")
-
                     combine_plots_horizontally(
                         f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
@@ -1002,6 +973,9 @@ def visualize_gfem_efficiency(fig_dir, filename, fontsize=12, figwidth=6.3, figh
     # Filter out validation dataset
     data = data[data["dataset"] == "train"]
 
+    # Filter out non-benchmark samples
+    data = data[data["sample"].isin(["DMM", "NMORB", "PUM", "RE46"])]
+
     # Arrange data by resolution and sample
     data.sort_values(by=["size", "sample", "program"], inplace=True)
 
@@ -1263,7 +1237,7 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
 
     if color_discrete:
         # Discrete color palette
-        num_colors = len(np.unique(target_array))
+        num_colors = vmax - vmin + 1
 
         if palette == "viridis":
             if color_reverse:
@@ -1319,11 +1293,11 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
 
         im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
                                              np.nanmax(P)],
-                       aspect="auto", cmap=cmap, origin="lower", vmin=1, vmax=num_colors + 1)
+                       aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
 
         ax.set_xlabel("T (K)")
         ax.set_ylabel("P (GPa)")
-        plt.colorbar(im, ax=ax, ticks=np.arange(1, num_colors + 1, num_colors // 4), label="")
+        plt.colorbar(im, ax=ax, ticks=np.arange(vmin, vmax, num_colors // 4), label="")
 
     else:
         # Continuous color palette
@@ -1461,7 +1435,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
 
     if color_discrete:
         # Discrete color palette
-        num_colors = len(np.unique(target_array))
+        num_colors = vmax - vmin + 1
 
         if palette == "viridis":
             if color_reverse:
@@ -1516,7 +1490,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
         fig = plt.figure(figsize=(figwidth, figheight), constrained_layout=True)
         ax = fig.add_subplot(111, projection="3d")
 
-        surf = ax.plot_surface(T, P, target_array, cmap=cmap, vmin=1, vmax=num_colors + 1)
+        surf = ax.plot_surface(T, P, target_array, cmap=cmap, vmin=vmin, vmax=vmax)
 
         ax.set_xlabel("T (K)", labelpad=18)
         ax.set_ylabel("P (GPa)", labelpad=18)
@@ -1528,10 +1502,10 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
         ax.view_init(20, -145)
         ax.set_box_aspect((1.5, 1.5, 1), zoom=1)
         ax.set_facecolor("white")
-        cbar = fig.colorbar(surf, ax=ax, ticks=np.arange(1, num_colors + 1, num_colors // 4),
+        cbar = fig.colorbar(surf, ax=ax, ticks=np.arange(vmin, vmax, num_colors // 4),
                             label="", shrink=0.6)
         cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
-        cbar.ax.set_ylim(1, num_colors + 1)
+        cbar.ax.set_ylim(vmax, vmin)
 
     else:
         # Continuous color palette
@@ -1651,6 +1625,8 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
     # Close fig
     plt.close()
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1660,20 +1636,24 @@ def visualize_training_dataset(model, palette):
     # Get model data
     program = model.program
     sample_id = model.sample_id
+    model_prefix = model.model_prefix
     res = model.res
     dataset = model.dataset
     targets = model.targets
     mask_geotherm = model.mask_geotherm
-    verbose = model.verbose
-    P, T = model.results["P"], model.results["T"]
+    results = model.results
+    P, T = results["P"], results["T"]
     target_array = model.target_array
     fig_dir = model.fig_dir
+    verbose = model.verbose
 
     if program == "magemin":
         program_title = "MAGEMin"
 
     elif program == "perplex":
         program_title = "Perple_X"
+
+    print(f"Visualizing {model_prefix} [{program}] ...")
 
     for i, target in enumerate(targets):
         # Reshape targets into square array
@@ -1707,10 +1687,8 @@ def visualize_training_dataset(model, palette):
             vmax=np.max(square_target[np.logical_not(np.isnan(square_target))])
 
         else:
-            num_colors = len(np.unique(square_target))
-
-            vmin = 1
-            vmax = num_colors + 1
+            vmin = int(np.nanmin(np.unique(square_target)))
+            vmax = int(np.nanmax(np.unique(square_target)))
 
         # Rename target
         target_rename = target.replace("_", "-")
@@ -1724,12 +1702,82 @@ def visualize_training_dataset(model, palette):
                                color_discrete, color_reverse, vmin, vmax, fig_dir,
                                f"{program}-{sample_id}-{dataset}-{target_rename}.png")
 
+        # Set geotherm threshold for extracting depth profiles
+        if res <= 8:
+            geotherm_threshold = 4
+
+        elif res <= 16:
+            geotherm_threshold = 2
+
+        elif res <= 32:
+            geotherm_threshold = 1
+
+        elif res <= 64:
+            geotherm_threshold = 0.5
+
+        elif res <= 128:
+            geotherm_threshold = 0.25
+
+        else:
+            geotherm_threshold = 0.125
+
+        # Plot PREM comparisons
+        if target == "rho":
+            # Print filepath
+            if verbose >= 2:
+                print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+
+            if program == "magemin":
+                results_mgm = results
+                results_ppx = None
+                visualize_prem(target, "g/cm$^3$", results_mgm, results_ppx,
+                               geotherm_threshold=geotherm_threshold,
+                               title="PREM Comparison", fig_dir=fig_dir,
+                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+            elif program == "perplex":
+                results_mgm = None
+                results_ppx = results
+                visualize_prem(target, "g/cm$^3$", results_mgm, results_ppx,
+                               geotherm_threshold=geotherm_threshold,
+                               title="PREM Comparison", fig_dir=fig_dir,
+                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+        if target in ["Vp", "Vs"]:
+            # Print filepath
+            if verbose >= 2:
+                print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+
+            if program == "magemin":
+                results_mgm = results
+                results_ppx = None
+                visualize_prem(target, "km/s", results_mgm, results_ppx,
+                               geotherm_threshold=geotherm_threshold,
+                               title="PREM Comparison", fig_dir=fig_dir,
+                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+            elif program == "perplex":
+                results_mgm = None
+                results_ppx = results
+                visualize_prem(target, "km/s", results_mgm, results_ppx,
+                               geotherm_threshold=geotherm_threshold,
+                               title="PREM Comparison", fig_dir=fig_dir,
+                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset diff !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_training_dataset_diff(magemin_model, perplex_model, palette):
     """
     """
+    # Check for models
+    if not magemin_model:
+        raise ValueError("No MAGEMin model!")
+    if not perplex_model:
+        raise ValueError("No Perple_X model!")
+
     # Get model data
     if magemin_model.sample_id == perplex_model.sample_id:
         sample_id = magemin_model.sample_id
@@ -1873,6 +1921,8 @@ def visualize_training_dataset_diff(magemin_model, perplex_model, palette):
                                geotherm_threshold=geotherm_threshold,
                                title="PREM Comparison", fig_dir=fig_dir,
                                filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize ml model !!
@@ -2248,3 +2298,332 @@ def visualize_ml_performance(sample_id, target, res, fig_dir, filename, fontsize
 
         # Close device
         plt.close()
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# visualize pca loadings !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_pca_loadings(mixing_array, fig_dir, filename, figwidth=6.3, figheight=6.3,
+                           fontsize=22):
+    """
+    """
+    # Get mixing array attributes
+    pca = mixing_array.pca_model
+    oxides = mixing_array.oxides
+    n_pca_components = mixing_array.n_pca_components
+    data = mixing_array.earthchem_pca
+
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    loadings = pd.DataFrame((pca.components_.T * np.sqrt(pca.explained_variance_)).T,
+                            columns=oxides)
+
+    # Colormap
+    colormap = plt.cm.get_cmap("tab10")
+
+    # Plot PCA loadings
+    fig = plt.figure(figsize=(figheight, figwidth))
+
+    for i in [0, 1]:
+        ax = fig.add_subplot(2, 1, i+1)
+
+        ax.bar(oxides, loadings.iloc[i], color=colormap(i))
+        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+
+        ax.set_xlabel("")
+        ax.set_ylim([-1, 1])
+        ax.set_ylabel("")
+        ax.xaxis.set_major_locator(ticker.FixedLocator(range(len(oxides))))
+        ax.set_xticklabels(oxides, rotation=90)
+        plt.title(f"PC{i+1} Loadings")
+
+        if i == 0:
+            ax.set_xticks([])
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}-pca-loadings.png")
+
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
+    for n in range(n_pca_components - 1):
+
+        fig = plt.figure(figsize=(figwidth, figheight))
+        ax = fig.add_subplot(111)
+
+        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+
+        for i, comp in enumerate(["ultramafic", "mafic", "intermediate", "felsic"]):
+            indices = data.loc[data["COMPOSITION"] == comp].index
+
+            scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
+                                 data.loc[indices, f"PC{n + 2}"], edgecolors="none",
+                                 color=colormap(i), marker=".", label=comp)
+
+        for oxide in oxides:
+            ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
+                     width=0.02, head_width=0.14, color="black")
+            ax.text((loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1),
+                    (loadings.at[n + 1, oxide] * 3) + (loadings.at[n + 1, oxide] * 1),
+                    oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
+                                     pad=0.1),
+                    fontsize=fontsize * 0.579, color="black", ha = "center", va = "center")
+
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
+                  markerscale=3, handletextpad=-0.5, fontsize=fontsize * 0.694)
+        ax.set_xlabel(f"PC{n + 1}")
+        ax.set_ylabel(f"PC{n + 2}")
+        plt.title("Earthchem Samples")
+
+        # Save the plot to a file if a filename is provided
+        if filename:
+            plt.savefig(f"{fig_dir}/{filename}-pca{n + 1}{n + 2}.png")
+
+        else:
+            # Print plot
+            plt.show()
+
+        # Close device
+        plt.close()
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# visualize kmeans clusters !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_kmeans_clusters(mixing_array, fig_dir, filename, figwidth=6.3, figheight=6.3,
+                              fontsize=22):
+    """
+    """
+    # Get mixing array attributes
+    res = mixing_array.res
+    pca = mixing_array.pca_model
+    n_pca_components = mixing_array.n_pca_components
+    k_pca_clusters = mixing_array.k_pca_clusters
+    data = mixing_array.earthchem_cluster
+    kmeans = mixing_array.kmeans_model
+
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Colormap
+    colormap = plt.cm.get_cmap("tab10")
+
+    # Get centroids
+    centroids = kmeans.cluster_centers_
+    original_centroids = pca.inverse_transform(centroids)
+
+    # Plot PCA results
+    for n in range(n_pca_components - 1):
+
+        fig = plt.figure(figsize=(figwidth, figheight))
+        ax = fig.add_subplot(111)
+
+        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+
+        for c in range(k_pca_clusters):
+            # Get datapoints indices for each cluster
+            indices = data.loc[data["CLUSTER"] == c].index
+
+            scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
+                                 data.loc[indices, f"PC{n + 2}"], edgecolors="none",
+                                 color=colormap(c + 4), marker=".", alpha=0.3)
+
+            clusters = ax.scatter(centroids[c, n], centroids[c, n+1], edgecolor="black",
+                                  color=colormap(c + 4), label=f"cluster {c + 1}",
+                                  marker="s", s=100)
+
+            # Calculate mixing lines between cluster centroids
+            if k_pca_clusters > 1:
+                for i in range(c + 1, k_pca_clusters):
+                    m = ((centroids[i, n + 1] - centroids[c, n + 1]) /
+                         (centroids[i, n] - centroids[c, n]))
+                    b = centroids[c, n + 1] - m * centroids[c, n]
+
+                    x_vals = np.linspace(centroids[c, n], centroids[i, n], res)
+                    y_vals = m * x_vals + b
+
+                    ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1)
+
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
+                  handletextpad=-0.5, fontsize=fontsize * 0.694)
+        ax.set_xlabel(f"PC{n + 1}")
+        ax.set_ylabel(f"PC{n + 2}")
+        plt.title("Earthchem Samples")
+
+        # Save the plot to a file if a filename is provided
+        if filename:
+            plt.savefig(f"{fig_dir}/{filename}-clusters{n + 1}{n + 2}.png")
+
+        else:
+            # Print plot
+            plt.show()
+
+        # Close device
+        plt.close()
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# visualize mixing arrays !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_mixing_array(mixing_array, fig_dir, filename, figwidth=6.3, figheight=6.3,
+                           fontsize=22):
+    """
+    """
+    # Get mixing array attributes
+    oxides = mixing_array.oxides
+    n_pca_components = mixing_array.n_pca_components
+    k_pca_clusters = mixing_array.k_pca_clusters
+    data = mixing_array.earthchem_cluster
+
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
+
+    # Check for synthetic data
+    if not mixing_array.synthetic_data_written:
+        raise Exception("No synthetic data found! Call create_mixing_arrays() first ...")
+
+    # Initialize synthetic datasets
+    synthetic_datasets = {}
+
+    # Compile all synthetic datasets into a dict
+    for i in range(k_pca_clusters):
+        for j in range(i + 1, k_pca_clusters):
+            fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
+                     f"clusters{i + 1}{j + 1}.csv")
+            synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"] = pd.read_csv(fname)
+
+    # Create a grid of subplots
+    num_plots = len(oxides) - 1
+
+    if num_plots == 1:
+        num_cols = 1
+
+    elif num_plots > 1 and num_plots <= 4:
+        num_cols = 2
+
+    elif num_plots > 4 and num_plots <= 9:
+        num_cols = 3
+
+    elif num_plots > 9 and num_plots <= 16:
+        num_cols = 4
+
+    else:
+        num_cols = 5
+
+    num_rows = (num_plots + 1) // num_cols
+
+    # Total figure size
+    fig_width = figwidth / 2 * num_cols
+    fig_height = figheight / 2 * num_rows
+
+    # Harker diagrams
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
+    axes = axes.flatten()
+
+    for k, y in enumerate([oxide for oxide in oxides if oxide != "SIO2"]):
+        ax = axes[k]
+
+        for i in range(k_pca_clusters):
+            for j in range(i + 1, k_pca_clusters):
+                first_element = synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"].iloc[0]
+                last_element = synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
+
+                sns.scatterplot(data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
+                                x="SIO2", y=y, linewidth=0, s=15, color=".2", legend=False,
+                                ax=ax, zorder=3)
+                ax.annotate(f"{i + 1}", xy=(first_element["SIO2"], first_element[y]),
+                            xytext=(0, 0), textcoords="offset points",
+                            bbox=dict(boxstyle="round,pad=0.1",
+                                      edgecolor="black", facecolor="white", alpha=0.8),
+                            fontsize=fontsize * 0.579, zorder=4)
+                ax.annotate(f"{j + 1}", xy=(last_element["SIO2"], last_element[y]),
+                            xytext=(0, 0), textcoords="offset points",
+                            bbox=dict(boxstyle="round,pad=0.1",
+                                      edgecolor="black", facecolor="white", alpha=0.8),
+                            fontsize=fontsize * 0.579, zorder=5)
+
+        sns.kdeplot(data=data, x="SIO2", y=y, hue="COMPOSITION",
+                    hue_order=["ultramafic", "mafic", "intermediate", "felsic"], fill=False,
+                    ax=ax, levels=5, zorder=2)
+        sns.scatterplot(data=data, x="SIO2", y=y, hue="COMPOSITION",
+                        hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
+                        linewidth=0, s=5, legend=False, ax=ax, zorder=1)
+
+        ax.set_title(f"{y}")
+        ax.set_ylabel("")
+        ax.set_xlabel("")
+
+        if k < (num_plots - num_cols):
+            ax.set_xticks([])
+
+        if k == (num_plots - 1):
+            handles = ax.get_legend().legendHandles
+            labels = ["ultramafic", "mafic", "intermediate", "felsic"]
+
+        for line in ax.get_legend().get_lines():
+            line.set_linewidth(5)
+
+        ax.get_legend().remove()
+
+    fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.05), ncol=4)
+    fig.suptitle("Harker Diagrams vs. SIO2 (wt.%)")
+
+    if num_plots < len(axes):
+        for i in range(num_plots, len(axes)):
+            fig.delaxes(axes[i])
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        plt.savefig(f"{fig_dir}/{filename}-harker-diagram.png")
+
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()

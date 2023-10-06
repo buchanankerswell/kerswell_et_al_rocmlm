@@ -8,7 +8,6 @@ import os
 import re
 import time
 import shutil
-import traceback
 import itertools
 import subprocess
 
@@ -24,23 +23,35 @@ mp.set_start_method("fork")
 import numpy as np
 import pandas as pd
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# machine learning !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from sklearn.impute import KNNImputer
+
 #######################################################
 ## .1.             Helper Functions              !!! ##
 #######################################################
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# get random sampleids !!
+# get sampleids !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_random_sampleids(filepath, n, seed):
+def get_sampleids(filepath, n, seed):
     """
     """
-    # Read the CSV file into a DataFrame
+    # Check for file
+    if not os.path.exists(filepath):
+        raise Exception("Filepath not found!")
+
+    # Read data
     df = pd.read_csv(filepath)
 
-    # Select n random rows
-    random_sampleids = df.sample(n)["NAME"]
+    # Sample data
+    if n == len(df):
+        sampleids = df["NAME"].values
+    else:
+        sampleids = df.sample(n)["NAME"].values
 
-    return random_sampleids.values
+    return sampleids
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # gfem_iteration !!
@@ -117,13 +128,10 @@ def build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, n
 
     for model in models:
         if model.model_build_error:
-            print(f"Error occurred with GFEM model: {model.model_prefix}")
-            print(f"!!! {model.model_error} !!!")
-
             error_count += 1
 
     if error_count > 0:
-        print(f"Total models with errors: {error_count}")
+        print(f"Total {program} models with errors: {error_count}")
 
     else:
         print("All GFEM models built successfully!")
@@ -199,15 +207,21 @@ class GFEMModel:
         # Check for existing model build
         if os.path.exists(self.model_out_dir):
             if (os.path.exists(f"{self.model_out_dir}/results.csv") and
-                    os.path.exists(f"{self.model_out_dir}/assemblages.csv")):
-                print(f"Found results for model {self.model_prefix}!")
+                os.path.exists(f"{self.model_out_dir}/assemblages.csv")):
+                try:
+                    self.model_built = True
+                    self.get_results()
 
-                self.model_built = True
-                self.get_results()
+                    if self.targets:
+                        self.get_feature_array()
+                        self.get_target_array()
 
-                if self.targets:
-                    self.get_feature_array()
-                    self.get_target_array()
+                except Exception as e:
+                    print(f"!!! {e} !!!")
+
+                    return None
+
+                print(f"Found results for model {self.model_prefix} [{self.program}]!")
 
             else:
                 # Make new model if results not found
@@ -1138,6 +1152,8 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        program = self.program
+        model_prefix = self.model_prefix
         model_built = self.model_built
         model_out_dir = self.model_out_dir
         verbose = self.verbose
@@ -1162,6 +1178,21 @@ class GFEMModel:
         for column in df.columns:
             self.results[column] = df[column].values
 
+        # Check for all nans
+        any_array_all_nans = False
+
+        for key, array in self.results.items():
+            if key not in ["melt_fraction"]:
+                if np.all(np.isnan(array)):
+                    any_array_all_nans = True
+
+        if any_array_all_nans:
+            self.results = {}
+            self.model_build_error = True
+            self.model_error = f"Model {model_prefix} [{program}] produced all nans!"
+
+            raise Exception(self.model_error)
+
         return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1173,6 +1204,10 @@ class GFEMModel:
         """
         # Get self attributes
         results = self.results
+
+        # Check for results
+        if not results:
+            raise Exception("No GFEM model results! Call get_results() first ...")
 
         # Get PT values
         P, T = results["P"].copy(), results["T"].copy()
@@ -1258,12 +1293,9 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # impute array with nans !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def _impute_array_with_nans(self, array):
+    def _impute_array_with_nans(self, array, n_neighbors=1):
         """
         """
-        # Number of points in local neighborhood
-        n_neighbors = 2
-
         # Create a copy of the input array to avoid modifying the original array
         result_array = array.copy()
 
@@ -1288,8 +1320,8 @@ class GFEMModel:
                                     0 <= y < len(result_array[i]) and
                                     np.isnan(result_array[x, y]))
 
-                    if nan_count > int((((((n_neighbors * 2) + 1)**2) - 1) / 2) - 1):
-                        # If half of the square neighborhood minus 1 is nan
+                    if nan_count >= int((((((n_neighbors * 2) + 1)**2) - 1) / 3)):
+                        # If one-third of the square neighborhood is nan
                         result_array[i, j] = 0
 
                     else:
@@ -1315,6 +1347,7 @@ class GFEMModel:
         # Get self attributes
         results = self.results
         targets = self.targets
+        res = self.res
         mask_geotherm = self.mask_geotherm
         model_built = self.model_built
         verbose = self.verbose
@@ -1333,10 +1366,37 @@ class GFEMModel:
         # Rearrange results to match targets
         results_rearranged = {key: results[key] for key in targets}
 
-        # Get target arrays
+        # Impute missing values
         for key, value in results_rearranged.items():
             if key in targets:
-                target_array_list.append(self._impute_array_with_nans(value))
+                if key == "melt_fraction":
+                    target_array_list.append(self._impute_array_with_nans(value))
+                else:
+                    # Set n_neighbors for KNN imputer
+                    if res <= 8:
+                        n_neighbors = 1
+
+                    elif res <= 16:
+                        n_neighbors = 2
+
+                    elif res <= 32:
+                        n_neighbors = 3
+
+                    elif res <= 64:
+                        n_neighbors = 4
+
+                    elif res <= 128:
+                        n_neighbors = 5
+
+                    else:
+                        geotherm_threshold = 0.125
+
+                    # Initialize KNN imputer
+                    imputer = KNNImputer(n_neighbors = n_neighbors, weights="distance")
+
+                    # Impute target array
+                    target_array_list.append(imputer.fit_transform(
+                        value.reshape(res + 1, res + 1)).flatten())
 
         # Stack target arrays
         self.target_array_unmasked = np.stack(target_array_list, axis=-1)
@@ -1387,17 +1447,10 @@ class GFEMModel:
                     self._get_comp_time()
                     self._process_perplex_results()
 
-                else:
-                    raise ValueError("Unrecognized GFEM program! "
-                                     "Use 'magemin' or 'perplex' ...")
-
                 self.model_built = True
 
-                return None
-
             except Exception as e:
-                print(f"Error occurred during GFEM build {self.model_out_dir}!")
-                traceback.print_exc()
+                print(f"!!! {e} !!!")
 
                 if retry < max_retries - 1:
                     print(f"Retrying in 5 seconds ...")

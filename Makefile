@@ -22,7 +22,7 @@ TMIN ?= 773
 TMAX ?= 2273
 RES ?= 128
 NORMOX ?= all
-NSAMPLES ?= 3
+NSAMPLES ?= 4
 SEED = 42
 PARALLEL ?= True
 NPROCS ?= 8
@@ -34,9 +34,8 @@ MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
 MLTUNE ?= True
 EPOCHS ?= 40
 BATCHPROP ?= 0.2
-MASKGEOTHERM ?= False
+MASKGEOTHERM ?= True
 # PCA options
-OXIDES ?= ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3", "CR2O3"]
 NPCA ?= 3
 KCLUSTER ?= 3
 # Visualization options
@@ -49,7 +48,7 @@ PYTHON = \
 				 python/clone-magemin.py \
 				 python/download-assets.py \
 				 python/gfem.py \
-				 python/make-pca-mixing-arrays.py \
+				 python/create-mixing-arrays.py \
 				 python/pca.py \
 				 python/rocml.py \
 				 python/scripting.py \
@@ -130,7 +129,7 @@ build_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
-build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) pca_mixing_arrays
+build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) create_mixing_arrays
 	@$(CONDAPYTHON) -u python/build-gfem-models.py \
 		--Pmin $(PMIN) \
 		--Pmax $(PMAX) \
@@ -145,21 +144,22 @@ build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) pca_mixing_arra
 		--nsamples $(NSAMPLES) \
 		--parallel $(PARALLEL) \
 		--nprocs $(NPROCS) \
+		--seed $(SEED) \
 		--palette $(PALETTE) \
 		--figdir $(FIGDIR) \
 		--verbose $(VERBOSE) \
 		$(LOG)
 	@echo "=============================================" $(LOG)
 
-pca_mixing_arrays:  $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/make-pca-mixing-arrays.py \
+create_mixing_arrays:  $(LOGFILE) $(PYTHON) assets
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py \
 		--res $(RES) \
-		--oxides '$(OXIDES)' \
 		--npca $(NPCA) \
 		--kcluster $(KCLUSTER) \
 		--seed $(SEED) \
-		--verbose $(VERBOSE) \
+		--palette $(PALETTE) \
 		--figdir $(FIGDIR) \
+		--verbose $(VERBOSE) \
 	$(LOG)
 	@echo "=============================================" $(LOG)
 

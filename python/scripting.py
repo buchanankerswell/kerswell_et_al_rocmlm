@@ -110,7 +110,7 @@ def print_session_info(condafile=None, makefile=None):
             print(f"        {key}: {value}")
 
         # Makefile pca sampling options
-        makefile_vars_pca_options = ["OXIDES", "NPCA", "KCLUSTER"]
+        makefile_vars_pca_options = ["NPCA", "KCLUSTER"]
 
         # Get Makefile variables
         makefile_dict = {}
@@ -329,7 +329,6 @@ def parse_arguments():
     parser.add_argument("--epochs", type=int, required=False)
     parser.add_argument("--batchprop", type=float, required=False)
     parser.add_argument("--kfolds", type=int, required=False)
-    parser.add_argument("--oxides", type=parse_list_of_strings, required=False)
     parser.add_argument("--npca", type=int, required=False)
     parser.add_argument("--kcluster", type=int, required=False)
     parser.add_argument("--parallel", type=str, required=False)
@@ -369,7 +368,6 @@ def check_arguments(args, script):
     epochs = args.epochs
     batchprop = args.batchprop
     kfolds = args.kfolds
-    oxides = args.oxides
     npca = args.npca
     kcluster = args.kcluster
     parallel = args.parallel
@@ -536,18 +534,6 @@ def check_arguments(args, script):
         print(f"    kfolds: {kfolds}")
 
         valid_args["kfolds"] = kfolds
-
-    if oxides is not None:
-        if check_non_matching_strings(oxides, oxide_list_magemin[:-1]):
-            print("Warning: invalid --oxides argument!")
-            print(f"    Can only use: {oxide_list_magemin[:-1]}")
-            print(f"Using oxides = {oxide_list_magemin[:-1]}")
-
-            oxides = oxide_list_magemin[:-1]
-
-        print(f"    Selected oxides: {oxides}")
-
-        valid_args["oxides"] = oxides
 
     if npca is not None:
         print(f"    pca components: {npca}")
