@@ -18,6 +18,7 @@ import pandas as pd
 # plotting !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import seaborn as sns
+from scipy import ndimage
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import matplotlib.ticker as ticker
@@ -144,121 +145,151 @@ def combine_plots_vertically(image1_path, image2_path, output_path, caption1, ca
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose dataset plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_dataset_plots(magemin, perplex, sample_id, dataset, res, targets, fig_dir,
-                          verbose):
+def compose_dataset_plots(magemin_models, perplex_models):
     """
     """
-    # Set geotherm threshold for extracting depth profiles
-    if res <= 8:
-        geotherm_threshold = 4
+    # Iterate through all models
+    for magemin_model, perplex_model in zip(magemin_models, perplex_models):
+        magemin = True if magemin_model else False
+        perplex = True if perplex_model else False
 
-    elif res <= 16:
-        geotherm_threshold = 2
+        if not magemin and not perplex:
+            print("No magemin or perplex samples to plot!")
 
-    elif res <= 32:
-        geotherm_threshold = 1
+            break
 
-    elif res <= 64:
-        geotherm_threshold = 0.5
+        # Get model data
+        if magemin_model.sample_id == perplex_model.sample_id:
+            sample_id = magemin_model.sample_id
+        else:
+            raise ValueError("Model samples are not the same!")
+        if magemin_model.res == perplex_model.res:
+            res = magemin_model.res
+        else:
+            raise ValueError("Model resolutions are not the same!")
+        if magemin_model.dataset == perplex_model.dataset:
+            dataset = magemin_model.dataset
+        else:
+            raise ValueError("Model datasets are not the same!")
+        if magemin_model.targets == perplex_model.targets:
+            targets = magemin_model.targets
+        else:
+            raise ValueError("Model datasets are not the same!")
+        if magemin_model.fig_dir == perplex_model.fig_dir:
+            fig_dir = magemin_model.fig_dir
+        else:
+            raise ValueError("Model fig dir are not the same!")
 
-    elif res <= 128:
-        geotherm_threshold = 0.25
+        # Set geotherm threshold for extracting depth profiles
+        if res <= 8:
+            geotherm_threshold = 4
 
-    else:
-        geotherm_threshold = 0.125
+        elif res <= 16:
+            geotherm_threshold = 2
 
-    # Rename targets
-    targets_rename = [target.replace("_", "-") for target in targets]
+        elif res <= 32:
+            geotherm_threshold = 1
 
-    print(f"Composing {dataset} dataset: {fig_dir}")
+        elif res <= 64:
+            geotherm_threshold = 0.5
 
-    # Compose plots
-    if magemin and perplex:
-        for target in targets_rename:
-            if target not in ["assemblage", "assemblage-variance"]:
-                combine_plots_horizontally(
-                    f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                    f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
-                    f"{fig_dir}/temp1.png",
-                    caption1="a)",
-                    caption2="b)"
-                )
+        elif res <= 128:
+            geotherm_threshold = 0.25
 
-                combine_plots_horizontally(
-                    f"{fig_dir}/temp1.png",
-                    f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png",
-                    f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png",
-                    caption1="",
-                    caption2="c)"
-                )
+        else:
+            geotherm_threshold = 0.125
 
-                os.remove(f"{fig_dir}/temp1.png")
+        # Rename targets
+        targets_rename = [target.replace("_", "-") for target in targets]
 
-            if target in ["rho", "Vp", "Vs"]:
-                combine_plots_horizontally(
-                    f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                    f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
-                    f"{fig_dir}/temp1.png",
-                    caption1="a)",
-                    caption2="b)"
-                )
+        print(f"Composing plots: {fig_dir}")
 
-                combine_plots_horizontally(
-                    f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png",
-                    f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
-                    f"{fig_dir}/temp2.png",
-                    caption1="c)",
-                    caption2="d)"
-                )
+        if magemin and perplex:
+            for target in targets_rename:
+                if target not in ["assemblage", "assemblage-variance"]:
+                    combine_plots_horizontally(
+                        f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/temp1.png",
+                        caption1="a)",
+                        caption2="b)"
+                    )
 
-                combine_plots_vertically(
-                    f"{fig_dir}/temp1.png",
-                    f"{fig_dir}/temp2.png",
-                    f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png",
-                    caption1="",
-                    caption2=""
-                )
+                    combine_plots_horizontally(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png",
+                        caption1="",
+                        caption2="c)"
+                    )
 
-                os.remove(f"{fig_dir}/temp1.png")
-                os.remove(f"{fig_dir}/temp2.png")
-                os.remove(f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png")
-                os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
+                    os.remove(f"{fig_dir}/temp1.png")
 
-            if target == "melt-fraction":
-                os.remove(f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png")
-
-            os.remove(f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png")
-            os.remove(f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png")
-
-    elif magemin and not perplex:
-        for target in targets_rename:
-            if target not in ["assemblage", "assemblage-variance"]:
                 if target in ["rho", "Vp", "Vs"]:
                     combine_plots_horizontally(
                         f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/image2-{sample_id}-{dataset}-{target}.png",
-                        caption1="a)",
-                        caption2="b)"
-                    )
-
-                    os.remove(f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png")
-                    os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
-
-    elif perplex and not magemin:
-        for target in targets_rename:
-            if target not in ["assemblage", "assemblage-variance"]:
-                if target in ["rho", "Vp", "Vs"]:
-                    combine_plots_horizontally(
                         f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/image-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/temp1.png",
                         caption1="a)",
                         caption2="b)"
                     )
 
-                    os.remove(f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png")
+                    combine_plots_horizontally(
+                        f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/temp2.png",
+                        caption1="c)",
+                        caption2="d)"
+                    )
+
+                    combine_plots_vertically(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/temp2.png",
+                        f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png",
+                        caption1="",
+                        caption2=""
+                    )
+
+                    os.remove(f"{fig_dir}/temp1.png")
+                    os.remove(f"{fig_dir}/temp2.png")
+                    os.remove(f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png")
                     os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
+
+                if target == "melt-fraction":
+                    os.remove(f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png")
+
+                os.remove(f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png")
+                os.remove(f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png")
+
+        elif magemin and not perplex:
+            for target in targets_rename:
+                if target not in ["assemblage", "assemblage-variance"]:
+                    if target in ["rho", "Vp", "Vs"]:
+                        combine_plots_horizontally(
+                            f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/image2-{sample_id}-{dataset}-{target}.png",
+                            caption1="a)",
+                            caption2="b)"
+                        )
+
+                        os.remove(f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png")
+                        os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
+
+        elif perplex and not magemin:
+            for target in targets_rename:
+                if target not in ["assemblage", "assemblage-variance"]:
+                    if target in ["rho", "Vp", "Vs"]:
+                        combine_plots_horizontally(
+                            f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/image-{sample_id}-{dataset}-{target}.png",
+                            caption1="a)",
+                            caption2="b)"
+                        )
+
+                        os.remove(f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png")
+                        os.remove(f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png")
 
     return None
 
@@ -271,7 +302,7 @@ def compose_ml_plots(magemin, perplex, sample_id, res, models, targets, fig_dir)
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
 
-    print(f"Composing rocml plots: {fig_dir}")
+    print(f"Composing plots: {fig_dir}")
 
     # Compose plots
     for model in models:
@@ -747,10 +778,10 @@ def compose_ml_plots(magemin, perplex, sample_id, res, models, targets, fig_dir)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset design !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset_design(P_min, P_max, T_min, T_max, fig_dir,
-                                      T_mantle1=273, T_mantle2=1773, grad_mantle1=1,
-                                      grad_mantle2=0.5, fontsize=12, figwidth=6.3,
-                                      figheight=3.54):
+def visualize_training_dataset_design(P_min=1, P_max=28, T_min=773, T_max=2273,
+                                      fig_dir="figs/other", T_mantle1=273, T_mantle2=1773,
+                                      grad_mantle1=1, grad_mantle2=0.5, fontsize=12,
+                                      figwidth=6.3, figheight=3.54):
     """
     """
     # Check for figs directory
@@ -954,10 +985,13 @@ def visualize_training_dataset_design(P_min, P_max, T_min, T_max, fig_dir,
     # Close device
     plt.close()
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize gfem efficiency !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_efficiency(fig_dir, filename, fontsize=12, figwidth=6.3, figheight=3.54):
+def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.png",
+                              fontsize=12, figwidth=6.3, figheight=3.54):
     """
     """
     # Data assets dir
@@ -1055,6 +1089,8 @@ def visualize_gfem_efficiency(fig_dir, filename, fontsize=12, figwidth=6.3, figh
 
     # Close device
     plt.close()
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize prem !!
@@ -1212,6 +1248,8 @@ def visualize_prem(target, target_unit, results_mgm=None, results_ppx=None,
     # Close device
     plt.close()
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize target array  !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1294,7 +1332,6 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
                                              np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
-
         ax.set_xlabel("T (K)")
         ax.set_ylabel("P (GPa)")
         plt.colorbar(im, ax=ax, ticks=np.arange(vmin, vmax, num_colors // 4), label="")
@@ -1369,7 +1406,6 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
                                              np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
-
         ax.set_xlabel("T (K)")
         ax.set_ylabel("P (GPa)")
 
@@ -1409,6 +1445,8 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
 
     # Close device
     plt.close()
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize target surf !!
@@ -1630,7 +1668,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset(model, palette):
+def visualize_training_dataset(model, palette="bone"):
     """
     """
     # Get model data
@@ -1769,7 +1807,7 @@ def visualize_training_dataset(model, palette):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset diff !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset_diff(magemin_model, perplex_model, palette):
+def visualize_training_dataset_diff(magemin_model, perplex_model, palette="bone"):
     """
     """
     # Check for models
@@ -1807,6 +1845,7 @@ def visualize_training_dataset_diff(magemin_model, perplex_model, palette):
         verbose = magemin_model.verbose
     else:
         raise ValueError("Model verbosity settings are not the same!")
+
     results_mgm, results_ppx = magemin_model.results, perplex_model.results
     P_mgm, T_mgm = results_mgm["P"], results_mgm["T"]
     P_ppx, T_ppx = results_ppx["P"], results_ppx["T"]
@@ -2299,11 +2338,13 @@ def visualize_ml_performance(sample_id, target, res, fig_dir, filename, fontsize
         # Close device
         plt.close()
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize pca loadings !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_pca_loadings(mixing_array, fig_dir, filename, figwidth=6.3, figheight=6.3,
-                           fontsize=22):
+def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthchem",
+                           figwidth=6.3, figheight=6.3, fontsize=22):
     """
     """
     # Get mixing array attributes
@@ -2404,11 +2445,13 @@ def visualize_pca_loadings(mixing_array, fig_dir, filename, figwidth=6.3, fighei
         # Close device
         plt.close()
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize kmeans clusters !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_kmeans_clusters(mixing_array, fig_dir, filename, figwidth=6.3, figheight=6.3,
-                              fontsize=22):
+def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="earthchem",
+                              figwidth=6.3, figheight=6.3, fontsize=22):
     """
     """
     # Get mixing array attributes
@@ -2496,8 +2539,8 @@ def visualize_kmeans_clusters(mixing_array, fig_dir, filename, figwidth=6.3, fig
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize mixing arrays !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_mixing_array(mixing_array, fig_dir, filename, figwidth=6.3, figheight=6.3,
-                           fontsize=22):
+def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthchem",
+                           figwidth=6.3, figheight=6.3, fontsize=22):
     """
     """
     # Get mixing array attributes

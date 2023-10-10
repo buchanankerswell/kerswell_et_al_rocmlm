@@ -315,11 +315,11 @@ def parse_arguments():
     parser.add_argument("--Pmax", type=int, required=False)
     parser.add_argument("--Tmin", type=int, required=False)
     parser.add_argument("--Tmax", type=int, required=False)
+    parser.add_argument("--source", type=str, required=False)
     parser.add_argument("--sampleid", type=str, required=False)
     parser.add_argument("--normox", type=parse_list_of_strings, required=False)
     parser.add_argument("--dataset", type=str, required=False)
     parser.add_argument("--res", type=int, required=False)
-    parser.add_argument("--benchmarks", type=str, required=False)
     parser.add_argument("--nsamples", type=int, required=False)
     parser.add_argument("--emsonly", type=str, required=False)
     parser.add_argument("--maskgeotherm", type=str, required=False)
@@ -337,6 +337,7 @@ def parse_arguments():
     parser.add_argument("--palette", type=str, required=False)
     parser.add_argument("--figdir", type=str, required=False)
     parser.add_argument("--verbose", type=int, required=False)
+    parser.add_argument("--debug", type=str, required=False)
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -354,11 +355,11 @@ def check_arguments(args, script):
     Pmax = args.Pmax
     Tmin = args.Tmin
     Tmax = args.Tmax
+    source = args.source
     sampleid = args.sampleid
     normox = args.normox
     dataset = args.dataset
     res = args.res
-    benchmarks = args.benchmarks
     nsamples = args.nsamples
     emsonly = args.emsonly
     maskgeotherm = args.maskgeotherm
@@ -376,6 +377,7 @@ def check_arguments(args, script):
     palette = args.palette
     figdir = args.figdir
     verbose = args.verbose
+    debug = args.debug
 
     # MAGEMin oxide options
     oxide_list_magemin = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O",
@@ -406,6 +408,11 @@ def check_arguments(args, script):
         print(f"    T max: {Tmax} K")
 
         valid_args["Tmax"] = Tmax
+
+    if source is not None:
+        print(f"    sample source: {source}")
+
+        valid_args["source"] = source
 
     if sampleid is not None:
         print(f"    sample id: {sampleid}")
@@ -448,20 +455,6 @@ def check_arguments(args, script):
             print(f"    P range: [{Pmin}, {Pmax}, {res}] GPa")
 
         valid_args["res"] = res
-
-    if benchmarks is not None:
-        benchmarks = benchmarks.lower() == "true" if benchmarks else False
-
-        if not isinstance(benchmarks, bool):
-            print("Warning: invalid --benchmarks argument!")
-            print("    --benchmarks must be True or False")
-            print("Using benchmarks = True")
-
-            benchmarks = True
-
-        print(f"    benchmarks: {benchmarks}")
-
-        valid_args["benchmarks"] = benchmarks
 
     if nsamples is not None:
         print(f"    n synthetic samples: {nsamples}")
@@ -603,6 +596,20 @@ def check_arguments(args, script):
         print(f"    verbose: {verbose}")
 
         valid_args["verbose"] = verbose
+
+    if debug is not None:
+        debug = debug.lower() == "true" if debug else False
+
+        if not isinstance(debug, bool):
+            print("Warning: invalid --debug argument!")
+            print("    --debug must be True or False")
+            print("Using debug = False")
+
+            debug = False
+
+        print(f"    debug: {debug}")
+
+        valid_args["debug"] = debug
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 

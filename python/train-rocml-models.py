@@ -10,21 +10,8 @@ valid_args = check_arguments(args, "train-rocml-models.py")
 # Load valid arguments
 locals().update(valid_args)
 
-# Get samples
-if benchmarks:
-    source = "assets/data/benchmark-samples.csv"
-    sampleids = ["PUM", "DMM", "NMORB", "RE46"]
-elif not benchmarks:
-    source = f"assets/data/synthetic-samples-pca{npca}-clusters13.csv"
-    sampleids = get_random_sampleids(source, nsamples, seed)
-
 # Fetch GFEM models
-models = []
-for s in sampleids:
-    for p in ["magemin", "perplex"]:
-        for d in ["train", "valid"]:
-            models.append(GFEMModel(p, Pmin, Pmax, Tmin, Tmax, res, source, s,
-                                    normox, d, targets, maskgeotherm, verbose))
+models = GFEMModel(["perplex"], ["train", "valid"], source, nsamples, res)
 
 # Parse GFEM models
 mage_train = [m for m in models if m.program == "magemin" and m.dataset == "train"]

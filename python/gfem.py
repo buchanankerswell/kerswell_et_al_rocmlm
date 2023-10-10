@@ -35,12 +35,12 @@ from sklearn.impute import KNNImputer
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get sampleids !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_sampleids(filepath, n, seed):
+def get_sampleids(filepath, n, seed=42):
     """
     """
     # Check for file
     if not os.path.exists(filepath):
-        raise Exception("Filepath not found!")
+        raise Exception("Sample data source does not exist!")
 
     # Read data
     df = pd.read_csv(filepath)
@@ -49,7 +49,7 @@ def get_sampleids(filepath, n, seed):
     if n == len(df):
         sampleids = df["NAME"].values
     else:
-        sampleids = df.sample(n)["NAME"].values
+        sampleids = df.sample(n, random_state=seed)["NAME"].values
 
     return sampleids
 
@@ -60,12 +60,12 @@ def gfem_iteration(args):
     """
     """
     # Unpack arguments
-    program, Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset, targets, \
-        maskgeotherm, verbose = args
+    program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, normox, targets, \
+        maskgeotherm, verbose, debug = args
 
     # Initiate GFEM model
-    iteration = GFEMModel(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox,
-                          dataset, targets, maskgeotherm, verbose)
+    iteration = GFEMModel(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
+                          normox, targets, maskgeotherm, verbose, debug)
 
     if iteration.model_built:
         return iteration
@@ -86,15 +86,18 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, normox,
-                      targets, maskgeotherm, parallel, nprocs, verbose):
+def build_gfem_models(programs=["magemin", "perplex"], datasets=["train", "valid"],
+                      source="assets/data/benchmark-samples", nsamples=3, res=128, Pmin=1,
+                      Pmax=28, Tmin=773, Tmax=2273, normox="all",
+                      targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
+                      parallel=True, nprocs=os.cpu_count()-2, verbose=1, debug=False):
     """
     """
-    # Datasets to iterate over
-    datasets = ["train", "valid"]
+    # Get samples
+    sampleids = get_sampleids(source, nsamples)
 
     # Create combinations of samples and datasets
-    combinations = list(itertools.product(sampleids, datasets))
+    combinations = list(itertools.product(programs, datasets, sampleids))
 
     # Define number of processors
     if not parallel:
@@ -112,8 +115,9 @@ def build_gfem_models(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleids, n
         nprocs = len(combinations)
 
     # Create list of args for mp pooling
-    run_args = [(program, Pmin, Pmax, Tmin, Tmax, res, source, sampleid, normox, dataset,
-                 targets, maskgeotherm, verbose) for sampleid, dataset in combinations]
+    run_args = [(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, normox,
+                 targets, maskgeotherm, verbose, debug)
+                for program, dataset, sampleid in combinations]
 
     # Create a multiprocessing pool
     with mp.Pool(processes=nprocs) as pool:
@@ -149,8 +153,10 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, program, P_min, P_max, T_min, T_max, res, source, sample_id, normox,
-                 dataset, targets, maskgeotherm, verbose):
+    def __init__(self, program, dataset, sample_id, source, res,
+                 P_min=1, P_max=28, T_min=773, T_max=2273, normox="all",
+                 targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
+                 verbose=1, debug=False):
         # Input
         self.program = program
         self.P_min = P_min
@@ -165,6 +171,7 @@ class GFEMModel:
         self.targets = targets
         self.mask_geotherm = maskgeotherm
         self.verbose = verbose
+        self.debug = debug
 
         if self.program == "magemin":
             # Magemin dirs and filepaths
@@ -242,15 +249,19 @@ class GFEMModel:
     def _get_sample_composition(self):
         """
         """
+        # Get self attributes
+        source = self.source
+        sample_id = self.sample_id
+
         # All oxides needed for MAGEMin
         oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
                   "CR2O3", "H2O"]
 
         # Read the data file
-        df = pd.read_csv(self.source)
+        df = pd.read_csv(source)
 
         # Subset the DataFrame based on the sample name
-        subset_df = df[df["NAME"] == self.sample_id]
+        subset_df = df[df["NAME"] == sample_id]
 
         if subset_df.empty:
             raise ValueError("Sample name not found in the dataset!")
@@ -279,20 +290,24 @@ class GFEMModel:
     def _normalize_sample_composition(self):
         """
         """
+        # Get self attributes
+        sample_composition = self.sample_composition
+        normox = self.normox
+
         # Check for sample composition
-        if not self.sample_composition:
+        if not sample_composition:
             raise Exception("No sample composition! Call _get_sample_composition() first ...")
 
         # No normalizing for all components
-        if self.normox == "all":
-            return self.sample_composition
+        if normox == "all":
+            return sample_composition
 
         # MAGEMin req components
         oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
                   "CR2O3", "H2O"]
 
         # Check input
-        if len(self.sample_composition) != 11:
+        if len(sample_composition) != 11:
             error_message = ("The input sample list must have exactly 11 components!\n"
                              f"{oxides}")
 
@@ -357,13 +372,20 @@ class GFEMModel:
     def _get_comp_time(self):
         """
         """
-        if os.path.exists(self.log_file) and os.path.exists("assets/data"):
+        # Get self attributes
+        log_file = self.log_file
+        program = self.program
+        sample_id = self.sample_id
+        dataset = self.dataset
+        res = self.res
+
+        if os.path.exists(log_file) and os.path.exists("assets/data"):
             # Define a list to store the time values
             time_values_mgm = []
             time_values_ppx = []
 
             # Open the log file and read its lines
-            with open(self.log_file, "r") as log:
+            with open(log_file, "r") as log:
                 lines = log.readlines()
 
             # Iterate over the lines in reverse order
@@ -391,15 +413,15 @@ class GFEMModel:
 
                     break
 
-            if self.program == "magemin":
+            if program == "magemin":
                 last_value = time_values_mgm[-1]
 
-            elif self.program == "perplex":
+            elif program == "perplex":
                 last_value = time_values_ppx[-1]
 
             # Create the line to append to the CSV file
-            line_to_append = (f"{self.sample_id},{self.program},{self.dataset},"
-                              f"{self.res**2},{last_value:.1f}")
+            line_to_append = (f"{sample_id},{program},{dataset},"
+                              f"{res**2},{last_value:.1f}")
 
             csv_filepath = "assets/data/gfem-efficiency.csv"
 
@@ -465,16 +487,21 @@ class GFEMModel:
     def _configure_magemin_model(self):
         """
         """
-        # Get sample composition
-        sample_comp = self._get_sample_composition()
-        norm_comp = self._normalize_sample_composition()
+        # Get self attributes
+        dataset = self.dataset
+        res = self.res
+        magemin_in_path = self.magemin_in_path
 
         # Transform units to kbar C
         P_min, P_max = self.P_min * 10, self.P_max * 10
         T_min, T_max = self.T_min - 273, self.T_max - 273
 
+        # Get sample composition
+        sample_comp = self._get_sample_composition()
+        norm_comp = self._normalize_sample_composition()
+
         # Shift validation dataset
-        if self.dataset != "train":
+        if dataset != "train":
             P_step, T_step = 1, 25
 
             P_min += P_step
@@ -483,8 +510,8 @@ class GFEMModel:
             T_max -= T_step
 
         # Define PT arrays
-        P_range = [P_min, P_max, (P_max - P_min) / self.res]
-        T_range = [T_min, T_max, (T_max - T_min) / self.res]
+        P_range = [P_min, P_max, (P_max - P_min) / res]
+        T_range = [T_min, T_max, (T_max - T_min) / res]
 
         P_array = np.arange(float(P_range[0]),
                             float(P_range[1]) + float(P_range[2]),
@@ -510,7 +537,7 @@ class GFEMModel:
             )
 
         # Write input file
-        with open(self.magemin_in_path, "w") as f:
+        with open(magemin_in_path, "w") as f:
             f.write(magemin_input)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -519,37 +546,47 @@ class GFEMModel:
     def _run_magemin(self):
         """
         """
+        # Get self attributes
+        magemin_in_path = self.magemin_in_path
+        model_out_dir = self.model_out_dir
+        model_prefix = self.model_prefix
+        log_file = self.log_file
+        verbose = self.verbose
+
         # Check for input MAGEMin input files
-        if not os.path.exists(self.magemin_in_path):
+        if not os.path.exists(magemin_in_path):
             raise Exception("No MAGEMin input! Call _configure_magemin_model() first ...")
 
-        print(f"Building MAGEMin model: {self.model_prefix}...")
+        print(f"Building MAGEMin model: {model_prefix}...")
 
         # Get number of pt points
         n_points = self._count_lines()
 
         # Execute MAGEMin
-        exec = (f"../../MAGEMin/MAGEMin --File=../../{self.magemin_in_path} "
+        exec = (f"../../MAGEMin/MAGEMin --File=../../{magemin_in_path} "
                 f"--n_points={n_points} --sys_in=wt --db=ig")
 
         try:
             # Run MAGEMin
             process = subprocess.Popen([exec], stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE, shell=True,
-                                       cwd=self.model_out_dir)
+                                       cwd=model_out_dir)
 
             # Wait for the process to complete and capture its output
             stdout, stderr = process.communicate()
 
+            if verbose >= 2:
+                print(f"{stdout.decode()}")
+
             # Write to logfile
-            with open(self.log_file, "a") as log:
+            with open(log_file, "a") as log:
                 log.write(stdout.decode())
                 log.write(stderr.decode())
 
             if process.returncode != 0:
-                raise RuntimeError(f"Error executing magemin {self.model_out_dir}!")
+                raise RuntimeError(f"Error executing magemin {model_out_dir}!")
 
-            if self.verbose >= 2:
+            if verbose >= 2:
                 print(f"MAGEMin output:")
                 print(f"{stdout.decode()}")
 
@@ -681,15 +718,23 @@ class GFEMModel:
     def _process_magemin_results(self):
         """
         """
+        # Get self attributes
+        model_out_dir = self.model_out_dir
+        magemin_in_path = self.magemin_in_path
+        magemin_out_path = self.magemin_out_path
+        model_prefix = self.model_prefix
+        verbose = self.verbose
+        debug = self.debug
+
         # Check for MAGEMin output files
-        if not os.path.exists(self.model_out_dir):
+        if not os.path.exists(model_out_dir):
             raise Exception("No MAGEMin files to process! Call _run_magemin() first ...")
 
-        if not os.path.exists(self.magemin_out_path):
+        if not os.path.exists(magemin_out_path):
             raise Exception("No MAGEMin files to process! Call _run_magemin() first ...")
 
-        if self.verbose >= 2:
-            print(f"Reading MAGEMin output: {self.model_prefix} ...")
+        if verbose >= 2:
+            print(f"Reading MAGEMin output: {model_prefix} ...")
 
         # Read results
         results = self._read_magemin_output()
@@ -744,7 +789,7 @@ class GFEMModel:
                     results[key] = np.array(value)
 
         # Print results
-        if self.verbose >= 2:
+        if verbose >= 2:
             units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
                      "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
 
@@ -764,15 +809,16 @@ class GFEMModel:
         # Save as pandas df
         df = pd.DataFrame.from_dict(results)
 
-        if self.verbose >= 2:
-            print(f"Writing MAGEMin results: {self.model_out_dir} ...")
+        if verbose >= 2:
+            print(f"Writing MAGEMin results: {model_out_dir} ...")
 
         # Write to csv file
-        df.to_csv(f"{self.model_out_dir}/results.csv", index=False)
+        df.to_csv(f"{model_out_dir}/results.csv", index=False)
 
-        # Clean up output directory
-        os.remove(self.magemin_in_path)
-        shutil.rmtree(f"{self.model_out_dir}/output")
+        if not debug:
+            # Clean up output directory
+            os.remove(magemin_in_path)
+            shutil.rmtree(f"{model_out_dir}/output")
 
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++
     #+ .0.3.          Perple_X Functions            !!! ++
@@ -783,16 +829,23 @@ class GFEMModel:
     def _configure_perplex_model(self):
         """
         """
-        # Get sample composition
-        sample_comp = self._get_sample_composition()
-        norm_comp = self._normalize_sample_composition()
+        # Get self attributes
+        dataset = self.dataset
+        model_out_dir = self.model_out_dir
+        model_prefix = self.model_prefix
+        perplex_dir = self.perplex_dir
+        res = self.res
 
         # Transform units to bar
         P_min, P_max = self.P_min * 1e4, self.P_max * 1e4
         T_min, T_max = self.T_min, self.T_max
 
+        # Get sample composition
+        sample_comp = self._get_sample_composition()
+        norm_comp = self._normalize_sample_composition()
+
         # Shift validation dataset
-        if self.dataset != "train":
+        if dataset != "train":
             P_step, T_step = 1e3, 25
 
             P_min += P_step
@@ -810,33 +863,33 @@ class GFEMModel:
         plot = "perplex-plot-options"
 
         # Copy original configuration files to the perplex directory
-        shutil.copy(f"assets/config/{build}", f"{self.model_out_dir}/{build}")
-        shutil.copy(f"assets/config/{minimize}", f"{self.model_out_dir}/{minimize}")
-        shutil.copy(f"assets/config/{targets}", f"{self.model_out_dir}/{targets}")
-        shutil.copy(f"assets/config/{phase}", f"{self.model_out_dir}/{phase}")
-        shutil.copy(f"assets/config/{options}", f"{self.model_out_dir}/{options}")
-        shutil.copy(f"assets/config/{draw}", f"{self.model_out_dir}/{draw}")
-        shutil.copy(f"assets/config/{plot}", f"{self.model_out_dir}/perplex_plot_option.dat")
+        shutil.copy(f"assets/config/{build}", f"{model_out_dir}/{build}")
+        shutil.copy(f"assets/config/{minimize}", f"{model_out_dir}/{minimize}")
+        shutil.copy(f"assets/config/{targets}", f"{model_out_dir}/{targets}")
+        shutil.copy(f"assets/config/{phase}", f"{model_out_dir}/{phase}")
+        shutil.copy(f"assets/config/{options}", f"{model_out_dir}/{options}")
+        shutil.copy(f"assets/config/{draw}", f"{model_out_dir}/{draw}")
+        shutil.copy(f"assets/config/{plot}", f"{model_out_dir}/perplex_plot_option.dat")
 
         # Modify the copied configuration files within the perplex directory
-        self._replace_in_file(f"{self.model_out_dir}/{build}",
-                              {"{SAMPLEID}": f"{self.model_prefix}",
-                               "{PERPLEX}": f"{self.perplex_dir}",
-                               "{OUTDIR}": f"{self.model_out_dir}",
+        self._replace_in_file(f"{model_out_dir}/{build}",
+                              {"{SAMPLEID}": f"{model_prefix}",
+                               "{PERPLEX}": f"{perplex_dir}",
+                               "{OUTDIR}": f"{model_out_dir}",
                                "{TMIN}": str(T_min), "{TMAX}": str(T_max),
                                "{PMIN}": str(P_min), "{PMAX}": str(P_max),
                                "{SAMPLECOMP}": " ".join(map(str, norm_comp))})
-        self._replace_in_file(f"{self.model_out_dir}/{minimize}",
-                              {"{SAMPLEID}": f"{self.model_prefix}"})
-        self._replace_in_file(f"{self.model_out_dir}/{targets}",
-                              {"{SAMPLEID}": f"{self.model_prefix}"})
-        self._replace_in_file(f"{self.model_out_dir}/{phase}",
-                              {"{SAMPLEID}": f"{self.model_prefix}"})
-        self._replace_in_file(f"{self.model_out_dir}/{options}",
-                              {"{XNODES}": f"{int(self.res / 4)} {self.res + 1}",
-                               "{YNODES}": f"{int(self.res / 4)} {self.res + 1}"})
-        self._replace_in_file(f"{self.model_out_dir}/{draw}",
-                              {"{SAMPLEID}": f"{self.model_prefix}"})
+        self._replace_in_file(f"{model_out_dir}/{minimize}",
+                              {"{SAMPLEID}": f"{model_prefix}"})
+        self._replace_in_file(f"{model_out_dir}/{targets}",
+                              {"{SAMPLEID}": f"{model_prefix}"})
+        self._replace_in_file(f"{model_out_dir}/{phase}",
+                              {"{SAMPLEID}": f"{model_prefix}"})
+        self._replace_in_file(f"{model_out_dir}/{options}",
+                              {"{XNODES}": f"{int(res / 4)} {res + 1}",
+                               "{YNODES}": f"{int(res / 4)} {res + 1}"})
+        self._replace_in_file(f"{model_out_dir}/{draw}",
+                              {"{SAMPLEID}": f"{model_prefix}"})
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # run perplex !!
@@ -844,11 +897,18 @@ class GFEMModel:
     def _run_perplex(self):
         """
         """
+        # Get self attributes
+        log_file = self.log_file
+        model_out_dir = self.model_out_dir
+        model_prefix = self.model_prefix
+        perplex_dir = self.perplex_dir
+        verbose = self.verbose
+
         # Check for input MAGEMin input files
-        if not os.path.exists(f"{self.model_out_dir}/perplex-build-config"):
+        if not os.path.exists(f"{model_out_dir}/perplex-build-config"):
             raise Exception("No Perple_X input! Call _configure_perplex_model() first ...")
 
-        print(f"Building Perple_X model: {self.model_prefix} ...")
+        print(f"Building Perple_X model: {model_prefix} ...")
 
         # Run programs with corresponding configuration files
         for program in ["build", "vertex", "werami", "pssect"]:
@@ -856,20 +916,23 @@ class GFEMModel:
             config_files = []
 
             if program == "build":
-                config_files.append(f"{self.model_out_dir}/perplex-build-config")
+                config_files.append(f"{model_out_dir}/perplex-build-config")
 
             elif program == "vertex":
-                config_files.append(f"{self.model_out_dir}/perplex-vertex-minimize")
+                config_files.append(f"{model_out_dir}/perplex-vertex-minimize")
 
             elif program == "werami":
-                config_files.append(f"{self.model_out_dir}/perplex-werami-targets")
-                config_files.append(f"{self.model_out_dir}/perplex-werami-phase")
+                config_files.append(f"{model_out_dir}/perplex-werami-targets")
+                config_files.append(f"{model_out_dir}/perplex-werami-phase")
+
+#                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
+#                                    {"Anderson-Gruneisen  F": "Anderson-Gruneisen  T"})
 
             elif program == "pssect":
-                config_files.append(f"{self.model_out_dir}/perplex-pssect-draw")
+                config_files.append(f"{model_out_dir}/perplex-pssect-draw")
 
             # Get program path
-            program_path = f"{self.perplex_dir}/{program}"
+            program_path = f"{perplex_dir}/{program}"
 
             for i, config in enumerate(config_files):
                 try:
@@ -881,70 +944,66 @@ class GFEMModel:
                         process = subprocess.Popen([program_path], stdin=input_stream,
                                                    stdout=subprocess.PIPE,
                                                    stderr=subprocess.PIPE,
-                                                   shell=True, cwd=self.model_out_dir)
+                                                   shell=True, cwd=model_out_dir)
 
                     # Wait for the process to complete and capture its output
                     stdout, stderr = process.communicate()
 
+                    if verbose >= 2:
+                        print(f"{stdout.decode()}")
+
                     # Write to logfile
-                    with open(self.log_file, "a") as log:
+                    with open(log_file, "a") as log:
                         log.write(stdout.decode())
                         log.write(stderr.decode())
 
                     if process.returncode != 0:
                         raise RuntimeError(f"Error executing perplex program '{program}'!")
 
-                    elif self.verbose >= 2:
+                    elif verbose >= 2:
                         print(f"{program} output:")
                         print(f"{stdout.decode()}")
 
                     if program == "werami" and i == 0:
                         # Copy werami pseudosection output
-                        shutil.copy(
-                            f"{self.model_out_dir}/{self.model_prefix}_1.tab",
-                            f"{self.model_out_dir}/target-array.tab"
-                        )
+                        shutil.copy(f"{model_out_dir}/{model_prefix}_1.tab",
+                                    f"{model_out_dir}/target-array.tab")
 
                         # Remove old output
-                        os.remove(f"{self.model_out_dir}/{self.model_prefix}_1.tab")
+                        os.remove(f"{model_out_dir}/{model_prefix}_1.tab")
 
                     elif program == "werami" and i == 1:
                         # Copy werami mineral assemblage output
-                        shutil.copy(
-                            f"{self.model_out_dir}/{self.model_prefix}_1.tab",
-                            f"{self.model_out_dir}/phases.tab"
-                        )
+                        shutil.copy(f"{model_out_dir}/{model_prefix}_1.tab",
+                                    f"{model_out_dir}/phases.tab")
 
                         # Remove old output
-                        os.remove(f"{self.model_out_dir}/{self.model_prefix}_1.tab")
+                        os.remove(f"{model_out_dir}/{model_prefix}_1.tab")
 
                     elif program == "pssect":
                         # Copy pssect assemblages output
-                        shutil.copy(f"{self.model_out_dir}/"
-                                    f"{self.model_prefix}_assemblages.txt",
-                                    f"{self.model_out_dir}/assemblages.txt")
+                        shutil.copy(f"{model_out_dir}/"
+                                    f"{model_prefix}_assemblages.txt",
+                                    f"{model_out_dir}/assemblages.txt")
 
                         # Copy pssect auto refine output
-                        shutil.copy(f"{self.model_out_dir}/"
-                                    f"{self.model_prefix}_auto_refine.txt",
-                                    f"{self.model_out_dir}/auto_refine.txt")
+                        shutil.copy(f"{model_out_dir}/"
+                                    f"{model_prefix}_auto_refine.txt",
+                                    f"{model_out_dir}/auto_refine.txt")
 
                         # Copy pssect seismic data output
-                        shutil.copy(f"{self.model_out_dir}/"
-                                    f"{self.model_prefix}_seismic_data.txt",
-                                    f"{self.model_out_dir}/seismic_data.txt")
+                        shutil.copy(f"{model_out_dir}/"
+                                    f"{model_prefix}_seismic_data.txt",
+                                    f"{model_out_dir}/seismic_data.txt")
 
                         # Remove old output
-                        os.remove(f"{self.model_out_dir}/"
-                                  f"{self.model_prefix}_assemblages.txt")
-                        os.remove(f"{self.model_out_dir}/"
-                                  f"{self.model_prefix}_auto_refine.txt")
-                        os.remove(f"{self.model_out_dir}/"
-                                  f"{self.model_prefix}_seismic_data.txt")
+                        os.remove(f"{model_out_dir}/{model_prefix}_assemblages.txt")
+                        os.remove(f"{model_out_dir}/{model_prefix}_auto_refine.txt")
+                        os.remove(f"{model_out_dir}/{model_prefix}_seismic_data.txt")
 
                         # Convert postscript file to pdf
-                        ps = f"{self.model_out_dir}/{self.model_prefix}.ps"
-                        pdf = f"{self.model_out_dir}/{self.model_prefix}.pdf"
+                        ps = f"{model_out_dir}/{model_prefix}.ps"
+                        pdf = f"{model_out_dir}/{model_prefix}.pdf"
 
                         subprocess.run(f"ps2pdf {ps} {pdf}", shell=True)
 
@@ -1031,15 +1090,23 @@ class GFEMModel:
     def _process_perplex_results(self):
         """
         """
+        # Get self attributes
+        perplex_targets = self.perplex_targets
+        perplex_assemblages = self.perplex_assemblages
+        model_out_dir = self.model_out_dir
+        model_prefix = self.model_prefix
+        verbose = self.verbose
+        debug = self.debug
+
         # Check for targets
-        if not os.path.exists(self.perplex_targets):
+        if not os.path.exists(perplex_targets):
             raise Exception("No Perple_X files to process! Call _run_perplex() first ...")
 
         # Check for assemblages
-        if not os.path.exists(self.perplex_assemblages):
+        if not os.path.exists(perplex_assemblages):
             raise Exception("No Perple_X files to process! Call _run_perplex() first ...")
 
-        if self.verbose >= 2:
+        if verbose >= 2:
             print(f"Reading Perple_X output: {model_out_dir} ...")
 
         # Read results
@@ -1099,7 +1166,7 @@ class GFEMModel:
                     results[key] = np.array(value)
 
         # Print results
-        if self.verbose >= 2:
+        if verbose >= 2:
             units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
                      "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
 
@@ -1119,28 +1186,29 @@ class GFEMModel:
         # Save as pandas df
         df = pd.DataFrame.from_dict(results)
 
-        if self.verbose >= 2:
-            print(f"Writing Perple_X results: {self.model_prefix} ...")
+        if verbose >= 2:
+            print(f"Writing Perple_X results: {model_prefix} ...")
 
         # Write to csv file
-        df.to_csv(f"{self.model_out_dir}/results.csv", index=False)
+        df.to_csv(f"{model_out_dir}/results.csv", index=False)
 
-        # Clean up output directory
-        files_to_keep = ["assemblages.csv", "results.csv", f"{self.model_prefix}.pdf"]
+        if not debug:
+            # Clean up output directory
+            files_to_keep = ["assemblages.csv", "results.csv", f"{model_prefix}.pdf"]
 
-        try:
-            # List all files in the directory
-            all_files = os.listdir(self.model_out_dir)
+            try:
+                # List all files in the directory
+                all_files = os.listdir(model_out_dir)
 
-            # Iterate through the files and delete those not in the exclusion list
-            for filename in all_files:
-                file_path = os.path.join(self.model_out_dir, filename)
+                # Iterate through the files and delete those not in the exclusion list
+                for filename in all_files:
+                    file_path = os.path.join(model_out_dir, filename)
 
-                if os.path.isfile(file_path) and filename not in files_to_keep:
-                    os.remove(file_path)
+                    if os.path.isfile(file_path) and filename not in files_to_keep:
+                        os.remove(file_path)
 
-        except Exception as e:
-            print(f"Error: {e}")
+            except Exception as e:
+                print(f"Error: {e}")
 
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++
     #+ .0.4.        Post Process GFEM Models        !!! ++
@@ -1448,6 +1516,8 @@ class GFEMModel:
                     self._process_perplex_results()
 
                 self.model_built = True
+
+                return None
 
             except Exception as e:
                 print(f"!!! {e} !!!")

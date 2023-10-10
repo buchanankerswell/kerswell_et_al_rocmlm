@@ -10,18 +10,18 @@ valid_args = check_arguments(args, "create-mixing-array.py")
 locals().update(valid_args)
 
 # Initialize mixing array
-mixing_array = MixingArray(res, npca, kcluster, seed, verbose)
+mixing_array = MixingArray(res)
 
 # Create mixing array
 mixing_array.create_mixing_array()
 
 # Visualize PCA
-visualize_pca_loadings(mixing_array, f"{figdir}/other", "earthchem")
+visualize_pca_loadings(mixing_array)
 
 # Visualize KMenas clusters
-visualize_kmeans_clusters(mixing_array, f"{figdir}/other", "earthchem")
+visualize_kmeans_clusters(mixing_array)
 
 # Visualize mixing array
-visualize_mixing_array(mixing_array, f"{figdir}/other", "earthchem")
+visualize_mixing_array(mixing_array)
 
 print("create-mixing-array.py done!")

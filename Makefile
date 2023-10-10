@@ -14,34 +14,11 @@ PERPLEXDIR = assets/perplex
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIGDIR = assets/config
-# Dataset build options
-SAMPLEID ?= PUM
-PMIN ?= 1
-PMAX ?= 28
-TMIN ?= 773
-TMAX ?= 2273
-RES ?= 128
-NORMOX ?= all
-NSAMPLES ?= 4
-SEED = 42
-PARALLEL ?= True
-NPROCS ?= 8
-KFOLDS ?= 8
-VERBOSE ?= 1
-# RocML options
-TARGETS ?= ["rho", "Vp", "Vs", "melt_fraction"]
-MLMODS ?= ["KN", "RF", "DT", "NN1", "NN2", "NN3"]
-MLTUNE ?= True
-EPOCHS ?= 40
-BATCHPROP ?= 0.2
-MASKGEOTHERM ?= True
-# PCA options
-NPCA ?= 3
-KCLUSTER ?= 3
+# Samples
+BENCHMARK = $(DATADIR)/benchmark-samples.csv
+SYNTHETIC = $(DATADIR)/synthetic-samples-pca3-clusters13.csv
 # Visualization options
 FIGDIR ?= figs
-VISTARGETS ?= ["assemblage", "assemblage_variance", "rho", "Vp", "Vs", "melt_fraction"]
-PALETTE ?= bone
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
@@ -86,81 +63,24 @@ init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 
 train_benchmark_models: $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py \
-		--Pmin $(PMIN) \
-		--Pmax $(PMAX) \
-		--Tmin $(TMIN) \
-		--Tmax $(TMAX) \
-		--res $(RES) \
-		--benchmarks True \
-		--normox '$(NORMOX)' \
-		--targets '$(TARGETS)' \
-		--maskgeotherm $(MASKGEOTHERM) \
-		--mlmodels '$(MLMODS)' \
-		--tune $(MLTUNE) \
-		--epochs $(EPOCHS) \
-		--batchprop $(BATCHPROP) \
-		--kfolds $(KFOLDS) \
-		--parallel $(PARALLEL) \
-		--nprocs $(NPROCS) \
-		--seed $(SEED) \
-		--palette $(PALETTE) \
-		--figdir $(FIGDIR) \
-		--verbose $(VERBOSE) \
-	$(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --nsamples 4 \
+		--res 64 --mlmodels '["KN", "RF", "DT", "NN1", "NN2", "NN3"]' --tune True --epochs 100 \
+		--batchprop 0.2 --kfolds 6 --parallel True --nprocs 6 --seed 42 --palette bone \
+		--figdir $(FIGDIR) --verbose 1 $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
-	@$(CONDAPYTHON) -u python/build-gfem-models.py \
-		--Pmin $(PMIN) \
-		--Pmax $(PMAX) \
-		--Tmin $(TMIN) \
-		--Tmax $(TMAX) \
-		--res $(RES) \
-		--benchmarks True \
-		--normox '$(NORMOX)' \
-		--targets '$(VISTARGETS)' \
-		--maskgeotherm $(MASKGEOTHERM) \
-		--parallel $(PARALLEL) \
-		--nprocs $(NPROCS) \
-		--palette $(PALETTE) \
-		--figdir $(FIGDIR) \
-		--verbose $(VERBOSE) \
-		$(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --nsamples 4 \
+		--res 64 $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) create_mixing_arrays
-	@$(CONDAPYTHON) -u python/build-gfem-models.py \
-		--Pmin $(PMIN) \
-		--Pmax $(PMAX) \
-		--Tmin $(TMIN) \
-		--Tmax $(TMAX) \
-		--res $(RES) \
-		--benchmarks False \
-		--normox '$(NORMOX)' \
-		--targets '$(VISTARGETS)' \
-		--maskgeotherm $(MASKGEOTHERM) \
-		--npca $(NPCA) \
-		--nsamples $(NSAMPLES) \
-		--parallel $(PARALLEL) \
-		--nprocs $(NPROCS) \
-		--seed $(SEED) \
-		--palette $(PALETTE) \
-		--figdir $(FIGDIR) \
-		--verbose $(VERBOSE) \
-		$(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --nsamples 3 \
+		--res 64 $(LOG)
 	@echo "=============================================" $(LOG)
 
 create_mixing_arrays:  $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py \
-		--res $(RES) \
-		--npca $(NPCA) \
-		--kcluster $(KCLUSTER) \
-		--seed $(SEED) \
-		--palette $(PALETTE) \
-		--figdir $(FIGDIR) \
-		--verbose $(VERBOSE) \
-	$(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res 64 $(LOG)
 	@echo "=============================================" $(LOG)
 
 submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
@@ -169,10 +89,7 @@ submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
 
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
-		$(CONDAPYTHON) -u python/clone-magemin.py \
-		--emsonly True \
-		--verbose $(VERBOSE) \
-		$(LOG); \
+		$(CONDAPYTHON) -u python/clone-magemin.py --emsonly True --verbose 1 $(LOG); \
 	else \
 		echo "MAGEMin programs found!" $(LOG); \
 	fi
@@ -233,4 +150,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs assets pca_mixing_arrays build_earthchem_datasets build_benchmark_datasets train_benchmark_models init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs assets create_mixing_arrays build_earthchem_datasets build_benchmark_datasets train_benchmark_models init all
