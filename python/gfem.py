@@ -175,6 +175,14 @@ class GFEMModel:
         self.verbose = verbose
         self.debug = debug
 
+        # Operating system (for HPC use)
+        if os.uname().sysname == "Darwin":
+            self.os = "macos"
+        elif os.uname().sysname == "Linux":
+            self.os = "linux"
+        else:
+            self.os = "Unknown"
+
         if self.program == "magemin":
             # Magemin dirs and filepaths
             self.model_out_dir = (f"runs/{self.program[:4]}_{self.sample_id}_"
@@ -185,7 +193,12 @@ class GFEMModel:
         elif self.program == "perplex":
             # Perplex dirs and filepaths
             cwd = os.getcwd()
-            self.perplex_dir = f"{cwd}/assets/perplex"
+            if self.os == "macos":
+                self.perplex_dir = f"{cwd}/assets/perplex_macos"
+            elif self.os == "linux":
+                self.perplex_dir = f"{cwd}/assets/perplex_linux"
+            else:
+                raise RuntimeError(f"Unrecognized operating system {self.os}!")
             self.model_out_dir = (f"{cwd}/runs/{self.program[:4]}_{self.sample_id}_"
                                   f"{self.dataset[0]}{self.res}")
             self.perplex_targets = f"{self.model_out_dir}/target-array.tab"
