@@ -1,3 +1,11 @@
+# System check
+ifeq ($(shell uname -s),Linux)
+    SYSTEM = linux
+else ifeq ($(shell uname -s),Darwin)
+    SYSTEM = macos
+else
+    $(error Unsupported operating system: $(shell uname -s))
+endif
 # Logging config
 DATE = $(shell date +"%d-%m-%Y")
 LOGFILE := log/log-$(DATE)
@@ -75,8 +83,7 @@ build_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 
 build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) create_mixing_arrays
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --nsamples 3 \
-		--res 64 $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res 64 $(LOG)
 	@echo "=============================================" $(LOG)
 
 create_mixing_arrays:  $(LOGFILE) $(PYTHON) assets
@@ -89,7 +96,11 @@ submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
 
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
-		$(CONDAPYTHON) -u python/clone-magemin.py --emsonly True --verbose 1 $(LOG); \
+		if [ "$(SYSTEM)" == "macos" ]; then \
+			$(CONDAPYTHON) -u python/clone-magemin.py --hpc False $(LOG); \
+		else \
+			$(CONDAPYTHON) -u python/clone-magemin.py --hpc True $(LOG); \
+		fi \
 	else \
 		echo "MAGEMin programs found!" $(LOG); \
 	fi

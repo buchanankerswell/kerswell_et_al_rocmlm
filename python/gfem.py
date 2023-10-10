@@ -86,7 +86,7 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_gfem_models(programs=["magemin", "perplex"], datasets=["train", "valid"],
+def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid"],
                       source="assets/data/benchmark-samples", nsamples=3, res=128, Pmin=1,
                       Pmax=28, Tmin=773, Tmax=2273, normox="all",
                       targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,

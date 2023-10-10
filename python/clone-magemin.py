@@ -25,6 +25,6 @@ print(f"Checking out commit {commit_hash} (v.1.3.2) ...")
 download_github_submodule(repository_url, submodule_dir, commit_hash)
 
 # Compile magemin with end members only (or solution models)
-compile_magemin(emsonly, verbose)
+compile_magemin(hpc=hpc)
 
 print("clone-magemin.py done!")

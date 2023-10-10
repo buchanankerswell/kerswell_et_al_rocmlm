@@ -3,8 +3,6 @@ import pandas as pd
 
 # Directories setup
 job_directory = f"{os.getcwd()}/.job"
-#scratch = os.environ["SCRATCH"]
-#data_dir = os.path.join(scratch, "/MAGEMin/runs")
 data_dir = os.path.join("runs")
 
 os.mkdir(job_directory)
@@ -12,23 +10,9 @@ os.mkdir(data_dir)
 
 # SLURM setup
 account_name = "geodyn"
-#partition = "gm_geodyn"
-partition = "gm_base"
+partition = "gm_geodyn"
 nodes = 1
 n_tasks = 28
-
-# MAGEMin setup: 128 x 128 grid
-P_range = [10, 110, 0.78125]
-T_range = [500, 2500, 15.625]
-source = "earthchem"
-strategy = "batch"
-parallel = True
-
-# Earthchem batches setup
-df = pd.read_csv("assets/data/earthchem-samples.csv")
-num_observations = df.shape[0]
-batch_size = 28
-batches = num_observations // batch_size
 
 # Submit jobs
 for k in range(batches):

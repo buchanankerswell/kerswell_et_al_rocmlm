@@ -53,7 +53,7 @@ def print_session_info(condafile=None, makefile=None):
                 except pkg_resources.DistributionNotFound:
                     print(f"        {package_name} not found ...")
     else:
-        print("    No Conda file provided ...")
+        print("    No Conda file provided!")
 
     # Print operating system information
     os_info = platform.platform()
@@ -74,73 +74,13 @@ def print_session_info(condafile=None, makefile=None):
             makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
 
         # Print variables
-        print("    Assets:")
         for key, value in makefile_dict.items():
-            print(f"        {key}: {value}")
-
-        # Makefile dataset build options
-        makefile_vars_dataset_build_options = [
-            "SAMPLEID", "PMIN", "PMAX", "TMIN", "TMAX", "RES", "EMSONLY", "DATASET", "NORMOX",
-            "SEED", "PARALLEL", "NPROCS", "KFOLDS", "VERBOSE"
-        ]
-
-        # Get Makefile variables
-        makefile_dict = {}
-
-        for variable in makefile_vars_dataset_build_options:
-            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
-
-        # Print variables
-        print("    Dataset build options:")
-        for key, value in makefile_dict.items():
-            print(f"        {key}: {value}")
-
-        # Makefile rocml options
-        makefile_vars_rocml_options = ["TARGETS", "MLMODS", "MLTUNE"]
-
-        # Get Makefile variables
-        makefile_dict = {}
-
-        for variable in makefile_vars_rocml_options:
-            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
-
-        # Print variables
-        print("    RocML options:")
-        for key, value in makefile_dict.items():
-            print(f"        {key}: {value}")
-
-        # Makefile pca sampling options
-        makefile_vars_pca_options = ["NPCA", "KCLUSTER"]
-
-        # Get Makefile variables
-        makefile_dict = {}
-
-        for variable in makefile_vars_pca_options:
-            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
-
-        # Print variables
-        print("    PCA options:")
-        for key, value in makefile_dict.items():
-            print(f"        {key}: {value}")
-
-        # Makefile visualization options
-        makefile_vars_visualization_options = ["FIGDIR", "VISTARGETS", "COLORMAP"]
-
-        # Get Makefile variables
-        makefile_dict = {}
-
-        for variable in makefile_vars_visualization_options:
-            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
-
-        # Print variables
-        print("    Visualization options:")
-        for key, value in makefile_dict.items():
-            print(f"        {key}: {value}")
+            print(f"    {key}: {value}")
 
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     else:
-        print("No Makefile provided.")
+        print("No Makefile provided!")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # read makefile variable !!
@@ -225,7 +165,7 @@ def download_github_submodule(repository_url, submodule_dir, commit_hash):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compile magemin !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compile_magemin(emsonly, verbose):
+def compile_magemin(emsonly=True, hpc=False, verbose=1):
     """
     """
     # Config dir
@@ -241,10 +181,21 @@ def compile_magemin(emsonly, verbose):
             old_config = "MAGEMIN/src/initialize.h"
 
             if os.path.exists(config):
-                # Replace MAGEMin config file with modified (endmembers only) file
+                # Replace MAGEMin config file
                 subprocess.run(f"cp {config} {old_config}", shell=True)
-        else:
-            print("Compiling MAGEMin ...")
+
+        if hpc:
+            print("Compiling MAGEMin with HPC linux settings ...")
+
+            # Move modified MAGEMin config file with HP mantle endmembers
+            config = f"{config_dir}/magemin-meso-compile"
+            old_config = "MAGEMIN/Makefile"
+
+            if os.path.exists(config):
+                # Replace MAGEMin config file
+                subprocess.run(f"cp {config} {old_config}", shell=True)
+
+        print("Compiling MAGEMin ...")
 
         # Compile MAGEMin
         if verbose >= 2:
@@ -322,6 +273,7 @@ def parse_arguments():
     parser.add_argument("--res", type=int, required=False)
     parser.add_argument("--nsamples", type=int, required=False)
     parser.add_argument("--emsonly", type=str, required=False)
+    parser.add_argument("--hpc", type=str, required=False)
     parser.add_argument("--maskgeotherm", type=str, required=False)
     parser.add_argument("--targets", type=parse_list_of_strings, required=False)
     parser.add_argument("--mlmodels", type=parse_list_of_strings, required=False)
@@ -362,6 +314,7 @@ def check_arguments(args, script):
     res = args.res
     nsamples = args.nsamples
     emsonly = args.emsonly
+    hpc = args.hpc
     maskgeotherm = args.maskgeotherm
     targets = args.targets
     mlmodels = args.mlmodels
@@ -474,6 +427,20 @@ def check_arguments(args, script):
         print(f"    endmembers only: {emsonly}")
 
         valid_args["emsonly"] = emsonly
+
+    if hpc is not None:
+        hpc = hpc.lower() == "true" if hpc else False
+
+        if not isinstance(hpc, bool):
+            print("Warning: invalid --hpc argument!")
+            print("    --hpc must be True or False")
+            print("Using hpc = False")
+
+            hpc = False
+
+        print(f"    HPC Setup: {hpc}")
+
+        valid_args["hpc"] = hpc
 
     if maskgeotherm is not None:
         maskgeotherm = maskgeotherm.lower() == "true" if maskgeotherm else False
