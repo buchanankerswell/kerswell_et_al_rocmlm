@@ -15,4 +15,3 @@ dependencies:
   - tabulate
   - tqdm
   - scipy
-prefix: /opt/homebrew/Caskroom/miniforge/base/envs/rocml
