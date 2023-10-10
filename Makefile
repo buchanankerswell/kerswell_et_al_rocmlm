@@ -15,6 +15,13 @@ CONDAENVNAME = rocml
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
+ifeq ($(shell uname -s),Linux)
+    CONDAPYTHON = $$(TMPDIR=$$HOME/scratch/.tmp conda run -n $(CONDAENVNAME) which python)
+else ifeq ($(shell uname -s),Darwin)
+    CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
+else
+    $(error Unsupported operating system: $(shell uname -s))
+endif
 # Magemin programs
 MAGEMIN = MAGEMin
 # Perplex programs
