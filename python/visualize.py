@@ -174,11 +174,11 @@ def compose_dataset_plots(magemin_models, perplex_models):
         if magemin_model.targets == perplex_model.targets:
             targets = magemin_model.targets
         else:
-            raise ValueError("Model datasets are not the same!")
+            raise ValueError("Model targets are not the same!")
         if magemin_model.fig_dir == perplex_model.fig_dir:
             fig_dir = magemin_model.fig_dir
         else:
-            raise ValueError("Model fig dir are not the same!")
+            raise ValueError("Model figure directories are not the same!")
 
         # Set geotherm threshold for extracting depth profiles
         if res <= 8:
@@ -296,17 +296,48 @@ def compose_dataset_plots(magemin_models, perplex_models):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose ml plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_ml_plots(magemin, perplex, sample_id, res, models, targets, fig_dir):
+def compose_ml_plots(magemin_models, perplex_models):
     """
     """
-    # Rename targets
-    targets_rename = [target.replace("_", "-") for target in targets]
+    # Iterate through all models
+    for magemin_model, perplex_model in zip(magemin_models, perplex_models):
+        magemin = True if magemin_model else False
+        perplex = True if perplex_model else False
 
-    print(f"Composing plots: {fig_dir}")
+        if not magemin and not perplex:
+            print("No magemin or perplex samples to plot!")
 
-    # Compose plots
-    for model in models:
-        if "NN" in model:
+            break
+
+        # Get model data
+        if magemin_model.sample_id == perplex_model.sample_id:
+            sample_id = magemin_model.sample_id
+        else:
+            raise ValueError("Model samples are not the same!")
+        if magemin_model.ml_model == perplex_model.ml_model:
+            model = magemin_model.ml_model
+        else:
+            raise ValueError("ML models are not the same!")
+        if magemin_model.res == perplex_model.res:
+            res = magemin_model.res
+        else:
+            raise ValueError("Model resolutions are not the same!")
+        if magemin_model.targets == perplex_model.targets:
+            targets = magemin_model.targets
+        else:
+            raise ValueError("Model targets are not the same!")
+        if magemin_model.fig_dir == perplex_model.fig_dir:
+            fig_dir = magemin_model.fig_dir
+        else:
+            raise ValueError("Model figure directories are not the same!")
+
+        # Rename targets
+        targets_rename = [target.replace("_", "-") for target in targets]
+
+        print(f"Composing plots: {fig_dir}")
+
+        # Compose plots
+        if model == "NN":
             # First row
             combine_plots_vertically(
                 f"{fig_dir}/mage-{sample_id}-{model}-loss-curve.png",
@@ -462,7 +493,7 @@ def compose_ml_plots(magemin, perplex, sample_id, res, models, targets, fig_dir)
             os.remove(f"{fig_dir}/temp3.png")
             os.remove(f"{fig_dir}/temp4.png")
 
-            if len(models) == 6:
+            if len(magemin_models) == 6 and len(perplex_models) == 6:
                 # First row
                 combine_plots_horizontally(
                     f"{fig_dir}/mage-{sample_id}-{models[0]}-{target}-surf.png",

@@ -178,7 +178,7 @@ def compile_magemin(emsonly=True, hpc=False, verbose=1):
 
             # Move modified MAGEMin config file with HP mantle endmembers
             config = f"{config_dir}/magemin-init-hp-endmembers"
-            old_config = "MAGEMIN/src/initialize.h"
+            old_config = "MAGEMin/src/initialize.h"
 
             if os.path.exists(config):
                 # Replace MAGEMin config file
@@ -189,7 +189,7 @@ def compile_magemin(emsonly=True, hpc=False, verbose=1):
 
             # Move modified MAGEMin config file with HP mantle endmembers
             config = f"{config_dir}/magemin-meso-compile"
-            old_config = "MAGEMIN/Makefile"
+            old_config = "MAGEMin/Makefile"
 
             if os.path.exists(config):
                 # Replace MAGEMin config file

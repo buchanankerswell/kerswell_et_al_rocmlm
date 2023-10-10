@@ -11,7 +11,7 @@ valid_args = check_arguments(args, "train-rocml-models.py")
 locals().update(valid_args)
 
 # Fetch GFEM models
-models = GFEMModel(["perplex"], ["train", "valid"], source, nsamples, res)
+models = GFEMModel(source=source, nsamples=res, res=res)
 
 # Parse GFEM models
 mage_train = [m for m in models if m.program == "magemin" and m.dataset == "train"]
@@ -19,13 +19,13 @@ mage_valid = [m for m in models if m.program == "magemin" and m.dataset == "vali
 perp_train = [m for m in models if m.program == "perplex" and m.dataset == "train"]
 perp_valid = [m for m in models if m.program == "perplex" and m.dataset == "valid"]
 
+# Initialize lists
+mage_rocmls, perp_rocmls = [], []
+
 for mt, mv, pt, pv in zip(mage_train, mage_valid, perp_train, perp_valid):
-    for m in mlmodels:
+    for ml_model in ["KN", "RF", "DT", "NN1", "NN2", "NN3"]:
         # Init RocML models
-        mage_rocml = RocML(mt, mv, m, tune, epochs, batchprop, kfolds, parallel, nprocs,
-                           seed, palette, verbose)
-        perp_rocml = RocML(pt, pv, m, tune, epochs, batchprop, kfolds, parallel, nprocs,
-                           seed, palette, verbose)
+        mage_rocml, perp_rocml = RocML(mt, mv, ml_model), RocML(pt, pv, ml_model)
 
         # Train RocML models
         mage_rocml.train_ml_model()
@@ -35,8 +35,11 @@ for mt, mv, pt, pv in zip(mage_train, mage_valid, perp_train, perp_valid):
         visualize_ml_model(mage_rocml)
         visualize_ml_model(perp_rocml)
 
-for s in sampleids:
-    # Compose plots
-    compose_ml_plots(True, True, s, res, mlmodels, targets, f"{figdir}/{s}_{res}")
+        # Append to list
+        mage_rocmls.append(mage_rocml)
+        perp_rocmls.append(perp_rocml)
+
+# Compose plots
+compose_ml_plots(mage_rocmls, perp_rocmls)
 
 print("train-rocml-models.py done!")

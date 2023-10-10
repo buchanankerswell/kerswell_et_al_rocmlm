@@ -25,8 +25,6 @@ CONFIGDIR = assets/config
 # Samples
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
 SYNTHETIC = $(DATADIR)/synthetic-samples-pca3-clusters13.csv
-# Visualization options
-FIGDIR ?= figs
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
@@ -71,15 +69,11 @@ init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 
 train_benchmark_models: $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --nsamples 4 \
-		--res 64 --mlmodels '["KN", "RF", "DT", "NN1", "NN2", "NN3"]' --tune True --epochs 100 \
-		--batchprop 0.2 --kfolds 6 --parallel True --nprocs 6 --seed 42 --palette bone \
-		--figdir $(FIGDIR) --verbose 1 $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 64 $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --nsamples 4 \
-		--res 64 $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 64 $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) create_mixing_arrays

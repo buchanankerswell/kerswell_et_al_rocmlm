@@ -45,8 +45,11 @@ class RocML:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, gfem_model_train, gfem_model_valid, ml_model, tune, epochs, batchprop,
-                 kfolds, parallel, nprocs, seed, palette, verbose):
+    def __init__(self, gfem_model_train, gfem_model_valid, ml_model, tune=True,
+                 epochs=100, batchprop=0.2, kfolds=os.cpu_count()-2, parallel=True,
+                 nprocs=os.cpu_count()-2, seed=42, palette="bone", verbose=1):
+        """
+        """
         # Input
         if ml_model == "KN":
             ml_model_label = "K Nearest"

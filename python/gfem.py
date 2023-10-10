@@ -46,7 +46,7 @@ def get_sampleids(filepath, n, seed=42):
     df = pd.read_csv(filepath)
 
     # Sample data
-    if n == len(df):
+    if n >= len(df):
         sampleids = df["NAME"].values
     else:
         sampleids = df.sample(n, random_state=seed)["NAME"].values
@@ -157,6 +157,8 @@ class GFEMModel:
                  P_min=1, P_max=28, T_min=773, T_max=2273, normox="all",
                  targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
                  verbose=1, debug=False):
+        """
+        """
         # Input
         self.program = program
         self.P_min = P_min
