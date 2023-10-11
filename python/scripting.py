@@ -285,6 +285,8 @@ def compile_perplex(verbose=1):
                 destination_file = f"Perple_X/{program}"
                 shutil.move(source_file, destination_file)
 
+            shutil.rmtree("tmp")
+
             print("Compilation successful!")
 
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
