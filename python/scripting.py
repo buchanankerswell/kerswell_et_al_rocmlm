@@ -10,6 +10,7 @@ import ast
 import yaml
 import shutil
 import zipfile
+import datetime
 import argparse
 import platform
 import subprocess
@@ -22,13 +23,35 @@ import urllib.request
 #######################################################
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# check os !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def check_os():
+    """
+    """
+    system = platform.system()
+
+    if system == "Darwin":
+        os = "macos"
+
+    elif system == "Linux":
+        os = "linux"
+
+    else:
+        print("Operating system is unrecognized ...")
+        os = None
+
+    return os
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # print session info !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def print_session_info(condafile=None, makefile=None):
+def print_session_info(condafile):
     """
     """
     # Print session info
     print("Session info:")
+
+    print(f"    Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     # Print Python version
     version_string = ".".join(map(str, sys.version_info))
@@ -38,66 +61,24 @@ def print_session_info(condafile=None, makefile=None):
     # Print package versions
     print("    Loaded packages:")
 
-    if condafile:
-        conda_packages = get_conda_packages(condafile)
+    conda_packages = get_conda_packages(condafile)
 
-        for package in conda_packages:
-            if isinstance(package, str) and package != "python":
-                package_name = package.split("=")[0]
+    for package in conda_packages:
+        if isinstance(package, str) and package != "python":
+            package_name = package.split("=")[0]
 
-                try:
-                    version = pkg_resources.get_distribution(package_name).version
+            try:
+                version = pkg_resources.get_distribution(package_name).version
 
-                    print(f"        {package_name} Version: {version}")
+                print(f"        {package_name} Version: {version}")
 
-                except pkg_resources.DistributionNotFound:
-                    print(f"        {package_name} not found ...")
-    else:
-        print("    No Conda file provided!")
+            except pkg_resources.DistributionNotFound:
+                print(f"        {package_name} not found ...")
 
     # Print operating system information
     os_info = platform.platform()
 
     print(f"    Operating System: {os_info}")
-
-    if makefile:
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        print("Makefile variables:")
-
-        # Makefile assets
-        makefile_vars_assets = ["DATADIR", "CONFIGDIR", "PERPLEXDIR"]
-
-        # Get Makefile variables
-        makefile_dict = {}
-
-        for variable in makefile_vars_assets:
-            makefile_dict[f"{variable}"] = read_makefile_variable(makefile, variable)
-
-        # Print variables
-        for key, value in makefile_dict.items():
-            print(f"    {key}: {value}")
-
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-    else:
-        print("No Makefile provided!")
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# read makefile variable !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def read_makefile_variable(makefile, variable):
-    """
-    """
-    try:
-        with open(makefile, "r") as file:
-            lines = file.readlines()
-
-            for line in lines:
-                if line.strip().startswith(variable):
-                    return line.split("=")[1].strip()
-
-    except IOError as e:
-        print(f"Error reading Makefile: {e}")
 
     return None
 
@@ -116,24 +97,51 @@ def get_conda_packages(condafile):
     except (IOError, yaml.YAMLError) as e:
         print(f"Error reading Conda file: {e}")
 
-        return []
+        return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # download and unzip !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def download_and_unzip(url, destination):
-    """
-    """
+def download_and_unzip(url, filename, destination):
     try:
+        print(f"Downloading assets and extracting into {destination} ...")
         # Download the file
-        urllib.request.urlretrieve(url, "assets.zip")
+        response = urllib.request.urlopen(url)
+
+        with open("temp.zip", "wb") as zip_file:
+            zip_file.write(response.read())
 
         # Extract the contents of the zip file
-        with zipfile.ZipFile("assets.zip", "r") as zip_ref:
-            zip_ref.extractall(destination)
+        with zipfile.ZipFile("temp.zip", "r") as zip_ref:
+            if filename == "all":
+                zip_ref.extractall(destination)
 
-        # Remove the zip file
-        os.remove("assets.zip")
+            else:
+                target_found = False
+
+                # Check if the target ZIP file is present in the archive
+                for file_info in zip_ref.infolist():
+                    if file_info.filename == filename:
+                        zip_ref.extract(file_info, destination)
+
+                        # Check extension
+                        _, file_ext = os.path.splitext(filename)
+
+                        if file_ext == ".zip":
+                            with zipfile.ZipFile(f"{destination}/{filename}", "r") as in_zip:
+                                in_zip.extractall(destination)
+
+                            # Remove zip file
+                            os.remove(f"{destination}/{filename}")
+
+                        target_found = True
+                        break
+
+                if not target_found:
+                    raise Exception(f"{filename} not found in zip archive!")
+
+        # Remove the temporary zip file
+        os.remove("temp.zip")
 
     except urllib.error.URLError as e:
         raise Exception(f"Unable to download from {url}!")
@@ -142,7 +150,9 @@ def download_and_unzip(url, destination):
         raise Exception(f"The downloaded file is not a valid zip file!")
 
     except Exception as e:
-        raise Exception(f"An unexpected error occurred: {str(e)}!")
+        raise Exception(f"An unexpected error occurred: {e}!")
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # download github submodule !!
@@ -156,48 +166,56 @@ def download_github_submodule(repository_url, submodule_dir, commit_hash):
 
     # Clone submodule and recurse its contents
     try:
+        print(f"Cloning repo into {submodule_dir} and checking out commit {commit_hash} ...")
         repo = Repo.clone_from(repository_url, submodule_dir, recursive=True)
         repo.git.checkout(commit_hash)
 
     except Exception as e:
         print(f"An error occurred while cloning the GitHub repository: {e} ...")
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compile magemin !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compile_magemin(emsonly=True, hpc=False, verbose=1):
+def compile_magemin(emsonly=True, verbose=1):
     """
     """
-    # Config dir
+    # Config directory
     config_dir = "assets/config"
 
-    # Check for MAGEMin repo
-    if os.path.exists("MAGEMin"):
-        if emsonly:
-            print("Compiling MAGEMin with HP endmembers ...")
+    # Get source
+    download_github_submodule("https://github.com/ComputationalThermodynamics/MAGEMin.git",
+                              "MAGEMin", "69017cb")
 
-            # Move modified MAGEMin config file with HP mantle endmembers
+    # Get operating system
+    os_system = check_os()
+
+    try:
+        # Check OS
+        if os_system is None or (os_system != "macos" and os_system != "linux"):
+            raise ValueError("Unrecognized operating system!")
+
+        # Configure
+        if emsonly:
+            print(f"Compiling MAGEMin for {os_system} with HP endmembers ...")
+
             config = f"{config_dir}/magemin-init-hp-endmembers"
             old_config = "MAGEMin/src/initialize.h"
 
             if os.path.exists(config):
-                # Replace MAGEMin config file
                 subprocess.run(f"cp {config} {old_config}", shell=True)
+        else:
+            print(f"Compiling MAGEMin for {os_system} ...")
 
-        if hpc:
-            print("Compiling MAGEMin with HPC linux settings ...")
-
-            # Move modified MAGEMin config file with HP mantle endmembers
-            config = f"{config_dir}/magemin-meso-compile"
+        if os_system == "linux":
+            config = f"{config_dir}/magemin-linux-makefile"
             old_config = "MAGEMin/Makefile"
 
             if os.path.exists(config):
-                # Replace MAGEMin config file
                 subprocess.run(f"cp {config} {old_config}", shell=True)
 
-        print("Compiling MAGEMin ...")
-
-        # Compile MAGEMin
+        # Compile
         if verbose >= 2:
             subprocess.run("(cd MAGEMin && make)", shell=True, text=True)
 
@@ -205,11 +223,58 @@ def compile_magemin(emsonly=True, hpc=False, verbose=1):
             with open(os.devnull, "w") as null:
                 subprocess.run("(cd MAGEMin && make)", shell=True, stdout=null, stderr=null)
 
-    else:
-        # MAGEMin repo not found
-        sys.exit("MAGEMin does not exist!")
+        print("Compilation successful!")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-    print("Compiling successful!")
+    except Exception as e:
+        print(f"Compilation error: !!! {e} !!!")
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# compile perplex !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def compile_perplex(verbose=1):
+    """
+    """
+    # Config directory
+    config_dir = "assets/config"
+
+    # Get operating system
+    os_system = check_os()
+
+    try:
+        # Check OS
+        if os_system is None or (os_system != "macos" and os_system != "linux"):
+            raise ValueError("Unrecognized operating system!")
+
+        if os_system == "macos":
+            download_and_unzip(("https://www.perplex.ethz.ch/perplex/ibm_and_mac_archives/"
+                                "OSX/Perple_X_7.0.9_OSX_ARM_SP_Apr_16_2023.zip"),
+                               "dynamic.zip", "Perple_X")
+        if os_system == "linux":
+            download_github_submodule("https://github.com/ondrolexa/Perple_X.git",
+                                      "Perple_X", "5743553")
+
+            print(f"Compiling Perple_X for {os_system} ...")
+
+            # Compile Perple_X
+            if verbose >= 2:
+                subprocess.run("(cd Perple_X && make)", shell=True, text=True)
+
+            else:
+                with open(os.devnull, "w") as null:
+                    subprocess.run("(cd Perple_X && make)", shell=True, stdout=null,
+                                   stderr=null)
+
+            print("Compilation successful!")
+
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+    except Exception as e:
+        print(f"Compilation error: !!! {e} !!!")
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # check non-matching strings !!
@@ -236,21 +301,18 @@ def parse_list_of_strings(arg):
     try:
         str_list = ast.literal_eval(arg)
 
-        if (
-            isinstance(str_list, list) and
-            all(isinstance(item, str) for item in str_list)
-        ):
+        if (isinstance(str_list, list) and all(isinstance(item, str) for item in str_list)):
             return str_list
 
         else:
-            raise argparse.ArgumentTypeError(
-                f"Invalid list: {arg} ...\nIt must contain a valid list of strings ..."
-            )
+            raise argparse.ArgumentTypeError(f"Invalid list: {arg} ...\n"
+                                             "It must contain a valid list of strings ...")
 
     except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"Invalid list: {arg} ...\nIt must contain a valid list of strings ..."
-        )
+        raise argparse.ArgumentTypeError(f"Invalid list: {arg} ...\n"
+                                         "It must contain a valid list of strings ...")
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parse arguments !!

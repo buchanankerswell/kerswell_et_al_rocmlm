@@ -11,7 +11,7 @@ CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
 # Magemin programs
 MAGEMIN = MAGEMin
 # Perplex programs
-PERPLEXDIR = assets/perplex
+PERPLEX = Perple_X
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIGDIR = assets/config
@@ -21,14 +21,12 @@ SYNTHETIC = $(DATADIR)/synthetic-samples-pca3-clusters13.csv
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
-				 python/clone-magemin.py \
-				 python/download-assets.py \
+				 python/initialize.py \
 				 python/gfem.py \
 				 python/create-mixing-arrays.py \
 				 python/pca.py \
 				 python/rocml.py \
 				 python/scripting.py \
-				 python/session-info.py \
 				 python/submit-jobs.py \
 				 python/train-rocml-models.py \
 				 python/visualize.py
@@ -38,20 +36,16 @@ DATAPURGE = \
 						runs \
 						python/__pycache__ \
 						$(DATADIR)/benchmark-rocml-performance.csv
-DATACLEAN = assets MAGEMin
+DATACLEAN = assets MAGEMin Perple_X
 FIGSPURGE = figs
 FIGSCLEAN = figs
 
-all: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
-	@echo "=============================================" $(LOG)
-	@$(CONDAPYTHON) -u python/session-info.py $(LOG)
+all: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 	@$(MAKE) buiild_benchmark_datasets
 	@$(MAKE) train_benchmark_models
 
-init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
-	@echo "=============================================" $(LOG)
-	@$(CONDAPYTHON) -u python/session-info.py $(LOG)
+initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 	@echo "Run the following in order:" $(LOG)
 	@echo "    make build_benchmark_datasets" $(LOG)
@@ -61,31 +55,60 @@ init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "    make remove_conda_env" $(LOG)
 	@echo "=============================================" $(LOG)
 
-train_benchmark_models: $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 128 $(LOG)
+train_benchmark_models: $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 32 $(LOG)
 	@echo "=============================================" $(LOG)
 
-build_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 128 $(LOG)
+build_benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 32 $(LOG)
 	@echo "=============================================" $(LOG)
 
-build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) create_mixing_arrays
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res 128 $(LOG)
+build_earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets create_mixing_arrays
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res 32 $(LOG)
 	@echo "=============================================" $(LOG)
 
-create_mixing_arrays:  $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res 128 $(LOG)
+create_mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res 32 $(LOG)
 	@echo "=============================================" $(LOG)
 
-submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
+submit_jobs: $(LOGFILE) $(PYTHON) get_assets
 	@echo "Submitting job to SLURM ..." $(LOG)
 	@$(CONDAPYTHON) -u python/submit-jobs.py $(LOG)
 
+get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)
+
+$(PERPLEX): $(LOGFILE) $(PYTHON)
+	@if [ ! -d "$(DATADIR)" ]; then \
+		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
+	else \
+		echo "Perplex programs found!" $(LOG); \
+	fi
+
 $(MAGEMIN): $(LOGFILE) $(PYTHON)
 	@if [ ! -e "$(MAGEMIN)" ]; then \
-		$(CONDAPYTHON) -u python/clone-magemin.py --hpc False $(LOG); \
+		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
 	else \
 		echo "MAGEMin programs found!" $(LOG); \
+	fi
+
+$(CONFIGDIR): $(LOGFILE) $(PYTHON)
+	@if [ ! -e "$(CONFIGDIR)" ]; then \
+		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
+	else \
+		echo "Config files found!" $(LOG); \
+	fi
+
+$(DATADIR): $(LOGFILE) $(PYTHON)
+	@if [ ! -d "$(DATADIR)" ]; then \
+		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
+	else \
+		echo "Data files found!" $(LOG); \
+	fi
+
+$(LOGFILE):
+	@if [ ! -e "$(LOGFILE)" ]; then \
+		mkdir -p log; \
+		touch $(LOGFILE); \
 	fi
 
 remove_conda_env:
@@ -105,38 +128,10 @@ create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 		conda env create --file $(CONDASPECSFILE) $(LOG) > /dev/null 2>&1; \
 		echo "Conda environment $(CONDAENVNAME) created!" $(LOG); \
 	fi
+	@echo "=============================================" $(LOG)
 
 find_conda_env: $(LOGFILE)
 	$(eval MYENVDIR := $(shell conda env list | grep $(CONDAENVNAME) | awk '{print $$2}'))
-
-assets: $(PERPLEXDIR) $(DATADIR) $(CONFIGDIR)
-
-$(PERPLEXDIR): $(LOGFILE) $(PYTHON)
-	@if [ ! -d "$(DATADIR)" ]; then \
-		$(CONDAPYTHON) -u python/download-assets.py $(LOG); \
-	else \
-		echo "Perplex programs found!" $(LOG); \
-	fi
-
-$(DATADIR): $(LOGFILE) $(PYTHON)
-	@if [ ! -d "$(DATADIR)" ]; then \
-		$(CONDAPYTHON) -u python/download-assets.py $(LOG); \
-	else \
-		echo "Data files found!" $(LOG); \
-	fi
-
-$(CONFIGDIR): $(LOGFILE) $(PYTHON)
-	@if [ ! -e "$(CONFIGDIR)" ]; then \
-		$(CONDAPYTHON) -u python/download-assets.py $(LOG); \
-	else \
-		echo "Config files found!" $(LOG); \
-	fi
-
-$(LOGFILE):
-	@if [ ! -e "$(LOGFILE)" ]; then \
-		mkdir -p log; \
-		touch $(LOGFILE); \
-	fi
 
 purge:
 	@rm -rf $(DATAPURGE) $(FIGSPURGE)
@@ -144,4 +139,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs assets create_mixing_arrays build_earthchem_datasets build_benchmark_datasets train_benchmark_models init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs get_assets create_mixing_arrays build_earthchem_datasets build_benchmark_datasets train_benchmark_models init all

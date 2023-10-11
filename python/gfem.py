@@ -175,14 +175,6 @@ class GFEMModel:
         self.verbose = verbose
         self.debug = debug
 
-        # Operating system (for HPC use)
-        if os.uname().sysname == "Darwin":
-            self.os = "macos"
-        elif os.uname().sysname == "Linux":
-            self.os = "linux"
-        else:
-            self.os = "Unknown"
-
         if self.program == "magemin":
             # Magemin dirs and filepaths
             self.model_out_dir = (f"runs/{self.program[:4]}_{self.sample_id}_"
@@ -193,12 +185,7 @@ class GFEMModel:
         elif self.program == "perplex":
             # Perplex dirs and filepaths
             cwd = os.getcwd()
-            if self.os == "macos":
-                self.perplex_dir = f"{cwd}/assets/perplex_macos"
-            elif self.os == "linux":
-                self.perplex_dir = f"{cwd}/assets/perplex_linux"
-            else:
-                raise RuntimeError(f"Unrecognized operating system {self.os}!")
+            self.perplex_dir = f"{cwd}/Perple_X"
             self.model_out_dir = (f"{cwd}/runs/{self.program[:4]}_{self.sample_id}_"
                                   f"{self.dataset[0]}{self.res}")
             self.perplex_targets = f"{self.model_out_dir}/target-array.tab"
@@ -870,6 +857,8 @@ class GFEMModel:
 
         # Configuration files
         build = "perplex-build-config"
+        thermodb = "perplex-thermodynamic-data"
+        solutions = "perplex-solution-models"
         minimize = "perplex-vertex-minimize"
         targets = "perplex-werami-targets"
         phase = "perplex-werami-phase"
@@ -879,6 +868,8 @@ class GFEMModel:
 
         # Copy original configuration files to the perplex directory
         shutil.copy(f"assets/config/{build}", f"{model_out_dir}/{build}")
+        shutil.copy(f"assets/config/{thermodb}", f"{model_out_dir}/{thermodb}")
+        shutil.copy(f"assets/config/{solutions}", f"{model_out_dir}/{solutions}")
         shutil.copy(f"assets/config/{minimize}", f"{model_out_dir}/{minimize}")
         shutil.copy(f"assets/config/{targets}", f"{model_out_dir}/{targets}")
         shutil.copy(f"assets/config/{phase}", f"{model_out_dir}/{phase}")
@@ -889,7 +880,6 @@ class GFEMModel:
         # Modify the copied configuration files within the perplex directory
         self._replace_in_file(f"{model_out_dir}/{build}",
                               {"{SAMPLEID}": f"{model_prefix}",
-                               "{PERPLEX}": f"{perplex_dir}",
                                "{OUTDIR}": f"{model_out_dir}",
                                "{TMIN}": str(T_min), "{TMAX}": str(T_max),
                                "{PMIN}": str(P_min), "{PMAX}": str(P_max),
@@ -940,8 +930,8 @@ class GFEMModel:
                 config_files.append(f"{model_out_dir}/perplex-werami-targets")
                 config_files.append(f"{model_out_dir}/perplex-werami-phase")
 
-#                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
-#                                    {"Anderson-Gruneisen  F": "Anderson-Gruneisen  T"})
+                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
+                                    {"Anderson-Gruneisen  F": "Anderson-Gruneisen  T"})
 
             elif program == "pssect":
                 config_files.append(f"{model_out_dir}/perplex-pssect-draw")
