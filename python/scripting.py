@@ -213,7 +213,7 @@ def compile_magemin(emsonly=True, verbose=1):
             old_config = "MAGEMin/Makefile"
 
             if os.path.exists(config):
-                subprocess.run(f"cp {config} {old_config}", shell=True)
+                shutil.copy(config, old_config)
 
         # Compile
         if verbose >= 2:
@@ -254,18 +254,35 @@ def compile_perplex(verbose=1):
                                "dynamic.zip", "Perple_X")
         if os_system == "linux":
             download_github_submodule("https://github.com/ondrolexa/Perple_X.git",
-                                      "Perple_X", "5743553")
+                                      "tmp", "5743553")
+
+            config = f"{config_dir}/perplex-linux-makefile"
+            old_config = "tmp/src/LINUX_makefile"
+
+            if os.path.exists(config):
+                shutil.copy(config, old_config)
 
             print(f"Compiling Perple_X for {os_system} ...")
 
             # Compile Perple_X
             if verbose >= 2:
-                subprocess.run("(cd Perple_X && make)", shell=True, text=True)
+                subprocess.run("(cd tmp/src && make)", shell=True, text=True)
 
             else:
                 with open(os.devnull, "w") as null:
-                    subprocess.run("(cd Perple_X && make)", shell=True, stdout=null,
+                    subprocess.run("(cd tmp/src && make)", shell=True, stdout=null,
                                    stderr=null)
+
+            # Move perplex programs into directory
+            os.makedirs("Perple_X")
+            perplex_programs = ["actcor", "build", "fluids", "ctransf", "frendly", "meemum",
+                                "convex", "pstable", "pspts", "psvdraw", "pssect", "pt2curv",
+                                "vertex", "werami"]
+
+            for program in perplex_programs:
+                source_file = f"tmp/src/{program}"
+                destination_file = f"Perple_X/{program}"
+                shutil.move(source_file, destination_file)
 
             print("Compilation successful!")
 

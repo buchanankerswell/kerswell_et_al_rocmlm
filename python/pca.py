@@ -329,7 +329,7 @@ class MixingArray:
                     ).round(3)
 
                     # Add sample id column
-                    data_synthetic.insert(0, "NAME", [f"c{i + 1}{j + 1}{n}" for
+                    data_synthetic.insert(0, "NAME", [f"s{i + 1}{j + 1}{str(n).zfill(3)}" for
                                                       n in range(len(data_synthetic))])
 
 

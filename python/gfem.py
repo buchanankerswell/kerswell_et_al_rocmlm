@@ -194,7 +194,7 @@ class GFEMModel:
         else:
             raise ValueError("Unrecognized GFEM program! Use 'magemin' or 'perplex' ...")
 
-        self.model_prefix = f"{self.sample_id}-{self.dataset}-{self.res}"
+        self.model_prefix = f"{self.sample_id}-{self.dataset[0]}{self.res}"
         self.fig_dir = f"figs/{self.sample_id}_{self.res}"
         self.log_file = f"log/log-{self.program}-{self.model_prefix}"
 
@@ -818,6 +818,15 @@ class GFEMModel:
         df.to_csv(f"{model_out_dir}/results.csv", index=False)
 
         if not debug:
+            # Create dir to store model files
+            model_out_files_dir = f"{model_out_dir}/model"
+            os.makedirs(model_out_files_dir)
+
+            # Clean up output directory
+            shutil.copy2(magemin_in_path, model_out_files_dir)
+            shutil.copytree(f"{model_out_dir}/output", model_out_files_dir)
+
+        else:
             # Clean up output directory
             os.remove(magemin_in_path)
             shutil.rmtree(f"{model_out_dir}/output")
@@ -1197,9 +1206,29 @@ class GFEMModel:
         # Write to csv file
         df.to_csv(f"{model_out_dir}/results.csv", index=False)
 
-        if not debug:
+        if debug:
             # Clean up output directory
-            files_to_keep = ["assemblages.csv", "results.csv", f"{model_prefix}.pdf"]
+            files_to_keep = ["assemblages.csv", "results.csv"]
+
+            # Create dir to store model files
+            model_out_files_dir = f"{model_out_dir}/model"
+            os.makedirs(model_out_files_dir)
+
+            try:
+                # List all files in the directory
+                all_files = os.listdir(model_out_dir)
+
+                # Iterate through the files and delete those not in the exclusion list
+                for filename in all_files:
+                    file_path = os.path.join(model_out_dir, filename)
+                    destination_path = os.path.join(model_out_files_dir, filename)
+
+                    if os.path.isfile(file_path) and filename not in files_to_keep:
+                        shutil.copy2(file_path, destination_path)
+
+        else:
+            # Clean up output directory
+            files_to_keep = ["assemblages.csv", "results.csv"]
 
             try:
                 # List all files in the directory
