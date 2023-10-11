@@ -166,8 +166,7 @@ def download_github_submodule(repository_url, submodule_dir, commit_hash):
 
     # Clone submodule and recurse its contents
     try:
-        print(f"Cloning {os.path.basename(repository_url)} repo into {submodule_dir} "
-              f"and checking out commit {commit_hash} ...")
+        print(f"Cloning {repository_url} repo [commit: {commit_hash}] ...")
 
         repo = Repo.clone_from(repository_url, submodule_dir, recursive=True)
         repo.git.checkout(commit_hash)
