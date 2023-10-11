@@ -266,12 +266,13 @@ def compile_perplex(verbose=1):
 
             # Compile Perple_X
             if verbose >= 2:
-                subprocess.run("(cd tmp/src && make)", shell=True, text=True)
+                subprocess.run("(cd tmp/src && make -f LINUX_makefile)", shell=True,
+                               text=True)
 
             else:
                 with open(os.devnull, "w") as null:
-                    subprocess.run("(cd tmp/src && make)", shell=True, stdout=null,
-                                   stderr=null)
+                    subprocess.run("(cd tmp/src && make -f LINUX_makefile)", shell=True,
+                                   stdout=null, stderr=null)
 
             # Move perplex programs into directory
             os.makedirs("Perple_X")
