@@ -135,7 +135,7 @@ def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid
             error_count += 1
 
     if error_count > 0:
-        print(f"Total {program} models with errors: {error_count}")
+        print(f"Total models with errors: {error_count}")
 
     else:
         print("All GFEM models built successfully!")

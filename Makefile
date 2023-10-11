@@ -62,19 +62,19 @@ init: $(LOGFILE) $(PYTHON) create_conda_env assets $(MAGEMIN)
 	@echo "=============================================" $(LOG)
 
 train_benchmark_models: $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 64 $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 128 $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_benchmark_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN)
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 64 $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 128 $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_earthchem_datasets: $(LOGFILE) $(PYTHON) assets $(MAGEMIN) create_mixing_arrays
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res 64 $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res 128 $(LOG)
 	@echo "=============================================" $(LOG)
 
 create_mixing_arrays:  $(LOGFILE) $(PYTHON) assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res 64 $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res 128 $(LOG)
 	@echo "=============================================" $(LOG)
 
 submit_jobs: $(LOGFILE) $(PYTHON) $(DATADIR)
