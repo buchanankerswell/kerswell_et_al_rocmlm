@@ -83,6 +83,8 @@ def gfem_iteration(args):
         else:
             return iteration
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -242,6 +244,8 @@ class GFEMModel:
         # Set np array printing option
         np.set_printoptions(precision=3, suppress=True)
 
+        return None
+
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++
     #+ .0.1.          Helper Functions              !!! ++
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -298,7 +302,7 @@ class GFEMModel:
 
         # Check for sample composition
         if not sample_composition:
-            raise Exception("No sample composition! Call _get_sample_composition() first ...")
+            raise Exception("No sample found! Call _get_sample_composition() first ...")
 
         # No normalizing for all components
         if normox == "all":
@@ -367,6 +371,8 @@ class GFEMModel:
 
         with open(filepath, "w") as file:
             file.write(file_data)
+
+        return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # get comp time !!
@@ -442,6 +448,8 @@ class GFEMModel:
             self.comp_time = round(last_value, 3)
 
             return round(last_value, 3)
+
+        return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # encode assemblages !!
@@ -542,6 +550,8 @@ class GFEMModel:
         with open(magemin_in_path, "w") as f:
             f.write(magemin_input)
 
+        return None
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # run magemin !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -594,6 +604,8 @@ class GFEMModel:
 
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
+
+        return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # read magemin output !!
@@ -831,6 +843,8 @@ class GFEMModel:
             os.remove(magemin_in_path)
             shutil.rmtree(f"{model_out_dir}/output")
 
+        return None
+
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++
     #+ .0.3.          Perple_X Functions            !!! ++
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -904,6 +918,8 @@ class GFEMModel:
                                "{YNODES}": f"{int(res / 4)} {res + 1}"})
         self._replace_in_file(f"{model_out_dir}/{draw}",
                               {"{SAMPLEID}": f"{model_prefix}"})
+
+        return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # run perplex !!
@@ -1023,6 +1039,8 @@ class GFEMModel:
 
                 except subprocess.CalledProcessError as e:
                     print(f"Error: {e}")
+
+        return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # read perplex targets !!
@@ -1226,6 +1244,9 @@ class GFEMModel:
                     if os.path.isfile(file_path) and filename not in files_to_keep:
                         shutil.copy2(file_path, destination_path)
 
+            except Exception as e:
+                print(f"Error: {e}")
+
         else:
             # Clean up output directory
             files_to_keep = ["assemblages.csv", "results.csv"]
@@ -1243,6 +1264,8 @@ class GFEMModel:
 
             except Exception as e:
                 print(f"Error: {e}")
+
+        return None
 
     #++++++++++++++++++++++++++++++++++++++++++++++++++++++
     #+ .0.4.        Post Process GFEM Models        !!! ++
