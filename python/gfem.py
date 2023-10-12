@@ -35,7 +35,7 @@ from sklearn.impute import KNNImputer
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get sampleids !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_sampleids(filepath, n, seed=42):
+def get_sampleids(filepath, n, m=4, k_batch=0, random=False, seed=42):
     """
     """
     # Check for file
@@ -45,13 +45,34 @@ def get_sampleids(filepath, n, seed=42):
     # Read data
     df = pd.read_csv(filepath)
 
-    # Sample data
     if n >= len(df):
-        sampleids = df["NAME"].values
-    else:
-        sampleids = df.sample(n, random_state=seed)["NAME"].values
+        return df["NAME"].values
 
-    return sampleids
+    # Calculate the batch size
+    total_samples = len(df)
+    batch_size = total_samples // m
+
+    # Check if batch number is within valid range
+    if k_batch < 0 or k_batch >= m:
+        print("Invalid batch number! Sampling from the first 0th batch ...")
+
+        k_batch = 0
+
+    # Calculate the start and end index for the specified batch
+    start = k_batch * batch_size
+    end = min((k_batch + 1) * batch_size, total_samples)
+
+    # Split the df
+    batch_df = df[start:end]
+
+    if n >= len(batch_df):
+        return batch_df["NAME"].values
+
+    if random:
+        return batch_df["NAME"].sample(n, random_state=seed).values
+
+    else:
+        return batch_df["NAME"].values[:n]
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # gfem_iteration !!
@@ -89,14 +110,14 @@ def gfem_iteration(args):
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid"],
-                      source="assets/data/benchmark-samples", nsamples=3, res=128, Pmin=1,
-                      Pmax=28, Tmin=773, Tmax=2273, normox="all",
+                      source="assets/data/benchmark-samples", nsamples=128, mbatches=4,
+                      kbatch=0, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273, normox="all",
                       targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
                       parallel=True, nprocs=os.cpu_count()-2, verbose=1, debug=False):
     """
     """
     # Get samples
-    sampleids = get_sampleids(source, nsamples)
+    sampleids = get_sampleids(source, nsamples, mbatches, kbatch)
 
     # Create combinations of samples and datasets
     combinations = list(itertools.product(programs, datasets, sampleids))

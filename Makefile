@@ -15,9 +15,12 @@ PERPLEX = Perple_X
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIGDIR = assets/config
-# Samples
+# GFEM samples
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
 SYNTHETIC = $(DATADIR)/synthetic-samples-pca3-clusters13.csv
+RES ?= 32
+KBATCH ?= 0
+VIS ?= True
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
@@ -56,21 +59,22 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 
 train_benchmark_models: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 32 \
-		--visualize True $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res $(RES) \
+		--visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 32 \
-		--visualize True $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res $(RES) \
+		--kbatch $(KBATCH) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res 32 $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
+		--kbatch $(KBATCH) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 create_mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res 32 --visualize True $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res $(RES) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)
