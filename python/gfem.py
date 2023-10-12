@@ -1038,12 +1038,6 @@ class GFEMModel:
                         os.remove(f"{model_out_dir}/{model_prefix}_auto_refine.txt")
                         os.remove(f"{model_out_dir}/{model_prefix}_seismic_data.txt")
 
-                        # Convert postscript file to pdf
-                        ps = f"{model_out_dir}/{model_prefix}.ps"
-                        pdf = f"{model_out_dir}/{model_prefix}.pdf"
-
-                        subprocess.run(f"ps2pdf {ps} {pdf}", shell=True)
-
                 except subprocess.CalledProcessError as e:
                     print(f"Error: {e}")
 
