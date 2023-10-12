@@ -63,7 +63,7 @@ build_benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 32 $(LOG)
 	@echo "=============================================" $(LOG)
 
-build_earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets create_mixing_arrays
+build_earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res 32 $(LOG)
 	@echo "=============================================" $(LOG)
 

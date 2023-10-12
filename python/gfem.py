@@ -829,10 +829,10 @@ class GFEMModel:
         # Write to csv file
         df.to_csv(f"{model_out_dir}/results.csv", index=False)
 
-        if not debug:
+        if debug:
             # Create dir to store model files
             model_out_files_dir = f"{model_out_dir}/model"
-            os.makedirs(model_out_files_dir)
+            os.makedirs(model_out_files_dir, exist_ok=True)
 
             # Clean up output directory
             shutil.copy2(magemin_in_path, model_out_files_dir)
@@ -1230,7 +1230,7 @@ class GFEMModel:
 
             # Create dir to store model files
             model_out_files_dir = f"{model_out_dir}/model"
-            os.makedirs(model_out_files_dir)
+            os.makedirs(model_out_files_dir, exist_ok=True)
 
             try:
                 # List all files in the directory
