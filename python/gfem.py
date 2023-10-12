@@ -236,7 +236,7 @@ class GFEMModel:
         self.target_array_unmasked = np.array([])
 
         # Errors
-        self.timeout = res**2
+        self.timeout = (res**2) * 3
         self.model_build_error = False
         self.model_error = None
 
