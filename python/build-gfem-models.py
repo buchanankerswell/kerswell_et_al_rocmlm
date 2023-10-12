@@ -16,25 +16,26 @@ locals().update(valid_args)
 # Build GFEM models
 models = build_gfem_models(source=source, nsamples=res, res=res)
 
-# Visualize GFEM models
-for model in models:
-    visualize_training_dataset(model)
+if visualize:
+    # Visualize GFEM models
+    for model in models:
+        visualize_training_dataset(model)
 
-# Parse GFEM models
-mage_models = [model for model in models if model.program == "magemin"]
-perp_models = [model for model in models if model.program == "perplex"]
+    # Parse GFEM models
+    mage_models = [model for model in models if model.program == "magemin"]
+    perp_models = [model for model in models if model.program == "perplex"]
 
-# Visualize GFEM model differences
-for magemin, perplex in zip(mage_models, perp_models):
-    visualize_training_dataset_diff(magemin, perplex)
+    # Visualize GFEM model differences
+    for magemin, perplex in zip(mage_models, perp_models):
+        visualize_training_dataset_diff(magemin, perplex)
 
-# Compose plots
-compose_dataset_plots(mage_models, perp_models)
+    # Compose plots
+    compose_dataset_plots(mage_models, perp_models)
 
-# Visualize RocML training dataset design
-visualize_training_dataset_design()
+    # Visualize RocML training dataset design
+    visualize_training_dataset_design()
 
-# Visualize GFEM efficiency
-visualize_gfem_efficiency()
+    # Visualize GFEM efficiency
+    visualize_gfem_efficiency()
 
-print("build-gfem-models.py done!")
+    print("GFEM models visualized!")

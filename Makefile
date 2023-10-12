@@ -56,11 +56,13 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 
 train_benchmark_models: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 32 $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res 32 \
+		--visualize True $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 32 $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res 32 \
+		--visualize True $(LOG)
 	@echo "=============================================" $(LOG)
 
 build_earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets

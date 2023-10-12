@@ -212,6 +212,7 @@ class GFEMModel:
         self.target_array_unmasked = np.array([])
 
         # Errors
+        self.timeout = res**2
         self.model_build_error = False
         self.model_error = None
 
@@ -563,6 +564,7 @@ class GFEMModel:
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
         log_file = self.log_file
+        timeout = self.timeout
         verbose = self.verbose
 
         # Check for input MAGEMin input files
@@ -585,7 +587,7 @@ class GFEMModel:
                                        cwd=model_out_dir)
 
             # Wait for the process to complete and capture its output
-            stdout, stderr = process.communicate()
+            stdout, stderr = process.communicate(timeout=timeout)
 
             if verbose >= 2:
                 print(f"{stdout.decode()}")
@@ -932,6 +934,7 @@ class GFEMModel:
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
         perplex_dir = self.perplex_dir
+        timeout = self.timeout
         verbose = self.verbose
 
         # Check for input MAGEMin input files
@@ -984,7 +987,7 @@ class GFEMModel:
                                                    shell=True, cwd=model_out_dir)
 
                     # Wait for the process to complete and capture its output
-                    stdout, stderr = process.communicate()
+                    stdout, stderr = process.communicate(timeout=timeout)
 
                     if verbose >= 2:
                         print(f"{stdout.decode()}")
@@ -1590,3 +1593,4 @@ class GFEMModel:
 
                     return None
 
+        return None

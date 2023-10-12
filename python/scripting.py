@@ -378,6 +378,7 @@ def parse_arguments():
     parser.add_argument("--figdir", type=str, required=False)
     parser.add_argument("--verbose", type=int, required=False)
     parser.add_argument("--debug", type=str, required=False)
+    parser.add_argument("--visualize", type=str, required=False)
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -419,6 +420,7 @@ def check_arguments(args, script):
     figdir = args.figdir
     verbose = args.verbose
     debug = args.debug
+    visualize = args.visualize
 
     # MAGEMin oxide options
     oxide_list_magemin = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O",
@@ -665,6 +667,20 @@ def check_arguments(args, script):
         print(f"    debug: {debug}")
 
         valid_args["debug"] = debug
+
+    if visualize is not None:
+        visualize = visualize.lower() == "true" if visualize else False
+
+        if not isinstance(visualize, bool):
+            print("Warning: invalid --visualize argument!")
+            print("    --visualize must be True or False")
+            print("Using visualize = True")
+
+            visualize = True
+
+        print(f"    visualize: {visualize}")
+
+        valid_args["visualize"] = visualize
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
