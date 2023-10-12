@@ -45,8 +45,8 @@ FIGSCLEAN = figs
 
 all: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
-	@$(MAKE) buiild_benchmark_datasets
-	@$(MAKE) train_benchmark_models
+	@$(MAKE) benchmark_datasets
+	@$(MAKE) benchmark_models
 
 initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
@@ -58,22 +58,27 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "    make remove_conda_env" $(LOG)
 	@echo "=============================================" $(LOG)
 
-train_benchmark_models: $(LOGFILE) $(PYTHON) get_assets
+benchmark_models: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' --res $(RES) \
 		--visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
-build_benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
+earthchem_models: $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(SYNTHETIC)' --res $(RES) \
+		--visualize $(VIS) $(LOG)
+	@echo "=============================================" $(LOG)
+
+benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res $(RES) \
 		--kbatch $(KBATCH) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
-build_earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
+earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
 		--kbatch $(KBATCH) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
-create_mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
+mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res $(RES) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
@@ -141,4 +146,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs get_assets create_mixing_arrays build_earthchem_datasets build_benchmark_datasets train_benchmark_models init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs get_assets mixing_arrays earthchem_datasets benchmark_datasets earthchem_models benchmark_models init all

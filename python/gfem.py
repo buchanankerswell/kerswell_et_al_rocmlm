@@ -119,6 +119,9 @@ def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid
     # Get samples
     sampleids = get_sampleids(source, nsamples, mbatches, kbatch)
 
+    print("Building GFEM models for samples:")
+    print(f"{sampleids}")
+
     # Create combinations of samples and datasets
     combinations = list(itertools.product(programs, datasets, sampleids))
 
