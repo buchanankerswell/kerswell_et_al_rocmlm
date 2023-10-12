@@ -956,7 +956,14 @@ class GFEMModel:
                 config_files.append(f"{model_out_dir}/perplex-werami-phase")
 
                 self._replace_in_file(f"{model_out_dir}/perplex-build-options",
-                                    {"Anderson-Gruneisen  F": "Anderson-Gruneisen  T"})
+                                    {"Anderson-Gruneisen     F":
+                                     "Anderson-Gruneisen     T"})
+#                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
+#                                    {"bounds                 VHR":
+#                                     "bounds                 HS"})
+#                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
+#                                    {"melt_is_fulid          T":
+#                                     "melt_is_fulid          F"})
 
             elif program == "pssect":
                 config_files.append(f"{model_out_dir}/perplex-pssect-draw")
