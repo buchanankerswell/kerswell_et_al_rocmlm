@@ -17,7 +17,7 @@ DATADIR = assets/data
 CONFIGDIR = assets/config
 # GFEM options
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
-SYNTHETIC = $(DATADIR)/synthetic-samples-pca3-clusters23.csv
+SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters23.csv
 RES ?= 32
 KBATCH ?= 0
 VIS ?= True
@@ -75,6 +75,13 @@ benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@echo "=============================================" $(LOG)
 
 earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
+	@for k in 0 1 2 3; do \
+		$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
+		--kbatch $$k --debug $(DEBUG) --visualize $(VIS) $(LOG); \
+	done;
+	@echo "=============================================" $(LOG)
+
+earthchem_batch: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
 		--kbatch $(KBATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
