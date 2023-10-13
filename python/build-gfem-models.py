@@ -14,7 +14,7 @@ valid_args = check_arguments(args, "build-gfem-models.py")
 locals().update(valid_args)
 
 # Build GFEM models
-models = build_gfem_models(programs=["magemin"], source=source, batch=batch, res=res, nprocs=nprocs, debug=debug)
+models = build_gfem_models(source=source, batch=batch, res=res, nprocs=nprocs, debug=debug)
 
 if visualize:
     # Visualize GFEM models
