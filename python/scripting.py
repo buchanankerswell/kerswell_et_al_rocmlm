@@ -179,7 +179,7 @@ def download_github_submodule(repository_url, submodule_dir, commit_hash):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compile magemin !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compile_magemin(emsonly=True, verbose=1):
+def compile_magemin(commit_hash="69017cb", hp_endmembers=True, verbose=1):
     """
     """
     # Config directory
@@ -187,7 +187,7 @@ def compile_magemin(emsonly=True, verbose=1):
 
     # Get source
     download_github_submodule("https://github.com/ComputationalThermodynamics/MAGEMin.git",
-                              "tmp", "69017cb")
+                              "tmp", commit_hash)
 
     # Get operating system
     os_system = check_os()
@@ -198,7 +198,7 @@ def compile_magemin(emsonly=True, verbose=1):
             raise ValueError("Unrecognized operating system!")
 
         # Configure
-        if emsonly:
+        if hp_endmembers:
             print(f"Compiling MAGEMin for {os_system} with HP endmembers ...")
 
             config = f"{config_dir}/magemin-init-hp-endmembers"
@@ -240,7 +240,7 @@ def compile_magemin(emsonly=True, verbose=1):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compile perplex !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compile_perplex(verbose=1):
+def compile_perplex(commit_hash="5743553", verbose=1):
     """
     """
     # Config directory
@@ -260,7 +260,7 @@ def compile_perplex(verbose=1):
                                "dynamic.zip", "Perple_X")
         if os_system == "linux":
             download_github_submodule("https://github.com/ondrolexa/Perple_X.git",
-                                      "tmp", "5743553")
+                                      "tmp", commit_hash)
 
             config = f"{config_dir}/perplex-linux-makefile"
             old_config = "tmp/src/LINUX_makefile"
@@ -362,7 +362,7 @@ def parse_arguments():
     parser.add_argument("--dataset", type=str, required=False)
     parser.add_argument("--res", type=int, required=False)
     parser.add_argument("--nsamples", type=int, required=False)
-    parser.add_argument("--emsonly", type=str, required=False)
+    parser.add_argument("--hpendmembers", type=str, required=False)
     parser.add_argument("--hpc", type=str, required=False)
     parser.add_argument("--maskgeotherm", type=str, required=False)
     parser.add_argument("--targets", type=parse_list_of_strings, required=False)
@@ -406,7 +406,7 @@ def check_arguments(args, script):
     dataset = args.dataset
     res = args.res
     nsamples = args.nsamples
-    emsonly = args.emsonly
+    hpendmembers = args.hpendmembers
     hpc = args.hpc
     maskgeotherm = args.maskgeotherm
     targets = args.targets
@@ -518,19 +518,19 @@ def check_arguments(args, script):
 
         valid_args["nsamples"] = nsamples
 
-    if emsonly is not None:
-        emsonly = emsonly.lower() == "true" if emsonly else False
+    if hpendmembers is not None:
+        hpendmembers = hpendmembers.lower() == "true" if hpendmembers else False
 
-        if not isinstance(emsonly, bool):
-            print("Warning: invalid --emsonly argument!")
-            print("    --emsonly must be True or False")
-            print("Using emsonly = False")
+        if not isinstance(hpendmembers, bool):
+            print("Warning: invalid --hpendmembers argument!")
+            print("    --hpendmembers must be True or False")
+            print("Using hpendmembers = False")
 
-            emsonly = False
+            hpendmembers = False
 
-        print(f"    endmembers only: {emsonly}")
+        print(f"    HP endmembers: {hpendmembers}")
 
-        valid_args["emsonly"] = emsonly
+        valid_args["hpendmembers"] = hpendmembers
 
     if hpc is not None:
         hpc = hpc.lower() == "true" if hpc else False
