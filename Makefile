@@ -21,6 +21,7 @@ SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters23.csv
 RES ?= 32
 BATCH ?= 0
 NBATCHES ?= 4
+NPROCS ?= 8
 VIS ?= True
 DEBUG ?= True
 # Python scripts
@@ -78,13 +79,15 @@ benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
 earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@for k in 0 1 2 3; do \
 		$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
-		--nbatches $(NBATCHES) --batch $$k --debug $(DEBUG) --visualize $(VIS) $(LOG); \
+		--nbatches $(NBATCHES) --batch $$k --nprocs $(NPROCS) --debug $(DEBUG) --visualize $(VIS) \
+		$(LOG); \
 	done;
 	@echo "=============================================" $(LOG)
 
 earthchem_batch: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
-		--nbatches $(NBATCHES) --batch $(BATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
+		--nbatches $(NBATCHES) --batch $(BATCH) --nprocs $(NPROCS) --debug $(DEBUG) --visualize \
+		$(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets

@@ -179,7 +179,7 @@ def download_github_submodule(repository_url, submodule_dir, commit_hash):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compile magemin !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compile_magemin(commit_hash="69017cb", hp_endmembers=True, verbose=1):
+def compile_magemin(commit_hash="69017cb", verbose=1):
     """
     """
     # Config directory
@@ -198,16 +198,7 @@ def compile_magemin(commit_hash="69017cb", hp_endmembers=True, verbose=1):
             raise ValueError("Unrecognized operating system!")
 
         # Configure
-        if hp_endmembers:
-            print(f"Compiling MAGEMin for {os_system} with HP endmembers ...")
-
-            config = f"{config_dir}/magemin-init-hp-endmembers"
-            old_config = "tmp/src/initialize.h"
-
-            if os.path.exists(config):
-                shutil.copy(config, old_config)
-        else:
-            print(f"Compiling MAGEMin for {os_system} ...")
+        print(f"Compiling MAGEMin for {os_system} ...")
 
         if os_system == "linux":
             config = f"{config_dir}/magemin-linux-makefile"

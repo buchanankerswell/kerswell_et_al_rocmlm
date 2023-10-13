@@ -5,7 +5,7 @@ download_and_unzip(("https://files.osf.io/v1/resources/k23tb/providers/osfstorag
                    "649149796513ba03733a3536/?zip="), "all", "assets")
 
 # Get MAGEMin
-compile_magemin(commit_hash="eab44bb", hp_endmembers=False)
+compile_magemin()
 
 # Get Perple_X
 compile_perplex()
