@@ -29,7 +29,7 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res, n_pca_components=3, k_pca_clusters=3, seed=42, verbose=1):
+    def __init__(self, res, n_pca_components=2, k_pca_clusters=3, seed=42, verbose=1):
         # Input
         self.res = res
         self.n_pca_components = n_pca_components
@@ -38,8 +38,8 @@ class MixingArray:
         self.verbose = verbose
 
         # Earthchem data
-        self.earthchem_filepaths = [file for file in os.listdir("assets/data")
-                                    if file.startswith("earthchem-igneous")]
+        self.earthchem_filepaths = [file for file in os.listdir("assets/data") if
+                                    file.startswith("earthchem-igneous")]
         self.metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
         self.oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
                        "CR2O3"]
@@ -116,7 +116,7 @@ class MixingArray:
         if "TIO2" in oxides:
             data = data[data["TIO2"] <= 10]
 
-        if verbose >= 2:
+        if verbose >= 1:
             # Print info
             print("+++++++++++++++++++++++++++++++++++++++++++++")
             print("Eartchem search portal critera:")
@@ -125,9 +125,7 @@ class MixingArray:
             print("    sample type:")
             for name in df_name:
                 print(f"        igneos > {name}")
-            print("    oxides: (and/or)")
-            for oxide in oxides:
-                print(f"        {oxide}")
+            print(f"Oxides: {oxides}")
             print("Dataset filtering:")
             if "SIO2" in oxides:
                 print("    SIO2 >= 25 wt.%")

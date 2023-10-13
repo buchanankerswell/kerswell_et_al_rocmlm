@@ -15,12 +15,13 @@ PERPLEX = Perple_X
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIGDIR = assets/config
-# GFEM samples
+# GFEM options
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
-SYNTHETIC = $(DATADIR)/synthetic-samples-pca3-clusters13.csv
+SYNTHETIC = $(DATADIR)/synthetic-samples-pca3-clusters23.csv
 RES ?= 32
 KBATCH ?= 0
 VIS ?= True
+DEBUG ?= True
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
@@ -70,12 +71,12 @@ earthchem_models: $(LOGFILE) $(PYTHON) get_assets
 
 benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res $(RES) \
-		--kbatch $(KBATCH) --visualize $(VIS) $(LOG)
+		--kbatch $(KBATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
-		--kbatch $(KBATCH) --visualize $(VIS) $(LOG)
+		--kbatch $(KBATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets

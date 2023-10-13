@@ -493,7 +493,7 @@ class GFEMModel:
                 unique_assemblages[assemblage_tuple] = len(unique_assemblages) + 1
 
         # Create dataframe
-        df = pd.DataFrame(list(unique_assemblages.items()), columns=["assemblage", "index"])
+        df = pd.DataFrame(list(unique_assemblages.items()), columns=["index", "assemblage"])
 
         # Put spaces between phases
         df["assemblage"] = df["assemblage"].apply(" ".join)

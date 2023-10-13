@@ -2443,7 +2443,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-        for i, comp in enumerate(["ultramafic", "mafic", "intermediate", "felsic"]):
+        for i, comp in enumerate(["ultramafic", "mafic"]):
             indices = data.loc[data["COMPOSITION"] == comp].index
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
@@ -2451,10 +2451,10 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
                                  color=colormap(i), marker=".", label=comp)
 
         for oxide in oxides:
-            ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
+            ax.arrow(0, 0, loadings.at[n, oxide] * 2, loadings.at[n + 1, oxide] * 2,
                      width=0.02, head_width=0.14, color="black")
-            ax.text((loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1),
-                    (loadings.at[n + 1, oxide] * 3) + (loadings.at[n + 1, oxide] * 1),
+            ax.text((loadings.at[n, oxide] * 2) + (loadings.at[n, oxide] * 1),
+                    (loadings.at[n + 1, oxide] * 2) + (loadings.at[n + 1, oxide] * 1),
                     oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
                                      pad=0.1),
                     fontsize=fontsize * 0.579, color="black", ha = "center", va = "center")
@@ -2661,12 +2661,10 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                                       edgecolor="black", facecolor="white", alpha=0.8),
                             fontsize=fontsize * 0.579, zorder=5)
 
-        sns.kdeplot(data=data, x="SIO2", y=y, hue="COMPOSITION",
-                    hue_order=["ultramafic", "mafic", "intermediate", "felsic"], fill=False,
-                    ax=ax, levels=5, zorder=2)
-        sns.scatterplot(data=data, x="SIO2", y=y, hue="COMPOSITION",
-                        hue_order=["ultramafic", "mafic", "intermediate", "felsic"],
-                        linewidth=0, s=5, legend=False, ax=ax, zorder=1)
+        sns.kdeplot(data=data, x="SIO2", y=y, hue="COMPOSITION", fill=False, ax=ax, levels=5,
+                    zorder=2)
+        sns.scatterplot(data=data, x="SIO2", y=y, hue="COMPOSITION", linewidth=0, s=5,
+                        legend=False, ax=ax, zorder=1)
 
         ax.set_title(f"{y}")
         ax.set_ylabel("")
@@ -2677,7 +2675,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
         if k == (num_plots - 1):
             handles = ax.get_legend().legendHandles
-            labels = ["ultramafic", "mafic", "intermediate", "felsic"]
+            labels = ["ultramafic", "mafic"]
 
         for line in ax.get_legend().get_lines():
             line.set_linewidth(5)
