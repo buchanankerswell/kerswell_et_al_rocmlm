@@ -18,8 +18,9 @@ CONFIGDIR = assets/config
 # GFEM options
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
 SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters23.csv
-RES ?= 32
-KBATCH ?= 0
+RES ?= 8
+BATCH ?= 0
+NBATCHES ?= 4
 VIS ?= True
 DEBUG ?= True
 # Python scripts
@@ -71,19 +72,19 @@ earthchem_models: $(LOGFILE) $(PYTHON) get_assets
 
 benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' --res $(RES) \
-		--kbatch $(KBATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
+		--batch $(BATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
 	@for k in 0 1 2 3; do \
 		$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
-		--kbatch $$k --debug $(DEBUG) --visualize $(VIS) $(LOG); \
+		--nbatches $(NBATCHES) --batch $$k --debug $(DEBUG) --visualize $(VIS) $(LOG); \
 	done;
 	@echo "=============================================" $(LOG)
 
 earthchem_batch: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' --res $(RES) \
-		--kbatch $(KBATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
+		--nbatches $(NBATCHES) --batch $(BATCH) --debug $(DEBUG) --visualize $(VIS) $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
@@ -154,4 +155,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env submit_jobs get_assets mixing_arrays earthchem_datasets benchmark_datasets earthchem_models benchmark_models init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env get_assets mixing_arrays earthchem_batch earthchem_datasets benchmark_datasets earthchem_models benchmark_models init all

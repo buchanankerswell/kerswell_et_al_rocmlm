@@ -356,7 +356,8 @@ def parse_arguments():
     parser.add_argument("--Tmax", type=int, required=False)
     parser.add_argument("--source", type=str, required=False)
     parser.add_argument("--sampleid", type=str, required=False)
-    parser.add_argument("--kbatch", type=int, required=False)
+    parser.add_argument("--batch", type=int, required=False)
+    parser.add_argument("--nbatches", type=int, required=False)
     parser.add_argument("--normox", type=parse_list_of_strings, required=False)
     parser.add_argument("--dataset", type=str, required=False)
     parser.add_argument("--res", type=int, required=False)
@@ -399,7 +400,8 @@ def check_arguments(args, script):
     Tmax = args.Tmax
     source = args.source
     sampleid = args.sampleid
-    kbatch = args.kbatch
+    batch = args.batch
+    nbatches = args.nbatches
     normox = args.normox
     dataset = args.dataset
     res = args.res
@@ -464,10 +466,15 @@ def check_arguments(args, script):
 
         valid_args["sampleid"] = sampleid
 
-    if kbatch is not None:
-        print(f"    k sample batch: {kbatch}")
+    if batch is not None:
+        print(f"    sample batch: {batch}")
 
-        valid_args["kbatch"] = kbatch
+        valid_args["batch"] = batch
+
+    if nbatches is not None:
+        print(f"    n batches: {nbatches}")
+
+        valid_args["nbatches"] = nbatches
 
     if normox is not None:
         if normox != "all":

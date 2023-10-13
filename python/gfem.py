@@ -35,7 +35,7 @@ from sklearn.impute import KNNImputer
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get sampleids !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_sampleids(filepath, n, m=4, k_batch=0, random=False, seed=42):
+def get_sampleids(filepath, batch, n_batches=4):
     """
     """
     # Check for file
@@ -45,34 +45,21 @@ def get_sampleids(filepath, n, m=4, k_batch=0, random=False, seed=42):
     # Read data
     df = pd.read_csv(filepath)
 
-    if n >= len(df):
-        return df["NAME"].values
-
     # Calculate the batch size
     total_samples = len(df)
-    batch_size = total_samples // m
+    batch_size = int(total_samples // n_batches)
 
     # Check if batch number is within valid range
-    if k_batch < 0 or k_batch >= m:
+    if batch < 0 or batch >= n_batches:
         print("Invalid batch number! Sampling from the first 0th batch ...")
 
-        k_batch = 0
+        batch = 0
 
     # Calculate the start and end index for the specified batch
-    start = k_batch * batch_size
-    end = min((k_batch + 1) * batch_size, total_samples)
+    start = batch * batch_size
+    end = min((batch + 1) * batch_size, total_samples)
 
-    # Split the df
-    batch_df = df[start:end]
-
-    if n >= len(batch_df):
-        return batch_df["NAME"].values
-
-    if random:
-        return batch_df["NAME"].sample(n, random_state=seed).values
-
-    else:
-        return batch_df["NAME"].values[:n]
+    return df[start:end]["NAME"].values
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # gfem_iteration !!
@@ -110,14 +97,14 @@ def gfem_iteration(args):
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid"],
-                      source="assets/data/benchmark-samples", nsamples=128, mbatches=4,
-                      kbatch=0, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273, normox="all",
+                      source="assets/data/benchmark-samples.csv", batch=0, nbatches=4,
+                      res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273, normox="all",
                       targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
                       parallel=True, nprocs=os.cpu_count()-2, verbose=1, debug=False):
     """
     """
     # Get samples
-    sampleids = get_sampleids(source, nsamples, mbatches, kbatch)
+    sampleids = get_sampleids(source, batch, nbatches)
 
     print("Building GFEM models for samples:")
     print(f"{sampleids}")
@@ -493,10 +480,13 @@ class GFEMModel:
                 unique_assemblages[assemblage_tuple] = len(unique_assemblages) + 1
 
         # Create dataframe
-        df = pd.DataFrame(list(unique_assemblages.items()), columns=["index", "assemblage"])
+        df = pd.DataFrame(list(unique_assemblages.items()), columns=["assemblage", "index"])
 
         # Put spaces between phases
         df["assemblage"] = df["assemblage"].apply(" ".join)
+
+        # Reorder columns
+        df = df[["index", "assemblage"]]
 
         # Save to csv
         assemblages_csv = f"{self.model_out_dir}/assemblages.csv"
@@ -639,8 +629,11 @@ class GFEMModel:
     def _read_magemin_output(self):
         """
         """
+        # Get self attributes
+        magemin_out_path = self.magemin_out_path
+
         # Open file
-        with open(self.magemin_out_path, "r") as file:
+        with open(magemin_out_path, "r") as file:
             lines = file.readlines()
 
         # Skip the comment line
@@ -861,8 +854,8 @@ class GFEMModel:
             os.makedirs(model_out_files_dir, exist_ok=True)
 
             # Clean up output directory
-            shutil.copy2(magemin_in_path, model_out_files_dir)
-            shutil.copytree(f"{model_out_dir}/output", model_out_files_dir)
+            shutil.move(magemin_in_path, model_out_files_dir)
+            shutil.move(f"{model_out_dir}/output", model_out_files_dir)
 
         else:
             # Clean up output directory
@@ -1076,13 +1069,16 @@ class GFEMModel:
     def _read_perplex_targets(self):
         """
         """
+        # Get self attributes
+        perplex_targets = self.perplex_targets
+
         # Initialize results
         results = {"T": [], "P": [], "rho": [], "Vp": [], "Vs": [], "entropy": [],
                    "assemblage_index": [], "melt_fraction": [], "assemblage": [],
                    "assemblage_variance": []}
 
         # Open file
-        with open(self.perplex_targets, "r") as file:
+        with open(perplex_targets, "r") as file:
             # Skip lines until column headers are found
             for line in file:
                 if line.strip().startswith("T(K)"):
@@ -1119,6 +1115,7 @@ class GFEMModel:
 
                     except ValueError:
                         continue
+
         return results
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1270,7 +1267,7 @@ class GFEMModel:
                     destination_path = os.path.join(model_out_files_dir, filename)
 
                     if os.path.isfile(file_path) and filename not in files_to_keep:
-                        shutil.copy2(file_path, destination_path)
+                        shutil.move(file_path, destination_path)
 
             except Exception as e:
                 print(f"Error: {e}")
