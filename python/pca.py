@@ -140,6 +140,7 @@ class MixingArray:
             print(f"Combined and filtered samples summary:")
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             print(data[oxides].describe().map("{:.4g}".format))
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         # Update self attribute
         self.earthchem_filtered = data.copy()
