@@ -97,7 +97,7 @@ def gfem_iteration(args):
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid"],
-                      source="assets/data/benchmark-samples.csv", batch=0, nbatches=4,
+                      source="assets/data/benchmark-samples.csv", batch=0, nbatches=8,
                       res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273, normox="all",
                       targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
                       parallel=True, nprocs=os.cpu_count()-2, verbose=1, debug=False):
