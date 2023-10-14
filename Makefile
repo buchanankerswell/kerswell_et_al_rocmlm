@@ -18,9 +18,9 @@ CONFIGDIR = assets/config
 # GFEM options
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
 SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters23.csv
-RES ?= 32
+RES ?= 64
 BATCH ?= 0
-NBATCHES ?= 8
+NBATCHES ?= 16
 NPROCS ?= 8
 VIS ?= True
 DEBUG ?= True
