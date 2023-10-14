@@ -41,7 +41,8 @@ class MixingArray:
         self.earthchem_filepaths = [file for file in os.listdir("assets/data") if
                                     file.startswith("earthchem-igneous")]
         self.metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
-        self.oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2", "FE2O3", "CR2O3"]
+        self.oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
+                       "CR2O3"]
         self.earthchem_raw = pd.DataFrame()
         self.earthchem_filtered = pd.DataFrame()
         self.earthchem_imputed = pd.DataFrame()
