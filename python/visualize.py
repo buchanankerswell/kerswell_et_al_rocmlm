@@ -11,6 +11,7 @@ import warnings
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # dataframes and arrays !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import cv2
 import numpy as np
 import pandas as pd
 
@@ -1699,7 +1700,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize training dataset !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset(model, palette="bone"):
+def visualize_training_dataset(model, edges=False, palette="bone"):
     """
     """
     # Get model data
@@ -1770,6 +1771,28 @@ def visualize_training_dataset(model, palette="bone"):
         visualize_target_array(P, T, square_target, target, program_title, palette,
                                color_discrete, color_reverse, vmin, vmax, fig_dir,
                                f"{program}-{sample_id}-{dataset}-{target_rename}.png")
+        if edges:
+            original_image = square_target.copy()
+
+            # Apply Sobel edge detection
+            edges_x = cv2.Sobel(original_image, cv2.CV_64F, 1, 0, ksize=3)
+            edges_y = cv2.Sobel(original_image, cv2.CV_64F, 0, 1, ksize=3)
+
+            # Calculate the magnitude of the gradient
+            magnitude = np.sqrt(edges_x**2 + edges_y**2) / np.nanmax(original_image)
+
+            if not color_discrete:
+                vmin_mag = np.min(magnitude[np.logical_not(np.isnan(magnitude))])
+                vmax_mag = np.max(magnitude[np.logical_not(np.isnan(magnitude))])
+
+            else:
+                vmin_mag = int(np.nanmin(np.unique(magnitude)))
+                vmax_mag = int(np.nanmax(np.unique(magnitude)))
+
+            visualize_target_array(P, T, magnitude, target, program_title, palette,
+                                   color_discrete, color_reverse, vmin_mag, vmax_mag,
+                                   fig_dir, f"{program}-{sample_id}-{dataset}-"
+                                   "{target_rename}-gradient.png")
 
         # Set geotherm threshold for extracting depth profiles
         if res <= 8:

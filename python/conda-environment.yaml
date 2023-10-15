@@ -14,4 +14,4 @@ dependencies:
   - gitpython
   - tabulate
   - tqdm
-  - scipy
+  - opencv
