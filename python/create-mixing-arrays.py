@@ -14,8 +14,8 @@ mixing_array = MixingArray(res)
 mixing_array.create_mixing_array()
 print("Mixing array created!")
 
-if visualize:
-    visualize_pca_loadings(mixing_array)
-    visualize_kmeans_clusters(mixing_array)
-    visualize_mixing_array(mixing_array)
-    print("Mixing array visualized!")
+# Visualize mixing array
+visualize_pca_loadings(mixing_array)
+visualize_kmeans_clusters(mixing_array)
+visualize_mixing_array(mixing_array)
+print("Mixing array visualized!")

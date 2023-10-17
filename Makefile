@@ -16,16 +16,8 @@ PERPLEX = Perple_X
 DATADIR = assets/data
 CONFIGDIR = assets/config
 # GFEM options
-PROGRAMS ?= ["perplex"]
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
 SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters23.csv
-RES ?= 128
-BATCH ?= 0
-NBATCHES ?= 8
-NPROCS ?= 8
-VIS ?= True
-DEBUG ?= True
-VERBOSE ?= 1
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
@@ -64,79 +56,23 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 
 benchmark_rocml: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py \
-		--programs '$(PROGRAMS)' \
-		--source '$(BENCHMARK)' \
-		--res $(RES) \
-		--nbatches $(NBATCHES) \
-		--batch $(BATCH) \
-		--nprocs $(NPROCS) \
-		--debug $(DEBUG) \
-		--visualize $(VIS) \
-		--verbose $(VERBOSE) \
-		$(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' $(LOG)
 	@echo "=============================================" $(LOG)
 
 earthchem_rocml: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py \
-		--programs '$(PROGRAMS)' \
-		--source '$(BENCHMARK)' \
-		--res $(RES) \
-		--nbatches $(NBATCHES) \
-		--batch $(BATCH) \
-		--nprocs $(NPROCS) \
-		--debug $(DEBUG) \
-		--visualize $(VIS) \
-		--verbose $(VERBOSE) \
-		$(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' $(LOG)
 	@echo "=============================================" $(LOG)
 
-benchmark_datasets: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py \
-		--programs '$(PROGRAMS)' \
-		--source '$(BENCHMARK)' \
-		--res $(RES) \
-		--nbatches $(NBATCHES) \
-		--batch $(BATCH) \
-		--nprocs $(NPROCS) \
-		--debug $(DEBUG) \
-		--visualize $(VIS) \
-		--verbose $(VERBOSE) \
-		$(LOG)
+benchmark_gfem: $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' $(LOG)
 	@echo "=============================================" $(LOG)
 
-earthchem_datasets: $(LOGFILE) $(PYTHON) get_assets
-	@for k in 0 1 2 3 4 5 6 7 8; do \
-		$(CONDAPYTHON) -u python/build-gfem-models.py \
-		--programs '$(PROGRAMS)' \
-		--source '$(SYNTHETIC)' \
-		--res $(RES) \
-		--nbatches 8 \
-		--batch $$k \
-		--nprocs $(NPROCS) \
-		--debug $(DEBUG) \
-		--visualize $(VIS) \
-		--verbose $(VERBOSE) \
-		$(LOG); \
-	done;
-	@echo "=============================================" $(LOG)
-
-earthchem_batch: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py \
-		--programs '$(PROGRAMS)' \
-		--source '$(SYNTHETIC)' \
-		--res $(RES) \
-		--nbatches $(NBATCHES) \
-		--batch $(BATCH) \
-		--nprocs $(NPROCS) \
-		--debug $(DEBUG) \
-		--visualize $(VIS) \
-		--verbose $(VERBOSE) \
-		$(VIS) $(LOG)
+earthchem_gfem: $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res $(RES) --visualize $(VIS) $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res $(RES) $(LOG)
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)
@@ -203,4 +139,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env get_assets mixing_arrays earthchem_batch earthchem_datasets benchmark_datasets earthchem_rocml benchmark_rocml init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env get_assets mixing_arrays earthchem_gfem benchmark_gfem earthchem_rocml benchmark_rocml init all

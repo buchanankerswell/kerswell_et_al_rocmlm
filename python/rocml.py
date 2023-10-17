@@ -57,11 +57,11 @@ def get_unique_value(input_list):
     return unique_value
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# build rocml model !!
+# train rocml models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_rocml_model(gfem_models, ml_model, oxides=["SIO2", "MGO"], tune=True, epochs=100,
-                      batchprop=0.2, kfolds=os.cpu_count()-2, parallel=True,
-                      nprocs=os.cpu_count()-2, seed=42, palette="bone", verbose=1):
+def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO"], tune=True,
+                       epochs=100, batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
+                       nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
     """
     """
     # Check for models
@@ -148,15 +148,21 @@ def build_rocml_model(gfem_models, ml_model, oxides=["SIO2", "MGO"], tune=True, 
     geotherm_mask_valid = np.stack([m._create_geotherm_mask() for m in gfem_models if
                                     m.dataset == "valid"]).flatten()
 
-    # Make rocml model
-    model = RocML(program, sample_ids, res, targets, mask_geotherm, feature_train,
-                  feature_train_unmasked, target_train, target_train_unmasked,
-                  feature_valid, feature_valid_unmasked, target_valid,
-                  target_valid_unmasked, shape_feature, shape_feature_square, shape_target,
-                  shape_target_square, geotherm_mask_train, geotherm_mask_valid, ml_model,
-                  tune, epochs, batchprop, kfolds, parallel, nprocs, seed, palette, verbose)
+    # Train rocml models
+    rocmls = []
 
-    return model
+    for model in ml_models:
+        rocml = RocML(program, sample_ids, res, targets, mask_geotherm, feature_train,
+                      feature_train_unmasked, target_train, target_train_unmasked,
+                      feature_valid, feature_valid_unmasked, target_valid,
+                      target_valid_unmasked, shape_feature, shape_feature_square,
+                      shape_target, shape_target_square, geotherm_mask_train,
+                      geotherm_mask_valid, model, tune, epochs, batchprop, kfolds, parallel,
+                      nprocs, seed, palette, verbose)
+        rocml.train()
+        rocmls.append(rocml)
+
+    return rocmls
 
 #######################################################
 ## .2.               RocML Class                 !!! ##
@@ -170,8 +176,8 @@ class RocML:
                  feature_valid_unmasked, target_valid, target_valid_unmasked, shape_feature,
                  shape_feature_square, shape_target, shape_target_square,
                  geotherm_mask_train, geotherm_mask_valid,  ml_model, tune=True, epochs=100,
-                 batchprop=0.2, kfolds=os.cpu_count()-2, parallel=True,
-                 nprocs=os.cpu_count()-2, seed=42, palette="bone", verbose=1):
+                 batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
+                 nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
         """
         """
         # Input
@@ -209,15 +215,18 @@ class RocML:
             self.nprocs = 1
         elif parallel:
             if nprocs is None or nprocs > os.cpu_count():
-                self.nprocs = os.cpu_count() - 2
+                self.nprocs = os.cpu_count()
             else:
                 self.nprocs = nprocs
         self.seed = seed
         self.palette = palette
         self.verbose = verbose
-
-        self.model_prefix = f"{self.program[:4]}-{self.ml_model_label}"
-        self.fig_dir = f"figs/rocml/{self.program[:4]}_{self.ml_model_label}"
+        if any(sample in sample_ids for sample in ["PUM", "DMM", "NMORB", "RE46"]):
+            self.model_prefix = f"{self.program[:4]}-benchmark-{self.ml_model_label}"
+            self.fig_dir = f"figs/rocml/{self.program[:4]}_benchmark_{self.ml_model_label}"
+        else:
+            self.model_prefix = f"{self.program[:4]}-synthetic-{self.ml_model_label}"
+            self.fig_dir = f"figs/rocml/{self.program[:4]}_synthetic_{self.ml_model_label}"
 
         # Check for figs directory
         if not os.path.exists(self.fig_dir):

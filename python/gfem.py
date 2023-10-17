@@ -48,6 +48,9 @@ def get_sampleids(filepath, batch, n_batches=4):
     if "benchmark" in filepath:
         return df["NAME"].values
 
+    if batch == "all":
+        return df["NAME"].values
+
     # Calculate the batch size
     total_samples = len(df)
     batch_size = int(total_samples // n_batches)
@@ -99,11 +102,10 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid"],
-                      source="assets/data/benchmark-samples.csv", batch=0, nbatches=8,
-                      res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273, normox="all",
-                      targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
-                      parallel=True, nprocs=os.cpu_count()-2, verbose=1, debug=False):
+def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"], batch="all",
+                      nbatches=8, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273,
+                      normox="all", targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False,
+                      parallel=True, nprocs=os.cpu_count(), verbose=1, debug=False):
     """
     """
     # Get samples
@@ -121,7 +123,7 @@ def build_gfem_models(programs=["perplex", "magemin"], datasets=["train", "valid
 
     elif parallel:
         if nprocs is None or nprocs > os.cpu_count():
-            nprocs = os.cpu_count() - 2
+            nprocs = os.cpu_count()
 
         else:
             nprocs = nprocs
@@ -171,7 +173,7 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, program, dataset, sample_id, source, res,
                  P_min=1, P_max=28, T_min=773, T_max=2273, normox="all",
-                 targets=["rho", "Vp", "Vs", "melt_fraction"], maskgeotherm=False,
+                 targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False,
                  verbose=1, debug=False):
         """
         """
@@ -211,7 +213,7 @@ class GFEMModel:
             raise ValueError("Unrecognized GFEM program! Use 'magemin' or 'perplex' ...")
 
         self.model_prefix = f"{self.sample_id}-{self.dataset[0]}{self.res}"
-        self.fig_dir = f"figs/{self.sample_id}_{self.res}"
+        self.fig_dir = f"figs/gfem/{self.sample_id}_{self.res}"
         self.log_file = f"log/log-{self.program}-{self.model_prefix}"
 
         # Results
@@ -248,7 +250,7 @@ class GFEMModel:
                     return None
 
                 if self.verbose >= 1:
-                    print(f"Found results for model {self.model_prefix} [{self.program}]!")
+                    print(f"Found [{self.program}] results for model {self.model_prefix}!")
 
             else:
                 # Make new model if results not found
@@ -742,7 +744,7 @@ class GFEMModel:
                             "rho": rho_total, # density of full assemblage kg/m3
                             "Vp": vp, # pressure wave velocity km/s
                             "Vs": vs, # shear wave velocity km/s
-                            "melt_fraction": liq, # melt fraction
+                            "melt": liq, # melt fraction
                             "assemblage": assemblage, # stable assemblage
                             })
 
@@ -784,16 +786,16 @@ class GFEMModel:
         # Compute assemblage variance (number of phases)
         assemblages = results.get("assemblage")
 
-        assemblage_variance = []
+        variance = []
 
         for assemblage in assemblages:
             unique_phases = set(assemblage)
             count = len(unique_phases)
 
-            assemblage_variance.append(count)
+            variance.append(count)
 
         # Add assemblage variance to merged results
-        results["assemblage_variance"] = assemblage_variance
+        results["variance"] = variance
 
         # Encode assemblage
         encoded_assemblages = self._encode_assemblages(assemblages)
@@ -802,8 +804,7 @@ class GFEMModel:
         results["assemblage"] = encoded_assemblages
 
         # Point results that can be converted to numpy arrays
-        point_params = ["T", "P", "rho", "Vp", "Vs", "melt_fraction", "assemblage",
-                        "assemblage_variance"]
+        point_params = ["T", "P", "rho", "Vp", "Vs", "melt", "assemblage", "variance"]
 
         # Convert numeric point results into numpy arrays
         for key, value in results.items():
@@ -820,7 +821,7 @@ class GFEMModel:
                     # Convert from kg/m3 to g/cm3
                     results[key] = np.array(value) / 1000
 
-                elif key == "melt_fraction":
+                elif key == "melt":
                     # Convert from kg/m3 to g/cm3
                     results[key] = np.array(value) * 100
 
@@ -830,7 +831,7 @@ class GFEMModel:
         # Print results
         if verbose >= 2:
             units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
-                     "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
+                     "melt": "%", "assemblage": "", "variance": ""}
 
             print("+++++++++++++++++++++++++++++++++++++++++++++")
             for key, value in results.items():
@@ -1074,8 +1075,7 @@ class GFEMModel:
 
         # Initialize results
         results = {"T": [], "P": [], "rho": [], "Vp": [], "Vs": [], "entropy": [],
-                   "assemblage_index": [], "melt_fraction": [], "assemblage": [],
-                   "assemblage_variance": []}
+                   "assemblage_index": [], "melt": [], "assemblage": [], "variance": []}
 
         # Open file
         with open(perplex_targets, "r") as file:
@@ -1187,13 +1187,13 @@ class GFEMModel:
         # Count unique phases (assemblage variance)
         for assemblage in results.get("assemblage"):
             if assemblage is None:
-                results["assemblage_variance"].append(np.nan)
+                results["variance"].append(np.nan)
 
             else:
                 unique_phases = set(assemblage)
                 count = len(unique_phases)
 
-                results["assemblage_variance"].append(count)
+                results["variance"].append(count)
 
         # Remove assemblage index
         results.pop("assemblage_index")
@@ -1205,8 +1205,7 @@ class GFEMModel:
         results["assemblage"] = encoded_assemblages
 
         # Point results that can be converted to numpy arrays
-        point_params = ["T", "P", "rho", "Vp", "Vs", "melt_fraction", "assemblage",
-                        "assemblage_variance"]
+        point_params = ["T", "P", "rho", "Vp", "Vs", "melt", "assemblage", "variance"]
 
         # Convert numeric point results into numpy arrays
         for key, value in results.items():
@@ -1215,7 +1214,7 @@ class GFEMModel:
                     # Convert from kg/m3 to g/cm3
                     results[key] = np.array(value) / 1000
 
-                elif key == "melt_fraction":
+                elif key == "melt":
                     # Convert from kg/m3 to g/cm3
                     results[key] = np.array(value) * 100
 
@@ -1225,7 +1224,7 @@ class GFEMModel:
         # Print results
         if verbose >= 2:
             units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
-                     "melt_fraction": "%", "assemblage": "", "assemblage_variance": ""}
+                     "melt": "%", "assemblage": "", "variance": ""}
 
             print("+++++++++++++++++++++++++++++++++++++++++++++")
             for key, value in results.items():
@@ -1332,7 +1331,7 @@ class GFEMModel:
         any_array_all_nans = False
 
         for key, array in self.results.items():
-            if key not in ["melt_fraction"]:
+            if key not in ["melt"]:
                 if np.all(np.isnan(array)):
                     any_array_all_nans = True
 
@@ -1541,7 +1540,7 @@ class GFEMModel:
         # Impute missing values
         for key, value in results_rearranged.items():
             if key in targets:
-                if key == "melt_fraction":
+                if key == "melt":
                     # Process array
                     target_array_list.append(
                         self._process_array(value.reshape(res + 1, res + 1)).flatten()

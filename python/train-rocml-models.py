@@ -1,6 +1,6 @@
 from scripting import parse_arguments, check_arguments
 from gfem import build_gfem_models
-from rocml import build_rocml_model
+from rocml import train_rocml_models
 from visualize import visualize_rocml_model, compose_rocml_plots
 
 # Parse arguments and check
@@ -10,21 +10,13 @@ valid_args = check_arguments(args, "train-rocml-models.py")
 # Load valid arguments
 locals().update(valid_args)
 
-# Get GFEM models
-gfem_models = build_gfem_models(programs=programs, source=source, batch=batch,
-                                nbatches=nbatches, res=res, nprocs=nprocs, debug=debug,
-                                verbose=verbose)
+# Build GFEM models
+gfem_models = build_gfem_models(source)
 
-# Compile training dataset features and targets
-rocml = build_rocml_model(gfem_models, "DT")
+# Build RocML models
+rocml_models = train_rocml_models(gfem_models)
 
-# Train RocML models
-rocml.train()
-
-print("RocML trained!")
-
-if visualize:
-    visualize_rocml_model(rocml)
-    compose_rocml_plots(rocml)
-
+for model in rocml_models:
+    visualize_rocml_model(model)
+    compose_rocml_plots(model)
 print("RocML visualized!")

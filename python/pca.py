@@ -29,7 +29,7 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res, n_pca_components=2, k_pca_clusters=3, seed=42, verbose=1):
+    def __init__(self, res=8, n_pca_components=2, k_pca_clusters=3, seed=42, verbose=1):
         # Input
         self.res = res
         self.n_pca_components = n_pca_components

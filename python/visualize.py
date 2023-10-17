@@ -153,9 +153,15 @@ def combine_plots_vertically(image1_path, image2_path, output_path, caption1, ca
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose dataset plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_dataset_plots(magemin_models, perplex_models):
+def compose_dataset_plots(gfem_models):
     """
     """
+    # Parse models
+    magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
+                      None for m in gfem_models]
+    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+                      None for m in gfem_models]
+
     # Iterate through all models
     for magemin_model, perplex_model in zip(magemin_models, perplex_models):
         magemin = True if magemin_model is not None else False
@@ -237,7 +243,7 @@ def compose_dataset_plots(magemin_models, perplex_models):
 
         if magemin and perplex:
             for target in targets_rename:
-                if target not in ["assemblage", "assemblage-variance"]:
+                if target not in ["assemblage", "variance"]:
                     combine_plots_horizontally(
                         f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
@@ -281,7 +287,7 @@ def compose_dataset_plots(magemin_models, perplex_models):
 
         elif magemin and not perplex:
             for target in targets_rename:
-                if target not in ["assemblage", "assemblage-variance"]:
+                if target not in ["assemblage", "variance"]:
                     combine_plots_horizontally(
                         f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/grad-magemin-{sample_id}-{dataset}-{target}.png",
@@ -309,7 +315,7 @@ def compose_dataset_plots(magemin_models, perplex_models):
 
         elif perplex and not magemin:
             for target in targets_rename:
-                if target not in ["assemblage", "assemblage-variance"]:
+                if target not in ["assemblage", "variance"]:
                     combine_plots_horizontally(
                         f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/grad-perplex-{sample_id}-{dataset}-{target}.png",
@@ -451,8 +457,6 @@ def compose_rocml_plots(rocml_model):
     res = rocml_model.res
     targets = rocml_model.targets
     fig_dir = rocml_model.fig_dir
-    palette = rocml_model.palette
-    verbose = rocml_model.verbose
 
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
@@ -497,11 +501,19 @@ def compose_rocml_plots(rocml_model):
 
             if target in ["rho", "Vp", "Vs"]:
                 combine_plots_horizontally(
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
                     f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
-                    f"{fig_dir}/prem-{sample_id}-{target}.png",
+                    f"{fig_dir}/temp1.png",
                     caption1="a)",
                     caption2="b)"
+                )
+
+                combine_plots_horizontally(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
+                    f"{fig_dir}/prem-{sample_id}-{target}.png",
+                    caption1="",
+                    caption2="c)"
                 )
 
             combine_plots_horizontally(
@@ -551,9 +563,9 @@ def compose_rocml_plots(rocml_model):
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize training dataset design !!
+# visualize gfem design !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset_design(P_min=1, P_max=28, T_min=773, T_max=2273,
+def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273,
                                       fig_dir="figs/other", T_mantle1=273, T_mantle2=1773,
                                       grad_mantle1=1, grad_mantle2=0.5, fontsize=12,
                                       figwidth=6.3, figheight=3.54):
@@ -894,53 +906,65 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     P_prem = depth_prem / 30
 
     # Initialize geotherms
-    P_mgm, P_ppx, P_ml, P_pum, P_nmorb = None, None, None, None, None
+    P_mgm, P_ppx, P_ml = None, None, None
+    P_pum, P_nmorb, P_dmm, P_re46 = None, None, None, None
     target_mgm, target_ppx, target_ml = None, None, None
-    target_pum, target_nmorb = None, None
+    target_pum, target_nmorb, target_dmm, target_re46 = None, None, None, None
 
     # Get benchmark models
     pum_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
-    nmorb_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
+    nmorb_path = f"runs/{program[:4]}_NMORB_{dataset[0]}{res}/results.csv"
+    dmm_path = f"runs/{program[:4]}_DMM_{dataset[0]}{res}/results.csv"
+    re46_path = f"runs/{program[:4]}_RE46_{dataset[0]}{res}/results.csv"
     source = "assets/data/benchmark-samples.csv"
     targets = ["rho", "Vp", "Vs"]
 
-    if sample_id != "PUM" and os.path.exists(pum_path):
+    if os.path.exists(pum_path) and sample_id != "PUM":
         pum_model = GFEMModel(program, dataset, "PUM", source, res, 1, 28, 773, 2273, "all",
                               targets, False, 0, False)
-
         results_pum = pum_model.results
-
     else:
         results_pum = None
-
-    if sample_id != "NMORB" and os.path.exists(nmorb_path):
+    if os.path.exists(nmorb_path) and sample_id != "NMORB":
         nmorb_model = GFEMModel(program, dataset, "NMORB", source, res, 1, 28, 773, 2273,
                                 "all", targets, False, 0, False)
-
         results_nmorb = nmorb_model.results
-
     else:
         results_nmorb = None
+    if os.path.exists(dmm_path) and sample_id != "DMM":
+        dmm_model = GFEMModel(program, dataset, "DMM", source, res, 1, 28, 773, 2273,
+                                "all", targets, False, 0, False)
+        results_dmm = dmm_model.results
+    else:
+        results_dmm = None
+    if os.path.exists(re46_path) and sample_id != "RE46":
+        re46_model = GFEMModel(program, dataset, "RE46", source, res, 1, 28, 773, 2273,
+                                "all", targets, False, 0, False)
+        results_re46 = re46_model.results
+    else:
+        results_re46 = None
 
     # Extract target values along a geotherm
     if results_mgm:
         P_mgm, _, target_mgm = get_geotherm(results_mgm, target, geotherm_threshold)
-
     if results_ppx:
         P_ppx, _, target_ppx = get_geotherm(results_ppx, target, geotherm_threshold)
-
     if results_ml:
         P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold)
-
     if results_pum:
         P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold)
-
     if results_nmorb:
         P_nmorb, _, target_nmorb = get_geotherm(results_nmorb, target, geotherm_threshold)
+    if results_dmm:
+        P_dmm, _, target_dmm = get_geotherm(results_dmm, target, geotherm_threshold)
+    if results_re46:
+        P_re46, _, target_re46 = get_geotherm(results_re46, target, geotherm_threshold)
 
     # Get min and max P from geotherms
-    P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_nmorb] if P is not None)
-    P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_nmorb] if P is not None)
+    P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_nmorb, P_dmm, P_re46] if
+                P is not None)
+    P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_nmorb, P_dmm, P_re46] if
+                P is not None)
 
     # Create cropping mask for prem
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
@@ -952,30 +976,32 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if results_mgm:
         mask_mgm = (P_mgm >= P_min) & (P_mgm <= P_max)
         P_mgm, target_mgm = P_mgm[mask_mgm], target_mgm[mask_mgm]
-
     if results_ppx:
         mask_ppx = (P_ppx >= P_min) & (P_ppx <= P_max)
         P_ppx, target_ppx = P_ppx[mask_ppx], target_ppx[mask_ppx]
-
     if results_ml:
         mask_ml = (P_ml >= P_min) & (P_ml <= P_max)
         P_ml, target_ml = P_ml[mask_ml], target_ml[mask_ml]
-
     if results_pum:
         mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
         P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
-
     if results_nmorb:
         mask_nmorb = (P_nmorb >= P_min) & (P_nmorb <= P_max)
         P_nmorb, target_nmorb = P_nmorb[mask_nmorb], target_nmorb[mask_nmorb]
+    if results_dmm:
+        mask_dmm = (P_dmm >= P_min) & (P_dmm <= P_max)
+        P_dmm, target_dmm = P_dmm[mask_dmm], target_dmm[mask_dmm]
+    if results_re46:
+        mask_re46 = (P_re46 >= P_min) & (P_re46 <= P_max)
+        P_re46, target_re46 = P_re46[mask_re46], target_re46[mask_re46]
 
     # Get min max
     target_min = min(min(np.nanmin(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum, target_nmorb] if
-                         lst is not None), min(target_prem))
+                         [target_mgm, target_ppx, target_ml, target_pum, target_nmorb,
+                          target_dmm, target_re46] if lst is not None), min(target_prem))
     target_max = max(max(np.nanmax(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum, target_nmorb] if
-                         lst is not None), max(target_prem))
+                         [target_mgm, target_ppx, target_ml, target_pum, target_nmorb,
+                          target_dmm, target_re46] if lst is not None), max(target_prem))
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -996,24 +1022,23 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Plot PREM data on the primary y-axis
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
 
-    if results_pum:
-        ax1.plot(target_pum, P_pum, "-", linewidth=2, color=colormap(1), label="PUM")
-
-    if results_nmorb:
-        ax1.plot(target_nmorb, P_nmorb, "-", linewidth=2, color=colormap(2), label="NMORB")
-
+#    if results_pum:
+#        ax1.plot(target_pum, P_pum, "-", linewidth=1.5, color=colormap(0), label="PUM")
+#    if results_nmorb:
+#        ax1.plot(target_nmorb, P_nmorb, "-", linewidth=1.5, color=colormap(1), label="NMORB")
+#    if results_dmm:
+#        ax1.plot(target_dmm, P_dmm, "-", linewidth=1.5, color=colormap(2), label="DMM")
+#    if results_re46:
+#        ax1.plot(target_re46, P_re46, "-", linewidth=1.5, color=colormap(3), label="RE46")
     if results_mgm:
-        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(3), label=sample_id)
-
+        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(0), label=sample_id)
     if results_ppx:
-        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(4), label=sample_id)
-
+        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(1), label=sample_id)
     if results_ml:
-        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(5), label=model)
+        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(2), label=model)
 
     if target == "rho":
         target_label = "Density"
-
     else:
         target_label = target
 
@@ -1215,7 +1240,7 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
                 vmin = 0
 
             # Set melt fraction to 0–100 %
-            if target == "melt_fraction":
+            if target == "melt":
                 vmin, vmax = 0, 100
 
         # Set nan color
@@ -1246,11 +1271,11 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.2g"))
         elif target == "Vs":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-        elif target == "melt_fraction":
+        elif target == "melt":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
         elif target == "assemblage":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
-        elif target == "assemblage_variance":
+        elif target == "variance":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
 
     # Add title
@@ -1424,7 +1449,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
                 vmin = 0
 
             # Set melt fraction to 0–100 %
-            if target == "melt_fraction":
+            if target == "melt":
                 vmin, vmax = 0, 100
 
         # Set nan color
@@ -1467,13 +1492,13 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
         elif target == "Vs":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
             ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
-        elif target == "melt_fraction":
+        elif target == "melt":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
             ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
         elif target == "assemblage":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
             ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
-        elif target == "assemblage_variance":
+        elif target == "variance":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
             ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.0f"))
 
@@ -1488,292 +1513,110 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize training dataset !!
+# visualize gfem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset(model, edges=True, palette="bone", verbose=1):
+def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
     """
     """
-    # Check for model
-    if model is None:
-        if verbose >= 2:
-            print("No model to visualize!")
+    for model in [m if m.dataset == "train" else None for m in gfem_models]:
 
-        return None
+        # Check for model
+        if model is None:
+            if verbose >= 2:
+                print("No model to visualize!")
 
-    # Get model data
-    program = model.program
-    sample_id = model.sample_id
-    model_prefix = model.model_prefix
-    res = model.res
-    dataset = model.dataset
-    targets = model.targets
-    mask_geotherm = model.mask_geotherm
-    results = model.results
-    P, T = results["P"], results["T"]
-    target_array = model.target_array
-    fig_dir = model.fig_dir
-    verbose = model.verbose
+            return None
 
-    if program == "magemin":
-        program_title = "MAGEMin"
+        # Get model data
+        program = model.program
+        sample_id = model.sample_id
+        model_prefix = model.model_prefix
+        res = model.res
+        dataset = model.dataset
+        targets = model.targets
+        mask_geotherm = model.mask_geotherm
+        results = model.results
+        P, T = results["P"], results["T"]
+        target_array = model.target_array
+        fig_dir = model.fig_dir
+        verbose = model.verbose
 
-    elif program == "perplex":
-        program_title = "Perple_X"
+        if program == "magemin":
+            program_title = "MAGEMin"
 
-    print(f"Visualizing {model_prefix} [{program}] ...")
+        elif program == "perplex":
+            program_title = "Perple_X"
 
-    for i, target in enumerate(targets):
-        # Reshape targets into square array
-        square_target = target_array[:, i].reshape(res + 1, res + 1)
+        print(f"Visualizing {model_prefix} [{program}] ...")
 
-        # Use discrete colorscale
-        if target in ["assemblage", "assemblage_variance"]:
-            color_discrete = True
+        for i, target in enumerate(targets):
+            # Reshape targets into square array
+            square_target = target_array[:, i].reshape(res + 1, res + 1)
 
-        else:
-            color_discrete = False
-
-        # Reverse color scale
-        if palette in ["grey"]:
-            if target in ["assemblage_variance"]:
-                color_reverse = True
+            # Use discrete colorscale
+            if target in ["assemblage", "variance"]:
+                color_discrete = True
 
             else:
-                color_reverse = False
+                color_discrete = False
 
-        else:
-            if target in ["assemblage_variance"]:
-                color_reverse = False
+            # Reverse color scale
+            if palette in ["grey"]:
+                if target in ["variance"]:
+                    color_reverse = True
+
+                else:
+                    color_reverse = False
 
             else:
-                color_reverse = True
+                if target in ["variance"]:
+                    color_reverse = False
 
-        # Set colorbar limits for better comparisons
-        if not color_discrete:
-            vmin=np.min(square_target[np.logical_not(np.isnan(square_target))])
-            vmax=np.max(square_target[np.logical_not(np.isnan(square_target))])
+                else:
+                    color_reverse = True
 
-        else:
-            vmin = int(np.nanmin(np.unique(square_target)))
-            vmax = int(np.nanmax(np.unique(square_target)))
-
-        # Rename target
-        target_rename = target.replace("_", "-")
-
-        # Print filepath
-        if verbose >= 2:
-            print(f"Saving figure: {program}-{sample_id}-{dataset}-{target_rename}.png")
-
-        # Plot targets
-        visualize_target_array(P, T, square_target, target, program_title, palette,
-                               color_discrete, color_reverse, vmin, vmax, fig_dir,
-                               f"{program}-{sample_id}-{dataset}-{target_rename}.png")
-        if edges:
-            original_image = square_target.copy()
-
-            # Apply Sobel edge detection
-            edges_x = cv2.Sobel(original_image, cv2.CV_64F, 1, 0, ksize=3)
-            edges_y = cv2.Sobel(original_image, cv2.CV_64F, 0, 1, ksize=3)
-
-            # Calculate the magnitude of the gradient
-            magnitude = np.sqrt(edges_x**2 + edges_y**2) / np.nanmax(original_image)
-
+            # Set colorbar limits for better comparisons
             if not color_discrete:
-                vmin_mag = np.min(magnitude[np.logical_not(np.isnan(magnitude))])
-                vmax_mag = np.max(magnitude[np.logical_not(np.isnan(magnitude))])
+                vmin=np.min(square_target[np.logical_not(np.isnan(square_target))])
+                vmax=np.max(square_target[np.logical_not(np.isnan(square_target))])
 
             else:
-                vmin_mag = int(np.nanmin(np.unique(magnitude)))
-                vmax_mag = int(np.nanmax(np.unique(magnitude)))
-
-            visualize_target_array(P, T, magnitude, target, "Gradient", palette,
-                                   color_discrete, color_reverse, vmin_mag, vmax_mag,
-                                   fig_dir, f"grad-{program}-{sample_id}-{dataset}-"
-                                   f"{target_rename}.png")
-
-        # Set geotherm threshold for extracting depth profiles
-        if res <= 8:
-            geotherm_threshold = 4
-
-        elif res <= 16:
-            geotherm_threshold = 2
-
-        elif res <= 32:
-            geotherm_threshold = 1
-
-        elif res <= 64:
-            geotherm_threshold = 0.5
-
-        elif res <= 128:
-            geotherm_threshold = 0.25
-
-        else:
-            geotherm_threshold = 0.125
-
-        # Plot PREM comparisons
-        if target == "rho":
-            # Print filepath
-            if verbose >= 2:
-                print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
-
-            if program == "magemin":
-                results_mgm = results
-                results_ppx = None
-                visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
-                               results_mgm, results_ppx,
-                               geotherm_threshold=geotherm_threshold,
-                               title="PREM Comparison", fig_dir=fig_dir,
-                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
-
-            elif program == "perplex":
-                results_mgm = None
-                results_ppx = results
-                visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
-                               results_mgm, results_ppx,
-                               geotherm_threshold=geotherm_threshold,
-                               title="PREM Comparison", fig_dir=fig_dir,
-                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
-
-        if target in ["Vp", "Vs"]:
-            # Print filepath
-            if verbose >= 2:
-                print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
-
-            if program == "magemin":
-                results_mgm = results
-                results_ppx = None
-                visualize_prem(program, sample_id, dataset, res, target, "km/s", results_mgm,
-                               results_ppx, geotherm_threshold=geotherm_threshold,
-                               title="PREM Comparison", fig_dir=fig_dir,
-                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
-
-            elif program == "perplex":
-                results_mgm = None
-                results_ppx = results
-                visualize_prem(program, sample_id, dataset, res, target, "km/s", results_mgm,
-                               results_ppx, geotherm_threshold=geotherm_threshold,
-                               title="PREM Comparison", fig_dir=fig_dir,
-                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
-
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize training dataset diff !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_training_dataset_diff(magemin_model, perplex_model, palette="bone", verbose=1):
-    """
-    """
-    # Check for model
-    if mage_model is None or perplex_model is None:
-        if verbose >= 2:
-            print("No models to visualize!")
-
-        return None
-
-    # Get model data
-    if magemin_model.sample_id == perplex_model.sample_id:
-        sample_id = magemin_model.sample_id
-    else:
-        raise ValueError("Model samples are not the same!")
-    if magemin_model.res == perplex_model.res:
-        res = magemin_model.res
-    else:
-        raise ValueError("Model resolutions are not the same!")
-    if magemin_model.dataset == perplex_model.dataset:
-        dataset = magemin_model.dataset
-    else:
-        raise ValueError("Model datasets are not the same!")
-    if magemin_model.targets == perplex_model.targets:
-        targets = magemin_model.targets
-    else:
-        raise ValueError("Model datasets are not the same!")
-    if magemin_model.mask_geotherm == perplex_model.mask_geotherm:
-        mask_geotherm = magemin_model.mask_geotherm
-    else:
-        raise ValueError("Model geotherm masks are not the same!")
-    if magemin_model.fig_dir == perplex_model.fig_dir:
-        fig_dir = magemin_model.fig_dir
-    else:
-        raise ValueError("Model fig dir are not the same!")
-    if magemin_model.verbose == perplex_model.verbose:
-        verbose = magemin_model.verbose
-    else:
-        raise ValueError("Model verbosity settings are not the same!")
-
-    results_mgm, results_ppx = magemin_model.results, perplex_model.results
-    P_mgm, T_mgm = results_mgm["P"], results_mgm["T"]
-    P_ppx, T_ppx = results_ppx["P"], results_ppx["T"]
-    target_array_mgm = magemin_model.target_array
-    target_array_ppx = perplex_model.target_array
-
-    for i, target in enumerate(targets):
-        # Reshape targets into square array
-        square_array_mgm = target_array_mgm[:, i].reshape(res + 1, res + 1)
-        square_array_ppx = target_array_ppx[:, i].reshape(res + 1, res + 1)
-
-        # Use discrete colorscale
-        if target in ["assemblage", "assemblage_variance"]:
-            color_discrete = True
-
-        else:
-            color_discrete = False
-
-        # Reverse color scale
-        if palette in ["grey"]:
-            if target in ["assemblage_variance"]:
-                color_reverse = True
-
-            else:
-                color_reverse = False
-
-        else:
-            if target in ["assemblage_variance"]:
-                color_reverse = False
-
-            else:
-                color_reverse = True
-
-        # Set colorbar limits for better comparisons
-        if not color_discrete:
-            vmin_mgm=np.min(square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
-            vmax_mgm=np.max(square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
-            vmin_ppx=np.min(square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
-            vmax_ppx=np.max(square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
-
-            vmin = min(vmin_mgm, vmin_ppx)
-            vmax = max(vmax_mgm, vmax_ppx)
-
-        else:
-            num_colors_mgm = len(np.unique(square_array_mgm))
-            num_colors_ppx = len(np.unique(square_array_ppx))
-
-            vmin = 1
-            vmax = max(num_colors_mgm, num_colors_ppx) + 1
-
-        if not color_discrete:
-            # Define a filter to ignore the specific warning
-            warnings.filterwarnings("ignore", message="invalid value encountered in divide")
-
-            # Create nan mask
-            mask = ~np.isnan(square_array_mgm) & ~np.isnan(square_array_ppx)
-
-            # Compute normalized diff
-            diff = square_array_mgm - square_array_ppx
-
-            # Add nans to match original target arrays
-            diff[~mask] = np.nan
+                vmin = int(np.nanmin(np.unique(square_target)))
+                vmax = int(np.nanmax(np.unique(square_target)))
 
             # Rename target
-            target_rename = target.replace('_', '-')
+            target_rename = target.replace("_", "-")
 
             # Print filepath
             if verbose >= 2:
-                print(f"Saving figure: diff-{sample_id}-{dataset}-{target_rename}.png")
+                print(f"Saving figure: {program}-{sample_id}-{dataset}-{target_rename}.png")
 
-            # Plot target array normalized diff mgm-ppx
-            visualize_target_array(P_ppx, T_ppx, diff, target, "Residuals", "seismic",
-                                   color_discrete, False, vmin, vmax, fig_dir,
-                                   f"diff-{sample_id}-{dataset}-{target_rename}.png")
+            # Plot targets
+            visualize_target_array(P, T, square_target, target, program_title, palette,
+                                   color_discrete, color_reverse, vmin, vmax, fig_dir,
+                                   f"{program}-{sample_id}-{dataset}-{target_rename}.png")
+            if edges:
+                original_image = square_target.copy()
+
+                # Apply Sobel edge detection
+                edges_x = cv2.Sobel(original_image, cv2.CV_64F, 1, 0, ksize=3)
+                edges_y = cv2.Sobel(original_image, cv2.CV_64F, 0, 1, ksize=3)
+
+                # Calculate the magnitude of the gradient
+                magnitude = np.sqrt(edges_x**2 + edges_y**2) / np.nanmax(original_image)
+
+                if not color_discrete:
+                    vmin_mag = np.min(magnitude[np.logical_not(np.isnan(magnitude))])
+                    vmax_mag = np.max(magnitude[np.logical_not(np.isnan(magnitude))])
+
+                else:
+                    vmin_mag = int(np.nanmin(np.unique(magnitude)))
+                    vmax_mag = int(np.nanmax(np.unique(magnitude)))
+
+                visualize_target_array(P, T, magnitude, target, "Gradient", palette,
+                                       color_discrete, color_reverse, vmin_mag, vmax_mag,
+                                       fig_dir, f"grad-{program}-{sample_id}-{dataset}-"
+                                       f"{target_rename}.png")
 
             # Set geotherm threshold for extracting depth profiles
             if res <= 8:
@@ -1800,21 +1643,215 @@ def visualize_training_dataset_diff(magemin_model, perplex_model, palette="bone"
                 if verbose >= 2:
                     print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
 
-                visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
-                               results_mgm, results_ppx,
-                               geotherm_threshold=geotherm_threshold,
-                               title="PREM Comparison", fig_dir=fig_dir,
-                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                if program == "magemin":
+                    results_mgm = results
+                    results_ppx = None
+                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                                   results_mgm, results_ppx,
+                                   geotherm_threshold=geotherm_threshold,
+                                   title="PREM Comparison", fig_dir=fig_dir,
+                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+                elif program == "perplex":
+                    results_mgm = None
+                    results_ppx = results
+                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                                   results_mgm, results_ppx,
+                                   geotherm_threshold=geotherm_threshold,
+                                   title="PREM Comparison", fig_dir=fig_dir,
+                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
 
             if target in ["Vp", "Vs"]:
                 # Print filepath
                 if verbose >= 2:
                     print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
 
-                visualize_prem(program, sample_id, dataset, res, target, "km/s", results_mgm,
-                               results_ppx, geotherm_threshold=geotherm_threshold,
-                               title="PREM Comparison", fig_dir=fig_dir,
-                               filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                if program == "magemin":
+                    results_mgm = results
+                    results_ppx = None
+                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                                   results_mgm, results_ppx,
+                                   geotherm_threshold=geotherm_threshold,
+                                   title="PREM Comparison", fig_dir=fig_dir,
+                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+                elif program == "perplex":
+                    results_mgm = None
+                    results_ppx = results
+                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                                   results_mgm, results_ppx,
+                                   geotherm_threshold=geotherm_threshold,
+                                   title="PREM Comparison", fig_dir=fig_dir,
+                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# visualize gfem diff !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
+    """
+    """
+    # Parse models
+    magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
+                      None for m in gfem_models]
+    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+                      None for m in gfem_models]
+
+    # Iterate through models
+    for magemin_model, perplex_model in zip(magemin_models, perplex_models):
+        # Check for model
+        if magemin_model is None or perplex_model is None:
+            if verbose >= 2:
+                print("No models to visualize!")
+
+            break
+
+        # Get model data
+        if magemin_model.sample_id == perplex_model.sample_id:
+            sample_id = magemin_model.sample_id
+        else:
+            raise ValueError("Model samples are not the same!")
+        if magemin_model.res == perplex_model.res:
+            res = magemin_model.res
+        else:
+            raise ValueError("Model resolutions are not the same!")
+        if magemin_model.dataset == perplex_model.dataset:
+            dataset = magemin_model.dataset
+        else:
+            raise ValueError("Model datasets are not the same!")
+        if magemin_model.targets == perplex_model.targets:
+            targets = magemin_model.targets
+        else:
+            raise ValueError("Model datasets are not the same!")
+        if magemin_model.mask_geotherm == perplex_model.mask_geotherm:
+            mask_geotherm = magemin_model.mask_geotherm
+        else:
+            raise ValueError("Model geotherm masks are not the same!")
+        if magemin_model.fig_dir == perplex_model.fig_dir:
+            fig_dir = magemin_model.fig_dir
+        else:
+            raise ValueError("Model fig dir are not the same!")
+        if magemin_model.verbose == perplex_model.verbose:
+            verbose = magemin_model.verbose
+        else:
+            raise ValueError("Model verbosity settings are not the same!")
+
+        results_mgm, results_ppx = magemin_model.results, perplex_model.results
+        P_mgm, T_mgm = results_mgm["P"], results_mgm["T"]
+        P_ppx, T_ppx = results_ppx["P"], results_ppx["T"]
+        target_array_mgm = magemin_model.target_array
+        target_array_ppx = perplex_model.target_array
+
+        for i, target in enumerate(targets):
+            # Reshape targets into square array
+            square_array_mgm = target_array_mgm[:, i].reshape(res + 1, res + 1)
+            square_array_ppx = target_array_ppx[:, i].reshape(res + 1, res + 1)
+
+            # Use discrete colorscale
+            if target in ["assemblage", "variance"]:
+                color_discrete = True
+
+            else:
+                color_discrete = False
+
+            # Reverse color scale
+            if palette in ["grey"]:
+                if target in ["variance"]:
+                    color_reverse = True
+
+                else:
+                    color_reverse = False
+
+            else:
+                if target in ["variance"]:
+                    color_reverse = False
+
+                else:
+                    color_reverse = True
+
+            # Set colorbar limits for better comparisons
+            if not color_discrete:
+                vmin_mgm=np.min(square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
+                vmax_mgm=np.max(square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
+                vmin_ppx=np.min(square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
+                vmax_ppx=np.max(square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
+
+                vmin = min(vmin_mgm, vmin_ppx)
+                vmax = max(vmax_mgm, vmax_ppx)
+
+            else:
+                num_colors_mgm = len(np.unique(square_array_mgm))
+                num_colors_ppx = len(np.unique(square_array_ppx))
+
+                vmin = 1
+                vmax = max(num_colors_mgm, num_colors_ppx) + 1
+
+            if not color_discrete:
+                # Define a filter to ignore the specific warning
+                warnings.filterwarnings("ignore", message="invalid value encountered in divide")
+
+                # Create nan mask
+                mask = ~np.isnan(square_array_mgm) & ~np.isnan(square_array_ppx)
+
+                # Compute normalized diff
+                diff = square_array_mgm - square_array_ppx
+
+                # Add nans to match original target arrays
+                diff[~mask] = np.nan
+
+                # Rename target
+                target_rename = target.replace('_', '-')
+
+                # Print filepath
+                if verbose >= 2:
+                    print(f"Saving figure: diff-{sample_id}-{dataset}-{target_rename}.png")
+
+                # Plot target array normalized diff mgm-ppx
+                visualize_target_array(P_ppx, T_ppx, diff, target, "Residuals", "seismic",
+                                       color_discrete, False, vmin, vmax, fig_dir,
+                                       f"diff-{sample_id}-{dataset}-{target_rename}.png")
+
+                # Set geotherm threshold for extracting depth profiles
+                if res <= 8:
+                    geotherm_threshold = 4
+
+                elif res <= 16:
+                    geotherm_threshold = 2
+
+                elif res <= 32:
+                    geotherm_threshold = 1
+
+                elif res <= 64:
+                    geotherm_threshold = 0.5
+
+                elif res <= 128:
+                    geotherm_threshold = 0.25
+
+                else:
+                    geotherm_threshold = 0.125
+
+                # Plot PREM comparisons
+                if target == "rho":
+                    # Print filepath
+                    if verbose >= 2:
+                        print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+
+                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                                   results_mgm, results_ppx,
+                                   geotherm_threshold=geotherm_threshold,
+                                   title="PREM Comparison", fig_dir=fig_dir,
+                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+
+                if target in ["Vp", "Vs"]:
+                    # Print filepath
+                    if verbose >= 2:
+                        print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+
+                    visualize_prem(program, sample_id, dataset, res, target, "km/s", results_mgm,
+                                   results_ppx, geotherm_threshold=geotherm_threshold,
+                                   title="PREM Comparison", fig_dir=fig_dir,
+                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
 
     return None
 
@@ -1881,7 +1918,7 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
             elif target in ["Vp", "Vs"]:
                 units.append("km/s")
 
-            elif target == "melt_fraction":
+            elif target == "melt":
                 units.append("%")
 
             else:
@@ -2090,7 +2127,7 @@ def visualize_rocml_performance(target, res, fig_dir, filename, fontsize=22,
         unit = "(kg/m$^3$)"
     elif target in ["Vp", "Vs"]:
         unit = "(km/s)"
-    elif target == "melt_fraction":
+    elif target == "melt":
         unit = "(%)"
     else:
         unit = ""
@@ -2162,7 +2199,7 @@ def visualize_rocml_performance(target, res, fig_dir, filename, fontsize=22,
             plt.ylabel(f"RMSE {unit}")
             plt.ylim(0, vmax)
 
-            if target != "melt_fraction":
+            if target != "melt":
                 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
 
             else:
@@ -2191,7 +2228,7 @@ def visualize_rocml_performance(target, res, fig_dir, filename, fontsize=22,
             plt.ylabel(f"RMSE {unit}")
             plt.ylim(0, vmax)
 
-            if target != "melt_fraction":
+            if target != "melt":
                 plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
 
             else:
