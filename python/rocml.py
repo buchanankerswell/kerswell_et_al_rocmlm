@@ -39,18 +39,153 @@ from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.metrics import mean_squared_error, r2_score
 
 #######################################################
-## .1.               RocML Class                 !!! ##
+## .1.             Helper Functions              !!! ##
+#######################################################
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# get unique value !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_unique_value(input_list):
+    """
+    """
+    unique_value = input_list[0]
+
+    for item in input_list[1:]:
+        if item != unique_value:
+            raise ValueError("Not all values are the same!")
+
+    return unique_value
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# build rocml model !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def build_rocml_model(gfem_models, ml_model, oxides=["SIO2", "MGO"], tune=True, epochs=100,
+                      batchprop=0.2, kfolds=os.cpu_count()-2, parallel=True,
+                      nprocs=os.cpu_count()-2, seed=42, palette="bone", verbose=1):
+    """
+    """
+    # Check for models
+    if not gfem_models:
+        raise Exception("No GFEM models to compile!")
+
+    # Get model metadata
+    program = get_unique_value([m.program for m in gfem_models])
+    sample_ids = list(set([m.sample_id for m in gfem_models]))
+    res = get_unique_value([m.res for m in gfem_models])
+    targets = get_unique_value([m.targets for m in gfem_models])
+    mask_geotherm = get_unique_value([m.mask_geotherm for m in gfem_models])
+    M = int(len(gfem_models) / 2)
+    W = int((res+1)**2)
+    w = int(np.sqrt(W))
+    F = int(len(oxides) + 2)
+    T = int(len(targets))
+    shape_feature = (M, W, F)
+    shape_feature_square = (M, w, w, F)
+    shape_target = (M, W, T)
+    shape_target_square = (M, w, w, T)
+
+    # Get all PT arrays
+    pt_train = np.stack([m.feature_array for m in gfem_models if m.dataset == "train"])
+    pt_train_unmasked = np.stack([m.feature_array_unmasked for m in gfem_models if
+                                  m.dataset == "train"])
+    pt_valid = np.stack([m.feature_array for m in gfem_models if m.dataset == "valid"])
+    pt_valid_unmasked = np.stack([m.feature_array_unmasked for m in gfem_models if
+                                  m.dataset == "valid"])
+
+    # Select oxides
+    oxides_list = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
+                   "CR2O3", "H2O"]
+    oxide_indices = [i for i, oxide in enumerate(oxides_list) if oxide in oxides]
+
+    # Get sample compositions with selected oxides
+    comp_train, comp_valid = [], []
+
+    for m in gfem_models:
+        if m.dataset == "train":
+            selected_composition = [m.norm_sample_composition[i] for i in oxide_indices]
+            comp_train.append(selected_composition)
+
+        elif m.dataset == "valid":
+            selected_composition = [m.norm_sample_composition[i] for i in oxide_indices]
+            comp_valid.append(selected_composition)
+
+    comp_train = np.array(comp_train)
+    comp_valid = np.array(comp_valid)
+
+    # Tile compositions to match PT array shape
+    comp_train = np.tile(comp_train[:, np.newaxis, :], (1, pt_train.shape[1], 1))
+    comp_valid = np.tile(comp_valid[:, np.newaxis, :], (1, pt_valid.shape[1], 1))
+
+    # Combine features
+    combined_train = np.concatenate((comp_train, pt_train), axis=2)
+    combined_train_unmasked = np.concatenate((comp_train, pt_train_unmasked), axis=2)
+    combined_valid = np.concatenate((comp_valid, pt_valid), axis=2)
+    combined_valid_unmasked = np.concatenate((comp_valid, pt_valid_unmasked), axis=2)
+
+    # Flatten features
+    feature_train = combined_train.reshape(-1, combined_train.shape[-1])
+    feature_train_unmasked = combined_train_unmasked.reshape(-1, combined_train.shape[-1])
+    feature_valid = combined_valid.reshape(-1, combined_valid.shape[-1])
+    feature_valid_unmasked = combined_valid_unmasked.reshape(-1, combined_valid.shape[-1])
+
+    # Get target arrays
+    target_train = np.stack([m.target_array for m in gfem_models if m.dataset == "train"])
+    target_train_unmasked = np.stack([m.target_array_unmasked for m in gfem_models if
+                                      m.dataset == "train"])
+    target_valid = np.stack([m.target_array for m in gfem_models if m.dataset == "valid"])
+    target_valid_unmasked = np.stack([m.target_array_unmasked for m in gfem_models if
+                                      m.dataset == "valid"])
+
+    # Flatten targets
+    target_train = target_train.reshape(-1, combined_train.shape[-1])
+    target_train_unmasked = target_train_unmasked.reshape(-1, combined_train.shape[-1])
+    target_valid = target_valid.reshape(-1, combined_valid.shape[-1])
+    target_valid_unmasked = target_valid_unmasked.reshape(-1, combined_valid.shape[-1])
+
+    # Get geotherm mask
+    geotherm_mask_train = np.stack([m._create_geotherm_mask() for m in gfem_models if
+                                    m.dataset == "train"]).flatten()
+    geotherm_mask_valid = np.stack([m._create_geotherm_mask() for m in gfem_models if
+                                    m.dataset == "valid"]).flatten()
+
+    # Make rocml model
+    model = RocML(program, sample_ids, res, targets, mask_geotherm, feature_train,
+                  feature_train_unmasked, target_train, target_train_unmasked,
+                  feature_valid, feature_valid_unmasked, target_valid,
+                  target_valid_unmasked, shape_feature, shape_feature_square, shape_target,
+                  shape_target_square, geotherm_mask_train, geotherm_mask_valid, ml_model,
+                  tune, epochs, batchprop, kfolds, parallel, nprocs, seed, palette, verbose)
+
+    return model
+
+#######################################################
+## .2.               RocML Class                 !!! ##
 #######################################################
 class RocML:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, gfem_model_train, gfem_model_valid, ml_model, tune=True,
-                 epochs=100, batchprop=0.2, kfolds=os.cpu_count()-2, parallel=True,
+    def __init__(self, program, sample_ids, res, targets, mask_geotherm, feature_train,
+                 feature_train_unmasked, target_train, target_train_unmasked, feature_valid,
+                 feature_valid_unmasked, target_valid, target_valid_unmasked, shape_feature,
+                 shape_feature_square, shape_target, shape_target_square,
+                 geotherm_mask_train, geotherm_mask_valid,  ml_model, tune=True, epochs=100,
+                 batchprop=0.2, kfolds=os.cpu_count()-2, parallel=True,
                  nprocs=os.cpu_count()-2, seed=42, palette="bone", verbose=1):
         """
         """
         # Input
+        self.program = program
+        self.sample_ids = sample_ids
+        self.res = res
+        self.targets = targets
+        self.mask_geotherm = mask_geotherm
+        self.shape_feature = shape_feature
+        self.shape_feature_square = shape_feature_square
+        self.shape_target = shape_target
+        self.shape_target_square = shape_target_square
+        self.geotherm_mask_train = geotherm_mask_train
+        self.geotherm_mask_valid = geotherm_mask_valid
         if ml_model == "KN":
             ml_model_label = "K Nearest"
         elif ml_model == "RF":
@@ -81,46 +216,22 @@ class RocML:
         self.palette = palette
         self.verbose = verbose
 
-        # Check for training dataset
-        if not gfem_model_train.model_built:
-            raise Exception("No training dataset! Call model_build() first ...")
-
-        # Check for validation dataset
-        if not gfem_model_valid.model_built:
-            raise Exception("No validation dataset! Call model_build() first ...")
-
-        # Training and validation models
-        self.gfem_model_train = gfem_model_train
-        self.gfem_model_valid = gfem_model_valid
-
-        # Check GFEM model metadata
-        if gfem_model_train.program == gfem_model_valid.program:
-            self.program = gfem_model_train.program
-        else:
-            raise ValueError("GFEM model programs are not the same!")
-        if gfem_model_train.sample_id == gfem_model_valid.sample_id:
-            self.sample_id = gfem_model_train.sample_id
-        else:
-            raise ValueError("GFEM model samples are not the same!")
-        if gfem_model_train.res == gfem_model_valid.res:
-            self.res = gfem_model_train.res
-        else:
-            raise ValueError("GFEM model resolutions are not the same!")
-        if gfem_model_train.targets == gfem_model_valid.targets:
-            self.targets = gfem_model_train.targets
-        else:
-            raise ValueError("GFEM model datasets are not the same!")
-        if gfem_model_train.mask_geotherm == gfem_model_valid.mask_geotherm:
-            self.mask_geotherm = gfem_model_train.mask_geotherm
-        else:
-            raise ValueError("GFEM model geotherm masks are not the same!")
-
-        self.model_prefix = f"{self.program[:4]}-{self.sample_id}-{self.ml_model_label}"
-        self.fig_dir = f"figs/{self.sample_id}_{self.res}"
+        self.model_prefix = f"{self.program[:4]}-{self.ml_model_label}"
+        self.fig_dir = f"figs/rocml/{self.program[:4]}_{self.ml_model_label}"
 
         # Check for figs directory
         if not os.path.exists(self.fig_dir):
             os.makedirs(self.fig_dir, exist_ok=True)
+
+        # Feature and target arrays
+        self.feature_train = feature_train
+        self.feature_train_unmasked = feature_train_unmasked
+        self.target_train = target_train
+        self.target_train_unmasked = target_train_unmasked
+        self.feature_valid = feature_valid
+        self.feature_valid_unmasked = feature_valid_unmasked
+        self.target_valid = target_valid
+        self.target_valid_unmasked = target_valid_unmasked
 
         # ML model definition and tuning
         self.ml_model = None
@@ -176,8 +287,8 @@ class RocML:
         """
         # Get self attributes
         model_label = self.ml_model_label
-        feature_train = self.gfem_model_train.feature_array
-        target_train = self.gfem_model_train.target_array
+        feature_train = self.feature_train
+        target_train = self.target_train
         tune = self.tune
         seed = self.seed
         epochs = self.epochs
@@ -349,10 +460,10 @@ class RocML:
         # Get self attributes
         model = self.ml_model
         model_label = self.ml_model_label
-        feature_train = self.gfem_model_train.feature_array
-        target_train = self.gfem_model_train.target_array
-        feature_valid = self.gfem_model_valid.feature_array
-        target_valid = self.gfem_model_valid.target_array
+        feature_train = self.feature_train
+        target_train = self.target_train
+        feature_valid = self.feature_valid
+        target_valid = self.target_valid
         epochs = self.epochs
         batchprop = self.batchprop
         fig_dir = self.fig_dir
@@ -501,7 +612,6 @@ class RocML:
         """
         """
         # Get self attributes
-        sample_id = self.sample_id
         model_label = self.ml_model_label
         model_label_full = self.ml_model_label_full
         program = self.program
@@ -509,7 +619,7 @@ class RocML:
         kfolds = self.kfolds
         fig_dir = self.fig_dir
         verbose = self.verbose
-        W = self.gfem_model_train.feature_array.shape[0]
+        W = self.feature_train.shape[0]
 
         # Initialize empty lists for storing performance metrics
         loss_curves = []
@@ -583,7 +693,7 @@ class RocML:
             plt.legend()
 
             # Save the plot to a file if a filename is provided
-            plt.savefig(f"{fig_dir}/{program[:4]}-{sample_id}-{model_label}-loss-curve.png")
+            plt.savefig(f"{fig_dir}/{program[:4]}-{model_label}-loss-curve.png")
 
             # Close plot
             plt.close()
@@ -610,7 +720,6 @@ class RocML:
 
         # Config and performance info
         cv_info = {
-            "sample": sample_id,
             "model": model_label,
             "program": program,
             "size": W,
@@ -664,8 +773,8 @@ class RocML:
         """
         """
         # Get self attributes
-        feature_train = self.gfem_model_train.feature_array
-        target_train = self.gfem_model_train.target_array
+        feature_train = self.feature_train
+        target_train = self.target_train
         kfolds = self.kfolds
         nprocs = self.nprocs
         seed = self.seed
@@ -710,18 +819,21 @@ class RocML:
         return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # retrain ml model !!
+    # retrain !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def _retrain_ml_model(self):
+    def _retrain(self):
         """
         """
         # Get self attributes
         model = self.ml_model
         model_label = self.ml_model_label
         targets = self.targets
-        feature_array = self.gfem_model_train.feature_array_unmasked.copy()
-        target_array = self.gfem_model_train.target_array_unmasked.copy()
-        mask_geotherm = self.gfem_model_train.mask_geotherm
+        feature_array = self.feature_train_unmasked.copy()
+        target_array = self.target_train_unmasked.copy()
+        shape_feature_square = self.shape_feature_square
+        shape_target_square = self.shape_target_square
+        geotherm_mask = self.geotherm_mask_train
+        mask_geotherm = self.mask_geotherm
         epochs = self.epochs
         batchprop = self.batchprop
         seed = self.seed
@@ -744,11 +856,6 @@ class RocML:
             raise Exception("No training targets!")
 
         print(f"Retraining model {self.model_prefix} ...")
-
-        # Get array dimensions
-        n_features = feature_array.shape[-1]
-        n_targets = target_array.shape[-1]
-        w = int(np.sqrt(feature_array.shape[0]))
 
         # Scale unmasked arrays
         X, y, scaler_X, scaler_y, X_scaled, y_scaled = \
@@ -801,23 +908,20 @@ class RocML:
         # Inverse transform predictions
         pred_original = scaler_y.inverse_transform(pred_scaled)
 
-        # Reshape arrays into squares for visualization
-        feature_array = feature_array.reshape(w, w, n_features)
-        target_array = target_array.reshape(w, w, n_targets)
-        pred_array_original = pred_original.reshape(w, w, n_targets)
-
         # Mask geotherm
         if mask_geotherm:
             if verbose >= 2:
                 print("Masking geotherm!")
 
-            # Get geotherm mask
-            mask = self.gfem_model_train._create_geotherm_mask().reshape(w, w)
-
             # Apply mask to all target arrays
-            for array in [feature_array, target_array, pred_array_original]:
+            for array in [feature_array, target_array, pred_original]:
                 for j in range(array.shape[-1]):
-                    array[:, :, j][mask] = np.nan
+                    array[:, j][geotherm_mask] = np.nan
+
+        # Reshape arrays into squares for visualization
+        feature_array = feature_array.reshape(shape_feature_square)
+        target_array = target_array.reshape(shape_target_square)
+        pred_array_original = pred_original.reshape(shape_target_square)
 
         # Update arrays
         self.feature_square = feature_array
@@ -855,7 +959,7 @@ class RocML:
             df = pd.concat([df, new_data], ignore_index=True)
 
         # Sort df
-        df = df.sort_values(by=["sample", "model", "program", "size"])
+        df = df.sort_values(by=["model", "program", "size"])
 
         # Save the updated DataFrame back to the CSV file
         df.to_csv(filepath, index=False)
@@ -865,7 +969,7 @@ class RocML:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # train ml model !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def train_ml_model(self):
+    def train(self):
         """
         """
         try:
@@ -873,14 +977,13 @@ class RocML:
             self._configure_ml_model()
 
             if self.verbose >= 1:
-                feat_train = self.gfem_model_train.feature_array_unmasked
-                target_train = self.gfem_model_train.target_array_unmasked
+                feat_train = self.feature_train_unmasked
+                target_train = self.target_train_unmasked
 
                 # Print rocml model config
                 print("+++++++++++++++++++++++++++++++++++++++++++++")
                 print("RocML model defined as:")
                 print(f"    program: {self.program}")
-                print(f"    sample: {self.sample_id}")
                 print(f"    model: {self.ml_model_label_full}")
                 if "NN" in self.ml_model_label:
                     print(f"    epochs: {self.epochs}")
@@ -903,7 +1006,7 @@ class RocML:
             self._kfold_cv()
 
             # Retrain ml model on unmasked training dataset
-            self._retrain_ml_model()
+            self._retrain()
 
             # Save ML model performance info to csv
             self._append_to_csv()

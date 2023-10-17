@@ -45,6 +45,9 @@ def get_sampleids(filepath, batch, n_batches=4):
     # Read data
     df = pd.read_csv(filepath)
 
+    if "benchmark" in filepath:
+        return df["NAME"].values
+
     # Calculate the batch size
     total_samples = len(df)
     batch_size = int(total_samples // n_batches)
@@ -233,18 +236,19 @@ class GFEMModel:
                 os.path.exists(f"{self.model_out_dir}/assemblages.csv")):
                 try:
                     self.model_built = True
+                    self._get_sample_composition()
+                    self._normalize_sample_composition()
                     self.get_results()
-
-                    if self.targets:
-                        self.get_feature_array()
-                        self.get_target_array()
+                    self.get_feature_array()
+                    self.get_target_array()
 
                 except Exception as e:
                     print(f"!!! {e} !!!")
 
                     return None
 
-                print(f"Found results for model {self.model_prefix} [{self.program}]!")
+                if self.verbose >= 1:
+                    print(f"Found results for model {self.model_prefix} [{self.program}]!")
 
             else:
                 # Make new model if results not found
@@ -318,6 +322,8 @@ class GFEMModel:
 
         # No normalizing for all components
         if normox == "all":
+            self.norm_sample_composition = sample_composition
+
             return sample_composition
 
         # MAGEMin req components
@@ -978,12 +984,6 @@ class GFEMModel:
                 self._replace_in_file(f"{model_out_dir}/perplex-build-options",
                                     {"Anderson-Gruneisen     F":
                                      "Anderson-Gruneisen     T"})
-#                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
-#                                    {"bounds                 VHR":
-#                                     "bounds                 HS"})
-#                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
-#                                    {"melt_is_fulid          T":
-#                                     "melt_is_fulid          F"})
 
             elif program == "pssect":
                 config_files.append(f"{model_out_dir}/perplex-pssect-draw")
@@ -1441,50 +1441,56 @@ class GFEMModel:
         return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # impute array with nans !!
+    # process array !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def _impute_array_with_nans(self, array, n_neighbors=1):
+    def _process_array(self, array, n_neighbors=1, threshold=5):
         """
         """
         # Create a copy of the input array to avoid modifying the original array
         result_array = array.copy()
 
-        # Reshape into square
-        result_array = result_array.reshape(self.res + 1, self.res + 1)
-
         # Iterate through each element of the array
         for i in range(len(result_array)):
             for j in range(len(result_array[i])):
-                if np.isnan(result_array[i, j]):
-                    # Define the neighborhood indices
-                    neighbors = []
+                # Define the neighborhood indices
+                neighbors = []
 
-                    for x in range(i - n_neighbors, i + n_neighbors + 1):
-                        for y in range(j - n_neighbors, j + n_neighbors + 1):
-                            if (0 <= x < len(result_array) and 0 <= y < len(result_array[i])
-                                    and (x != i or y != j)):
-                                neighbors.append((x, y))
+                for x in range(i - n_neighbors, i + n_neighbors + 1):
+                    for y in range(j - n_neighbors, j + n_neighbors + 1):
+                        if (0 <= x < len(result_array) and
+                            0 <= y < len(result_array[i]) and
+                            (x != i or y != j)):
+                            neighbors.append((x, y))
 
-                    # Check if all of the surrounding values are also nan
-                    nan_count = sum(1 for x, y in neighbors if 0 <= x < len(result_array) and
-                                    0 <= y < len(result_array[i]) and
-                                    np.isnan(result_array[x, y]))
+                # Get neighborhood values
+                surrounding_values = [result_array[x, y] for x, y in neighbors if not
+                                      np.isnan(result_array[x, y])]
 
-                    if nan_count >= int((((((n_neighbors * 2) + 1)**2) - 1) / 3)):
-                        # If one-third of the square neighborhood is nan
-                        result_array[i, j] = 0
+                # Define anomalies
+                if surrounding_values:
+                    mean_neighbors = np.mean(surrounding_values)
+                    std_neighbors = np.std(surrounding_values)
+                    anom_threshold = threshold * std_neighbors
 
-                    else:
-                        # Impute the mean value of neighbors
-                        surrounding_values = [result_array[x, y] for x, y in neighbors
-                                              if not np.isnan(result_array[x, y])]
-
+                    # Impute anomalies
+                    if abs(result_array[i, j] - mean_neighbors) > anom_threshold:
                         if surrounding_values:
                             result_array[i, j] = np.mean(surrounding_values)
+                        else:
+                            result_array[i, j] = 0
+
+                    # Impute nans
+                    elif np.isnan(result_array[i, j]):
+                        nan_count = sum(1 for x, y in neighbors if
+                                        0 <= x < len(result_array) and
+                                        0 <= y < len(result_array[i]) and
+                                        np.isnan(result_array[x, y]))
+
+                        if nan_count >= int((((((n_neighbors * 2) + 1)**2) - 1) / 3)):
+                            result_array[i, j] = 0
 
                         else:
-                            # If there are no surrounding numerical values, set to 0
-                            result_array[i, j] = 0
+                            result_array[i, j] = np.mean(surrounding_values)
 
         return result_array.flatten()
 
@@ -1510,6 +1516,22 @@ class GFEMModel:
         if not results:
             raise Exception("No GFEM model results! Call get_results() first ...")
 
+        # Set n_neighbors for KNN imputer
+        if res <= 8:
+            n_neighbors = 1
+
+        elif res <= 16:
+            n_neighbors = 2
+
+        elif res <= 32:
+            n_neighbors = 3
+
+        elif res <= 64:
+            n_neighbors = 4
+
+        elif res <= 128:
+            n_neighbors = 5
+
         # Initialize empty list for target arrays
         target_array_list = []
 
@@ -1520,33 +1542,18 @@ class GFEMModel:
         for key, value in results_rearranged.items():
             if key in targets:
                 if key == "melt_fraction":
-                    target_array_list.append(self._impute_array_with_nans(value))
+                    # Process array
+                    target_array_list.append(
+                        self._process_array(value.reshape(res + 1, res + 1)).flatten()
+                    )
+
                 else:
-                    # Set n_neighbors for KNN imputer
-                    if res <= 8:
-                        n_neighbors = 1
-
-                    elif res <= 16:
-                        n_neighbors = 2
-
-                    elif res <= 32:
-                        n_neighbors = 3
-
-                    elif res <= 64:
-                        n_neighbors = 4
-
-                    elif res <= 128:
-                        n_neighbors = 5
-
-                    else:
-                        geotherm_threshold = 0.125
-
-                    # Initialize KNN imputer
+                    # Impute target array with KNN
                     imputer = KNNImputer(n_neighbors = n_neighbors, weights="distance")
+                    imputed_array = imputer.fit_transform(value.reshape(res + 1, res + 1))
 
-                    # Impute target array
-                    target_array_list.append(imputer.fit_transform(
-                        value.reshape(res + 1, res + 1)).flatten())
+                    # Process imputed array
+                    target_array_list.append(self._process_array(imputed_array).flatten())
 
         # Stack target arrays
         self.target_array_unmasked = np.stack(target_array_list, axis=-1)

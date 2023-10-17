@@ -14,22 +14,26 @@ valid_args = check_arguments(args, "build-gfem-models.py")
 locals().update(valid_args)
 
 # Build GFEM models
-models = build_gfem_models(programs=["perplex"], source=source, batch=batch, res=res, nprocs=nprocs, debug=debug)
+models = build_gfem_models(programs=programs, source=source, batch=batch, nbatches=nbatches,
+                           res=res, nprocs=nprocs, debug=debug, verbose=verbose)
 
 if visualize:
-    # Visualize GFEM models
-    for model in models:
-        visualize_training_dataset(model)
+    # Visualize GFEM models (training datasets only)
+    for model in [m if m.dataset == "train" else None for m in models]:
+        visualize_training_dataset(model, verbose)
 
-    # Parse GFEM models
-    mage_models = [model for model in models if model.program == "magemin"]
-    perp_models = [model for model in models if model.program == "perplex"]
+    # Parse GFEM models (training datasets only)
+    mage_models = [m if m.program == "magemin" and m.dataset == "train" else
+                   None for m in models]
+    perp_models = [m if m.program == "perplex" and m.dataset == "train" else
+                   None for m in models]
 
-    # Visualize GFEM model differences
+    # Visualize GFEM model differences (training datasets only)
     for magemin, perplex in zip(mage_models, perp_models):
-        visualize_training_dataset_diff(magemin, perplex)
+        if magemin is not None and perplex is not None:
+            visualize_training_dataset_diff(magemin, perplex, verbose)
 
-    # Compose plots
+    # Compose plots (training datasets only)
     compose_dataset_plots(mage_models, perp_models)
 
     # Visualize RocML training dataset design

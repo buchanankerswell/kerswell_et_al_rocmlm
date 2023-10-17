@@ -345,6 +345,7 @@ def parse_arguments():
     parser.add_argument("--Pmax", type=int, required=False)
     parser.add_argument("--Tmin", type=int, required=False)
     parser.add_argument("--Tmax", type=int, required=False)
+    parser.add_argument("--programs", type=parse_list_of_strings, required=False)
     parser.add_argument("--source", type=str, required=False)
     parser.add_argument("--sampleid", type=str, required=False)
     parser.add_argument("--batch", type=int, required=False)
@@ -389,6 +390,7 @@ def check_arguments(args, script):
     Pmax = args.Pmax
     Tmin = args.Tmin
     Tmax = args.Tmax
+    programs = args.programs
     source = args.source
     sampleid = args.sampleid
     batch = args.batch
@@ -446,6 +448,11 @@ def check_arguments(args, script):
         print(f"    T max: {Tmax} K")
 
         valid_args["Tmax"] = Tmax
+
+    if programs is not None:
+        print(f"    GFEM programs: {programs}")
+
+        valid_args["programs"] = programs
 
     if source is not None:
         print(f"    sample source: {source}")
