@@ -69,11 +69,12 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO
         raise Exception("No GFEM models to compile!")
 
     # Get model metadata
-    program = get_unique_value([m.program for m in gfem_models])
-    sample_ids = list(set([m.sample_id for m in gfem_models]))
-    res = get_unique_value([m.res for m in gfem_models])
-    targets = get_unique_value([m.targets for m in gfem_models])
-    mask_geotherm = get_unique_value([m.mask_geotherm for m in gfem_models])
+    program = get_unique_value([m.program for m in gfem_models if m.dataset == "train"])
+    sample_ids = [m.sample_id for m in gfem_models if m.dataset == "train"]
+    res = get_unique_value([m.res for m in gfem_models if m.dataset == "train"])
+    targets = get_unique_value([m.targets for m in gfem_models if m.dataset == "train"])
+    mask_geotherm = get_unique_value([m.mask_geotherm for m in gfem_models if
+                                      m.dataset == "train"])
     M = int(len(gfem_models) / 2)
     W = int((res+1)**2)
     w = int(np.sqrt(W))

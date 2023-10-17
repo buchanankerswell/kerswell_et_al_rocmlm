@@ -1022,8 +1022,8 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Plot PREM data on the primary y-axis
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
 
-#    if results_pum:
-#        ax1.plot(target_pum, P_pum, "-", linewidth=1.5, color=colormap(0), label="PUM")
+    if results_pum:
+        ax1.plot(target_pum, P_pum, "-", linewidth=1.5, color=colormap(0), label="PUM")
 #    if results_nmorb:
 #        ax1.plot(target_nmorb, P_nmorb, "-", linewidth=1.5, color=colormap(1), label="NMORB")
 #    if results_dmm:
@@ -1031,11 +1031,11 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 #    if results_re46:
 #        ax1.plot(target_re46, P_re46, "-", linewidth=1.5, color=colormap(3), label="RE46")
     if results_mgm:
-        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(0), label=sample_id)
+        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(1), label=sample_id)
     if results_ppx:
-        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(1), label=sample_id)
+        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(2), label=sample_id)
     if results_ml:
-        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(2), label=model)
+        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(3), label=model)
 
     if target == "rho":
         target_label = "Density"
@@ -1519,7 +1519,6 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
     """
     """
     for model in [m if m.dataset == "train" else None for m in gfem_models]:
-
         # Check for model
         if model is None:
             if verbose >= 2:
@@ -1789,7 +1788,8 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
 
             if not color_discrete:
                 # Define a filter to ignore the specific warning
-                warnings.filterwarnings("ignore", message="invalid value encountered in divide")
+                warnings.filterwarnings("ignore",
+                                        message="invalid value encountered in divide")
 
                 # Create nan mask
                 mask = ~np.isnan(square_array_mgm) & ~np.isnan(square_array_ppx)
@@ -1835,7 +1835,8 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                 if target == "rho":
                     # Print filepath
                     if verbose >= 2:
-                        print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+                        print(f"Saving figure: prem-{sample_id}-{dataset}"
+                              f"-{target_rename}.png")
 
                     visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
                                    results_mgm, results_ppx,
@@ -1846,10 +1847,12 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                 if target in ["Vp", "Vs"]:
                     # Print filepath
                     if verbose >= 2:
-                        print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+                        print(f"Saving figure: prem-{sample_id}-{dataset}"
+                              f"-{target_rename}.png")
 
-                    visualize_prem(program, sample_id, dataset, res, target, "km/s", results_mgm,
-                                   results_ppx, geotherm_threshold=geotherm_threshold,
+                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                                   results_mgm, results_ppx,
+                                   geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
                                    filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
 

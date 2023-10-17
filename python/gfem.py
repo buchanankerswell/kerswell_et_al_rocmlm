@@ -171,10 +171,9 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, program, dataset, sample_id, source, res,
-                 P_min=1, P_max=28, T_min=773, T_max=2273, normox="all",
-                 targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False,
-                 verbose=1, debug=False):
+    def __init__(self, program, dataset, sample_id, source, res, P_min=1, P_max=28,
+                 T_min=773, T_max=2273, normox="all", targets=["rho", "Vp", "Vs", "melt"],
+                 maskgeotherm=False, verbose=1, debug=False):
         """
         """
         # Input
