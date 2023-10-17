@@ -402,7 +402,7 @@ def compose_dataset_plots(gfem_models):
 
         for target in targets_rename:
             ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                      f"'figs/s?????_{res}/image2-s?????-{dataset}-{target}.png' "
+                      f"'figs/gfem/s?????_{res}/image2-s?????-{dataset}-{target}.png' "
                       f"-vf 'scale=3915:1432' -c:v h264 -pix_fmt yuv420p "
                       f"'figs/movies/image2-{target}.mp4'")
 
@@ -417,7 +417,7 @@ def compose_dataset_plots(gfem_models):
         if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
             for target in ["rho", "Vp", "Vs"]:
                 ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/s?????_{res}/image3-s?????-{dataset}-{target}.png' "
+                          f"'figs/gfem/s?????_{res}/image3-s?????-{dataset}-{target}.png' "
                           f"-vf 'scale=5832:1432' -c:v h264 -pix_fmt yuv420p "
                           f"'figs/movies/image3-{target}.mp4'")
 
@@ -430,7 +430,7 @@ def compose_dataset_plots(gfem_models):
                     print(f"Error running FFmpeg command: {e}")
 
             ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                      f"'figs/s?????_{res}/image9-s?????-{dataset}.png' "
+                      f"'figs/gfem/s?????_{res}/image9-s?????-{dataset}.png' "
                       f"-vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
                       f"'figs/movies/image9.mp4'")
 
@@ -1024,18 +1024,18 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     if results_pum:
         ax1.plot(target_pum, P_pum, "-", linewidth=1.5, color=colormap(0), label="PUM")
-#    if results_nmorb:
-#        ax1.plot(target_nmorb, P_nmorb, "-", linewidth=1.5, color=colormap(1), label="NMORB")
+    if results_nmorb:
+        ax1.plot(target_nmorb, P_nmorb, "-", linewidth=1.5, color=colormap(1), label="NMORB")
 #    if results_dmm:
 #        ax1.plot(target_dmm, P_dmm, "-", linewidth=1.5, color=colormap(2), label="DMM")
 #    if results_re46:
 #        ax1.plot(target_re46, P_re46, "-", linewidth=1.5, color=colormap(3), label="RE46")
     if results_mgm:
-        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(1), label=sample_id)
+        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(2), label=sample_id)
     if results_ppx:
-        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(2), label=sample_id)
+        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(3), label=sample_id)
     if results_ml:
-        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(3), label=model)
+        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(4), label=model)
 
     if target == "rho":
         target_label = "Density"
@@ -2530,7 +2530,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                 last_element = synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
 
                 sns.scatterplot(data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
-                                x="SIO2", y=y, linewidth=0, s=15, color="black",
+                                x="SIO2", y=y, linewidth=0, s=35, color="black",
                                 legend=False, ax=ax, zorder=3)
 
         sns.kdeplot(data=data, x="SIO2", y=y, hue="COMPOSITION", fill=False, ax=ax, levels=5,

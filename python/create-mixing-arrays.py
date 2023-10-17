@@ -10,7 +10,7 @@ valid_args = check_arguments(args, "create-mixing-array.py")
 locals().update(valid_args)
 
 # Create mixing array
-mixing_array = MixingArray(res)
+mixing_array = MixingArray()
 mixing_array.create_mixing_array()
 print("Mixing array created!")
 

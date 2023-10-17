@@ -60,7 +60,7 @@ benchmark_rocml: $(LOGFILE) $(PYTHON) get_assets
 	@echo "=============================================" $(LOG)
 
 earthchem_rocml: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(SYNTHETIC)' $(LOG)
 	@echo "=============================================" $(LOG)
 
 benchmark_gfem: $(LOGFILE) $(PYTHON) get_assets
@@ -72,7 +72,7 @@ earthchem_gfem: $(LOGFILE) $(PYTHON) get_assets
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --res $(RES) $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)
