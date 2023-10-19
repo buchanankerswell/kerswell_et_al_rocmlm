@@ -10,12 +10,14 @@ valid_args = check_arguments(args, "create-mixing-array.py")
 locals().update(valid_args)
 
 # Create mixing array
-mixing_array = MixingArray()
+mixing_array = MixingArray(verbose=verbose)
 mixing_array.create_mixing_array()
+
 print("Mixing array created!")
 
 # Visualize mixing array
 visualize_pca_loadings(mixing_array)
 visualize_kmeans_clusters(mixing_array)
 visualize_mixing_array(mixing_array)
+
 print("Mixing array visualized!")

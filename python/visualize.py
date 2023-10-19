@@ -2322,7 +2322,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-        for i, comp in enumerate(["ultramafic", "mafic"]):
+        for i, comp in enumerate(["ultramafic", "mafic", "metamorphic"]):
             indices = data.loc[data["COMPOSITION"] == comp].index
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
@@ -2558,7 +2558,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
         if k == (num_plots - 1):
             handles = ax.get_legend().legendHandles
-            labels = ["ultramafic", "mafic"]
+            labels = ["ultramafic", "mafic", "metamorphic"]
 
         for line in ax.get_legend().get_lines():
             line.set_linewidth(5)

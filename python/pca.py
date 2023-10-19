@@ -39,8 +39,9 @@ class MixingArray:
 
         # Earthchem data
         self.earthchem_filepaths = [file for file in os.listdir("assets/data") if
-                                    file.startswith("earthchem-igneous")]
-        self.metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION"]
+                                    file.startswith("earthchem-igneous") or
+                                    file.startswith("earthchem-metamorphic")]
+        self.metadata = ["SAMPLE ID", "LATITUDE", "LONGITUDE", "COMPOSITION", "ROCK NAME"]
         self.oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
                        "CR2O3"]
         self.earthchem_raw = pd.DataFrame()
@@ -93,8 +94,42 @@ class MixingArray:
 
             idx = file.split("-")[-1].split(".")[0]
 
-            dataframes[f"df_{idx}"] = pd.read_csv(f"assets/data/{file}", delimiter="\t")
-            dataframes[f"df_{idx}"] = dataframes[f"df_{idx}"][metadata + oxides]
+            if idx in ["mafic", "ultramafic"]:
+                dataframes[f"df_{idx}"] = pd.read_csv(f"assets/data/{file}", delimiter="\t")
+                dataframes[f"df_{idx}"] = dataframes[f"df_{idx}"][metadata + oxides]
+
+                # Coerce oxide columns to float64
+                for oxide in oxides:
+                    dataframes[f"df_{idx}"][oxide] = pd.to_numeric(
+                        dataframes[f"df_{idx}"][oxide], errors="coerce")
+
+            else:
+                dataframes[f"df_{idx}"] = pd.read_csv(f"assets/data/{file}", delimiter="\t")
+                dataframes[f"df_{idx}"] = dataframes[f"df_{idx}"][metadata + oxides]
+
+                # Coerce oxide columns to float64
+                for oxide in oxides:
+                    dataframes[f"df_{idx}"][oxide] = pd.to_numeric(
+                        dataframes[f"df_{idx}"][oxide], errors="coerce")
+
+                # Filter rock names
+                keywords = ["basalt", "gabbro", "eclogite", "pyroxenite", "basite",
+                            "rodingite"]
+
+                # Initialize boolean mask
+                combined_mask = None
+
+                for keyword in keywords:
+                    keyword_mask = dataframes[f"df_{idx}"]["ROCK NAME"].str.contains(
+                        keyword, case=False, na=False)
+
+                    if combined_mask is None:
+                        combined_mask = keyword_mask
+                    else:
+                        combined_mask = combined_mask | keyword_mask
+
+                dataframes[f"df_{idx}"] = dataframes[f"df_{idx}"][combined_mask]
+                dataframes[f"df_{idx}"]["COMPOSITION"] = "metamorphic"
 
         # Combine dataframes
         data = pd.concat(dataframes, ignore_index=True)
@@ -122,9 +157,8 @@ class MixingArray:
             print("Eartchem search portal critera:")
             print("    material: bulk")
             print("    normalization: oxides as reported")
-            print("    sample type:")
-            for name in df_name:
-                print(f"        igneos > {name}")
+            print(f"Rock types: {df_name}")
+            print(f"Metamorphic types: {keywords}")
             print(f"Oxides: {oxides}")
             print("Dataset filtering:")
             if "SIO2" in oxides:
@@ -141,6 +175,14 @@ class MixingArray:
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             print(data[oxides].describe().map("{:.4g}".format))
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            if verbose >= 2:
+                print(f"All Earthchem data:")
+                pd.set_option('display.max_columns', None)
+                pd.set_option('display.max_rows', None)
+                print(data.sort_values(by="SIO2")[oxides].map("{:.4g}".format))
+                pd.reset_option('display.max_columns')
+                pd.reset_option('display.max_rows')
+                print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         # Update self attribute
         self.earthchem_filtered = data.copy()

@@ -19,4 +19,5 @@ visualize_gfem_diff(gfem_models)
 compose_dataset_plots(gfem_models)
 visualize_gfem_design()
 visualize_gfem_efficiency()
+
 print("GFEM models visualized!")

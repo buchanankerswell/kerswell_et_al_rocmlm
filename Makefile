@@ -18,6 +18,7 @@ CONFIGDIR = assets/config
 # GFEM options
 BENCHMARK = $(DATADIR)/benchmark-samples.csv
 SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters23.csv
+VERB ?= 1
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
@@ -72,7 +73,7 @@ earthchem_gfem: $(LOGFILE) $(PYTHON) get_assets
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --verbose $(VERB) $(LOG)
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)
