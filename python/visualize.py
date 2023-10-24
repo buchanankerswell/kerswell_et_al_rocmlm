@@ -2259,7 +2259,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     """
     # Get mixing array attributes
     pca = mixing_array.pca_model
-    oxides = mixing_array.oxides
+    oxides = mixing_array.oxides_system
     n_pca_components = mixing_array.n_pca_components
     data = mixing_array.earthchem_pca
 
@@ -2322,7 +2322,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-        for i, comp in enumerate(["ultramafic", "mafic", "metamorphic"]):
+        for i, comp in enumerate(["ultramafic"]):
             indices = data.loc[data["COMPOSITION"] == comp].index
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
@@ -2454,7 +2454,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     """
     """
     # Get mixing array attributes
-    oxides = mixing_array.oxides
+    oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "FE2O3"]]
     n_pca_components = mixing_array.n_pca_components
     k_pca_clusters = mixing_array.k_pca_clusters
     data = mixing_array.earthchem_cluster
@@ -2494,7 +2494,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
             synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"] = pd.read_csv(fname)
 
     # Create a grid of subplots
-    num_plots = len(oxides) - 1
+    num_plots = len(oxides)
 
     if num_plots == 1:
         num_cols = 1
@@ -2521,7 +2521,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
     axes = axes.flatten()
 
-    for k, y in enumerate([oxide for oxide in oxides if oxide != "SIO2"]):
+    for k, y in enumerate(oxides):
         ax = axes[k]
 
         for i in range(k_pca_clusters):
@@ -2558,7 +2558,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
         if k == (num_plots - 1):
             handles = ax.get_legend().legendHandles
-            labels = ["ultramafic", "mafic", "metamorphic"]
+            labels = ["ultramafic"]
 
         for line in ax.get_legend().get_lines():
             line.set_linewidth(5)
