@@ -73,7 +73,7 @@ earthchem_gfem: $(LOGFILE) $(PYTHON) get_assets
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --verbose $(VERB) --res 128 $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --verbose $(VERB) --res 4 $(LOG)
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)

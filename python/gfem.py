@@ -193,8 +193,8 @@ class GFEMModel:
         self.debug = debug
 
         # System oxide components
-        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
-                              "FE2O3", "CR2O3"]
+        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2", "FE2O3",
+                              "CR2O3"]
 
         # Program and config paths
         if self.program == "magemin":

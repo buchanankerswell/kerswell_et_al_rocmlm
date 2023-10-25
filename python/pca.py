@@ -249,8 +249,8 @@ class MixingArray:
         self.earthchem_filename = "earthchem-igneous-plutonic-ultramafic.txt"
         self.metadata = ["SAMPLEID", "SOURCE", "REFERENCE", "LATITUDE", "LONGITUDE",
                          "COMPOSITION", "ROCKNAME"]
-        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
-                              "FE2O3", "CR2O3"]
+        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2", "FE2O3",
+                              "CR2O3"]
         self.oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEOT", "K2O", "NA2O", "TIO2", "FE2O3",
                        "CR2O3", "FE2O3T", "FEO", "NIO", "MNO", "P2O5"]
         self.loi = ["LOI"]
