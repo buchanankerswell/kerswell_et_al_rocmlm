@@ -104,7 +104,7 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"], batch="all",
                       nbatches=8, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273,
-                      oxides_exclude=["K2O", "H2O"], targets=["rho", "Vp", "Vs", "melt"],
+                      oxides_exclude=["H2O"], targets=["rho", "Vp", "Vs", "melt"],
                       maskgeotherm=False, parallel=True, nprocs=os.cpu_count(), verbose=1,
                       debug=True):
     """
@@ -173,7 +173,7 @@ class GFEMModel:
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, program, dataset, sample_id, source, res, P_min=1, P_max=28,
-                 T_min=773, T_max=2273, oxides_exclude=["K2O", "H2O"],
+                 T_min=773, T_max=2273, oxides_exclude=["H2O"],
                  targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, verbose=1,
                  debug=True):
         """
