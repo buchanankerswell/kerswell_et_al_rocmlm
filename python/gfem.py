@@ -10,6 +10,7 @@ import time
 import shutil
 import itertools
 import subprocess
+from datetime import datetime
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parallel computing !!
@@ -458,7 +459,8 @@ class GFEMModel:
             line_to_append = (f"{sample_id},{program},{dataset},"
                               f"{res**2},{last_value:.1f}")
 
-            csv_filepath = "assets/data/gfem-efficiency.csv"
+            date_formatted = datetime.now().strftime("%d-%m-%Y")
+            csv_filepath = f"assets/data/gfem-efficiency-{date_formatted}.csv"
 
             # Check if the CSV file already exists
             if not os.path.exists(csv_filepath):
