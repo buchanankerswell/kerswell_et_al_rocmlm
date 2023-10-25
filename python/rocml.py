@@ -222,7 +222,7 @@ class RocML:
         self.seed = seed
         self.palette = palette
         self.verbose = verbose
-        if any(sample in sample_ids for sample in ["PUM", "DMM", "NMORB", "RE46"]):
+        if any(sample in sample_ids for sample in ["PUM", "DMM"]):
             self.model_prefix = f"{self.program[:4]}-benchmark-{self.ml_model_label}"
             self.fig_dir = f"figs/rocml/{self.program[:4]}_benchmark_{self.ml_model_label}"
         else:

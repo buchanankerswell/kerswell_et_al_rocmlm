@@ -390,7 +390,7 @@ def compose_dataset_plots(gfem_models):
             os.remove(file)
 
     # Check for multiple movie frames
-    if sample_id not in ["PUM", "DMM", "NMORB", "RE46"]:
+    if sample_id not in ["PUM", "DMM"]:
         # Make movies
         print("Creating mp4 movies ...")
 
@@ -795,7 +795,7 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
     data = data[data["dataset"] == "train"]
 
     # Filter out non-benchmark samples
-    data = data[data["sample"].isin(["DMM", "NMORB", "PUM", "RE46"])]
+    data = data[data["sample"].isin(["DMM", "PUM"])]
 
     # Arrange data by resolution and sample
     data.sort_values(by=["size", "sample", "program"], inplace=True)
@@ -812,8 +812,7 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
 
     # Create a dictionary to map samples to colors using a colormap
     colormap = plt.cm.get_cmap("tab10")
-    sample_colors = {"DMM": colormap(0), "NMORB": colormap(1),
-                     "PUM": colormap(2), "RE46": colormap(3)}
+    sample_colors = {"DMM": colormap(0), "PUM": colormap(1)}
 
     # Group the data by sample
     grouped_data = data.groupby(["sample"])
@@ -906,16 +905,12 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     P_prem = depth_prem / 30
 
     # Initialize geotherms
-    P_mgm, P_ppx, P_ml = None, None, None
-    P_pum, P_nmorb, P_dmm, P_re46 = None, None, None, None
-    target_mgm, target_ppx, target_ml = None, None, None
-    target_pum, target_nmorb, target_dmm, target_re46 = None, None, None, None
+    P_mgm, P_ppx, P_ml, P_pum, P_dmm = None, None, None, None, None
+    target_mgm, target_ppx, target_ml, target_pum, target_dmm = None, None, None, None, None
 
     # Get benchmark models
     pum_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
-    nmorb_path = f"runs/{program[:4]}_NMORB_{dataset[0]}{res}/results.csv"
     dmm_path = f"runs/{program[:4]}_DMM_{dataset[0]}{res}/results.csv"
-    re46_path = f"runs/{program[:4]}_RE46_{dataset[0]}{res}/results.csv"
     source = "assets/data/benchmark-samples.csv"
     targets = ["rho", "Vp", "Vs"]
 
@@ -925,24 +920,12 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         results_pum = pum_model.results
     else:
         results_pum = None
-    if os.path.exists(nmorb_path) and sample_id != "NMORB":
-        nmorb_model = GFEMModel(program, dataset, "NMORB", source, res, 1, 28, 773, 2273,
-                                "all", targets, False, 0, False)
-        results_nmorb = nmorb_model.results
-    else:
-        results_nmorb = None
     if os.path.exists(dmm_path) and sample_id != "DMM":
-        dmm_model = GFEMModel(program, dataset, "DMM", source, res, 1, 28, 773, 2273,
-                                "all", targets, False, 0, False)
+        dmm_model = GFEMModel(program, dataset, "DMM", source, res, 1, 28, 773, 2273, "all",
+                              targets, False, 0, False)
         results_dmm = dmm_model.results
     else:
         results_dmm = None
-    if os.path.exists(re46_path) and sample_id != "RE46":
-        re46_model = GFEMModel(program, dataset, "RE46", source, res, 1, 28, 773, 2273,
-                                "all", targets, False, 0, False)
-        results_re46 = re46_model.results
-    else:
-        results_re46 = None
 
     # Extract target values along a geotherm
     if results_mgm:
@@ -953,18 +936,12 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold)
     if results_pum:
         P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold)
-    if results_nmorb:
-        P_nmorb, _, target_nmorb = get_geotherm(results_nmorb, target, geotherm_threshold)
     if results_dmm:
         P_dmm, _, target_dmm = get_geotherm(results_dmm, target, geotherm_threshold)
-    if results_re46:
-        P_re46, _, target_re46 = get_geotherm(results_re46, target, geotherm_threshold)
 
     # Get min and max P from geotherms
-    P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_nmorb, P_dmm, P_re46] if
-                P is not None)
-    P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_nmorb, P_dmm, P_re46] if
-                P is not None)
+    P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_dmm] if P is not None)
+    P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_dmm] if P is not None)
 
     # Create cropping mask for prem
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
@@ -985,23 +962,17 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if results_pum:
         mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
         P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
-    if results_nmorb:
-        mask_nmorb = (P_nmorb >= P_min) & (P_nmorb <= P_max)
-        P_nmorb, target_nmorb = P_nmorb[mask_nmorb], target_nmorb[mask_nmorb]
     if results_dmm:
         mask_dmm = (P_dmm >= P_min) & (P_dmm <= P_max)
         P_dmm, target_dmm = P_dmm[mask_dmm], target_dmm[mask_dmm]
-    if results_re46:
-        mask_re46 = (P_re46 >= P_min) & (P_re46 <= P_max)
-        P_re46, target_re46 = P_re46[mask_re46], target_re46[mask_re46]
 
     # Get min max
     target_min = min(min(np.nanmin(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum, target_nmorb,
-                          target_dmm, target_re46] if lst is not None), min(target_prem))
+                         [target_mgm, target_ppx, target_ml, target_pum, target_dmm] if
+                         lst is not None), min(target_prem))
     target_max = max(max(np.nanmax(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum, target_nmorb,
-                          target_dmm, target_re46] if lst is not None), max(target_prem))
+                         [target_mgm, target_ppx, target_ml, target_pum, target_dmm] if
+                         lst is not None), max(target_prem))
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1024,12 +995,8 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     if results_pum:
         ax1.plot(target_pum, P_pum, "-", linewidth=1.5, color=colormap(0), label="PUM")
-    if results_nmorb:
-        ax1.plot(target_nmorb, P_nmorb, "-", linewidth=1.5, color=colormap(1), label="NMORB")
-#    if results_dmm:
-#        ax1.plot(target_dmm, P_dmm, "-", linewidth=1.5, color=colormap(2), label="DMM")
-#    if results_re46:
-#        ax1.plot(target_re46, P_re46, "-", linewidth=1.5, color=colormap(3), label="RE46")
+    if results_dmm:
+        ax1.plot(target_dmm, P_dmm, "-", linewidth=1.5, color=colormap(2), label="DMM")
     if results_mgm:
         ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(2), label=sample_id)
     if results_ppx:
@@ -1044,7 +1011,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     ax1.set_xlabel(f"{target_label } ({target_unit})")
     ax1.set_ylabel("P (GPa)")
-    ax1.set_xlim(target_min - (target_min * 0.05), target_max + (target_max * 0.05))
     ax1.set_xticks(np.linspace(target_min, target_max, num=4))
 
     if target in ["Vp", "Vs", "rho"]:
