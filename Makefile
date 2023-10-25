@@ -16,7 +16,7 @@ PERPLEX = Perple_X
 DATADIR = assets/data
 CONFIGDIR = assets/config
 # GFEM options
-BENCHMARK = $(DATADIR)/benchmark-samples.csv
+BENCHMARK = $(DATADIR)/benchmark-samples-normalized.csv
 SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters23.csv
 VERB ?= 1
 # Python scripts
@@ -73,7 +73,7 @@ earthchem_gfem: $(LOGFILE) $(PYTHON) get_assets
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --verbose $(VERB) --res 3 $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --verbose $(VERB) --res 128 $(LOG)
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)

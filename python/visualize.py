@@ -2322,18 +2322,18 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-        for i, comp in enumerate(["ultramafic"]):
-            indices = data.loc[data["COMPOSITION"] == comp].index
+        for i, comp in enumerate(data["ROCKTYPE"].unique()):
+            indices = data.loc[data["ROCKTYPE"] == comp].index
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
                                  data.loc[indices, f"PC{n + 2}"], edgecolors="none",
                                  color=colormap(i), marker=".", label=comp)
 
         for oxide in oxides:
-            ax.arrow(0, 0, loadings.at[n, oxide] * 2, loadings.at[n + 1, oxide] * 2,
+            ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
                      width=0.02, head_width=0.14, color="black")
-            ax.text((loadings.at[n, oxide] * 2) + (loadings.at[n, oxide] * 1),
-                    (loadings.at[n + 1, oxide] * 2) + (loadings.at[n + 1, oxide] * 1),
+            ax.text((loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1),
+                    (loadings.at[n + 1, oxide] * 3) + (loadings.at[n + 1, oxide] * 1),
                     oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
                                      pad=0.1),
                     fontsize=fontsize * 0.579, color="black", ha = "center", va = "center")
@@ -2530,24 +2530,24 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                 last_element = synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
 
                 sns.scatterplot(data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
-                                x="SIO2", y=y, linewidth=0, s=35, color="black",
+                                x="SIO2", y=y, linewidth=0, s=25, color="black",
                                 legend=False, ax=ax, zorder=3)
 
-        sns.kdeplot(data=data, x="SIO2", y=y, hue="COMPOSITION", fill=False, ax=ax, levels=5,
-                    zorder=2)
-        sns.scatterplot(data=data, x="SIO2", y=y, hue="COMPOSITION", linewidth=0, s=5,
-                        legend=False, ax=ax, zorder=1)
+#        sns.kdeplot(data=data, x="SIO2", y=y, hue="ROCKTYPE", fill=False, ax=ax, levels=5,
+#                    zorder=2)
+        sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKTYPE", linewidth=0, s=5,
+                        alpha=0.3, ax=ax, zorder=1)
 
-        for name in ["PUM", "NMORB"]:
-            ax.annotate(name, xy=(df_bench.loc[df_bench["NAME"] == name, "SIO2"].iloc[0],
-                                  df_bench.loc[df_bench["NAME"] == name, y].iloc[0]),
+        for name in ["PUM"]:
+            ax.annotate(name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "SIO2"].iloc[0],
+                                  df_bench.loc[df_bench["SAMPLEID"] == name, y].iloc[0]),
                         xytext=(5, -10), textcoords="offset points",
                         bbox=dict(boxstyle="round,pad=0.1", color="white", alpha=0.8),
                         fontsize=fontsize * 0.579, zorder=6)
 
-        sns.scatterplot(data=df_bench[df_bench["NAME"].isin(["PUM", "NMORB"])], x="SIO2",
-                        y=y, color="black", linewidth=1.2, s=75, legend=False, ax=ax,
-                        zorder=7)
+        sns.scatterplot(data=df_bench[df_bench["SAMPLEID"].isin(["PUM"])],
+                        x="SIO2", y=y, color="black", linewidth=1.2, s=75, legend=False,
+                        ax=ax, zorder=7)
 
         ax.set_title(f"{y}")
         ax.set_ylabel("")
@@ -2558,10 +2558,12 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
         if k == (num_plots - 1):
             handles = ax.get_legend().legendHandles
-            labels = ["ultramafic"]
+            labels = data["ROCKTYPE"].unique()
 
         for line in ax.get_legend().get_lines():
-            line.set_linewidth(5)
+#            line.set_linewidth(5)
+            line.set_markersize(10)
+            line.set_alpha(1)
 
         ax.get_legend().remove()
 

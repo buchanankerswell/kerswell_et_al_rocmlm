@@ -7,13 +7,13 @@
 import os
 import math
 import warnings
+from scipy import stats
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # dataframes and arrays !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # machine learning !!
@@ -90,73 +90,45 @@ def convert_to_fe2o3t(df, digits=3):
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
     # If FE2O3 exists but not FE2O3T, FEO, or FEOT
-    condition = (
-        data["FE2O3"].notna() &
-        data["FE2O3T"].isna() &
-        data["FEO"].isna() &
-        data["FEOT"].isna()
-    )
+    condition = (data["FE2O3"].notna() & data["FE2O3T"].isna() & data["FEO"].isna() &
+                 data["FEOT"].isna())
     data.loc[condition, ["FE2O3T"]] = data.loc[condition]["FE2O3"]
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
     # If FEO exists but not FE2O3, FE2O3T, or FEOT
-    condition = (
-        data["FE2O3"].isna() &
-        data["FE2O3T"].isna() &
-        data["FEO"].notna() &
-        data["FEOT"].isna()
-    )
+    condition = (data["FE2O3"].isna() & data["FE2O3T"].isna() & data["FEO"].notna() &
+                 data["FEOT"].isna())
     data.loc[condition, ["FE2O3T"]] = round(data.loc[condition]["FEO"] / 0.89998, digits)
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
    # If FEOT exists but not FE2O3, FE2O3T, or FEO
-    condition = (
-        data["FE2O3"].isna() &
-        data["FE2O3T"].isna() &
-        data["FEO"].isna() &
-        data["FEOT"].notna()
-    )
+    condition = (data["FE2O3"].isna() & data["FE2O3T"].isna() & data["FEO"].isna() &
+                 data["FEOT"].notna())
     data.loc[condition, ["FE2O3T"]] = round(data.loc[condition]["FEOT"] / 0.89998, digits)
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
     # If FEO and FEOT exists but not FE2O3 or FE2O3T
-    condition = (
-        data["FE2O3"].isna() &
-        data["FE2O3T"].isna() &
-        data["FEO"].notna() &
-        data["FEOT"].notna()
-    )
+    condition = (data["FE2O3"].isna() & data["FE2O3T"].isna() & data["FEO"].notna() &
+                 data["FEOT"].notna())
     data.loc[condition, ["FE2O3T"]] = round(data.loc[condition]["FEOT"] / 0.89998, digits)
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
     # If FE2O3 and FEO exist but not FE2O3T or FEOT
-    condition = (
-        data["FE2O3"].notna() &
-        data["FE2O3T"].isna() &
-        data["FEO"].notna() &
-        data["FEOT"].isna()
-    )
+    condition = (data["FE2O3"].notna() & data["FE2O3T"].isna() & data["FEO"].notna() &
+                 data["FEOT"].isna())
     data.loc[condition, ["FE2O3T"]] = round(data.loc[condition]["FE2O3"] +
                                             data.loc[condition]["FEO"] / 0.89998, digits)
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
     # If FE2O3 and FEOT exist but not FE2O3T or FEO
-    condition = (
-        data["FE2O3"].notna() &
-        data["FE2O3T"].isna() &
-        data["FEO"].isna() &
-        data["FEOT"].notna()
-    )
+    condition = (data["FE2O3"].notna() & data["FE2O3T"].isna() & data["FEO"].isna() &
+                 data["FEOT"].notna())
     data.loc[condition, "FE2O3T"] = data.loc[condition, "FE2O3"]
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
     ## If FE2O3, FEO and FEOT exist but not FE2O3T
-    condition = (
-        data["FE2O3"].notna() &
-        data["FE2O3T"].isna() &
-        data["FEO"].notna() &
-        data["FEOT"].notna()
-    )
+    condition = (data["FE2O3"].notna() & data["FE2O3T"].isna() & data["FEO"].notna() &
+                 data["FEOT"].notna())
     data.loc[condition, ["FE2O3T"]] = round(data.loc[condition]["FEOT"] / 0.89998, digits)
     data.loc[condition, ["FE2O3", "FEO", "FEOT"]] = np.nan
 
@@ -176,73 +148,45 @@ def convert_to_feot(df, digits=3):
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
     # If FEO exists but not FEOT, FE2O3, or FE2O3T
-    condition = (
-        data["FEO"].notna() &
-        data["FEOT"].isna() &
-        data["FE2O3"].isna() &
-        data["FE2O3T"].isna()
-    )
+    condition = (data["FEO"].notna() & data["FEOT"].isna() & data["FE2O3"].isna() &
+                 data["FE2O3T"].isna())
     data.loc[condition, ["FEOT"]] = data.loc[condition]["FEO"]
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
     # If FE2O3 exists but not FEO, FEOT, or FE2O3T
-    condition = (
-        data["FEO"].isna() &
-        data["FEOT"].isna() &
-        data["FE2O3"].notna() &
-        data["FE2O3T"].isna()
-    )
+    condition = (data["FEO"].isna() & data["FEOT"].isna() & data["FE2O3"].notna() &
+                 data["FE2O3T"].isna())
     data.loc[condition, ["FEOT"]] = round(data.loc[condition]["FE2O3"] * 0.89998, digits)
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
    # If FE2O3T exists but not FEO, FEOT, or FE2O3
-    condition = (
-        data["FEO"].isna() &
-        data["FEOT"].isna() &
-        data["FE2O3"].isna() &
-        data["FE2O3T"].notna()
-    )
+    condition = (data["FEO"].isna() & data["FEOT"].isna() & data["FE2O3"].isna() &
+                 data["FE2O3T"].notna())
     data.loc[condition, ["FEOT"]] = round(data.loc[condition]["FE2O3T"] * 0.89998, digits)
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
     # If FE2O3 and FE2O3T exists but not FEO or FEOT
-    condition = (
-        data["FEO"].isna() &
-        data["FEOT"].isna() &
-        data["FE2O3"].notna() &
-        data["FE2O3T"].notna()
-    )
+    condition = (data["FEO"].isna() & data["FEOT"].isna() & data["FE2O3"].notna() &
+                 data["FE2O3T"].notna())
     data.loc[condition, ["FEOT"]] = round(data.loc[condition]["FE2O3T"] * 0.89998, digits)
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
     # If FEO and FE2O3 exist but not FEOT or FE2O3T
-    condition = (
-        data["FEO"].notna() &
-        data["FEOT"].isna() &
-        data["FE2O3"].notna() &
-        data["FE2O3T"].isna()
-    )
+    condition = (data["FEO"].notna() & data["FEOT"].isna() & data["FE2O3"].notna() &
+                 data["FE2O3T"].isna())
     data.loc[condition, ["FEOT"]] = round(data.loc[condition]["FEO"] +
                                           data.loc[condition]["FE2O3"] * 0.89998, digits)
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
     # If FEO and FE2O3T exist but not FEOT or FE2O3
-    condition = (
-        data["FEO"].notna() &
-        data["FEOT"].isna() &
-        data["FE2O3"].isna() &
-        data["FE2O3T"].notna()
-    )
+    condition = (data["FEO"].notna() & data["FEOT"].isna() & data["FE2O3"].isna() &
+                 data["FE2O3T"].notna())
     data.loc[condition, "FEOT"] = data.loc[condition, "FEO"]
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
     ## If FEO, FE2O3 and FE2O3T exist but not FEOT
-    condition = (
-        data["FEO"].notna() &
-        data["FEOT"].isna() &
-        data["FE2O3"].notna() &
-        data["FE2O3T"].notna()
-    )
+    condition = (data["FEO"].notna() & data["FEOT"].isna() & data["FE2O3"].notna() &
+                 data["FE2O3T"].notna())
     data.loc[condition, ["FEOT"]] = round(data.loc[condition]["FE2O3T"] * 0.89998, digits)
     data.loc[condition, ["FEO", "FE2O3", "FE2O3T"]] = np.nan
 
@@ -401,6 +345,32 @@ class MixingArray:
         condition = data[["SIO2", "MGO", "AL2O3", "CAO"]].notna().all(axis=1)
         data = data.loc[condition]
 
+        # Drop unknown rocks
+        data = data[~data["ROCKNAME"].isin(["unknown", "chromitite", "limburgite"])]
+
+        # Group rock names
+        peridotite = ["peridotite", "harzburgite", "lherzolite", "dunite", "wehrlite"]
+        pyroxenite = ["pyroxenite", "websterite", "hornblendite", "orthopyroxenite",
+                      "clinopyroxenite"]
+
+        # Add new rock type column
+        conditions = [data["ROCKNAME"].isin(peridotite), data["ROCKNAME"].isin(pyroxenite)]
+        values = ["peridotite", "pyroxenite"]
+        data["ROCKTYPE"] = np.select(conditions, values, default="other")
+
+        # Function to remove outliers based on IQR
+        def remove_outliers(group, threshold):
+            Q1, Q3 = group[oxides].quantile(0.25), group[oxides].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound, upper_bound = Q1 - threshold * IQR, Q3 + threshold * IQR
+            outlier_rows = ((group[oxides] < lower_bound) |
+                            (group[oxides] > upper_bound)).any(axis=1)
+            return group[~outlier_rows]
+
+        # Remove outliers for each rock type
+        data = data.groupby("ROCKTYPE").apply(remove_outliers, 1.5)
+        data.reset_index(drop=True, inplace=True)
+
         # Convert all Cr to CR2O3
         data = convert_to_cr2o3(data, digits)
 
@@ -433,7 +403,7 @@ class MixingArray:
         unique_methods = data[cols].apply(lambda x: ", ".join(x.dropna().unique()), axis=1)
         data["METHODS"] = unique_methods.str.upper()
 
-        # Drop methods
+        # Drop individual methods
         data = data.drop(cols, axis=1)
 
         # Arrange columns by dtype
@@ -449,7 +419,9 @@ class MixingArray:
 
         if verbose >= 1:
             # Print info
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             print(f"Combined and filtered samples summary:")
+            print("+++++++++++++++++++++++++++++++++++++++++++++")
             print(data.info())
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             print("Sample sources:")
@@ -457,20 +429,15 @@ class MixingArray:
             for source, count in data["SOURCE"].value_counts().items():
                 print(f"[{count}] {source}")
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            print("Rock types:")
+            print("Rock names:")
             print("+++++++++++++++++++++++++++++++++++++++++++++")
             for name, count in data["ROCKNAME"].value_counts().items():
                 print(f"[{count}] {name}")
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            print("Top 5 most used methods:")
+            print("Rock types:")
             print("+++++++++++++++++++++++++++++++++++++++++++++")
-            for method, count in data["METHODS"].value_counts().head(5).items():
-                print(f"[{count}] {method}")
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            print("Top 5 references:")
-            print("+++++++++++++++++++++++++++++++++++++++++++++")
-            for ref, count in data["REFERENCE"].value_counts().head(5).items():
-                print(f"[{count}] {ref}")
+            for type, count in data["ROCKTYPE"].value_counts().items():
+                print(f"[{count}] {type}")
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         return None
@@ -485,34 +452,27 @@ class MixingArray:
         oxides = self.oxides_system
         n_pca_components = self.n_pca_components
         data = self.earthchem_filtered.copy()
+        digits = self.digits
         verbose = self.verbose
 
         # Check for earthchem data
         if data.empty:
             raise Exception("No Earthchem data found! Call _read_earthchem_data() first ...")
 
-        # SIO2 required to be in oxides list
-        if "SIO2" not in oxides:
-            oxides = ["SIO2"] + oxides
-
         # Sort by composition
-        if "MGO" in oxides:
-            data.sort_values(by=["SIO2", "MGO"], ascending=[True, False], inplace=True,
-                             ignore_index=True)
-
-        else:
-            data.sort_values(by="SIO2", ascending=True, inplace=True, ignore_index=True)
+        data = data.sort_values(by=["SIO2", "MGO"], ascending=[True, False], ignore_index=True)
 
         # Initialize KNN imputer
         imputer = KNNImputer(weights="distance")
 
         print("Imputing missing oxides ...")
 
-        # Impute missing measurement values by K-nearest algorithm
-        imputer.fit(data[oxides])
-
-        # Add missing values back to data
-        data[oxides] = imputer.transform(data[oxides])
+        # Impute missing values for each oxide
+        for col in oxides:
+            column_to_impute = data[[col]]
+            imputer.fit(column_to_impute)
+            imputed_values = imputer.transform(column_to_impute).round(digits)
+            data[col] = imputed_values
 
         # Initialize scaler
         scaler = StandardScaler()
@@ -659,8 +619,8 @@ class MixingArray:
                     ).round(3)
 
                     # Add sample id column
-                    data_synthetic.insert(0, "NAME", [f"s{i + 1}{j + 1}{str(n).zfill(3)}" for
-                                                      n in range(len(data_synthetic))])
+                    data_synthetic.insert(0, "SAMPLEID", [f"s{i + 1}{j + 1}{str(n).zfill(3)}"
+                                                          for n in range(len(data_synthetic))])
 
 
                     # Write to csv

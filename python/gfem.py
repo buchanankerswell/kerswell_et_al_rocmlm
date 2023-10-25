@@ -192,6 +192,11 @@ class GFEMModel:
         self.verbose = verbose
         self.debug = debug
 
+        # System oxide components
+        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
+                              "FE2O3", "CR2O3"]
+
+        # Program and config paths
         if self.program == "magemin":
             # Magemin dirs and filepaths
             self.model_out_dir = (f"runs/{self.program[:4]}_{self.sample_id}_"
@@ -211,6 +216,7 @@ class GFEMModel:
         else:
             raise ValueError("Unrecognized GFEM program! Use 'magemin' or 'perplex' ...")
 
+        # Output file paths
         self.model_prefix = f"{self.sample_id}-{self.dataset[0]}{self.res}"
         self.fig_dir = f"figs/gfem/{self.sample_id}_{self.res}"
         self.log_file = f"log/log-{self.program}-{self.model_prefix}"
@@ -275,10 +281,7 @@ class GFEMModel:
         # Get self attributes
         source = self.source
         sample_id = self.sample_id
-
-        # All oxides needed for MAGEMin
-        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
-                  "CR2O3", "H2O"]
+        oxides = self.oxides_system
 
         # Read the data file
         df = pd.read_csv(source)
@@ -316,6 +319,7 @@ class GFEMModel:
         # Get self attributes
         sample_composition = self.sample_composition
         normox = self.normox
+        oxides = self.oxides_system
 
         # Check for sample composition
         if not sample_composition:
@@ -327,10 +331,6 @@ class GFEMModel:
 
             return sample_composition
 
-        # MAGEMin req components
-        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
-                  "CR2O3", "H2O"]
-
         # Check input
         if len(sample_composition) != 11:
             error_message = ("The input sample list must have exactly 11 components!\n"
@@ -339,8 +339,8 @@ class GFEMModel:
             raise ValueError(error_message)
 
         # Filter components
-        subset_sample = [comp if component in components else 0.01
-                         for comp, component in zip(sample, oxides)]
+        subset_sample = [comp if component in components else 0.01 for comp, component in
+                         zip(sample, oxides)]
 
         # Normalize
         total_subset_concentration = sum([comp for comp in subset_sample if comp != 0.01])
@@ -349,9 +349,8 @@ class GFEMModel:
 
         for comp, component in zip(sample, oxides):
             if component in components:
-                normalized_concentration = (
-                    (comp / total_subset_concentration) * 100 if comp != 0.01 else 0.01
-                )
+                normalized_concentration = ((comp / total_subset_concentration) * 100 if
+                                            comp != 0.01 else 0.01)
 
             else:
                 normalized_concentration = 0.01
