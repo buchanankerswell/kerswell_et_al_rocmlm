@@ -249,8 +249,8 @@ class MixingArray:
         self.earthchem_filename = "earthchem-igneous-plutonic-ultramafic.txt"
         self.metadata = ["SAMPLEID", "SOURCE", "REFERENCE", "LATITUDE", "LONGITUDE",
                          "COMPOSITION", "ROCKNAME"]
-        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2", "FE2O3",
-                              "CR2O3"]
+        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
+                              "FE2O3", "CR2O3", "H2O"]
         self.oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEOT", "K2O", "NA2O", "TIO2", "FE2O3",
                        "CR2O3", "FE2O3T", "FEO", "NIO", "MNO", "P2O5"]
         self.loi = ["LOI"]
@@ -388,6 +388,9 @@ class MixingArray:
 
         # Set FE2O3 to zero
         data["FE2O3"] = float(0)
+
+        # Set H2O to zero
+        data["H2O"] = float(0)
 
         # Drop totals
         data = data.drop(["total_ox", "total_loi"], axis=1)

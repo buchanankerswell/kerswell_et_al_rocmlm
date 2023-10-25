@@ -2327,7 +2327,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
                                  data.loc[indices, f"PC{n + 2}"], edgecolors="none",
-                                 color=colormap(i), marker=".", label=comp)
+                                 color=colormap(i), marker=".", label=comp, alpha=0.3)
 
         for oxide in oxides:
             ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
@@ -2454,7 +2454,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     """
     """
     # Get mixing array attributes
-    oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "FE2O3"]]
+    oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "FE2O3", "H2O"]]
     n_pca_components = mixing_array.n_pca_components
     k_pca_clusters = mixing_array.k_pca_clusters
     data = mixing_array.earthchem_cluster

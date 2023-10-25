@@ -46,10 +46,10 @@ def get_sampleids(filepath, batch, n_batches=4):
     df = pd.read_csv(filepath)
 
     if "benchmark" in filepath:
-        return df["NAME"].values
+        return df["SAMPLEID"].values
 
     if batch == "all":
-        return df["NAME"].values
+        return df["SAMPLEID"].values
 
     # Calculate the batch size
     total_samples = len(df)
@@ -65,7 +65,7 @@ def get_sampleids(filepath, batch, n_batches=4):
     start = batch * batch_size
     end = min((batch + 1) * batch_size, total_samples)
 
-    return df[start:end]["NAME"].values
+    return df[start:end]["SAMPLEID"].values
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # gfem_iteration !!
@@ -74,12 +74,12 @@ def gfem_iteration(args):
     """
     """
     # Unpack arguments
-    program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, normox, targets, \
-        maskgeotherm, verbose, debug = args
+    program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, oxides_exclude, \
+        targets, maskgeotherm, verbose, debug = args
 
     # Initiate GFEM model
     iteration = GFEMModel(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
-                          normox, targets, maskgeotherm, verbose, debug)
+                          oxides_exclude, targets, maskgeotherm, verbose, debug)
 
     if iteration.model_built:
         return iteration
@@ -104,8 +104,9 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"], batch="all",
                       nbatches=8, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273,
-                      normox="all", targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False,
-                      parallel=True, nprocs=os.cpu_count(), verbose=1, debug=False):
+                      oxides_exclude=["K2O", "H2O"], targets=["rho", "Vp", "Vs", "melt"],
+                      maskgeotherm=False, parallel=True, nprocs=os.cpu_count(), verbose=1,
+                      debug=True):
     """
     """
     # Get samples
@@ -133,9 +134,9 @@ def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"],
         nprocs = len(combinations)
 
     # Create list of args for mp pooling
-    run_args = [(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, normox,
-                 targets, maskgeotherm, verbose, debug)
-                for program, dataset, sampleid in combinations]
+    run_args = [(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
+                 oxides_exclude, targets, maskgeotherm, verbose, debug) for
+                program, dataset, sampleid in combinations]
 
     # Create a multiprocessing pool
     with mp.Pool(processes=nprocs) as pool:
@@ -172,8 +173,9 @@ class GFEMModel:
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, program, dataset, sample_id, source, res, P_min=1, P_max=28,
-                 T_min=773, T_max=2273, normox="all", targets=["rho", "Vp", "Vs", "melt"],
-                 maskgeotherm=False, verbose=1, debug=False):
+                 T_min=773, T_max=2273, oxides_exclude=["K2O", "H2O"],
+                 targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, verbose=1,
+                 debug=True):
         """
         """
         # Input
@@ -185,16 +187,19 @@ class GFEMModel:
         self.res = res
         self.source = source
         self.sample_id = sample_id
-        self.normox = normox
+        self.oxides_exclude = oxides_exclude
         self.dataset = dataset
         self.targets = targets
         self.mask_geotherm = maskgeotherm
         self.verbose = verbose
         self.debug = debug
 
+        # Decimals
+        self.digits = 3
+
         # System oxide components
-        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2", "FE2O3",
-                              "CR2O3"]
+        self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
+                              "FE2O3", "CR2O3", "H2O"]
 
         # Program and config paths
         if self.program == "magemin":
@@ -279,15 +284,17 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        program = self.program
         source = self.source
         sample_id = self.sample_id
         oxides = self.oxides_system
+        oxide_zero = 0.0001 if program == "magemin" else float(0)
 
         # Read the data file
         df = pd.read_csv(source)
 
         # Subset the DataFrame based on the sample name
-        subset_df = df[df["NAME"] == sample_id]
+        subset_df = df[df["SAMPLEID"] == sample_id]
 
         if subset_df.empty:
             raise ValueError("Sample name not found in the dataset!")
@@ -300,11 +307,7 @@ class GFEMModel:
                 composition.append(float(subset_df[oxide].iloc[0]))
 
             else:
-                if oxide != "H2O":
-                    composition.append(0.01)
-
-                else:
-                    composition.append(0.00)
+                composition.append(oxide_zero)
 
         self.sample_composition = composition
 
@@ -317,16 +320,20 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        program = self.program
         sample_composition = self.sample_composition
-        normox = self.normox
+        oxides_exclude = self.oxides_exclude
         oxides = self.oxides_system
+        oxide_zero = 0.0001 if program == "magemin" else float(0)
+        subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
+        digits = self.digits
 
         # Check for sample composition
         if not sample_composition:
             raise Exception("No sample found! Call _get_sample_composition() first ...")
 
         # No normalizing for all components
-        if normox == "all":
+        if not oxides_exclude:
             self.norm_sample_composition = sample_composition
 
             return sample_composition
@@ -339,23 +346,25 @@ class GFEMModel:
             raise ValueError(error_message)
 
         # Filter components
-        subset_sample = [comp if component in components else 0.01 for comp, component in
-                         zip(sample, oxides)]
+        subset_sample = [comp if oxide in subset_oxides else oxide_zero for comp, oxide in
+                         zip(sample_composition, oxides)]
 
-        # Normalize
-        total_subset_concentration = sum([comp for comp in subset_sample if comp != 0.01])
+        # Get total oxides
+        total_subset_concentration = sum([comp for comp in subset_sample if
+                                          comp != oxide_zero])
 
         normalized_concentrations = []
 
-        for comp, component in zip(sample, oxides):
-            if component in components:
+        # Normalize
+        for comp, oxide in zip(sample_composition, oxides):
+            if oxide not in oxides_exclude:
                 normalized_concentration = ((comp / total_subset_concentration) * 100 if
-                                            comp != 0.01 else 0.01)
+                                            comp != oxide_zero else oxide_zero)
 
             else:
-                normalized_concentration = 0.01
+                normalized_concentration = oxide_zero
 
-            normalized_concentrations.append(normalized_concentration)
+            normalized_concentrations.append(round(normalized_concentration, digits))
 
         self.norm_sample_composition = normalized_concentrations
 
