@@ -838,14 +838,14 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
 
         # Plot mgm data points and connect them with lines
         line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color=color_val,
-                             linestyle="-", label=f"[MAGEMin] {sample_id}")
+                             linestyle="-", label=f"{sample_id} [MAGEMin]")
 
         legend_handles.append(line_mgm)
         legend_labels.append(f"[MAGEMin] {sample_id}")
 
         # Plot ppx data points and connect them with lines
         line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color=color_val,
-                             linestyle="--", label=f"[Perple_X] {sample_id}")
+                             linestyle="--", label=f"{sample_id} [Perple_X]")
 
         legend_handles.append(line_ppx)
         legend_labels.append(f"[Perple_X] {sample_id}")
@@ -2256,7 +2256,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     for i in [0, 1]:
         ax = fig.add_subplot(2, 1, i+1)
 
-        ax.bar(oxides, loadings.iloc[i], color=colormap(i))
+        ax.bar(oxides, loadings.iloc[i], color="black")
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
 
         ax.set_xlabel("")
@@ -2288,7 +2288,12 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
+        legend_handles = []
         for i, comp in enumerate(data["ROCKTYPE"].unique()):
+            marker = mlines.Line2D([0], [0], marker='o', color='w', label=comp, markersize=4,
+                                  markerfacecolor=colormap(i), alpha=1)
+            legend_handles.append(marker)
+
             indices = data.loc[data["ROCKTYPE"] == comp].index
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
@@ -2296,16 +2301,17 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
                                  color=colormap(i), marker=".", label=comp, alpha=0.3)
 
         for oxide in oxides:
-            ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
+            ax.arrow(0, 0, loadings.at[n, oxide] * 4, loadings.at[n + 1, oxide] * 4,
                      width=0.02, head_width=0.14, color="black")
-            ax.text((loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1),
-                    (loadings.at[n + 1, oxide] * 3) + (loadings.at[n + 1, oxide] * 1),
+            ax.text((loadings.at[n, oxide] * 4) + (loadings.at[n, oxide] * 1),
+                    (loadings.at[n + 1, oxide] * 4) + (loadings.at[n + 1, oxide] * 1),
                     oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
                                      pad=0.1),
                     fontsize=fontsize * 0.579, color="black", ha = "center", va = "center")
 
-        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
-                  markerscale=3, handletextpad=-0.5, fontsize=fontsize * 0.694)
+        ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.2),
+                  ncol=4, columnspacing=0, markerscale=3, handletextpad=-0.5,
+                  fontsize=fontsize * 0.694)
         ax.set_xlabel(f"PC{n + 1}")
         ax.set_ylabel(f"PC{n + 2}")
         plt.title("Earthchem Samples")
@@ -2375,10 +2381,10 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
                                  data.loc[indices, f"PC{n + 2}"], edgecolors="none",
-                                 color=colormap(c + 4), marker=".", alpha=0.3)
+                                 color=colormap(c + 2), marker=".", alpha=0.3)
 
-            clusters = ax.scatter(centroids[c, n], centroids[c, n+1], edgecolor="black",
-                                  color=colormap(c + 4), label=f"cluster {c + 1}",
+            clusters = ax.scatter(centroids[c, n], centroids[c, n + 1], edgecolor="black",
+                                  color=colormap(c + 2), label=f"cluster {c + 1}",
                                   marker="s", s=100)
 
             # Calculate mixing lines between cluster centroids
@@ -2499,17 +2505,18 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                                 x="SIO2", y=y, linewidth=0, s=25, color="black",
                                 legend=False, ax=ax, zorder=3)
 
-#        sns.kdeplot(data=data, x="SIO2", y=y, hue="ROCKTYPE", fill=False, ax=ax, levels=5,
-#                    zorder=2)
         sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKTYPE", linewidth=0, s=5,
                         alpha=0.3, ax=ax, zorder=1)
 
-        for name in ["PUM"]:
-            ax.annotate(name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "SIO2"].iloc[0],
-                                  df_bench.loc[df_bench["SAMPLEID"] == name, y].iloc[0]),
-                        xytext=(5, -10), textcoords="offset points",
-                        bbox=dict(boxstyle="round,pad=0.1", color="white", alpha=0.8),
-                        fontsize=fontsize * 0.579, zorder=6)
+        if k == 0:
+            for name in ["PUM"]:
+                ax.annotate(
+                    name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "SIO2"].iloc[0],
+                              df_bench.loc[df_bench["SAMPLEID"] == name, y].iloc[0]),
+                    xytext=(-35, 5), textcoords="offset points",
+                    bbox=dict(boxstyle="round,pad=0.1", color="white", alpha=0.8),
+                    fontsize=fontsize * 0.579, zorder=6
+                )
 
         sns.scatterplot(data=df_bench[df_bench["SAMPLEID"].isin(["PUM"])],
                         x="SIO2", y=y, color="black", linewidth=1.2, s=75, legend=False,
@@ -2527,8 +2534,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
             labels = data["ROCKTYPE"].unique()
 
         for line in ax.get_legend().get_lines():
-#            line.set_linewidth(5)
-            line.set_markersize(10)
+            line.set_markersize(15)
             line.set_alpha(1)
 
         ax.get_legend().remove()
