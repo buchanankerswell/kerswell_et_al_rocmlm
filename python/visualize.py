@@ -2273,13 +2273,13 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     plt.close()
 
     # Legend order
-    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "wehrlite",
-                    "pyroxenite", "websterite", "hornblendite", "orthopyroxenite",
-                    "clinopyroxenite"]
+    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite"]
+#    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "pyroxenite",
+#                    "websterite", "hornblendite", "orthopyroxenite", "clinopyroxenite"]
 
     for n in range(n_pca_components - 1):
 
-        fig = plt.figure(figsize=(figwidth + (figwidth * 0.5), figheight))
+        fig = plt.figure(figsize=(figwidth, figheight))
         ax = fig.add_subplot(111)
 
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
@@ -2295,20 +2295,23 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
                                  data.loc[indices, f"PC{n + 2}"], edgecolors="none",
-                                 color=colormap(i), marker=".", s=55, label=comp, alpha=0.5)
+                                 color=colormap(i), marker=".", s=55, label=comp, alpha=0.1)
 
-        for oxide in oxides:
-            ax.arrow(0, 0, loadings.at[n, oxide] * 5, loadings.at[n + 1, oxide] * 5,
+        sns.kdeplot(data=data, x=f"PC{n + 1}", y=f"PC{n + 2}", hue="ROCKNAME",
+                    hue_order=legend_order, ax=ax, levels=5, zorder=1)
+
+        for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CAO"]:
+            ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
                      width=0.1, head_width=0.4, color="black")
-            ax.text((loadings.at[n, oxide] * 5) + (loadings.at[n, oxide] * 1.5),
-                    (loadings.at[n + 1, oxide] * 5) + (loadings.at[n + 1, oxide] * 1.5),
+            ax.text((loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1.5),
+                    (loadings.at[n + 1, oxide] * 3) + (loadings.at[n + 1, oxide] * 1.5),
                     oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
-                                     pad=0.1), fontsize=fontsize * 0.694, color="black",
+                                     pad=0.1), fontsize=fontsize * 0.579, color="black",
                     ha = "center", va = "center")
 
-        legend = ax.legend(handles=legend_handles, loc="center left",
-                           bbox_to_anchor=(1, 0.5), ncol=1, columnspacing=0, markerscale=3,
-                           fontsize=fontsize * 0.694)
+        legend = ax.legend(handles=legend_handles, loc="upper center",
+                           bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
+                           handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.694)
         # Legend order
         for i, label in enumerate(legend_order):
             legend.get_texts()[i].set_text(label)
@@ -2418,7 +2421,7 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
                         ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1.2)
 
         ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.2),
-                  ncol=4, columnspacing=0, handletextpad=-0.5, fontsize=fontsize * 0.694)
+                  ncol=3, columnspacing=0, handletextpad=-0.5, fontsize=fontsize * 0.694)
         ax.set_xlabel(f"PC{n + 1}")
         ax.set_ylabel(f"PC{n + 2}")
         plt.title("Earthchem Samples")
@@ -2448,7 +2451,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     n_pca_components = mixing_array.n_pca_components
     k_pca_clusters = mixing_array.k_pca_clusters
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
-    data = mixing_array.earthchem_cluster
+    data = mixing_array.earthchem_filtered
 
     # Read benchmark samples
     df_bench = pd.read_csv("assets/data/benchmark-samples.csv")
@@ -2516,9 +2519,9 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     axes = axes.flatten()
 
     # Legend order
-    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "wehrlite",
-                    "pyroxenite", "websterite", "hornblendite", "orthopyroxenite",
-                    "clinopyroxenite"]
+    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite"]
+#    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "pyroxenite",
+#                    "websterite", "hornblendite", "orthopyroxenite", "clinopyroxenite"]
 
     for k, y in enumerate(oxides):
         ax = axes[k]
@@ -2538,21 +2541,26 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                                     legend=False, ax=ax, zorder=3)
 
         sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
-                        linewidth=0, s=8, alpha=0.5, ax=ax, zorder=1)
+                        linewidth=0, s=8, alpha=0.1, ax=ax, zorder=1)
+        sns.kdeplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
+                    ax=ax, levels=5, zorder=1)
 
-        if k == 0:
-            for name in ["PUM"]:
+        edge_colors = ["white", "red"]
+        for l, name in enumerate(["PUM", "DMM"]):
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name],
+                            x="SIO2", y=y, color="black", edgecolor=edge_colors[l],
+                            linewidth=1.2, s=75, legend=False, ax=ax, zorder=7)
+
+        if k == 5:
+            for l, name in enumerate(["PUM", "DMM"]):
                 ax.annotate(
                     name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "SIO2"].iloc[0],
                               df_bench.loc[df_bench["SAMPLEID"] == name, y].iloc[0]),
                     xytext=(-35, 5), textcoords="offset points",
-                    bbox=dict(boxstyle="round,pad=0.1", color="white", alpha=0.8),
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                              edgecolor=edge_colors[l], alpha=0.8),
                     fontsize=fontsize * 0.579, zorder=6
                 )
-
-        sns.scatterplot(data=df_bench[df_bench["SAMPLEID"].isin(["PUM"])],
-                        x="SIO2", y=y, color="black", linewidth=1.2, s=75, legend=False,
-                        ax=ax, zorder=7)
 
         ax.set_title(f"{y}")
         ax.set_ylabel("")
@@ -2566,12 +2574,13 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
             labels = data["ROCKNAME"].unique()
 
         for line in ax.get_legend().get_lines():
-            line.set_markersize(15)
+            line.set_linewidth(4)
             line.set_alpha(1)
 
         ax.get_legend().remove()
 
-    legend = fig.legend(handles, labels, loc="center left", bbox_to_anchor=(1, 0.5), ncol=1)
+    legend = fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.82, 0.27),
+                        columnspacing=0, ncol=1)
 
     # Legend order
     for i, label in enumerate(legend_order):

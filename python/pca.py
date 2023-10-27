@@ -343,17 +343,21 @@ class MixingArray:
         digits = self.digits
         verbose = self.verbose
 
+        # Rock names meta groups
+        peridotite = ["peridotite", "harzburgite", "lherzolite", "dunite", "wehrlite"]
+        pyroxenite = ["pyroxenite", "websterite", "hornblendite", "orthopyroxenite",
+                      "clinopyroxenite"]
+
         # Keep only samples with required oxides
         condition = data[["SIO2", "MGO", "AL2O3", "CAO"]].notna().all(axis=1)
         data = data.loc[condition]
 
         # Drop unknown rocks
-        data = data[~data["ROCKNAME"].isin(["unknown", "chromitite", "limburgite"])]
+        data = data[~data["ROCKNAME"].isin(["unknown", "chromitite", "limburgite",
+                                            "wehrlite"])]
 
-        # Group rock names
-        peridotite = ["peridotite", "harzburgite", "lherzolite", "dunite", "wehrlite"]
-        pyroxenite = ["pyroxenite", "websterite", "hornblendite", "orthopyroxenite",
-                      "clinopyroxenite"]
+        # Drop pyroxenite samples
+        data = data[~data["ROCKNAME"].isin(pyroxenite)]
 
         # Add new rock type column
         conditions = [data["ROCKNAME"].isin(peridotite), data["ROCKNAME"].isin(pyroxenite)]
@@ -370,7 +374,7 @@ class MixingArray:
             return group[~outlier_rows]
 
         # Remove outliers for each rock type
-        data = data.groupby("ROCKTYPE").apply(remove_outliers, 1.5)
+        data = data.groupby("ROCKNAME").apply(remove_outliers, 1.5)
         data.reset_index(drop=True, inplace=True)
 
         # Convert all Cr to CR2O3
@@ -649,21 +653,27 @@ class MixingArray:
 
                 # Identify highest SIO2 sample in Q1
                 if quadrant == "Q1":
-                    endpoint_x2 = median_x + 0.5 * iqr_value_pc1
-                    endpoint_y2 = median_y + 0.2 * iqr_value_pc2
+                    endpoint_x2 = median_x + 1.8 * iqr_value_pc1
+                    endpoint_y2 = median_y + 0.8 * iqr_value_pc2
                     mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
 
-                # Identify lowest SIO2 sample in Q3
-                if quadrant == "Q3":
-                    endpoint_x2 = median_x - 0.2 * iqr_value_pc1
-                    endpoint_y2 = median_y - 2 * iqr_value_pc2
+                # Identify highest SIO2 sample in Q2
+                if quadrant == "Q2":
+                    endpoint_x2 = median_x - 1.2 * iqr_value_pc1
+                    endpoint_y2 = median_y + 1.8 * iqr_value_pc2
                     mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
 
-                # Identify highest SIO2 sample in Q4
-                if quadrant == "Q4":
-                    endpoint_x2 = median_x + 1 * iqr_value_pc1
-                    endpoint_y2 = median_y - 1 * iqr_value_pc2
-                    mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
+#                # Identify lowest SIO2 sample in Q3
+#                if quadrant == "Q3":
+#                    endpoint_x2 = median_x - 0.2 * iqr_value_pc1
+#                    endpoint_y2 = median_y - 2 * iqr_value_pc2
+#                    mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
+
+#                # Identify highest SIO2 sample in Q4
+#                if quadrant == "Q4":
+#                    endpoint_x2 = median_x + 1 * iqr_value_pc1
+#                    endpoint_y2 = median_y - 1 * iqr_value_pc2
+#                    mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
 
             endpoints_sorted = sorted(mixing_array_endpoints, key=lambda x: x[0])
             mixing_array_endpoints = np.array(endpoints_sorted)
