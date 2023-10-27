@@ -15,10 +15,6 @@ PERPLEX = Perple_X
 # Directories with data and scripts
 DATADIR = assets/data
 CONFIGDIR = assets/config
-# GFEM options
-BENCHMARK = $(DATADIR)/benchmark-samples-normalized.csv
-SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-endpoints12.csv
-VERB ?= 1
 # Python scripts
 PYTHON = \
 				 python/build-gfem-models.py \
@@ -57,23 +53,23 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 
 benchmark_rocml: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(BENCHMARK)' $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source 'benchmark' $(LOG)
 	@echo "=============================================" $(LOG)
 
 earthchem_rocml: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source '$(SYNTHETIC)' $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --source 'synthetic' $(LOG)
 	@echo "=============================================" $(LOG)
 
 benchmark_gfem: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(BENCHMARK)' $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source 'benchmark' $(LOG)
 	@echo "=============================================" $(LOG)
 
 earthchem_gfem: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source '$(SYNTHETIC)' $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --source 'synthetic' $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py --verbose $(VERB) $(LOG)
+	@$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)

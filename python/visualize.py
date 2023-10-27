@@ -168,9 +168,7 @@ def compose_dataset_plots(gfem_models):
         perplex = True if perplex_model is not None else False
 
         if not magemin and not perplex:
-            print("No models to visualize!")
-
-            break
+            continue
 
         if magemin and perplex:
             # Get model data
@@ -1487,10 +1485,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
     for model in [m if m.dataset == "train" else None for m in gfem_models]:
         # Check for model
         if model is None:
-            if verbose >= 2:
-                print("No model to visualize!")
-
-            return None
+            continue
 
         # Get model data
         program = model.program
@@ -1667,10 +1662,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
     for magemin_model, perplex_model in zip(magemin_models, perplex_models):
         # Check for model
         if magemin_model is None or perplex_model is None:
-            if verbose >= 2:
-                print("No models to visualize!")
-
-            break
+            continue
 
         # Get model data
         if magemin_model.sample_id == perplex_model.sample_id:
