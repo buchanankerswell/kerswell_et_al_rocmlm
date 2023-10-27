@@ -105,7 +105,7 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"], batch="all",
                       nbatches=8, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273,
-                      oxides_exclude=["H2O"], targets=["rho", "Vp", "Vs", "melt"],
+                      oxides_exclude=["H2O", "FE2O3"], targets=["rho", "Vp", "Vs", "melt"],
                       maskgeotherm=False, parallel=True, nprocs=os.cpu_count(), verbose=1,
                       debug=True):
     """
@@ -362,8 +362,6 @@ class GFEMModel:
             round(((comp / total_subset_concentration) * 100 if comp != oxide_zero else
                    oxide_zero), digits) for comp, oxide in zip(subset_sample, subset_oxides)
         ]
-        print(subset_oxides)
-        print(normalized_concentrations)
 
         self.norm_sample_composition = normalized_concentrations
 
@@ -961,6 +959,10 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        norm_sample_composition = self.norm_sample_composition
+        oxides = self.oxides_system
+        oxides_exclude = self.oxides_exclude
+        subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
         log_file = self.log_file
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
@@ -973,6 +975,8 @@ class GFEMModel:
             raise Exception("No Perple_X input! Call _configure_perplex_model() first ...")
 
         print(f"Building Perple_X model: {model_prefix} ...")
+        print(" ".join([f"  {oxide}" for oxide in subset_oxides]))
+        print(" ".join([f"  {comp:}" for comp in norm_sample_composition]))
 
         # Run programs with corresponding configuration files
         for program in ["build", "vertex", "werami", "pssect"]:
