@@ -837,14 +837,14 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
         ppx_y = ppx_data["time"]
 
         # Plot mgm data points and connect them with lines
-        line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color=color_val,
+        line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color="black",
                              linestyle="-", label=f"{sample_id} [MAGEMin]")
 
         legend_handles.append(line_mgm)
         legend_labels.append(f"[MAGEMin] {sample_id}")
 
         # Plot ppx data points and connect them with lines
-        line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color=color_val,
+        line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color="black",
                              linestyle="--", label=f"{sample_id} [Perple_X]")
 
         legend_handles.append(line_ppx)
@@ -2271,7 +2271,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 
     # Save the plot to a file if a filename is provided
     if filename:
-        plt.savefig(f"{fig_dir}/{filename}-pca-loadings.png")
+        plt.savefig(f"{fig_dir}/{filename}-loadings-bars.png")
 
     else:
         # Print plot
@@ -2280,45 +2280,54 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     # Close device
     plt.close()
 
+    # Legend order
+    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "wehrlite",
+                    "pyroxenite", "websterite", "hornblendite", "orthopyroxenite",
+                    "clinopyroxenite"]
+
     for n in range(n_pca_components - 1):
 
-        fig = plt.figure(figsize=(figwidth, figheight))
+        fig = plt.figure(figsize=(figwidth + (figwidth * 0.5), figheight))
         ax = fig.add_subplot(111)
 
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
         legend_handles = []
-        for i, comp in enumerate(data["ROCKTYPE"].unique()):
+        for i, comp in enumerate(legend_order):
             marker = mlines.Line2D([0], [0], marker='o', color='w', label=comp, markersize=4,
                                   markerfacecolor=colormap(i), alpha=1)
             legend_handles.append(marker)
 
-            indices = data.loc[data["ROCKTYPE"] == comp].index
+            indices = data.loc[data["ROCKNAME"] == comp].index
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
                                  data.loc[indices, f"PC{n + 2}"], edgecolors="none",
-                                 color=colormap(i), marker=".", label=comp, alpha=0.3)
+                                 color=colormap(i), marker=".", s=55, label=comp, alpha=0.5)
 
         for oxide in oxides:
-            ax.arrow(0, 0, loadings.at[n, oxide] * 4, loadings.at[n + 1, oxide] * 4,
-                     width=0.02, head_width=0.14, color="black")
-            ax.text((loadings.at[n, oxide] * 4) + (loadings.at[n, oxide] * 1),
-                    (loadings.at[n + 1, oxide] * 4) + (loadings.at[n + 1, oxide] * 1),
+            ax.arrow(0, 0, loadings.at[n, oxide] * 5, loadings.at[n + 1, oxide] * 5,
+                     width=0.1, head_width=0.4, color="black")
+            ax.text((loadings.at[n, oxide] * 5) + (loadings.at[n, oxide] * 1.5),
+                    (loadings.at[n + 1, oxide] * 5) + (loadings.at[n + 1, oxide] * 1.5),
                     oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
-                                     pad=0.1),
-                    fontsize=fontsize * 0.579, color="black", ha = "center", va = "center")
+                                     pad=0.1), fontsize=fontsize * 0.694, color="black",
+                    ha = "center", va = "center")
 
-        ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.2),
-                  ncol=4, columnspacing=0, markerscale=3, handletextpad=-0.5,
-                  fontsize=fontsize * 0.694)
+        legend = ax.legend(handles=legend_handles, loc="center left",
+                           bbox_to_anchor=(1, 0.5), ncol=1, columnspacing=0, markerscale=3,
+                           fontsize=fontsize * 0.694)
+        # Legend order
+        for i, label in enumerate(legend_order):
+            legend.get_texts()[i].set_text(label)
+
         ax.set_xlabel(f"PC{n + 1}")
         ax.set_ylabel(f"PC{n + 2}")
         plt.title("Earthchem Samples")
 
         # Save the plot to a file if a filename is provided
         if filename:
-            plt.savefig(f"{fig_dir}/{filename}-pca{n + 1}{n + 2}.png")
+            plt.savefig(f"{fig_dir}/{filename}-loadings-pca{n + 1}{n + 2}.png")
 
         else:
             # Print plot
@@ -2341,6 +2350,7 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
     pca = mixing_array.pca_model
     n_pca_components = mixing_array.n_pca_components
     k_pca_clusters = mixing_array.k_pca_clusters
+    mixing_array_endpoints = mixing_array.mixing_array_endpoints
     data = mixing_array.earthchem_cluster
     kmeans = mixing_array.kmeans_model
 
@@ -2362,9 +2372,8 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
     # Colormap
     colormap = plt.cm.get_cmap("tab10")
 
-    # Get centroids
-    centroids = kmeans.cluster_centers_
-    original_centroids = pca.inverse_transform(centroids)
+    # Convert mixing_array_endpoints
+    original_mixing_array_endpoints = pca.inverse_transform(mixing_array_endpoints)
 
     # Plot PCA results
     for n in range(n_pca_components - 1):
@@ -2375,39 +2384,56 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-        for c in range(k_pca_clusters):
+        legend_handles = []
+        for j in range(k_pca_clusters):
+            marker = mlines.Line2D([0], [0], marker='o', color='w',
+                                   label=f"cluster {j + 1}", markersize=10,
+                                   markerfacecolor=colormap(j + 2), alpha=1)
+            legend_handles.append(marker)
+
             # Get datapoints indices for each cluster
-            indices = data.loc[data["CLUSTER"] == c].index
+            indices = data.loc[data["CLUSTER"] == j].index
 
             scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
                                  data.loc[indices, f"PC{n + 2}"], edgecolors="none",
-                                 color=colormap(c + 2), marker=".", alpha=0.3)
+                                 color=colormap(j + 2), label=f"cluster {j + 1}",
+                                 marker=".", s=55, alpha=0.5)
 
-            clusters = ax.scatter(centroids[c, n], centroids[c, n + 1], edgecolor="black",
-                                  color=colormap(c + 2), label=f"cluster {c + 1}",
-                                  marker="s", s=100)
+        for c in range(len(mixing_array_endpoints)):
+            # Get datapoints indices for each cluster
+            indices = data.loc[data["CLUSTER"] == c].index
 
-            # Calculate mixing lines between cluster centroids
-            if k_pca_clusters > 1:
-                for i in range(c + 1, k_pca_clusters):
-                    m = ((centroids[i, n + 1] - centroids[c, n + 1]) /
-                         (centroids[i, n] - centroids[c, n]))
-                    b = centroids[c, n + 1] - m * centroids[c, n]
+            ax.text(mixing_array_endpoints[c, n], mixing_array_endpoints[c, n + 1], c,
+                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
+                    fontsize=fontsize * 0.694, color="black", ha = "center", va = "center")
 
-                    x_vals = np.linspace(centroids[c, n], centroids[i, n], res)
-                    y_vals = m * x_vals + b
+            # Calculate mixing lines between mixing array endpoints
+            if len(mixing_array_endpoints) > 1:
+                for i in range(c + 1, len(mixing_array_endpoints)):
+                    if (((c == 0) & (i == 1)) | ((c == 1) & (i == 2)) |
+                        ((c == 2) & (i == 3)) | ((c == 3) & (i == 4)) |
+                        ((c == 4) & (i == 5))):
+                        m = ((mixing_array_endpoints[i, n + 1] -
+                              mixing_array_endpoints[c, n + 1]) /
+                             (mixing_array_endpoints[i, n] - mixing_array_endpoints[c, n]))
+                        b = (mixing_array_endpoints[c, n + 1] - m *
+                             mixing_array_endpoints[c, n])
 
-                    ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1)
+                        x_vals = np.linspace(mixing_array_endpoints[c, n],
+                                             mixing_array_endpoints[i, n], res)
+                        y_vals = m * x_vals + b
 
-        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
-                  handletextpad=-0.5, fontsize=fontsize * 0.694)
+                        ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1.2)
+
+        ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.2),
+                  ncol=4, columnspacing=0, handletextpad=-0.5, fontsize=fontsize * 0.694)
         ax.set_xlabel(f"PC{n + 1}")
         ax.set_ylabel(f"PC{n + 2}")
         plt.title("Earthchem Samples")
 
         # Save the plot to a file if a filename is provided
         if filename:
-            plt.savefig(f"{fig_dir}/{filename}-clusters{n + 1}{n + 2}.png")
+            plt.savefig(f"{fig_dir}/{filename}-clusters-pca{n + 1}{n + 2}.png")
 
         else:
             # Print plot
@@ -2429,6 +2455,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "FE2O3", "H2O"]]
     n_pca_components = mixing_array.n_pca_components
     k_pca_clusters = mixing_array.k_pca_clusters
+    mixing_array_endpoints = mixing_array.mixing_array_endpoints
     data = mixing_array.earthchem_cluster
 
     # Read benchmark samples
@@ -2459,11 +2486,14 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     synthetic_datasets = {}
 
     # Compile all synthetic datasets into a dict
-    for i in range(k_pca_clusters):
-        for j in range(i + 1, k_pca_clusters):
-            fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                     f"clusters{i + 1}{j + 1}.csv")
-            synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"] = pd.read_csv(fname)
+    for i in range(len(mixing_array_endpoints)):
+        for j in range(i + 1, len(mixing_array_endpoints)):
+            if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
+                ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
+                ((i == 4) & (j == 5))):
+                fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
+                         f"endpoints{i + 1}{j + 1}.csv")
+                synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"] = pd.read_csv(fname)
 
     # Create a grid of subplots
     num_plots = len(oxides)
@@ -2493,20 +2523,30 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
     axes = axes.flatten()
 
+    # Legend order
+    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "wehrlite",
+                    "pyroxenite", "websterite", "hornblendite", "orthopyroxenite",
+                    "clinopyroxenite"]
+
     for k, y in enumerate(oxides):
         ax = axes[k]
 
-        for i in range(k_pca_clusters):
-            for j in range(i + 1, k_pca_clusters):
-                first_element = synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"].iloc[0]
-                last_element = synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
+        for i in range(len(mixing_array_endpoints)):
+            for j in range(i + 1, len(mixing_array_endpoints)):
+                if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
+                    ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
+                    ((i == 4) & (j == 5))):
+                    first_element = synthetic_datasets[
+                        f"data_synthetic{i + 1}{j + 1}"].iloc[0]
+                    last_element = synthetic_datasets[
+                        f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
 
-                sns.scatterplot(data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
-                                x="SIO2", y=y, linewidth=0, s=25, color="black",
-                                legend=False, ax=ax, zorder=3)
+                    sns.scatterplot(data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
+                                    x="SIO2", y=y, linewidth=0, s=25, color="black",
+                                    legend=False, ax=ax, zorder=3)
 
-        sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKTYPE", linewidth=0, s=5,
-                        alpha=0.3, ax=ax, zorder=1)
+        sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
+                        linewidth=0, s=8, alpha=0.5, ax=ax, zorder=1)
 
         if k == 0:
             for name in ["PUM"]:
@@ -2531,7 +2571,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
         if k == (num_plots - 1):
             handles = ax.get_legend().legendHandles
-            labels = data["ROCKTYPE"].unique()
+            labels = data["ROCKNAME"].unique()
 
         for line in ax.get_legend().get_lines():
             line.set_markersize(15)
@@ -2539,7 +2579,12 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
         ax.get_legend().remove()
 
-    fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.05), ncol=4)
+    legend = fig.legend(handles, labels, loc="center left", bbox_to_anchor=(1, 0.5), ncol=1)
+
+    # Legend order
+    for i, label in enumerate(legend_order):
+        legend.get_texts()[i].set_text(label)
+
     fig.suptitle("Harker Diagrams vs. SIO2 (wt.%)")
 
     if num_plots < len(axes):

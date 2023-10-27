@@ -174,7 +174,7 @@ class GFEMModel:
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, program, dataset, sample_id, source, res, P_min=1, P_max=28,
-                 T_min=773, T_max=2273, oxides_exclude=["H2O"],
+                 T_min=773, T_max=2273, oxides_exclude=["FE2O3", "H2O"],
                  targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, verbose=1,
                  debug=True):
         """
@@ -347,25 +347,23 @@ class GFEMModel:
             raise ValueError(error_message)
 
         # Filter components
-        subset_sample = [comp if oxide in subset_oxides else oxide_zero for comp, oxide in
-                         zip(sample_composition, oxides)]
+        subset_sample = [comp for comp, oxide in zip(sample_composition, oxides) if
+                         oxide in subset_oxides]
+
+        # Set negative compositions to zero
+        subset_sample = [comp if comp >= oxide_zero else oxide_zero for comp in subset_sample]
 
         # Get total oxides
         total_subset_concentration = sum([comp for comp in subset_sample if
                                           comp != oxide_zero])
 
-        normalized_concentrations = []
-
         # Normalize
-        for comp, oxide in zip(sample_composition, oxides):
-            if oxide not in oxides_exclude:
-                normalized_concentration = ((comp / total_subset_concentration) * 100 if
-                                            comp != oxide_zero else oxide_zero)
-
-            else:
-                normalized_concentration = oxide_zero
-
-            normalized_concentrations.append(round(normalized_concentration, digits))
+        normalized_concentrations = [
+            round(((comp / total_subset_concentration) * 100 if comp != oxide_zero else
+                   oxide_zero), digits) for comp, oxide in zip(subset_sample, subset_oxides)
+        ]
+        print(subset_oxides)
+        print(normalized_concentrations)
 
         self.norm_sample_composition = normalized_concentrations
 

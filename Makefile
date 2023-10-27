@@ -17,7 +17,7 @@ DATADIR = assets/data
 CONFIGDIR = assets/config
 # GFEM options
 BENCHMARK = $(DATADIR)/benchmark-samples-normalized.csv
-SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-clusters13.csv
+SYNTHETIC = $(DATADIR)/synthetic-samples-pca2-endpoints12.csv
 VERB ?= 1
 # Python scripts
 PYTHON = \

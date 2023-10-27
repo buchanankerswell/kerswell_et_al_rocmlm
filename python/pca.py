@@ -8,6 +8,7 @@ import os
 import math
 import warnings
 from scipy import stats
+import traceback
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # dataframes and arrays !!
@@ -231,7 +232,7 @@ def normalize_volatile_free(df, oxides, volatiles, loi, digits=3):
     return data
 
 #######################################################
-## .0.                 PCA Class                 !!! ##
+## .0.            MixingArray Class              !!! ##
 #######################################################
 class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -272,6 +273,7 @@ class MixingArray:
         self.kmeans_model = None
 
         # Mixing array results
+        self.mixing_array_endpoints = np.array([])
         self.mixing_arrays = None
         self.synthetic_data_written = False
 
@@ -581,55 +583,147 @@ class MixingArray:
 
             # Get centroids
             centroids = kmeans.cluster_centers_
-            original_centroids = pca.inverse_transform(centroids)
+
+            # Initialize endpoints
+            mixing_array_endpoints = []
+
+            for cluster in range(k_pca_clusters):
+                # Get centroid coordinates
+                x, y = centroids[cluster]
+
+                # Identify centroid quadrant
+                if x > 0 and y > 0:
+                    quadrant = "Q1"
+                elif x < 0 and y > 0:
+                    quadrant = "Q2"
+                elif x < 0 and y < 0:
+                    quadrant = "Q3"
+                elif x > 0 and y < 0:
+                    quadrant = "Q4"
+                else:
+                    raise Exception("Invalid quadrant!")
+
+                # Subset cluster datapoints
+                condition = data["CLUSTER"] == cluster
+
+                # Get IQR for PC1
+                q1_pc1 = np.percentile(data.loc[condition, "PC1"], 25)
+                q3_pc1 = np.percentile(data.loc[condition, "PC1"], 75)
+                iqr_value_pc1 = q3_pc1 - q1_pc1
+
+                # Get median for PC1
+                median_x = np.median(data.loc[condition, "PC1"])
+
+                # Define adjustment factor
+                median_adjustment = 0
+
+                # Adjust endpoint for PC1
+                if quadrant == "Q1":
+                    endpoint_x = median_x + median_adjustment * iqr_value_pc1
+                elif quadrant == "Q2":
+                    endpoint_x = median_x - median_adjustment * iqr_value_pc1
+                elif quadrant == "Q3":
+                    endpoint_x = median_x - median_adjustment * iqr_value_pc1
+                elif quadrant == "Q4":
+                    endpoint_x = median_x + median_adjustment * iqr_value_pc1
+
+                # Get IQR for PC2
+                q1_pc2 = np.percentile(data.loc[condition, "PC2"], 25)
+                q3_pc2 = np.percentile(data.loc[condition, "PC2"], 75)
+                iqr_value_pc2 = q3_pc2 - q1_pc2
+
+                # Get median for PC2
+                median_y = np.median(data.loc[condition, "PC2"])
+
+                # Adjust endpoint for PC2
+                if quadrant == "Q1":
+                    endpoint_y = median_y + median_adjustment * iqr_value_pc2
+                elif quadrant == "Q2":
+                    endpoint_y = median_y + median_adjustment * iqr_value_pc2
+                elif quadrant == "Q3":
+                    endpoint_y = median_y - median_adjustment * iqr_value_pc2
+                elif quadrant == "Q4":
+                    endpoint_y = median_y - median_adjustment * iqr_value_pc2
+
+                mixing_array_endpoints.append([endpoint_x, endpoint_y])
+
+                # Identify highest SIO2 sample in Q1
+                if quadrant == "Q1":
+                    endpoint_x2 = median_x + 0.5 * iqr_value_pc1
+                    endpoint_y2 = median_y + 0.2 * iqr_value_pc2
+                    mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
+
+                # Identify lowest SIO2 sample in Q3
+                if quadrant == "Q3":
+                    endpoint_x2 = median_x - 0.2 * iqr_value_pc1
+                    endpoint_y2 = median_y - 2 * iqr_value_pc2
+                    mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
+
+                # Identify highest SIO2 sample in Q4
+                if quadrant == "Q4":
+                    endpoint_x2 = median_x + 1 * iqr_value_pc1
+                    endpoint_y2 = median_y - 1 * iqr_value_pc2
+                    mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
+
+            endpoints_sorted = sorted(mixing_array_endpoints, key=lambda x: x[0])
+            mixing_array_endpoints = np.array(endpoints_sorted)
+
+            self.mixing_array_endpoints = mixing_array_endpoints
 
             # Initialize mixing lines
             mixing_lines = {}
 
             # Loop through PCA components
             for n in range(n_pca_components):
-                for c in range(k_pca_clusters):
-                    # Calculate mixing lines between cluster centroids
-                    if k_pca_clusters > 1:
-                        for i in range(c + 1, k_pca_clusters):
+                for i in range(len(mixing_array_endpoints)):
+                    # Calculate mixing lines between endpoints
+                    if len(mixing_array_endpoints) > 1:
+                        for j in range(i + 1, len(mixing_array_endpoints)):
                             if n == 0:
-                                mixing_lines[f"cluster{c + 1}{i + 1}"] = (
-                                    np.linspace(centroids[c, n], centroids[i, n], res)
-                                )
+                                mixing_lines[f"cluster{i + 1}{j + 1}"] = (
+                                    np.linspace(mixing_array_endpoints[i, n],
+                                                mixing_array_endpoints[j, n], res))
 
                             else:
-                                mixing_lines[f"cluster{c + 1}{i + 1}"] = np.vstack((
-                                    mixing_lines[f"cluster{c + 1}{i + 1}"],
-                                    np.linspace(centroids[c, n], centroids[i, n], res)
-                                ))
+                                if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
+                                    ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
+                                    ((i == 4) & (j == 5))):
+                                    mixing_lines[f"cluster{i + 1}{j + 1}"] = np.vstack((
+                                        mixing_lines[f"cluster{i + 1}{j + 1}"],
+                                        np.linspace(mixing_array_endpoints[i, n],
+                                                    mixing_array_endpoints[j, n], res)))
 
             # Update self attribute
             self.mixing_arrays = mixing_lines
 
             # Create dataframes for mixing lines
-            for i in range(k_pca_clusters):
-                for j in range(i + 1, k_pca_clusters):
-                    data_synthetic = pd.DataFrame(
-                        np.hstack((
-                            scaler.inverse_transform(
-                                pca.inverse_transform(
-                                    mixing_lines[f"cluster{i + 1}{j + 1}"].T
-                                )
-                            ),
-                            mixing_lines[f"cluster{i + 1}{j + 1}"].T
-                        )),
-                        columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
-                    ).round(3)
+            for i in range(len(mixing_array_endpoints)):
+                for j in range(i + 1, len(mixing_array_endpoints)):
+                    if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
+                        ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
+                        ((i == 4) & (j == 5))):
+                        data_synthetic = pd.DataFrame(
+                            np.hstack((
+                                scaler.inverse_transform(
+                                    pca.inverse_transform(
+                                        mixing_lines[f"cluster{i + 1}{j + 1}"].T
+                                    )
+                                ),
+                                mixing_lines[f"cluster{i + 1}{j + 1}"].T
+                            )),
+                            columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
+                        ).round(3)
 
-                    # Add sample id column
-                    data_synthetic.insert(0, "SAMPLEID", [f"s{i + 1}{j + 1}{str(n).zfill(3)}"
-                                                          for n in range(len(data_synthetic))])
+                        # Add sample id column
+                        data_synthetic.insert(0, "SAMPLEID",
+                                              [f"s{i + 1}{j + 1}{str(n).zfill(3)}" for
+                                               n in range(len(data_synthetic))])
 
 
-                    # Write to csv
-                    fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                             f"clusters{i + 1}{j + 1}.csv")
-                    data_synthetic.to_csv(fname, index=False)
+                        # Write to csv
+                        fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
+                                 f"endpoints{i + 1}{j + 1}.csv")
+                        data_synthetic.to_csv(fname, index=False)
 
             # Update attribute
             self.synthetic_data_written = True

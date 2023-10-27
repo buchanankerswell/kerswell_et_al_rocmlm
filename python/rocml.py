@@ -75,6 +75,8 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO
     targets = get_unique_value([m.targets for m in gfem_models if m.dataset == "train"])
     mask_geotherm = get_unique_value([m.mask_geotherm for m in gfem_models if
                                       m.dataset == "train"])
+
+    # Array shapes
     M = int(len(gfem_models) / 2)
     W = int((res+1)**2)
     w = int(np.sqrt(W))
