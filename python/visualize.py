@@ -2273,7 +2273,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     plt.close()
 
     # Legend order
-    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite"]
+    legend_order = ["lherzolite", "harzburgite", "dunite"]
 #    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "pyroxenite",
 #                    "websterite", "hornblendite", "orthopyroxenite", "clinopyroxenite"]
 
@@ -2300,7 +2300,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         sns.kdeplot(data=data, x=f"PC{n + 1}", y=f"PC{n + 2}", hue="ROCKNAME",
                     hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
-        for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CAO"]:
+        for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CAO", "AL2O3", "CAO", "NA2O", "TIO2"]:
             ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
                      width=0.1, head_width=0.4, color="black")
             ax.text((loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1.5),
@@ -2398,7 +2398,7 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
             # Get datapoints indices for each cluster
             indices = data.loc[data["CLUSTER"] == c].index
 
-            ax.text(mixing_array_endpoints[c, n], mixing_array_endpoints[c, n + 1], c,
+            ax.text(mixing_array_endpoints[c, n], mixing_array_endpoints[c, n + 1], f"{c+1}",
                     bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
                     fontsize=fontsize * 0.694, color="black", ha = "center", va = "center")
 
@@ -2421,7 +2421,8 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
                         ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1.2)
 
         ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.2),
-                  ncol=3, columnspacing=0, handletextpad=-0.5, fontsize=fontsize * 0.694)
+                  ncol=4, columnspacing=0, handletextpad=-0.5, markerscale=1.2,
+                  fontsize=fontsize * 0.694)
         ax.set_xlabel(f"PC{n + 1}")
         ax.set_ylabel(f"PC{n + 2}")
         plt.title("Earthchem Samples")
@@ -2519,7 +2520,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     axes = axes.flatten()
 
     # Legend order
-    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite"]
+    legend_order = ["lherzolite", "harzburgite", "dunite"]
 #    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "pyroxenite",
 #                    "websterite", "hornblendite", "orthopyroxenite", "clinopyroxenite"]
 
