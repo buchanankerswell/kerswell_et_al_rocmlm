@@ -114,7 +114,7 @@ def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"],
     sampleids = get_sampleids(source, batch, nbatches)
 
     print("Building GFEM models for samples:")
-    print(f"{sampleids}")
+    print(sampleids)
 
     # Create combinations of samples and datasets
     combinations = list(itertools.product(programs, datasets, sampleids))
@@ -224,7 +224,7 @@ class GFEMModel:
 
         # Output file paths
         self.model_prefix = f"{self.sample_id}-{self.dataset[0]}{self.res}"
-        self.fig_dir = f"figs/gfem/{self.sample_id}_{self.res}"
+        self.fig_dir = f"figs/gfem/{self.program}_{self.sample_id}_{self.res}"
         self.log_file = f"log/log-{self.program}-{self.model_prefix}"
 
         # Results
@@ -347,21 +347,33 @@ class GFEMModel:
             raise ValueError(error_message)
 
         # Filter components
-        subset_sample = [comp for comp, oxide in zip(sample_composition, oxides) if
-                         oxide in subset_oxides]
+        if program == "magemin":
+            subset_sample = [comp if oxide in subset_oxides else oxide_zero for
+                             comp, oxide in zip(sample_composition, oxides)]
+        else:
+            subset_sample = [comp for comp, oxide in zip(sample_composition, oxides) if
+                            oxide in subset_oxides]
 
         # Set negative compositions to zero
-        subset_sample = [comp if comp >= oxide_zero else oxide_zero for comp in subset_sample]
+        subset_sample = [comp if comp >= oxide_zero else oxide_zero for comp in
+                         subset_sample]
 
         # Get total oxides
         total_subset_concentration = sum([comp for comp in subset_sample if
                                           comp != oxide_zero])
 
         # Normalize
-        normalized_concentrations = [
-            round(((comp / total_subset_concentration) * 100 if comp != oxide_zero else
-                   oxide_zero), digits) for comp, oxide in zip(subset_sample, subset_oxides)
-        ]
+        if program == "magemin":
+            normalized_concentrations = [
+                round(((comp / total_subset_concentration) * 100 if comp != oxide_zero else
+                       oxide_zero), digits) for comp, oxide in zip(subset_sample, oxides)
+            ]
+        else:
+            normalized_concentrations = [
+                round(((comp / total_subset_concentration) * 100 if comp != oxide_zero else
+                       oxide_zero), digits) for comp, oxide in
+                zip(subset_sample, subset_oxides)
+            ]
 
         self.norm_sample_composition = normalized_concentrations
 
@@ -587,6 +599,10 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        norm_sample_composition = self.norm_sample_composition
+        oxides = self.oxides_system
+        oxides_exclude = self.oxides_exclude
+        subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
         magemin_in_path = self.magemin_in_path
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
@@ -599,6 +615,11 @@ class GFEMModel:
             raise Exception("No MAGEMin input! Call _configure_magemin_model() first ...")
 
         print(f"Building MAGEMin model: {model_prefix}...")
+        max_oxide_width = max(len(oxide) for oxide in oxides)
+        max_comp_width = max(len(str(comp)) for comp in norm_sample_composition)
+        max_width = max(max_oxide_width, max_comp_width)
+        print(" ".join([f"  {oxide:<{max_width}}" for oxide in oxides]))
+        print(" ".join([f"  {comp:<{max_width}}" for comp in norm_sample_composition]))
 
         # Get number of pt points
         n_points = self._count_lines()
@@ -975,8 +996,11 @@ class GFEMModel:
             raise Exception("No Perple_X input! Call _configure_perplex_model() first ...")
 
         print(f"Building Perple_X model: {model_prefix} ...")
-        print(" ".join([f"  {oxide}" for oxide in subset_oxides]))
-        print(" ".join([f"  {comp:}" for comp in norm_sample_composition]))
+        max_oxide_width = max(len(oxide) for oxide in subset_oxides)
+        max_comp_width = max(len(str(comp)) for comp in norm_sample_composition)
+        max_width = max(max_oxide_width, max_comp_width)
+        print(" ".join([f"  {oxide:<{max_width}}" for oxide in subset_oxides]))
+        print(" ".join([f"  {comp:<{max_width}}" for comp in norm_sample_composition]))
 
         # Run programs with corresponding configuration files
         for program in ["build", "vertex", "werami", "pssect"]:

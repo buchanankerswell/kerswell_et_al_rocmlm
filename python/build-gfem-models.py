@@ -14,15 +14,17 @@ locals().update(valid_args)
 # Get samples filepath
 if "benchmark" in source:
     files = ["assets/data/benchmark-samples-normalized.csv"]
+    programs = ["magemin", "perplex"]
 else:
     files = sorted(glob.glob(f"assets/data/synthetic*.csv"))
+    programs = ["perplex"]
 
 # Initialize gfem models
 gfem_models = []
 
 # Build GFEM models
 for source in files:
-    gfem_models.extend(build_gfem_models(source))
+    gfem_models.extend(build_gfem_models(source, programs))
 
 # Visualize GFEM models
 visualize_gfem(gfem_models)

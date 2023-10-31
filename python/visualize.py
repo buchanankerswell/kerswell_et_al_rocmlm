@@ -563,10 +563,9 @@ def compose_rocml_plots(rocml_model):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize gfem design !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273,
-                                      fig_dir="figs/other", T_mantle1=273, T_mantle2=1773,
-                                      grad_mantle1=1, grad_mantle2=0.5, fontsize=12,
-                                      figwidth=6.3, figheight=3.54):
+def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="figs/other",
+                          T_mantle1=273, T_mantle2=1773, grad_mantle1=1, grad_mantle2=0.5,
+                          fontsize=12, figwidth=6.3, figheight=3.54):
     """
     """
     # Check for figs directory
@@ -729,19 +728,19 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273,
     # Add geotherms to legend handles
     ref_line_handles.extend([geotherm1_handle, geotherm2_handle])
 
-    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Training Data Range")
+    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Dataset PT Range")
 
-    labels_660.add("Training Data Range")
-    label_color_mapping["Training Data Range"] = "gray"
+    labels_660.add("Dataset PT Range")
+    label_color_mapping["Dataset PT Range"] = "gray"
 
     training_data_handle = mpatches.Patch(facecolor="blue", edgecolor="black", alpha=0.1,
-                                          label="Mantle Conditions")
+                                          label="Expected Mantle Conditions")
 
-    labels_660.add("Mantle Conditions")
-    label_color_mapping["Mantle Conditions"] = "gray"
+    labels_660.add("Expected Mantle Conditions")
+    label_color_mapping["Expected Mantle Conditions"] = "gray"
 
     # Define the desired order of the legend items
-    desired_order = ["Training Data Range", "Mantle Conditions", "[410] Akaogi89",
+    desired_order = ["Dataset PT Range", "Expected Mantle Conditions", "[410] Akaogi89",
                      "[410] Katsura89", "[410] Morishima94", "[660] Ito82",
                      "[660] Ito89 & Hirose02", "[660] Ito90", "[660] Katsura03",
                      "[660] Akaogi07", "Geotherm 1", "Geotherm 2"]
@@ -752,7 +751,7 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273,
 
     plt.xlabel("Temperature (K)")
     plt.ylabel("Pressure (GPa)")
-    plt.title("RocML Traning Dataset Design")
+    plt.title("Traning Dataset PT Range")
     plt.xlim(T_min - 100, T_max + 100)
     plt.ylim(P_min - 1, P_max + 1)
 
@@ -835,14 +834,14 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
         ppx_y = ppx_data["time"]
 
         # Plot mgm data points and connect them with lines
-        line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color="black",
+        line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color=color_val,
                              linestyle="-", label=f"{sample_id} [MAGEMin]")
 
         legend_handles.append(line_mgm)
         legend_labels.append(f"[MAGEMin] {sample_id}")
 
         # Plot ppx data points and connect them with lines
-        line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color="black",
+        line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color=color_val,
                              linestyle="--", label=f"{sample_id} [Perple_X]")
 
         legend_handles.append(line_ppx)

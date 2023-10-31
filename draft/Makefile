@@ -23,11 +23,13 @@ DATAPURGE = \
 						eisvogel-draft-rocml.pdf \
 						assets/pandoc/mlm-pro-con.md \
 						assets/pandoc/rocml-performance.md \
-						assets/pandoc/benchmark-samples.md \
-						assets/pandoc/benchmark-efficiency.md \
+						assets/pandoc/benchmark-samples-normalized.md \
+						assets/pandoc/gfem-efficiency.md \
 DATACLEAN = assets/data
 FIGSPURGE =
 FIGSCLEAN = assets/figs
+
+all: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md place_md_tables eisvogel
 
 agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md $(TABLES)
 	@pandoc $(MS).md \
@@ -59,6 +61,7 @@ eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md place_md_tables
 		--filter pandoc-crossref \
 		--citeproc \
 		$(LOG)
+	@rm tmp.md
 	@echo "=============================================" $(LOG)
 
 place_md_tables: $(LOGFILE) copy_assets_and_figs

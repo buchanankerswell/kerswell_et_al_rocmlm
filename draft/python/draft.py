@@ -160,20 +160,19 @@ def write_markdown_tables():
     # Pandoc dir
     pandoc_dir = "assets/pandoc"
 
-    if os.path.exists(f"{data_dir}/benchmark-samples.csv"):
-        print("Writing benchmark-samples.md")
+    if os.path.exists(f"{data_dir}/benchmark-samples-normalized.csv"):
+        print("Writing benchmark-samples-normalized.md")
 
         # Benchmark compositions
-        df = pd.read_csv(f"{data_dir}/benchmark-samples.csv")
+        df = pd.read_csv(f"{data_dir}/benchmark-samples-normalized.csv")
 
         # Drop references
-        df = df.drop(columns=["REF"])
+        df = df.drop(columns=["REFERENCE", "FE2O3", "H2O"])
 
         # Rename columns
-        col_headers = {"NAME": "Name", "SIO2": "SiO$_2$", "AL2O3": "Al$_2$O$_3$", "CAO": "CaO",
-                       "MGO": "MgO", "FEO": "FeO", "K2O": "K$_2$O", "NA2O": "Na$_2$O",
-                       "TIO2": "TiO$_2$", "FE2O3": "O$_2$", "CR2O3": "Cr$_2$O$_3$",
-                       "H2O": "H$_2$O"}
+        col_headers = {"SAMPLEID": "Sample", "SIO2": "SiO$_2$", "AL2O3": "Al$_2$O$_3$",
+                       "CAO": "CaO", "MGO": "MgO", "FEO": "FeO", "K2O": "K$_2$O",
+                       "NA2O": "Na$_2$O", "TIO2": "TiO$_2$", "CR2O3": "Cr$_2$O$_3$"}
 
         df.rename(columns=col_headers, inplace=True)
 
@@ -181,18 +180,17 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (
-            ": Composition (in wt. % oxides) for the Primitive Upper Mantle "
-            "from @sun1989 {#tbl:benchmark-samples}"
-        )
+        caption = (": Compositions (in wt. % oxides) for the benchmark samples: Primitive "
+                   "Upper Mantle [PUM, @sun1989] and Depleted Morb Mantle "
+                   "[DMM, @workman2005] {#tbl:benchmark-samples-normalized}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/benchmark-samples.md", "w") as file:
+        with open(f"{pandoc_dir}/benchmark-samples-normalized.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
     else:
-        print(f"Warning: {data_dir}/benchmark-samples.csv does not exist!")
+        print(f"Warning: {data_dir}/benchmark-samples-normalized.csv does not exist!")
 
     if os.path.exists(f"{data_dir}/mlm-pro-con.csv"):
         print("Writing mlm-pro-con.md")
@@ -204,10 +202,8 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (
-            ": Advantages and disadvantages of various non-linear ML models. "
-            "{#tbl:mlm-pro-con}"
-        )
+        caption = (": Advantages and disadvantages of various non-linear ML models. "
+                   "{#tbl:mlm-pro-con}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/mlm-pro-con.md", "w") as file:
@@ -224,7 +220,7 @@ def write_markdown_tables():
         df = pd.read_csv(f"{data_dir}/rocml-performance.csv")
 
         # Drop columns
-        df.drop(["size", "n_targets", "k_folds"], axis=1, inplace=True)
+        df.drop(["n_targets", "k_folds"], axis=1, inplace=True)
         df.drop([col for col in df.columns if "r2_" in col], axis=1, inplace=True)
         df.drop([col for col in df.columns if "_test" in col], axis=1, inplace=True)
 
@@ -234,25 +230,38 @@ def write_markdown_tables():
         # Multiply _std columns by 2 and combine with _mean columns
         for col in df.columns:
             if "_mean" in col:
+                df[col] = df[col].apply(lambda x: f"{x:.3g}")
                 std_col = col.replace("_mean", "_std")
                 if std_col in df.columns:
-                    df[col] = df[col].astype(str) + " ± " + (2 * df[std_col]).astype(str)
+                    df[std_col] = df[std_col].apply(lambda x: f"{2 * x:.3g}")
+                    df[col] = df[col].astype(str) + " ± " + (df[std_col]).astype(str)
 
         # Drop the std_ columns
         df.drop([col for col in df.columns if "_std" in col], axis=1, inplace=True)
 
+        # Drop program column
+        df.drop(["program"], axis=1, inplace=True)
+
+        # Select largest model size
+        condition = df["size"] == df["size"].max()
+        df = df[condition]
+
+        # Drop size column
+        df.drop(["size"], axis=1, inplace=True)
+
         # Rename columns
-        df.columns = ["Sample", "Model", "Program", "Training Efficiency (ms)",
-                      "Prediction Efficiency (ms)", "RMSE$_\\rho$ (g/cm$^3$)",
-                      "RMSE$_Vp$ (km/s)", "RMSE$_Vs$ (km/s)", "RMSE$_melt$ (%)"]
+        df.columns = ["Model", "t$_{\\text{train}}$ (ms)",
+                      "t$_{\\text{predict}}$ (ms)", "$\\epsilon_\\rho$ (g/cm$^3$)",
+                      "$\\epsilon_{\\text{Vp}}$ (km/s)", "$\\epsilon_{\\text{Vs}}$ (km/s)",
+                      "$\\epsilon_{\\text{melt}}$ (%)"]
 
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (
-            ": RocML performance measured by kfold cross-validation. {#tbl:rocml-performance}"
-        )
+        caption = (": RocML performance measured on an independent (unseen) validation "
+                   "dataset during kfold cross-validation (t = elapsed time; "
+                   "$\\epsilon = RMSE$). {#tbl:rocml-performance}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/rocml-performance.md", "w") as file:
@@ -262,30 +271,29 @@ def write_markdown_tables():
     else:
         print(f"Warning: {data_dir}/rocml-performance.csv does not exist!")
 
-    if os.path.exists(f"{data_dir}/benchmark-efficiency.csv"):
-        print("Writing benchmark-efficiency.md")
+    if os.path.exists(f"{data_dir}/gfem-efficiency.csv"):
+        print("Writing gfem-efficiency.md")
 
         # Benchmark effeciency
-        df = pd.read_csv(f"{data_dir}/benchmark-efficiency.csv")
+        df = pd.read_csv(f"{data_dir}/gfem-efficiency.csv")
+        df.drop(["dataset"], axis=1, inplace=True)
 
         # Rename columns
-        df.columns = ["Sample", "Program", "Dataset Size", "Minimization Efficiency (s)"]
+        df.columns = ["Sample", "Program", "Model Size", "Elapsed Time (s)"]
 
         # Generate markdown table
         markdown_table = df.to_markdown(index=False, floatfmt=".1f")
 
         # Table caption
-        caption = (
-            ": Prediction efficiency (in seconds) for various bulk rock compositions. "
-            "{#tbl:benchmark-efficiency}"
-        )
+        caption = (": Prediction efficiency (in seconds) for various bulk rock compositions. "
+                   "{#tbl:gfem-efficiency}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/benchmark-efficiency.md", "w") as file:
+        with open(f"{pandoc_dir}/gfem-efficiency.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
     else:
-        print(f"Warning {data_dir}/benchmark-efficiency.csv does not exist!")
+        print(f"Warning {data_dir}/gfem-efficiency.csv does not exist!")
 
 print("write-markdown-tables.py done!")

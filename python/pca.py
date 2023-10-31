@@ -653,14 +653,14 @@ class MixingArray:
 
                 # Identify highest SIO2 sample in Q1
                 if quadrant == "Q1":
-                    endpoint_x2 = median_x + 1.8 * iqr_value_pc1
+                    endpoint_x2 = median_x + 1.2 * iqr_value_pc1
                     endpoint_y2 = median_y + 0.8 * iqr_value_pc2
                     mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
 
                 # Identify highest SIO2 sample in Q2
                 if quadrant == "Q2":
-                    endpoint_x2 = median_x - 1.2 * iqr_value_pc1
-                    endpoint_y2 = median_y + 1.3 * iqr_value_pc2
+                    endpoint_x2 = median_x - 0.5 * iqr_value_pc1
+                    endpoint_y2 = median_y + 0.5 * iqr_value_pc2
                     mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
 
 #                # Identify lowest SIO2 sample in Q3

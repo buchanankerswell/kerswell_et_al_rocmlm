@@ -39,9 +39,9 @@ More importantly, Perple_X includes solution models for wadsleyite, ringwoodite,
 
 ### Bulk Chemical Compositions
 
-Existing estimates for the bulk chemical composition of the upper mantle are based on analyses of high-pressure-high-temperature melting experiments and mantle-derived xenoliths, kimberlites, and basalts [e.g., @allegre1984; @green1979; @ringwood1962; @jagoutz1979; @sun1982; @ringwood1991; @palme2003; @stracke2021]. [@tbl:benchmark-samples] provides some well-referenced examples, including hypothetical mantle compositions with varying degrees of differentiation by partial melting [Primitive Upper Mantle: PUM, and Depleted MORB Mantle: DMM, @sun1989; @workman2005], as well as real and hypothetical products of mantle melting [Iclandic Basalt: RE46, and Normal MORB: NMORB, @gale2013; @yang1996]. RocML training data are currently fixed at PUM, which represents the average bulk (pyrolitic) composition of the upper mantle. Eventually, training data will include all compositions in @tbl:benchmark-samples to approximate a more complete range of expected mantle compositions.
+Existing estimates for the bulk chemical composition of the upper mantle are based on analyses of high-pressure-high-temperature melting experiments and mantle-derived xenoliths, kimberlites, and basalts [e.g., @allegre1984; @green1979; @ringwood1962; @jagoutz1979; @sun1982; @ringwood1991; @palme2003; @stracke2021]. [@tbl:benchmark-samples-normalized] provides some well-referenced examples, including hypothetical mantle compositions with varying degrees of differentiation by partial melting [Primitive Upper Mantle: PUM, and Depleted MORB Mantle: DMM, @sun1989; @workman2005], as well as real and hypothetical products of mantle melting [Iclandic Basalt: RE46, and Normal MORB: NMORB, @gale2013; @yang1996]. RocML training data are currently fixed at PUM, which represents the average bulk (pyrolitic) composition of the upper mantle. Eventually, training data will include all compositions in @tbl:benchmark-samples-normalized to approximate a more complete range of expected mantle compositions.
 
-{{ benchmark-samples.md }}
+{{ benchmark-samples-normalized.md }}
 
 ## Computing RocML Training Datasets {#sec:build-training-data}
 
@@ -97,7 +97,7 @@ In principle, applying identical sets of solution phase models, thermodynamic da
 
 In practice, small differences between MAGEMin and Perple_X models arise while minimizing @eq:gfe because different GFEM algorithms can converge on different local minima within the same region of the GFE hyperplane. Proximate local minima will produce the same stable phase assemblages with small differences in the chemical potentials among the phases---hence small differences in rock properties. However, MAGEMin and Perple_X models generally show density differences of $\leq$ 5% that indicate high degrees of correlation and internal consistency between the GFEM algorithms (@fig:image4-PUM-train-rho).
 
-![PT-density diagrams showing density (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples). (c) PT-error diagram showing the percent difference between (a) and (b). (d) Density profiles comparing MAGEMin and Perple_X models with the empirically-derived Preliminary Reference Earth Model (PREM) from @dziewonski1981.](assets/figs/image4-PUM-train-rho.png){#fig:image4-PUM-train-rho}
+![PT-density diagrams showing density (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized). (c) PT-error diagram showing the percent difference between (a) and (b). (d) Density profiles comparing MAGEMin and Perple_X models with the empirically-derived Preliminary Reference Earth Model (PREM) from @dziewonski1981.](assets/figs/image4-PUM-train-rho.png){#fig:image4-PUM-train-rho}
 
 In addition to the internal consistency observed between GFEM algorithms, density profiles extracted from MAGEMin and Perple_X models generally indicate external consistency with empirical-derived density profiles from the Preliminary Reference Earth Model [PREM, @dziewonski1981]. In contrast to the PREM, however, MAGEMin and Perple_X models show two discrete density jumps between 410 and 660 km that are offset (relative to the PREM) towards lower densities at higher Ps ([@fig:image4-PUM-train-rho]d). The P offset is partially explained by the exclusion of certain solution models described in @sec:thermodynamic-data. For example, Perple_X models that include solid solutions for high-pressure mantle minerals are more consistent with the PREM between 410–660 km than equivalent models that only consider end-members. The density offset, on the other hand, can partially be explained by an estimated 3-4% uncertainty for Perple_X density profiles [approximately 0.1 g/cm$^3$, @connolly2016].
 
@@ -127,7 +127,7 @@ Finally, average performance metrics for each model were evaluated using a k-fol
 
 Model performance can be assessed qualitatively by comparing the density surfaces computed by MAGEMin and Perple_X with the density surfaces inferred by RocMLs (@fig:all-surf-PUM-rho).
 
-![PT-density diagrams showing density (in g/cm$^3$) calculated by (a) MAGEMin and (i) Perple_X for a PUM bulk composition (@tbl:benchmark-samples). PT-density diagrams (b–h) and (j–p) show density (in g/cm$^3$) inferred by various RocMLs trained on MAGEMin and Perple_X, respectively.](assets/figs/all-surf-PUM-rho.png){#fig:all-surf-PUM-rho}
+![PT-density diagrams showing density (in g/cm$^3$) calculated by (a) MAGEMin and (i) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized). PT-density diagrams (b–h) and (j–p) show density (in g/cm$^3$) inferred by various RocMLs trained on MAGEMin and Perple_X, respectively.](assets/figs/all-surf-PUM-rho.png){#fig:all-surf-PUM-rho}
 
 ### Quantitative Comparison
 
@@ -137,7 +137,7 @@ Model performance can be assessed qualitatively by comparing the density surface
 
 ## Best RocML Selection
 
-![Density profiles comparing (a) MAGEMin and (b) Perple_X models with the empirically-derived Preliminary Reference Earth Model (PREM) from @dziewonski1981. Performance metrics R$^2$ and RMSE show the correlations and accuracies of the Decision Tree RocML compared to MAGEMin and Perple_X. MAGEMin and Perple_X models assume a PUM bulk composition (@tbl:benchmark-samples).](assets/figs/prem-PUM-DT-rho.png)
+![Density profiles comparing (a) MAGEMin and (b) Perple_X models with the empirically-derived Preliminary Reference Earth Model (PREM) from @dziewonski1981. Performance metrics R$^2$ and RMSE show the correlations and accuracies of the Decision Tree RocML compared to MAGEMin and Perple_X. MAGEMin and Perple_X models assume a PUM bulk composition (@tbl:benchmark-samples-normalized).](assets/figs/prem-PUM-DT-rho.png)
 
 # Discussion
 
@@ -153,36 +153,36 @@ Model performance can be assessed qualitatively by comparing the density surface
 
 # Appendix
 
-<!--
 ## GFEM Benchmarking
 
-Benchmarking GFEM programs was a necessary first step for estimating the time required for building RocML training datasets and quantifying the efficiency of incumbent GFEM programs (@fig:benchmark-times), which our RocMLs will need to beat to be considered an advancement beyond the status-quo. Estimated bulk compositions for primitive and depleted mantle-derived rocks ([@tbl:benchmark-samples]) were used for benchmarking MAGEMin and Perple_X. [@tbl:benchmark-times-table] shows the computation times with respect to various PT grid resolutions (8x8, 16x16, 32x32, 64x64, 128x128). All computations were made on a Macbook Pro (2022; M2 chip) with macOS 13.4 and Python 3.11.4. Note that MAGEMin was ran on 6 CPU cores in parallel, while Perple_X does not have parallel capabilities.
+Benchmarking GFEM programs was a necessary first step for estimating the time required for building RocML training datasets and quantifying the efficiency of incumbent GFEM programs (@fig:benchmark-times), which our RocMLs will need to beat to be considered an advancement beyond the status-quo. Estimated bulk compositions for primitive and depleted mantle-derived rocks ([@tbl:benchmark-samples-normalized]) were used for benchmarking MAGEMin and Perple_X. [@tbl:benchmark-times-table] shows the computation times with respect to various PT grid resolutions (8x8, 16x16, 32x32, 64x64, 128x128). All computations were made on a Macbook Pro (2022; M2 chip) with macOS 13.4 and Python 3.11.4. Note that MAGEMin was ran on 6 CPU cores in parallel, while Perple_X does not have parallel capabilities.
 
-{{ benchmark-efficiency.md }}
--->
+<!--{{ gfem-efficiency.md }}-->
+
+![caption](assets/figs/gfem-efficiency.png)
 
 \clearpage
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Decision Tree models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-DT-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Decision Tree models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-DT-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Random Forest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-RF-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Random Forest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-RF-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by K Nearest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-KN-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by K Nearest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-KN-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Neural Network 1L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-NN1-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Neural Network 1L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-NN1-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Neural Network 2L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-NN2-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Neural Network 2L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-NN2-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Neural Network 3L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-NN3-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Neural Network 3L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-NN3-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Decision Tree models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-DT-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Decision Tree models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-DT-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Random Forest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-RF-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Random Forest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-RF-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by K Nearest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-KN-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by K Nearest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-KN-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Neural Network 1L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-NN1-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Neural Network 1L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-NN1-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Neural Network 2L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-NN2-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Neural Network 2L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-NN2-rho.png)
 
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Neural Network 3L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-NN3-rho.png)
+![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples-normalized) and (c, d) inferred by Neural Network 3L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image6-PUM-NN3-rho.png)
