@@ -32,7 +32,9 @@ DATAPURGE = \
 						log \
 						runs \
 						python/__pycache__ \
-						$(DATADIR)/benchmark-rocml-performance.csv
+						$(DATADIR)/benchmark-rocml-performance.csv \
+						$(DATADIR)/synthetic*.csv \
+						$(DATADIR)/earthchem-samples-pca.csv
 DATACLEAN = assets MAGEMin Perple_X
 FIGSPURGE = figs
 FIGSCLEAN = figs

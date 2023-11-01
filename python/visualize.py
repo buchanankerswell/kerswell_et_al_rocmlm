@@ -2491,7 +2491,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                 synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"] = pd.read_csv(fname)
 
     # Create a grid of subplots
-    num_plots = len(oxides)
+    num_plots = len(oxides) + 1
 
     if num_plots == 1:
         num_cols = 1
@@ -2514,6 +2514,8 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     fig_width = figwidth / 2 * num_cols
     fig_height = figheight / 2 * num_rows
 
+    xmin, xmax = data["SIO2"].min(), data["SIO2"].max()
+
     # Harker diagrams
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(fig_width, fig_height))
     axes = axes.flatten()
@@ -2523,33 +2525,39 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 #    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "pyroxenite",
 #                    "websterite", "hornblendite", "orthopyroxenite", "clinopyroxenite"]
 
-    for k, y in enumerate(oxides):
+    for k, y in enumerate(oxides + ["pie"]):
         ax = axes[k]
 
-        for i in range(len(mixing_array_endpoints)):
-            for j in range(i + 1, len(mixing_array_endpoints)):
-                if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
-                    ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
-                    ((i == 4) & (j == 5))):
-                    first_element = synthetic_datasets[
-                        f"data_synthetic{i + 1}{j + 1}"].iloc[0]
-                    last_element = synthetic_datasets[
-                        f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
+        if y != "pie":
+            for i in range(len(mixing_array_endpoints)):
+                for j in range(i + 1, len(mixing_array_endpoints)):
+                    if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
+                        ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
+                        ((i == 4) & (j == 5))):
+                        first_element = synthetic_datasets[
+                            f"data_synthetic{i + 1}{j + 1}"].iloc[0]
+                        last_element = synthetic_datasets[
+                            f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
 
-                    sns.scatterplot(data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
-                                    x="SIO2", y=y, linewidth=0, s=25, color="black",
-                                    legend=False, ax=ax, zorder=3)
+                        sns.scatterplot(
+                            data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
+                            x="SIO2", y=y, linewidth=0, s=25, color="black", legend=False,
+                            ax=ax, zorder=3
+                        )
 
-        sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
-                        linewidth=0, s=8, alpha=0.1, ax=ax, zorder=1)
-        sns.kdeplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
-                    ax=ax, levels=5, zorder=1)
+            sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
+                            linewidth=0, s=8, alpha=0.1, ax=ax, zorder=1, legend=False)
+            sns.kdeplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
+                        ax=ax, levels=5, zorder=1, legend=False)
 
-        edge_colors = ["white", "red"]
-        for l, name in enumerate(["PUM", "DMM"]):
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name],
-                            x="SIO2", y=y, color="black", edgecolor=edge_colors[l],
-                            linewidth=1.2, s=75, legend=False, ax=ax, zorder=7)
+            edge_colors = ["white", "black"]
+            face_colors = ["black", "white"]
+
+            for l, name in enumerate(["PUM", "DMM"]):
+                sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name],
+                                x="SIO2", y=y, facecolor=face_colors[l],
+                                edgecolor=edge_colors[l], linewidth=1.2, s=75, legend=False,
+                                ax=ax, zorder=7)
 
         if k == 5:
             for l, name in enumerate(["PUM", "DMM"]):
@@ -2562,29 +2570,26 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                     fontsize=fontsize * 0.579, zorder=6
                 )
 
-        ax.set_title(f"{y}")
+        if k < (num_plots - num_cols - 1):
+            ax.set_xticks([])
+
+        ax.set_xlim(xmin - (xmin * 0.02), xmax + (xmax * 0.02))
         ax.set_ylabel("")
         ax.set_xlabel("")
 
-        if k < (num_plots - num_cols):
-            ax.set_xticks([])
+        if y in ["NA2O", "TIO", "CR2O3", "K2O", "CAO", "AL2O3"]:
+            ax.yaxis.set_major_formatter(ticker.StrMethodFormatter("{x:.1f}"))
+        else:
+            ax.yaxis.set_major_formatter(ticker.StrMethodFormatter("{x:.2g}"))
 
-        if k == (num_plots - 1):
-            handles = ax.get_legend().legendHandles
-            labels = data["ROCKNAME"].unique()
+        if y != "pie":
+            ax.set_title(f"{y}")
 
-        for line in ax.get_legend().get_lines():
-            line.set_linewidth(4)
-            line.set_alpha(1)
-
-        ax.get_legend().remove()
-
-    legend = fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.82, 0.27),
-                        columnspacing=0, ncol=1)
-
-    # Legend order
-    for i, label in enumerate(legend_order):
-        legend.get_texts()[i].set_text(label)
+        if y == "pie":
+            rock_counts = data["ROCKNAME"].value_counts()
+            labels, counts = zip(*rock_counts.items())
+            plt.pie(counts, labels=labels, autopct="%1.0f%%", startangle=0, pctdistance=0.3,
+                    labeldistance=0.6, textprops={"fontsize": fontsize * 0.694}, radius=1.3)
 
     fig.suptitle("Harker Diagrams vs. SIO2 (wt.%)")
 

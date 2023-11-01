@@ -618,6 +618,7 @@ class GFEMModel:
         max_oxide_width = max(len(oxide) for oxide in oxides)
         max_comp_width = max(len(str(comp)) for comp in norm_sample_composition)
         max_width = max(max_oxide_width, max_comp_width)
+        total_comp = sum(norm_sample_composition)
         print(" ".join([f"  {oxide:<{max_width}}" for oxide in oxides]))
         print(" ".join([f"  {comp:<{max_width}}" for comp in norm_sample_composition]))
 
