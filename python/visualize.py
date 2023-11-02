@@ -1625,11 +1625,13 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
             else:
                 geotherm_threshold = 0.125
 
+            filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
+
             # Plot PREM comparisons
             if target == "rho":
                 # Print filepath
                 if verbose >= 2:
-                    print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+                    print(f"Saving figure: {filename}")
 
                 if program == "magemin":
                     results_mgm = results
@@ -1638,7 +1640,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                                   filename=filename)
 
                 elif program == "perplex":
                     results_mgm = None
@@ -1647,12 +1649,12 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                                   filename=filename)
 
             if target in ["Vp", "Vs"]:
                 # Print filepath
                 if verbose >= 2:
-                    print(f"Saving figure: prem-{sample_id}-{dataset}-{target_rename}.png")
+                    print(f"Saving figure: {filename}")
 
                 if program == "magemin":
                     results_mgm = results
@@ -1661,7 +1663,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                                   filename=filename)
 
                 elif program == "perplex":
                     results_mgm = None
@@ -1670,7 +1672,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                                   filename=filename)
 
     return None
 
@@ -2303,8 +2305,6 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 
     # Legend order
     legend_order = ["lherzolite", "harzburgite", "dunite"]
-#    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "pyroxenite",
-#                    "websterite", "hornblendite", "orthopyroxenite", "clinopyroxenite"]
 
     for n in range(n_pca_components - 1):
 
@@ -2375,6 +2375,8 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
     n_pca_components = mixing_array.n_pca_components
     k_pca_clusters = mixing_array.k_pca_clusters
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
+    mixing_array_tops = mixing_array.mixing_array_tops
+    mixing_array_bottoms = mixing_array.mixing_array_bottoms
     data = mixing_array.earthchem_cluster
     kmeans = mixing_array.kmeans_model
 
@@ -2398,6 +2400,8 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
 
     # Convert mixing_array_endpoints
     original_mixing_array_endpoints = pca.inverse_transform(mixing_array_endpoints)
+    original_mixing_array_tops = pca.inverse_transform(mixing_array_tops)
+    original_mixing_array_bottoms = pca.inverse_transform(mixing_array_bottoms)
 
     # Plot PCA results
     for n in range(n_pca_components - 1):
@@ -2440,14 +2444,35 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
                         m = ((mixing_array_endpoints[i, n + 1] -
                               mixing_array_endpoints[c, n + 1]) /
                              (mixing_array_endpoints[i, n] - mixing_array_endpoints[c, n]))
+                        m_tops = ((mixing_array_tops[i, n + 1] -
+                                   mixing_array_tops[c, n + 1]) /
+                                  (mixing_array_tops[i, n] - mixing_array_tops[c, n]))
+                        m_bottoms = ((mixing_array_bottoms[i, n + 1] -
+                                      mixing_array_bottoms[c, n + 1]) /
+                                     (mixing_array_bottoms[i, n] -
+                                      mixing_array_bottoms[c, n]))
                         b = (mixing_array_endpoints[c, n + 1] - m *
                              mixing_array_endpoints[c, n])
+                        b_tops = (mixing_array_tops[c, n + 1] - m_tops *
+                                  mixing_array_tops[c, n])
+                        b_bottoms = (mixing_array_bottoms[c, n + 1] - m_bottoms *
+                                     mixing_array_bottoms[c, n])
 
                         x_vals = np.linspace(mixing_array_endpoints[c, n],
                                              mixing_array_endpoints[i, n], res)
+                        x_vals_tops = np.linspace(mixing_array_tops[c, n],
+                                                  mixing_array_tops[i, n], res)
+                        x_vals_bottoms = np.linspace(mixing_array_bottoms[c, n],
+                                                     mixing_array_bottoms[i, n], res)
                         y_vals = m * x_vals + b
+                        y_vals_tops = m * x_vals_tops + b_tops
+                        y_vals_bottoms = m * x_vals_bottoms + b_bottoms
 
                         ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1.2)
+                        ax.plot(x_vals_tops, y_vals_tops, color="black", linestyle="-",
+                                linewidth=1.2)
+                        ax.plot(x_vals_bottoms, y_vals_bottoms, color="black", linestyle="-",
+                                linewidth=1.2)
 
         ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.2),
                   ncol=4, columnspacing=0, handletextpad=-0.5, markerscale=1.2,
@@ -2481,6 +2506,8 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
     n_pca_components = mixing_array.n_pca_components
     k_pca_clusters = mixing_array.k_pca_clusters
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
+    mixing_array_tops = mixing_array.mixing_array_tops
+    mixing_array_bottoms = mixing_array.mixing_array_bottoms
     data = mixing_array.earthchem_filtered
 
     # Read benchmark samples
@@ -2509,6 +2536,8 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
     # Initialize synthetic datasets
     synthetic_datasets = {}
+    synthetic_tops = {}
+    synthetic_bottoms = {}
 
     # Compile all synthetic datasets into a dict
     for i in range(len(mixing_array_endpoints)):
@@ -2518,7 +2547,15 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                 ((i == 4) & (j == 5))):
                 fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
                          f"endpoints{i + 1}{j + 1}.csv")
-                synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"] = pd.read_csv(fname)
+                synthetic_datasets[f"{i + 1}{j + 1}"] = pd.read_csv(fname)
+
+                fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
+                         f"tops{i + 1}{j + 1}.csv")
+                synthetic_tops[f"{i + 1}{j + 1}"] = pd.read_csv(fname)
+
+                fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
+                         f"bottoms{i + 1}{j + 1}.csv")
+                synthetic_bottoms[f"{i + 1}{j + 1}"] = pd.read_csv(fname)
 
     # Create a grid of subplots
     num_plots = len(oxides) + 1
@@ -2552,8 +2589,6 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
 
     # Legend order
     legend_order = ["lherzolite", "harzburgite", "dunite"]
-#    legend_order = ["peridotite", "harzburgite", "lherzolite", "dunite", "pyroxenite",
-#                    "websterite", "hornblendite", "orthopyroxenite", "clinopyroxenite"]
 
     for k, y in enumerate(oxides + ["pie"]):
         ax = axes[k]
@@ -2564,16 +2599,15 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
                     if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
                         ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
                         ((i == 4) & (j == 5))):
-                        first_element = synthetic_datasets[
-                            f"data_synthetic{i + 1}{j + 1}"].iloc[0]
-                        last_element = synthetic_datasets[
-                            f"data_synthetic{i + 1}{j + 1}"].iloc[-1]
-
-                        sns.scatterplot(
-                            data=synthetic_datasets[f"data_synthetic{i + 1}{j + 1}"],
-                            x="SIO2", y=y, linewidth=0, s=25, color="black", legend=False,
-                            ax=ax, zorder=3
-                        )
+                        sns.lineplot(data=synthetic_datasets[f"{i + 1}{j + 1}"], x="SIO2",
+                                     y=y, linewidth=2, linestyle="--", color="black",
+                                     alpha=1, legend=False, ax=ax, zorder=3)
+                        sns.lineplot(data=synthetic_tops[f"{i + 1}{j + 1}"], x="SIO2",
+                                     y=y, linewidth=2, linestyle="-", color="black",
+                                     alpha=0.5, legend=False, ax=ax, zorder=3)
+                        sns.lineplot(data=synthetic_bottoms[f"{i + 1}{j + 1}"], x="SIO2",
+                                     y=y, linewidth=2, linestyle="-", color="black",
+                                     alpha=0.5, legend=False, ax=ax, zorder=3)
 
             sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
                             linewidth=0, s=8, alpha=0.1, ax=ax, zorder=1, legend=False)

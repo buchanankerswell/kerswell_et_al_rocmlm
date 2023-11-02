@@ -59,9 +59,10 @@ def get_unique_value(input_list):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # train rocml models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO"], tune=True,
-                       epochs=100, batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
-                       nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
+def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO"],
+                       tune=True, epochs=100, batchprop=0.2, kfolds=os.cpu_count(),
+                       parallel=True, nprocs=os.cpu_count(), seed=42, palette="bone",
+                       verbose=1):
     """
     """
     # Check for models
@@ -612,7 +613,8 @@ class RocML:
                                               multioutput="raw_values"))
 
         r2_test = r2_score(y_test_original, y_pred_original, multioutput="raw_values")
-        r2_valid = r2_score(y_valid_original, y_pred_original_valid, multioutput="raw_values")
+        r2_valid = r2_score(y_valid_original, y_pred_original_valid,
+                            multioutput="raw_values")
 
         return (loss_curve, rmse_test, r2_test, rmse_valid, r2_valid, training_time,
                 inference_time)
@@ -759,7 +761,8 @@ class RocML:
             # Print performance
             print(f"{model_label_full} performance:")
             print(f"    training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
-            print(f"    inference time: {inference_time_mean:.3f} ± {inference_time_std:.3f}")
+            print(f"    inference time: {inference_time_mean:.3f} ± "
+                  f"{inference_time_std:.3f}")
             print(f"    rmse test:")
             for r, e, p in zip(rmse_test_mean, rmse_test_std, targets):
                 print(f"        {p}: {r:.3f} ± {e:.3f}")
@@ -1000,12 +1003,7 @@ class RocML:
                 if "NN" in self.ml_model_label:
                     print(f"    epochs: {self.epochs}")
                 print(f"    k folds: {self.kfolds}")
-                print(f"    features:")
-                print(f"        Pressure (GPa)")
-                print(f"        Temperature (K)")
-                print(f"    targets:")
-                for target in self.targets:
-                    print(f"        {target}")
+                print(f"    targets: {targets}")
                 print(f"    features array shape: {feat_train.shape}")
                 print(f"    targets array shape: {target_train.shape}")
                 print(f"    hyperparameters:")
