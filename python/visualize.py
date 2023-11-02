@@ -156,11 +156,14 @@ def combine_plots_vertically(image1_path, image2_path, output_path, caption1, ca
 def compose_dataset_plots(gfem_models):
     """
     """
-    # Parse models
+    # Parse and sort models
     magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
                       None for m in gfem_models]
+    magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
+
     perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
                       None for m in gfem_models]
+    perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
     # Iterate through all models
     for magemin_model, perplex_model in zip(magemin_models, perplex_models):
@@ -188,14 +191,17 @@ def compose_dataset_plots(gfem_models):
                 targets = magemin_model.targets
             else:
                 raise ValueError("Model targets are not the same!")
-            if magemin_model.fig_dir == perplex_model.fig_dir:
-                fig_dir = magemin_model.fig_dir
-            else:
-                raise ValueError("Model figure directories are not the same!")
             if magemin_model.verbose == perplex_model.verbose:
                 verbose = magemin_model.verbose
             else:
                 verbose = 1
+
+            fig_dir_mage = magemin_model.fig_dir
+            fig_dir_perp = perplex_model.fig_dir
+            fig_dir_diff = f"figs/gfem/diff_{sample_id}_{res}"
+
+            fig_dir = f"figs/gfem/{sample_id}_{res}"
+            os.makedirs(fig_dir, exist_ok=True)
 
         elif magemin and not perplex:
             # Get model data
@@ -243,8 +249,8 @@ def compose_dataset_plots(gfem_models):
             for target in targets_rename:
                 if target not in ["assemblage", "variance"]:
                     combine_plots_horizontally(
-                        f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_mage}/magemin-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_perp}/perplex-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/temp1.png",
                         caption1="a)",
                         caption2="b)"
@@ -252,7 +258,7 @@ def compose_dataset_plots(gfem_models):
 
                     combine_plots_horizontally(
                         f"{fig_dir}/temp1.png",
-                        f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_diff}/diff-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png",
                         caption1="",
                         caption2="c)"
@@ -260,16 +266,16 @@ def compose_dataset_plots(gfem_models):
 
                 if target in ["rho", "Vp", "Vs"]:
                     combine_plots_horizontally(
-                        f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_mage}/magemin-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_perp}/perplex-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/temp1.png",
                         caption1="a)",
                         caption2="b)"
                     )
 
                     combine_plots_horizontally(
-                        f"{fig_dir}/diff-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_diff}/diff-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_diff}/prem-{sample_id}-{dataset}-{target}.png",
                         f"{fig_dir}/temp2.png",
                         caption1="c)",
                         caption2="d)"
@@ -282,6 +288,9 @@ def compose_dataset_plots(gfem_models):
                         caption1="",
                         caption2=""
                     )
+
+            for dir in [fig_dir_mage, fig_dir_perp, fig_dir_diff]:
+                shutil.rmtree(dir)
 
         elif magemin and not perplex:
             for target in targets_rename:
@@ -1654,8 +1663,11 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
     # Parse models
     magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
                       None for m in gfem_models]
+    magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
+
     perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
                       None for m in gfem_models]
+    perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
     # Iterate through models
     for magemin_model, perplex_model in zip(magemin_models, perplex_models):
@@ -1684,14 +1696,12 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
             mask_geotherm = magemin_model.mask_geotherm
         else:
             raise ValueError("Model geotherm masks are not the same!")
-        if magemin_model.fig_dir == perplex_model.fig_dir:
-            fig_dir = magemin_model.fig_dir
-        else:
-            raise ValueError("Model fig dir are not the same!")
         if magemin_model.verbose == perplex_model.verbose:
             verbose = magemin_model.verbose
         else:
-            raise ValueError("Model verbosity settings are not the same!")
+            verbose = 1
+
+        fig_dir = f"figs/gfem/diff_{sample_id}_{res}"
 
         results_mgm, results_ppx = magemin_model.results, perplex_model.results
         P_mgm, T_mgm = results_mgm["P"], results_mgm["T"]
@@ -1795,7 +1805,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                         print(f"Saving figure: prem-{sample_id}-{dataset}"
                               f"-{target_rename}.png")
 
-                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                    visualize_prem("perplex", sample_id, dataset, res, target, "g/cm$^3$",
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
@@ -1807,7 +1817,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                         print(f"Saving figure: prem-{sample_id}-{dataset}"
                               f"-{target_rename}.png")
 
-                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                    visualize_prem("perplex", sample_id, dataset, res, target, "km/s",
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,

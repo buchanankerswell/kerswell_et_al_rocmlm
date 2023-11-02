@@ -111,7 +111,7 @@ def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"],
     """
     """
     # Get samples
-    sampleids = get_sampleids(source, batch, nbatches)
+    sampleids = sorted(get_sampleids(source, batch, nbatches))
 
     print("Building GFEM models for samples:")
     print(sampleids)
@@ -224,8 +224,8 @@ class GFEMModel:
 
         # Output file paths
         self.model_prefix = f"{self.sample_id}-{self.dataset[0]}{self.res}"
-        self.fig_dir = f"figs/gfem/{self.program}_{self.sample_id}_{self.res}"
-        self.log_file = f"log/log-{self.program}-{self.model_prefix}"
+        self.fig_dir = f"figs/gfem/{self.program[:4]}_{self.sample_id}_{self.res}"
+        self.log_file = f"log/log-{self.program[:4]}-{self.model_prefix}"
 
         # Results
         self.sample_composition = []
