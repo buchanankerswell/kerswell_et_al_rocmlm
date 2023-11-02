@@ -205,6 +205,7 @@ def compose_dataset_plots(gfem_models):
 
         elif magemin and not perplex:
             # Get model data
+            program = "magemin"
             sample_id = magemin_model.sample_id
             res = magemin_model.res
             dataset = magemin_model.dataset
@@ -214,6 +215,7 @@ def compose_dataset_plots(gfem_models):
 
         elif perplex and not magemin:
             # Get model data
+            program = "perplex"
             sample_id = perplex_model.sample_id
             res = perplex_model.res
             dataset = perplex_model.dataset
@@ -408,10 +410,16 @@ def compose_dataset_plots(gfem_models):
             os.makedirs("figs/movies", exist_ok=True)
 
         for target in targets_rename:
-            ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                      f"'figs/gfem/s?????_{res}/image2-s?????-{dataset}-{target}.png' "
-                      f"-vf 'scale=3915:1432' -c:v h264 -pix_fmt yuv420p "
-                      f"'figs/movies/image2-{target}.mp4'")
+            if perplex and magemin:
+                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                          f"'figs/gfem/s?????_{res}/image2-s?????-{dataset}-"
+                          f"{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt yuv420p "
+                          f"'figs/movies/image2-{target}.mp4'")
+            else:
+                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                          f"'figs/gfem/{program[:4]}_s?????_{res}/image2-s?????-{dataset}-"
+                          f"{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt yuv420p "
+                          f"'figs/movies/image2-{target}.mp4'")
 
             try:
                 subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
@@ -423,10 +431,16 @@ def compose_dataset_plots(gfem_models):
 
         if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
             for target in ["rho", "Vp", "Vs"]:
-                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/s?????_{res}/image3-s?????-{dataset}-{target}.png' "
-                          f"-vf 'scale=5832:1432' -c:v h264 -pix_fmt yuv420p "
-                          f"'figs/movies/image3-{target}.mp4'")
+                if perplex and magemin:
+                    ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                              f"'figs/gfem/s?????_{res}/image3-s?????-"
+                              f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v h264 "
+                              f"-pix_fmt yuv420p 'figs/movies/image3-{target}.mp4'")
+                else:
+                    ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                              f"'figs/gfem/{program[:4]}_s?????_{res}/image3-s?????-"
+                              f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v h264 "
+                              f"-pix_fmt yuv420p 'figs/movies/image3-{target}.mp4'")
 
                 try:
                     subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
@@ -436,10 +450,16 @@ def compose_dataset_plots(gfem_models):
                 except subprocess.CalledProcessError as e:
                     print(f"Error running FFmpeg command: {e}")
 
-            ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                      f"'figs/gfem/s?????_{res}/image9-s?????-{dataset}.png' "
-                      f"-vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
-                      f"'figs/movies/image9.mp4'")
+            if perplex and magemin:
+                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                          f"'figs/gfem/s?????_{res}/image9-s?????-{dataset}.png' "
+                          f"-vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
+                          f"'figs/movies/image9.mp4'")
+            else:
+                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                          f"'figs/gfem/{program[:4]}_s?????_{res}/image9-s?????-"
+                          f"{dataset}.png' -vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
+                          f"'figs/movies/image9.mp4'")
 
             try:
                 subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
