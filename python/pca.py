@@ -238,7 +238,7 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res=128, n_pca_components=2, k_pca_clusters=3, mc_sample=1, seed=42,
+    def __init__(self, res=128, n_pca_components=2, k_pca_clusters=3, mc_sample=8, seed=42,
                  verbose=1):
         # Input
         self.res = res
@@ -787,10 +787,6 @@ class MixingArray:
                     randomly_sampled_points)), randomly_sampled_points)),
                 columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
             ).round(3)
-
-            # Arrange data by composition
-            random_synthetic.sort_values(by=["SIO2", "MGO"], ascending=[True, False],
-                                         inplace=True)
 
             # Add sample id column
             random_synthetic.insert(0, "SAMPLEID", sample_ids)
