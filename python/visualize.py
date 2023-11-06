@@ -2551,27 +2551,9 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
         raise Exception("No synthetic data found! Call create_mixing_arrays() first ...")
 
     # Initialize synthetic datasets
-    synthetic_datasets = {}
-    synthetic_tops = {}
-    synthetic_bottoms = {}
-
-    # Compile all synthetic datasets into a dict
-    for i in range(len(mixing_array_endpoints)):
-        for j in range(i + 1, len(mixing_array_endpoints)):
-            if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
-                ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
-                ((i == 4) & (j == 5))):
-                fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                         f"endpoints{i + 1}{j + 1}.csv")
-                synthetic_datasets[f"{i + 1}{j + 1}"] = pd.read_csv(fname)
-
-                fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                         f"tops{i + 1}{j + 1}.csv")
-                synthetic_tops[f"{i + 1}{j + 1}"] = pd.read_csv(fname)
-
-                fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                         f"bottoms{i + 1}{j + 1}.csv")
-                synthetic_bottoms[f"{i + 1}{j + 1}"] = pd.read_csv(fname)
+    synthetic_samples = pd.read_csv(
+        f"assets/data/synthetic-samples-pca{n_pca_components}-random.csv"
+    )
 
     # Create a grid of subplots
     num_plots = len(oxides) + 1
@@ -2610,20 +2592,8 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
         ax = axes[k]
 
         if y != "pie":
-            for i in range(len(mixing_array_endpoints)):
-                for j in range(i + 1, len(mixing_array_endpoints)):
-                    if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
-                        ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
-                        ((i == 4) & (j == 5))):
-                        sns.lineplot(data=synthetic_datasets[f"{i + 1}{j + 1}"], x="SIO2",
-                                     y=y, linewidth=2, linestyle="--", color="black",
-                                     alpha=1, legend=False, ax=ax, zorder=3)
-                        sns.lineplot(data=synthetic_tops[f"{i + 1}{j + 1}"], x="SIO2",
-                                     y=y, linewidth=2, linestyle="-", color="black",
-                                     alpha=0.5, legend=False, ax=ax, zorder=3)
-                        sns.lineplot(data=synthetic_bottoms[f"{i + 1}{j + 1}"], x="SIO2",
-                                     y=y, linewidth=2, linestyle="-", color="black",
-                                     alpha=0.5, legend=False, ax=ax, zorder=3)
+            sns.scatterplot(data=synthetic_samples, x="SIO2", y=y, linewidth=0, s=8,
+                            color="black", alpha=1, legend=False, ax=ax, zorder=3)
 
             sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
                             linewidth=0, s=8, alpha=0.1, ax=ax, zorder=1, legend=False)

@@ -238,11 +238,13 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res=128, n_pca_components=2, k_pca_clusters=3, seed=42, verbose=1):
+    def __init__(self, res=128, n_pca_components=2, k_pca_clusters=3, mc_sample=1, seed=42,
+                 verbose=1):
         # Input
         self.res = res
         self.n_pca_components = n_pca_components
         self.k_pca_clusters = k_pca_clusters
+        self.mc_sample = mc_sample
         self.seed = seed
         self.verbose = verbose
 
@@ -568,6 +570,7 @@ class MixingArray:
         pca = self.pca_model
         principal_components = self.pca_results
         data = self.earthchem_pca.copy()
+        mc_sample = self.mc_sample
         seed = self.seed
         verbose = self.verbose
 
@@ -735,80 +738,66 @@ class MixingArray:
             self.top_arrays = top_lines
             self.bottom_arrays = bottom_lines
 
-            # Create dataframes for mixing lines
-            for i in range(len(mixing_array_endpoints)):
-                for j in range(i + 1, len(mixing_array_endpoints)):
-                    if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
-                        ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
-                        ((i == 4) & (j == 5))):
-                        data_synthetic = pd.DataFrame(
-                            np.hstack((
-                                scaler.inverse_transform(
-                                    pca.inverse_transform(
-                                        mixing_lines[f"{i + 1}{j + 1}"].T
-                                    )
-                                ),
-                                mixing_lines[f"{i + 1}{j + 1}"].T
-                            )),
-                            columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
-                        ).round(3)
+            # Define bounding box around top and bottom mixing arrays
+            min_x = min(mixing_array_tops[:, 0].min(), mixing_array_bottoms[:, 0].min())
+            max_x = max(mixing_array_tops[:, 0].max(), mixing_array_bottoms[:, 0].max())
 
-                        # Add sample id column
-                        data_synthetic.insert(0, "SAMPLEID",
-                                              [f"s{i + 1}{j + 1}{str(n).zfill(3)}" for
-                                               n in range(len(data_synthetic))])
+            # Define the sampling interval
+            interval_x = (max_x - min_x) / res
 
+            randomly_sampled_points = []
+            sample_ids = []
 
-                        # Write to csv
-                        fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                                 f"endpoints{i + 1}{j + 1}.csv")
-                        data_synthetic.to_csv(fname, index=False)
+            # Monte carlo sampling of synthetic samples
+            for j in range(mc_sample):
+                # Set seed
+                np.random.seed(seed + j)
 
-                        tops_synthetic = pd.DataFrame(
-                            np.hstack((
-                                scaler.inverse_transform(
-                                    pca.inverse_transform(
-                                        top_lines[f"{i + 1}{j + 1}"].T
-                                    )
-                                ),
-                                top_lines[f"{i + 1}{j + 1}"].T
-                            )),
-                            columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
-                        ).round(3)
+                # Create an array to store sampled points
+                sampled_points = []
 
-                        # Add sample id column
-                        tops_synthetic.insert(0, "SAMPLEID",
-                                              [f"s{i + 1}{j + 1}{str(n).zfill(3)}" for
-                                               n in range(len(tops_synthetic))])
+                # Iterate over x positions
+                for x in np.linspace(min_x, max_x, res):
+                    # Calculate the range of y values for the given x position
+                    y_min = np.interp(x, mixing_array_tops[:, 0], mixing_array_tops[:, 1])
+                    y_max = np.interp(x, mixing_array_bottoms[:, 0],
+                                      mixing_array_bottoms[:, 1])
 
+                    # Create a grid of y values for the current x position
+                    y_values = np.linspace(y_min, y_max, res)
 
-                        # Write to csv
-                        fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                                 f"tops{i + 1}{j + 1}.csv")
-                        tops_synthetic.to_csv(fname, index=False)
+                    # Combine x and y values to create points
+                    points = np.column_stack((x * np.ones_like(y_values), y_values))
 
-                        bottoms_synthetic = pd.DataFrame(
-                            np.hstack((
-                                scaler.inverse_transform(
-                                    pca.inverse_transform(
-                                        bottom_lines[f"{i + 1}{j + 1}"].T
-                                    )
-                                ),
-                                bottom_lines[f"{i + 1}{j + 1}"].T
-                            )),
-                            columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
-                        ).round(3)
+                    # Append points to the sampled_points array
+                    sampled_points.extend(points)
 
-                        # Add sample id column
-                        bottoms_synthetic.insert(0, "SAMPLEID",
-                                              [f"s{i + 1}{j + 1}{str(n).zfill(3)}" for
-                                               n in range(len(bottoms_synthetic))])
+                # Randomly select from sampled points
+                sampled_points = np.array(sampled_points)
+                sample_idx = np.random.choice(len(sampled_points), res, replace=False)
+                randomly_sampled_points.append([sampled_points[i] for i in sample_idx])
+                sample_ids.extend([f"sr{j}{str(n).zfill(3)}" for n in range(len(sample_idx))])
 
+            # Combine randomly sampled points
+            randomly_sampled_points = np.vstack(randomly_sampled_points)
 
-                        # Write to csv
-                        fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-"
-                                 f"bottoms{i + 1}{j + 1}.csv")
-                        bottoms_synthetic.to_csv(fname, index=False)
+            # Create dataframe
+            random_synthetic = pd.DataFrame(
+                np.hstack((scaler.inverse_transform(pca.inverse_transform(
+                    randomly_sampled_points)), randomly_sampled_points)),
+                columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
+            ).round(3)
+
+            # Arrange data by composition
+            random_synthetic.sort_values(by=["SIO2", "MGO"], ascending=[True, False],
+                                         inplace=True)
+
+            # Add sample id column
+            random_synthetic.insert(0, "SAMPLEID", sample_ids)
+
+            # Write to csv
+            fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-random.csv")
+            random_synthetic.to_csv(fname, index=False)
 
             # Update attribute
             self.synthetic_data_written = True
