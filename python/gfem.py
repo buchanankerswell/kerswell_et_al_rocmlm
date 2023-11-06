@@ -111,7 +111,10 @@ def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"],
     """
     """
     # Get samples
-    sampleids = sorted(get_sampleids(source, batch, nbatches))
+    if os.path.exists(source):
+        sampleids = sorted(get_sampleids(source, batch, nbatches))
+    else:
+        raise Exception(f"Source {source} does not exist!")
 
     print("Building GFEM models for samples:")
     print(sampleids)

@@ -2551,9 +2551,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthch
         raise Exception("No synthetic data found! Call create_mixing_arrays() first ...")
 
     # Initialize synthetic datasets
-    synthetic_samples = pd.read_csv(
-        f"assets/data/synthetic-samples-pca{n_pca_components}-random.csv"
-    )
+    synthetic_samples = pd.read_csv(f"assets/data/synthetic-samples.csv")
 
     # Create a grid of subplots
     num_plots = len(oxides) + 1

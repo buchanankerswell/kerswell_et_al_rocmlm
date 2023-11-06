@@ -796,7 +796,7 @@ class MixingArray:
             random_synthetic.insert(0, "SAMPLEID", sample_ids)
 
             # Write to csv
-            fname = (f"assets/data/synthetic-samples-pca{n_pca_components}-random.csv")
+            fname = (f"assets/data/synthetic-samples.csv")
             random_synthetic.to_csv(fname, index=False)
 
             # Update attribute
