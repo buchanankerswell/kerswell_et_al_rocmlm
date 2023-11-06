@@ -31,6 +31,7 @@ PYTHON = \
 DATAPURGE = \
 						log \
 						runs \
+						rocmls \
 						python/__pycache__ \
 						$(DATADIR)/benchmark-rocml-performance.csv \
 						$(DATADIR)/synthetic*.csv \

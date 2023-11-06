@@ -480,50 +480,54 @@ def compose_rocml_plots(rocml_model):
     # Get ml model attributes
     program = rocml_model.program
     model_prefix = rocml_model.model_prefix
+    ml_model_label = rocml_model.ml_model_label
     sample_ids = rocml_model.sample_ids
     res = rocml_model.res
     targets = rocml_model.targets
     fig_dir = rocml_model.fig_dir
+    fig_dir_perf = "figs/rocml"
 
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
 
     print(f"Composing plots: {fig_dir}")
 
+    visualize_rocml_performance(targets, res, fig_dir_perf, "rocml")
+
+    combine_plots_horizontally(
+        f"{fig_dir_perf}/rocml-inference-time-mean.png",
+        f"{fig_dir_perf}/rocml-training-time-mean.png",
+        f"{fig_dir_perf}/temp1.png",
+        caption1="a)",
+        caption2="b)"
+    )
+
+    os.remove(f"{fig_dir_perf}/rocml-inference-time-mean.png")
+    os.remove(f"{fig_dir_perf}/rocml-training-time-mean.png")
+
+    combine_plots_horizontally(
+        f"{fig_dir_perf}/rocml-rmse-test-mean.png",
+        f"{fig_dir_perf}/rocml-rmse-val-mean.png",
+        f"{fig_dir_perf}/temp2.png",
+        caption1="c)",
+        caption2="d)"
+    )
+
+    os.remove(f"{fig_dir_perf}/rocml-rmse-test-mean.png")
+    os.remove(f"{fig_dir_perf}/rocml-rmse-val-mean.png")
+
+    combine_plots_vertically(
+        f"{fig_dir_perf}/temp1.png",
+        f"{fig_dir_perf}/temp2.png",
+        f"{fig_dir_perf}/rocml-performance.png",
+        caption1="",
+        caption2=""
+    )
+
+    os.remove(f"{fig_dir_perf}/temp1.png")
+    os.remove(f"{fig_dir_perf}/temp2.png")
+
     for target in targets_rename:
-        visualize_rocml_performance(target.replace("-", "_"), res, fig_dir, "rocml")
-
-        combine_plots_horizontally(
-            f"{fig_dir}/rocml-inference-time-mean-{res}.png",
-            f"{fig_dir}/rocml-training-time-mean-{res}.png",
-            f"{fig_dir}/temp1.png",
-            caption1="a)",
-            caption2="b)"
-        )
-
-        os.remove(f"{fig_dir}/rocml-inference-time-mean-{res}.png")
-        os.remove(f"{fig_dir}/rocml-training-time-mean-{res}.png")
-
-        combine_plots_horizontally(
-            f"{fig_dir}/rocml-rmse-test-mean-{target}-{res}.png",
-            f"{fig_dir}/rocml-rmse-val-mean-{target}-{res}.png",
-            f"{fig_dir}/temp2.png",
-            caption1="c)",
-            caption2="d)"
-        )
-
-        os.remove(f"{fig_dir}/rocml-rmse-test-mean-{target}-{res}.png")
-        os.remove(f"{fig_dir}/rocml-rmse-val-mean-{target}-{res}.png")
-
-        combine_plots_vertically(
-            f"{fig_dir}/temp1.png",
-            f"{fig_dir}/temp2.png",
-            f"{fig_dir}/performance-{target}.png",
-            caption1="",
-            caption2=""
-        )
-
-        # Iterate through all samples
         for sample_id in rocml_model.sample_ids:
 
             if target in ["rho", "Vp", "Vs"]:
@@ -538,7 +542,7 @@ def compose_rocml_plots(rocml_model):
                 combine_plots_horizontally(
                     f"{fig_dir}/temp1.png",
                     f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
-                    f"{fig_dir}/prem-{sample_id}-{target}.png",
+                    f"{fig_dir}/prem-{sample_id}-{ml_model_label}-{target}.png",
                     caption1="",
                     caption2="c)"
                 )
@@ -554,7 +558,7 @@ def compose_rocml_plots(rocml_model):
             combine_plots_horizontally(
                 f"{fig_dir}/temp1.png",
                 f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff-surf.png",
-                f"{fig_dir}/surf-{sample_id}-{target}.png",
+                f"{fig_dir}/surf-{sample_id}-{ml_model_label}-{target}.png",
                 caption1="",
                 caption2="c)"
             )
@@ -570,7 +574,7 @@ def compose_rocml_plots(rocml_model):
             combine_plots_horizontally(
                 f"{fig_dir}/temp1.png",
                 f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff.png",
-                f"{fig_dir}/image-{sample_id}-{target}.png",
+                f"{fig_dir}/image-{sample_id}-{ml_model_label}-{target}.png",
                 caption1="",
                 caption2="c)"
             )
@@ -605,13 +609,16 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
     T = np.arange(0, T_max + 728)
 
     # Olivine --> Ringwoodite Clapeyron slopes
-    references_410 = {"[410] Akaogi89": [0.001, 0.002], "[410] Katsura89": [0.0025],
-                      "[410] Morishima94": [0.0034, 0.0038]}
+    references_410 = {"[410 km] Akaogi89": [0.001, 0.002],
+                      "[410 km] Katsura89": [0.0025],
+                      "[410 km] Morishima94": [0.0034, 0.0038]}
 
     # Ringwoodite --> Bridgmanite + Ferropericlase Clapeyron slopes
-    references_660 = {"[660] Ito82": [-0.002], "[660] Ito89 & Hirose02": [-0.0028],
-                      "[660] Ito90": [-0.002, -0.006], "[660] Katsura03": [-0.0004, -0.002],
-                      "[660] Akaogi07": [-0.0024, -0.0028]}
+    references_660 = {"[660 km] Ito82": [-0.002],
+                      "[660 km] Ito89 & Hirose02": [-0.0028],
+                      "[660 km] Ito90": [-0.002, -0.006],
+                      "[660 km] Katsura03": [-0.0004, -0.002],
+                      "[660 km] Akaogi07": [-0.0024, -0.0028]}
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -769,10 +776,10 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
     label_color_mapping["Expected Mantle Conditions"] = "gray"
 
     # Define the desired order of the legend items
-    desired_order = ["Dataset PT Range", "Expected Mantle Conditions", "[410] Akaogi89",
-                     "[410] Katsura89", "[410] Morishima94", "[660] Ito82",
-                     "[660] Ito89 & Hirose02", "[660] Ito90", "[660] Katsura03",
-                     "[660] Akaogi07", "Geotherm 1", "Geotherm 2"]
+    desired_order = ["Dataset PT Range", "Expected Mantle Conditions", "[410 km] Akaogi89",
+                     "[410 km] Katsura89", "[410 km] Morishima94", "[660 km] Ito82",
+                     "[660 km] Ito89 & Hirose02", "[660 km] Ito90", "[660 km] Katsura03",
+                     "[660 km] Akaogi07", "Geotherm 1", "Geotherm 2"]
 
     # Sort the legend handles based on the desired order
     legend_handles = sorted(ref_line_handles + [db_data_handle, training_data_handle],
@@ -931,12 +938,11 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     P_prem = depth_prem / 30
 
     # Initialize geotherms
-    P_mgm, P_ppx, P_ml, P_pum, P_dmm = None, None, None, None, None
-    target_mgm, target_ppx, target_ml, target_pum, target_dmm = None, None, None, None, None
+    P_mgm, P_ppx, P_ml, P_pum = None, None, None, None
+    target_mgm, target_ppx, target_ml, target_pum = None, None, None, None
 
     # Get benchmark models
     pum_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
-    dmm_path = f"runs/{program[:4]}_DMM_{dataset[0]}{res}/results.csv"
     source = "assets/data/benchmark-samples.csv"
     targets = ["rho", "Vp", "Vs"]
 
@@ -946,12 +952,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         results_pum = pum_model.results
     else:
         results_pum = None
-    if os.path.exists(dmm_path) and sample_id != "DMM":
-        dmm_model = GFEMModel(program, dataset, "DMM", source, res, 1, 28, 773, 2273, "all",
-                              targets, False, 0, False)
-        results_dmm = dmm_model.results
-    else:
-        results_dmm = None
 
     # Extract target values along a geotherm
     if results_mgm:
@@ -962,12 +962,10 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold)
     if results_pum:
         P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold)
-    if results_dmm:
-        P_dmm, _, target_dmm = get_geotherm(results_dmm, target, geotherm_threshold)
 
     # Get min and max P from geotherms
-    P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_dmm] if P is not None)
-    P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml, P_pum, P_dmm] if P is not None)
+    P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml, P_pum] if P is not None)
+    P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml, P_pum] if P is not None)
 
     # Create cropping mask for prem
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
@@ -988,17 +986,14 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if results_pum:
         mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
         P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
-    if results_dmm:
-        mask_dmm = (P_dmm >= P_min) & (P_dmm <= P_max)
-        P_dmm, target_dmm = P_dmm[mask_dmm], target_dmm[mask_dmm]
 
     # Get min max
     target_min = min(min(np.nanmin(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum, target_dmm] if
-                         lst is not None), min(target_prem))
+                         [target_mgm, target_ppx, target_ml, target_pum] if lst is not None),
+                     min(target_prem))
     target_max = max(max(np.nanmax(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum, target_dmm] if
-                         lst is not None), max(target_prem))
+                         [target_mgm, target_ppx, target_ml, target_pum] if lst is not None),
+                     max(target_prem))
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1020,9 +1015,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
 
     if results_pum:
-        ax1.plot(target_pum, P_pum, "-", linewidth=1.5, color=colormap(0), label="PUM")
-    if results_dmm:
-        ax1.plot(target_dmm, P_dmm, "-", linewidth=1.5, color=colormap(2), label="DMM")
+        ax1.plot(target_pum, P_pum, "--", linewidth=3, color=colormap(0), label="PUM")
     if results_mgm:
         ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(2), label=sample_id)
     if results_ppx:
@@ -2052,8 +2045,8 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize rocml performance !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocml_performance(target, res, fig_dir, filename, fontsize=22,
-                                figwidth=6.3, figheight=4.725):
+def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, figwidth=6.3,
+                                figheight=4.725):
     """
     """
     # Data assets dir
@@ -2088,10 +2081,9 @@ def visualize_rocml_performance(target, res, fig_dir, filename, fontsize=22,
     )
 
     # Define the metrics to plot
-    metrics = ["training_time_mean", "inference_time_mean",
-               f"rmse_test_mean_{target}", f"rmse_val_mean_{target}"]
-    metric_names = ["Training Efficiency", "Prediction Efficiency",
-                    "Training Error", "Validation Error"]
+    metrics = ["training_time_mean", "inference_time_mean", "rmse_test_mean", "rmse_val_mean"]
+    metric_names = ["Training Efficiency", "Prediction Efficiency", "Training Error",
+                    "Validation Error"]
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2108,127 +2100,151 @@ def visualize_rocml_performance(target, res, fig_dir, filename, fontsize=22,
     models = ["KN", "DT", "RF", "NN1", "NN2", "NN3"]
 
     # Create a dictionary to map each model to a specific color
-    color_mapping = {"KN": colormap(2), "DT": colormap(0), "RF": colormap(4),
-                     "NN1": colormap(1), "NN2": colormap(3), "NN3": colormap(5)}
+    color_mapping = {"KN": colormap(2), "DT": colormap(0), "RF": colormap(5),
+                     "NN1": colormap(1), "NN2": colormap(4), "NN3": colormap(3)}
 
-    # Get the corresponding colors for each model
-    colors = [color_mapping[model] for model in models]
-
-    # Define units
-    if target == "rho":
-        unit = "(kg/m$^3$)"
-    elif target in ["Vp", "Vs"]:
-        unit = "(km/s)"
-    elif target == "melt":
-        unit = "(%)"
-    else:
-        unit = ""
-
-    # Loop through each metric and create a subplot
     for i, metric in enumerate(metrics):
-        # Create the facet barplot
         plt.figure(figsize=(figwidth, figheight))
-
-        # Define the offset for side-by-side bars
-        bar_width = 0.45
-
-        # Get order of sorted bars
-        order = summary_df[metric].sort_values().index
-        models_order = summary_df.loc[order]["model"].tolist()
-
-        # Bar positions
-        x_positions = np.arange(len(summary_df[metric]))
 
         # Show MAGEMin and Perple_X compute times
         if metric == "inference_time_mean":
-            mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin")
-            ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X")
+            mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin",
+                                   alpha=0.3)
+            ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X",
+                                   alpha=0.3)
 
-        # Plot the bars for each program
-        bars = plt.bar(x_positions * bar_width, summary_df.loc[order][metric],
-                       edgecolor="black", width=bar_width,
-                       color=[color_mapping[model] for model in models_order],
-                       label=models_order if i == 1 else "")
+        # Define the offset for side-by-side bars
+        bar_width = 0.1
 
-        plt.gca().set_xticks([])
-        plt.gca().set_xticklabels([])
-
-        # Plot titles
         if metric == "training_time_mean":
+            order = summary_df[metric].sort_values().index
+            models_order = summary_df.loc[order]["model"].tolist()
+            x_pos = np.arange(len(summary_df[metric]))
+
+            bars = plt.bar(x_pos * bar_width, summary_df.loc[order][metric],
+                           edgecolor="black", width=bar_width / 0.75,
+                           color=[color_mapping[model] for model in models_order],
+                           label=models_order if i == 1 else "")
+
             plt.title(f"{metric_names[i]}")
             plt.ylabel("Elapsed Time (ms)")
             plt.yscale("log")
+            plt.gca().set_xticks([])
+            plt.gca().set_xticklabels([])
 
         elif metric == "inference_time_mean":
+            order = summary_df[metric].sort_values().index
+            models_order = summary_df.loc[order]["model"].tolist()
+            x_pos = np.arange(len(summary_df[metric]))
+
+            bars = plt.bar(x_pos * bar_width, summary_df.loc[order][metric],
+                           edgecolor="black", width=bar_width / 0.75,
+                           color=[color_mapping[model] for model in models_order],
+                           label=models_order if i == 1 else "")
+
             plt.title(f"{metric_names[i]}")
             plt.ylabel("Elapsed Time (ms)")
             plt.yscale("log")
             handles = [mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
-            legend.set_bbox_to_anchor((0.44, 0.89))
+            legend.set_bbox_to_anchor((0.02, 1.0))
+            plt.gca().set_xticks([])
+            plt.gca().set_xticklabels([])
 
-        elif metric == f"rmse_test_mean_{target}":
-            # Calculate limits
-            max_error = np.max(np.concatenate([
-                summary_df.loc[order][f"rmse_test_std_{target}"].values * 2,
-                summary_df.loc[order][f"rmse_val_std_{target}"].values * 2
-            ]))
+        elif metric == "rmse_test_mean":
+            mult = 0
+            for j, target in enumerate(targets):
+                var = f"rmse_test_mean_{target}"
 
-            max_mean = np.max(np.concatenate([
-                summary_df.loc[order][f"rmse_test_mean_{target}"].values,
-                summary_df.loc[order][f"rmse_val_mean_{target}"].values
-            ]))
+                order = summary_df[var].sort_values().index
+                models_order = summary_df.loc[order]["model"].tolist()
 
-            vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
+                x_pos = np.arange(len(models_order)) + (len(models_order) * j) + mult
 
-            plt.errorbar(x_positions * bar_width,
-                         summary_df.loc[order][f"rmse_test_mean_{target}"],
-                         yerr=summary_df.loc[order][f"rmse_test_std_{target}"] * 2,
-                         fmt="none", capsize=5, color="black", linewidth=2)
+                # Calculate limits
+                max_error = np.max(np.concatenate([
+                    summary_df.loc[order][f"rmse_test_std_{target}"].values * 2,
+                    summary_df.loc[order][f"rmse_val_std_{target}"].values * 2
+                ]))
 
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"RMSE {unit}")
-            plt.ylim(0, vmax)
+                max_mean = np.max(np.concatenate([
+                    summary_df.loc[order][f"rmse_test_mean_{target}"].values,
+                    summary_df.loc[order][f"rmse_val_mean_{target}"].values
+                ]))
 
-            if target != "melt":
-                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+                vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
 
-            else:
-                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+                bars = plt.bar(x_pos * bar_width,
+                               summary_df.loc[order][f"rmse_test_mean_{target}"],
+                               edgecolor="black", width=bar_width,
+                               color=[color_mapping[model] for model in models_order],
+                               label=models_order)
 
-        elif metric == f"rmse_val_mean_{target}":
-            # Calculate limits
-            max_error = np.max(np.concatenate([
-                summary_df.loc[order][f"rmse_test_std_{target}"].values * 2,
-                summary_df.loc[order][f"rmse_val_std_{target}"].values * 2
-            ]))
-
-            max_mean = np.max(np.concatenate([
-                summary_df.loc[order][f"rmse_test_mean_{target}"].values,
-                summary_df.loc[order][f"rmse_val_mean_{target}"].values
-            ]))
-
-            vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
-
-            plt.errorbar(x_positions * bar_width,
-                         summary_df.loc[order][f"rmse_val_mean_{target}"],
-                         yerr=summary_df.loc[order][f"rmse_val_std_{target}"] * 2,
-                         fmt="none", capsize=5, color="black", linewidth=2)
+                plt.errorbar(x_pos * bar_width,
+                             summary_df.loc[order][f"rmse_test_mean_{target}"],
+                             yerr=summary_df.loc[order][f"rmse_test_std_{target}"] * 2,
+                             fmt="none", capsize=5, color="black", linewidth=2)
+                mult += 1
 
             plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"RMSE {unit}")
-            plt.ylim(0, vmax)
+            plt.ylabel(f"RMSE (%)")
+            plt.yscale("log")
+            plt.ylim(0.001, vmax)
+            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+            x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
+                          (len(models_order) / 2 * bar_width) for p, o in
+                          zip(np.arange(len(targets)), np.arange(len(targets)))]
+            plt.gca().set_xticks(x_tick_pos, targets)
 
-            if target != "melt":
-                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        elif metric == "rmse_val_mean":
+            mult = 0
+            for j, target in enumerate(targets):
+                var = f"rmse_test_mean_{target}"
 
-            else:
-                plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+                order = summary_df[var].sort_values().index
+                models_order = summary_df.loc[order]["model"].tolist()
+
+                x_pos = np.arange(len(models_order)) + (len(models_order) * j) + mult
+
+                # Calculate limits
+                max_error = np.max(np.concatenate([
+                    summary_df.loc[order][f"rmse_test_std_{target}"].values * 2,
+                    summary_df.loc[order][f"rmse_val_std_{target}"].values * 2
+                ]))
+
+                max_mean = np.max(np.concatenate([
+                    summary_df.loc[order][f"rmse_test_mean_{target}"].values,
+                    summary_df.loc[order][f"rmse_val_mean_{target}"].values
+                ]))
+
+                vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
+
+                bars = plt.bar(x_pos * bar_width,
+                               summary_df.loc[order][f"rmse_val_mean_{target}"],
+                               edgecolor="black", width=bar_width,
+                               color=[color_mapping[model] for model in models_order],
+                               label=models_order if i == 1 else "")
+
+                plt.errorbar(x_pos * bar_width,
+                             summary_df.loc[order][f"rmse_val_mean_{target}"],
+                             yerr=summary_df.loc[order][f"rmse_val_std_{target}"] * 2,
+                             fmt="none", capsize=5, color="black", linewidth=2)
+                mult += 1
+
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel(f"RMSE (%)")
+            plt.yscale("log")
+            plt.ylim(0.001, vmax)
+            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+            x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
+                          (len(models_order) / 2 * bar_width) for p, o in
+                          zip(np.arange(len(targets)), np.arange(len(targets)))]
+            plt.gca().set_xticks(x_tick_pos, targets)
 
         # Save the plot to a file if a filename is provided
         if filename:
-            plt.savefig(f"{fig_dir}/{filename}-{metric.replace('_', '-')}-{res}.png")
+            plt.savefig(f"{fig_dir}/{filename}-{metric.replace('_', '-')}.png")
 
         else:
             # Print plot

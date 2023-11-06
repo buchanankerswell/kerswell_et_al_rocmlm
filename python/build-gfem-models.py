@@ -16,12 +16,12 @@ if "benchmark" in source:
     files = ["assets/data/benchmark-samples-normalized.csv"]
     programs = ["magemin", "perplex"]
     nbatches = 1
-    batch = "all"
+    batch = 0
 else:
-    files = sorted(glob.glob(f"assets/data/synthetic*.csv"))
+    files = sorted(glob.glob(f"assets/data/synthetic*endpoints*.csv"))
     programs = ["perplex"]
     nbatches = 1
-    batch = "all"
+    batch = 0
 
 # Initialize gfem models
 gfem_models = []

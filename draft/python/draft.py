@@ -177,7 +177,7 @@ def write_markdown_tables():
         df.rename(columns=col_headers, inplace=True)
 
         # Generate markdown table
-        markdown_table = df.to_markdown(index=False)
+        markdown_table = df.to_markdown(index=False, floatfmt=".2f")
 
         # Table caption
         caption = (": Compositions (in wt. % oxides) for the benchmark samples: Primitive "
@@ -230,10 +230,10 @@ def write_markdown_tables():
         # Multiply _std columns by 2 and combine with _mean columns
         for col in df.columns:
             if "_mean" in col:
-                df[col] = df[col].apply(lambda x: f"{x:.3g}")
+                df[col] = df[col].apply(lambda x: f"{x:.2g}")
                 std_col = col.replace("_mean", "_std")
                 if std_col in df.columns:
-                    df[std_col] = df[std_col].apply(lambda x: f"{2 * x:.3g}")
+                    df[std_col] = df[std_col].apply(lambda x: f"{2 * x:.2g}")
                     df[col] = df[col].astype(str) + " ± " + (df[std_col]).astype(str)
 
         # Drop the std_ columns
@@ -261,7 +261,8 @@ def write_markdown_tables():
         # Table caption
         caption = (": RocML performance measured on an independent (unseen) validation "
                    "dataset during kfold cross-validation (t = elapsed time; "
-                   "$\\epsilon = RMSE$). {#tbl:rocml-performance}")
+                   "$\\epsilon = RMSE$). Uncertainties are 2$\\sigma$ "
+                   "{#tbl:rocml-performance}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/rocml-performance.md", "w") as file:

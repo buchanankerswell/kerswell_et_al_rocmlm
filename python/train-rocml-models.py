@@ -16,7 +16,7 @@ if "benchmark" in source:
     files = ["assets/data/benchmark-samples-normalized.csv"]
     ml_models = ["DT", "KN", "RF", "NN1", "NN2", "NN3"]
 else:
-    files = sorted(glob.glob(f"assets/data/synthetic*.csv"))
+    files = sorted(glob.glob(f"assets/data/synthetic*endpoint*.csv"))
     ml_models = ["DT", "KN"]
 
 # Initialize gfem models

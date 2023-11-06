@@ -6,6 +6,8 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 import time
+import shutil
+import joblib
 import traceback
 import itertools
 from tqdm import tqdm
@@ -163,8 +165,22 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO
                       shape_target, shape_target_square, geotherm_mask_train,
                       geotherm_mask_valid, model, tune, epochs, batchprop, kfolds, parallel,
                       nprocs, seed, palette, verbose)
-        rocml.train()
-        rocmls.append(rocml)
+
+        # Check for pretrained model
+        rocml._check_pretrained_model()
+
+        if rocml.ml_model_trained:
+            pretrained_rocml = joblib.load(rocml.ml_model_path)
+            rocmls.append(pretrained_rocml)
+
+        else:
+            # Train rocml model
+            rocml.train()
+            rocmls.append(rocml)
+
+            # Save rocml model
+            with open(rocml.ml_model_path, "wb") as file:
+                joblib.dump(rocml, file)
 
     return rocmls
 
@@ -225,12 +241,14 @@ class RocML:
         self.seed = seed
         self.palette = palette
         self.verbose = verbose
+        self.model_out_dir = f"rocmls"
         if any(sample in sample_ids for sample in ["PUM", "DMM"]):
             self.model_prefix = f"{self.program[:4]}-benchmark-{self.ml_model_label}"
             self.fig_dir = f"figs/rocml/{self.program[:4]}_benchmark_{self.ml_model_label}"
         else:
             self.model_prefix = f"{self.program[:4]}-synthetic-{self.ml_model_label}"
             self.fig_dir = f"figs/rocml/{self.program[:4]}_synthetic_{self.ml_model_label}"
+        self.ml_model_path = f"{self.model_out_dir}/{self.model_prefix}.pkl"
 
         # Check for figs directory
         if not os.path.exists(self.fig_dir):
@@ -264,6 +282,25 @@ class RocML:
 
         # Set np array printing option
         np.set_printoptions(precision=3, suppress=True)
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # check pretrained model !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _check_pretrained_model(self):
+        """
+        """
+        # Check for existing model build
+        if os.path.exists(self.model_out_dir):
+            if os.path.exists(self.ml_model_path):
+                self.ml_model_trained = True
+
+                if self.verbose >= 1:
+                    print(f"Found pretrained model: {self.ml_model_path}!")
+
+        else:
+            os.makedirs(self.model_out_dir, exist_ok=True)
+
+        return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # scale arrays !!
@@ -300,6 +337,7 @@ class RocML:
         """
         # Get self attributes
         model_label = self.ml_model_label
+        model_prefix = self.model_prefix
         feature_train = self.feature_train
         target_train = self.target_train
         tune = self.tune
@@ -326,7 +364,7 @@ class RocML:
         nn_L2 = int(max(y_scaled_train.shape[0] * 0.02, 16))
         nn_L3 = int(max(y_scaled_train.shape[0] * 0.05, 32))
 
-        print(f"Configuring model {self.model_prefix} ...")
+        print(f"Configuring model {model_prefix} ...")
 
         if tune:
             # Define ML model and grid search param space for hyperparameter tuning
@@ -608,9 +646,13 @@ class RocML:
         # Calculate performance metrics to evaluate the model
         rmse_test = np.sqrt(mean_squared_error(y_test_original, y_pred_original,
                                                multioutput="raw_values"))
+        range_test = y_test_original.max() - y_test_original.min()
+        rmse_test = rmse_test / range_test * 100
 
         rmse_valid = np.sqrt(mean_squared_error(y_valid_original, y_pred_original_valid,
                                               multioutput="raw_values"))
+        range_valid = y_valid_original.max() - y_valid_original.min()
+        rmse_valid = rmse_valid / range_valid * 100
 
         r2_test = r2_score(y_test_original, y_pred_original, multioutput="raw_values")
         r2_valid = r2_score(y_valid_original, y_pred_original_valid,
@@ -842,6 +884,8 @@ class RocML:
         # Get self attributes
         model = self.ml_model
         model_label = self.ml_model_label
+        model_prefix = self.model_prefix
+        model_out_dir = self.model_out_dir
         targets = self.targets
         feature_array = self.feature_train_unmasked.copy()
         target_array = self.target_train_unmasked.copy()
@@ -870,7 +914,7 @@ class RocML:
         if target_array.size == 0:
             raise Exception("No training targets!")
 
-        print(f"Retraining model {self.model_prefix} ...")
+        print(f"Retraining model {model_prefix} ...")
 
         # Scale unmasked arrays
         X, y, scaler_X, scaler_y, X_scaled, y_scaled = \
@@ -1003,7 +1047,7 @@ class RocML:
                 if "NN" in self.ml_model_label:
                     print(f"    epochs: {self.epochs}")
                 print(f"    k folds: {self.kfolds}")
-                print(f"    targets: {targets}")
+                print(f"    targets: {self.targets}")
                 print(f"    features array shape: {feat_train.shape}")
                 print(f"    targets array shape: {target_train.shape}")
                 print(f"    hyperparameters:")
