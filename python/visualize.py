@@ -2263,9 +2263,13 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     """
     """
     # Get mixing array attributes
+    res = mixing_array.res
     pca = mixing_array.pca_model
     oxides = mixing_array.oxides_system
     n_pca_components = mixing_array.n_pca_components
+    mixing_array_endpoints = mixing_array.mixing_array_endpoints
+    mixing_array_tops = mixing_array.mixing_array_tops
+    mixing_array_bottoms = mixing_array.mixing_array_bottoms
     data = mixing_array.earthchem_pca
 
     # Check for figs directory
@@ -2323,7 +2327,6 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     legend_order = ["lherzolite", "harzburgite", "dunite"]
 
     for n in range(n_pca_components - 1):
-
         fig = plt.figure(figsize=(figwidth, figheight))
         ax = fig.add_subplot(111)
 
@@ -2345,111 +2348,10 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         sns.kdeplot(data=data, x=f"PC{n + 1}", y=f"PC{n + 2}", hue="ROCKNAME",
                     hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
-        for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CAO", "AL2O3", "CAO", "NA2O", "TIO2"]:
-            ax.arrow(0, 0, loadings.at[n, oxide] * 3, loadings.at[n + 1, oxide] * 3,
-                     width=0.1, head_width=0.4, color="black")
-            ax.text((loadings.at[n, oxide] * 3) + (loadings.at[n, oxide] * 1.5),
-                    (loadings.at[n + 1, oxide] * 3) + (loadings.at[n + 1, oxide] * 1.5),
-                    oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
-                                     pad=0.1), fontsize=fontsize * 0.579, color="black",
-                    ha = "center", va = "center")
-
-        legend = ax.legend(handles=legend_handles, loc="upper center",
-                           bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
-                           handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.694)
-        # Legend order
-        for i, label in enumerate(legend_order):
-            legend.get_texts()[i].set_text(label)
-
-        ax.set_xlabel(f"PC{n + 1}")
-        ax.set_ylabel(f"PC{n + 2}")
-        plt.title("Earthchem Samples")
-
-        # Save the plot to a file if a filename is provided
-        if filename:
-            plt.savefig(f"{fig_dir}/{filename}-loadings-pca{n + 1}{n + 2}.png")
-
-        else:
-            # Print plot
-            plt.show()
-
-        # Close device
-        plt.close()
-
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize kmeans clusters !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="earthchem",
-                              figwidth=6.3, figheight=6.3, fontsize=22):
-    """
-    """
-    # Get mixing array attributes
-    res = mixing_array.res
-    pca = mixing_array.pca_model
-    n_pca_components = mixing_array.n_pca_components
-    k_pca_clusters = mixing_array.k_pca_clusters
-    mixing_array_endpoints = mixing_array.mixing_array_endpoints
-    mixing_array_tops = mixing_array.mixing_array_tops
-    mixing_array_bottoms = mixing_array.mixing_array_bottoms
-    data = mixing_array.earthchem_cluster
-    kmeans = mixing_array.kmeans_model
-
-    # Check for figs directory
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir, exist_ok=True)
-
-    # Set plot style and settings
-    plt.rcParams["legend.facecolor"] = "0.9"
-    plt.rcParams["legend.loc"] = "upper left"
-    plt.rcParams["legend.fontsize"] = "small"
-    plt.rcParams["legend.frameon"] = "False"
-    plt.rcParams["axes.facecolor"] = "0.9"
-    plt.rcParams["font.size"] = fontsize
-    plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
-    plt.rcParams["savefig.bbox"] = "tight"
-
-    # Colormap
-    colormap = plt.cm.get_cmap("tab10")
-
-    # Convert mixing_array_endpoints
-    original_mixing_array_endpoints = pca.inverse_transform(mixing_array_endpoints)
-    original_mixing_array_tops = pca.inverse_transform(mixing_array_tops)
-    original_mixing_array_bottoms = pca.inverse_transform(mixing_array_bottoms)
-
-    # Plot PCA results
-    for n in range(n_pca_components - 1):
-
-        fig = plt.figure(figsize=(figwidth, figheight))
-        ax = fig.add_subplot(111)
-
-        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
-        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
-
-        legend_handles = []
-        for j in range(k_pca_clusters):
-            marker = mlines.Line2D([0], [0], marker='o', color='w',
-                                   label=f"cluster {j + 1}", markersize=10,
-                                   markerfacecolor=colormap(j + 2), alpha=1)
-            legend_handles.append(marker)
-
-            # Get datapoints indices for each cluster
-            indices = data.loc[data["CLUSTER"] == j].index
-
-            scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
-                                 data.loc[indices, f"PC{n + 2}"], edgecolors="none",
-                                 color=colormap(j + 2), label=f"cluster {j + 1}",
-                                 marker=".", s=55, alpha=0.5)
-
         for c in range(len(mixing_array_endpoints)):
-            # Get datapoints indices for each cluster
-            indices = data.loc[data["CLUSTER"] == c].index
-
             ax.text(mixing_array_endpoints[c, n], mixing_array_endpoints[c, n + 1], f"{c+1}",
                     bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
-                    fontsize=fontsize * 0.694, color="black", ha = "center", va = "center")
+                    fontsize=fontsize * 0.694, color="black", ha="center", va="center")
 
             # Calculate mixing lines between mixing array endpoints
             if len(mixing_array_endpoints) > 1:
@@ -2490,16 +2392,33 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
                         ax.plot(x_vals_bottoms, y_vals_bottoms, color="black", linestyle="-",
                                 linewidth=1.2)
 
-        ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.2),
-                  ncol=4, columnspacing=0, handletextpad=-0.5, markerscale=1.2,
-                  fontsize=fontsize * 0.694)
+        for oxide in ["SIO2", "MGO", "FEO", "AL2O3"]:
+            ax.arrow(3, 5, loadings.at[n, oxide] * 1.5, loadings.at[n + 1, oxide] * 1.5,
+                     width=0.1, head_width=0.4, color="black")
+            ax.text(3 + (loadings.at[n, oxide] * 3), 5 + (loadings.at[n + 1, oxide] * 3),
+                    oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
+                                     pad=0.1), fontsize=fontsize * 0.579, color="black",
+                    ha="center", va="center")
+
+        ax.text(3, 8.5, "PCA Loadings", fontsize=fontsize * 0.833, color="black",
+                ha="center", va="center")
+
+        legend = ax.legend(handles=legend_handles, loc="upper center",
+                           bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
+                           handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.694)
+        # Legend order
+        for i, label in enumerate(legend_order):
+            legend.get_texts()[i].set_text(label)
+
         ax.set_xlabel(f"PC{n + 1}")
         ax.set_ylabel(f"PC{n + 2}")
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+
         plt.title("Earthchem Samples")
 
         # Save the plot to a file if a filename is provided
         if filename:
-            plt.savefig(f"{fig_dir}/{filename}-clusters-pca{n + 1}{n + 2}.png")
+            plt.savefig(f"{fig_dir}/{filename}-loadings-pca{n + 1}{n + 2}.png")
 
         else:
             # Print plot
@@ -2511,16 +2430,15 @@ def visualize_kmeans_clusters(mixing_array, fig_dir="figs/other", filename="eart
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize mixing arrays !!
+# visualize harker diagrams !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_mixing_array(mixing_array, fig_dir="figs/other", filename="earthchem",
-                           figwidth=6.3, figheight=6.3, fontsize=22):
+def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="earthchem",
+                              figwidth=6.3, figheight=6.3, fontsize=22):
     """
     """
     # Get mixing array attributes
     oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "FE2O3", "H2O"]]
     n_pca_components = mixing_array.n_pca_components
-    k_pca_clusters = mixing_array.k_pca_clusters
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
     mixing_array_tops = mixing_array.mixing_array_tops
     mixing_array_bottoms = mixing_array.mixing_array_bottoms

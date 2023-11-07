@@ -238,13 +238,14 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res=128, n_pca_components=2, k_pca_clusters=3, mc_sample=8, seed=42,
-                 verbose=1):
+    def __init__(self, res=128, n_pca_components=2, mc_sample=1, weighted_random=True, k=10,
+                 seed=42, verbose=1):
         # Input
         self.res = res
         self.n_pca_components = n_pca_components
-        self.k_pca_clusters = k_pca_clusters
         self.mc_sample = mc_sample
+        self.weighted_random = weighted_random
+        self.k = k
         self.seed = seed
         self.verbose = verbose
 
@@ -264,15 +265,11 @@ class MixingArray:
         self.earthchem_filtered = pd.DataFrame()
         self.earthchem_imputed = pd.DataFrame()
         self.earthchem_pca = pd.DataFrame()
-        self.earthchem_cluster = pd.DataFrame()
 
         # PCA results
         self.scaler = None
         self.pca_model = None
         self.pca_results = np.array([])
-
-        # KMeans clustering results
-        self.kmeans_model = None
 
         # Mixing array results
         self.mixing_array_endpoints = np.array([])
@@ -475,7 +472,8 @@ class MixingArray:
             raise Exception("No Earthchem data found! Call _read_earthchem_data() first ...")
 
         # Sort by composition
-        data = data.sort_values(by=["SIO2", "MGO"], ascending=[True, False], ignore_index=True)
+        data = data.sort_values(by=["SIO2", "MGO"], ascending=[True, False],
+                                ignore_index=True)
 
         # Initialize KNN imputer
         imputer = KNNImputer(weights="distance")
@@ -565,45 +563,27 @@ class MixingArray:
         res = self.res
         oxides = self.oxides_system
         n_pca_components = self.n_pca_components
-        k_pca_clusters = self.k_pca_clusters
         scaler = self.scaler
         pca = self.pca_model
         principal_components = self.pca_results
         data = self.earthchem_pca.copy()
         mc_sample = self.mc_sample
+        weighted_random = self.weighted_random
+        k = self.k
         seed = self.seed
         verbose = self.verbose
 
         try:
-            # Initialize KMeans
-            kmeans = KMeans(n_clusters=k_pca_clusters, n_init="auto", random_state=seed)
-
-            print(f"Clustering data (k={k_pca_clusters}) in reduced PCA space ...")
-
-            # Kmeans clustering in PCA space
-            kmeans.fit(principal_components)
-
-            # Update self attribute
-            self.kmeans_model = kmeans
-
-            # Add cluster labels to data
-            data["CLUSTER"] = kmeans.labels_
-
-            # Update self attribute
-            self.earthchem_cluster = data.copy()
-
-            # Get centroids
-            centroids = kmeans.cluster_centers_
+            # Define sample centroids
+            centroids = data.groupby("ROCKNAME")[["PC1", "PC2"]].median()
 
             # Initialize endpoints
             mixing_array_endpoints = []
             mixing_array_tops = []
             mixing_array_bottoms = []
 
-            for cluster in range(k_pca_clusters):
-                # Get centroid coordinates
-                x, y = centroids[cluster]
-
+            for x, y, rockname in zip(centroids["PC1"].tolist(), centroids["PC2"].tolist(),
+                                      centroids.index.tolist()):
                 # Identify centroid quadrant
                 if x > 0 and y > 0:
                     quadrant = "Q1"
@@ -616,12 +596,8 @@ class MixingArray:
                 else:
                     raise Exception("Invalid quadrant!")
 
-                # Exclude mixing array endpoints from Q2
-                if quadrant == "Q2":
-                    continue
-
                 # Subset cluster datapoints
-                condition = data["CLUSTER"] == cluster
+                condition = data["ROCKNAME"] == rockname
 
                 # Get IQR for PC1
                 q1_pc1 = np.percentile(data.loc[condition, "PC1"], 25)
@@ -633,8 +609,8 @@ class MixingArray:
 
                 # Define adjustment factor
                 median_adjustment = 0
-                top_adjustment = 1.5
-                bottom_adjustment = 1.5
+                top_adjustment = 1.2
+                bottom_adjustment = 1.2
 
                 # Adjust endpoint for PC1
                 if quadrant == "Q1":
@@ -673,12 +649,12 @@ class MixingArray:
 
                     mixing_array_endpoints[-1] = [endpoint_x2, endpoint_y2]
 
-                # Identify lowest SIO2 sample in Q3
-                if quadrant == "Q3":
-                    endpoint_x2 = median_x - 1.6 * iqr_pc1
-                    endpoint_y2 = median_y + 1.8 * iqr_pc2
+                # Identify lowest SIO2 sample in Q2
+                if quadrant == "Q2":
+                    endpoint_x2 = median_x - 0.6 * iqr_pc1
+                    endpoint_y2 = median_y + 0.2 * iqr_pc2
 
-                    mixing_array_endpoints.append([endpoint_x2, endpoint_y2])
+                    mixing_array_endpoints[-1] = [endpoint_x2, endpoint_y2]
 
             endpoints_sorted = sorted(mixing_array_endpoints, key=lambda x: x[0])
 
@@ -755,6 +731,7 @@ class MixingArray:
 
                 # Create an array to store sampled points
                 sampled_points = []
+                sampled_weights = []
 
                 # Iterate over x positions
                 for x in np.linspace(min_x, max_x, res):
@@ -762,20 +739,37 @@ class MixingArray:
                     y_min = np.interp(x, mixing_array_tops[:, 0], mixing_array_tops[:, 1])
                     y_max = np.interp(x, mixing_array_bottoms[:, 0],
                                       mixing_array_bottoms[:, 1])
+                    y_mid = (y_max + y_min) / 2
 
                     # Create a grid of y values for the current x position
                     y_values = np.linspace(y_min, y_max, res)
+
+                    # Calculate exponential distance weights
+                    point_weights = np.exp(-k * np.abs(y_values - y_mid))
 
                     # Combine x and y values to create points
                     points = np.column_stack((x * np.ones_like(y_values), y_values))
 
                     # Append points to the sampled_points array
                     sampled_points.extend(points)
+                    sampled_weights.extend(point_weights)
+
+                # Convert to np array
+                sampled_points = np.array(sampled_points)
+                sampled_weights = np.array(sampled_weights)
+
+                # Define probability distribution for selecting random points
+                if weighted_random:
+                    prob_dist = sampled_weights / np.sum(sampled_weights)
+                else:
+                    prob_dist = None
 
                 # Randomly select from sampled points
-                sampled_points = np.array(sampled_points)
-                sample_idx = np.random.choice(len(sampled_points), res, replace=False)
+                sample_idx = np.random.choice(len(sampled_points), res, replace=False,
+                                              p=prob_dist)
                 randomly_sampled_points.append([sampled_points[i] for i in sample_idx])
+
+                # Save random points
                 sample_ids.extend([f"sr{j}{str(n).zfill(3)}" for n in range(len(sample_idx))])
 
             # Combine randomly sampled points
