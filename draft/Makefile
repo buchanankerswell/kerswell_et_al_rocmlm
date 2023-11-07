@@ -34,7 +34,7 @@ all: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md place_md_tables eisvogel
 agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md $(TABLES)
 	@pandoc $(MS).md \
 		-o agu-draft-$(MS).pdf \
-		--verbose \
+		--quiet \
 		--from markdown \
 		--pdf-engine pdflatex \
 		--metadata-file assets/pandoc/agu.yaml \
@@ -50,7 +50,7 @@ agu: $(LOGFILE) $(AGUMETA) $(AGUTEMPLATE) $(MS).md $(TABLES)
 eisvogel: $(LOGFILE) $(EIMETA) $(EITEMPLATE) $(MS).md place_md_tables
 	@pandoc tmp.md \
 		-o eisvogel-draft-$(MS).pdf \
-		--verbose \
+		--quiet \
 		--from markdown \
 		--pdf-engine pdflatex \
 		--metadata-file assets/pandoc/eisvogel.yaml \

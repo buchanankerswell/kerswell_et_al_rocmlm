@@ -1,7 +1,7 @@
 ---
 journal: "Geochemistry, Geophysics, Geosystems"
 classoption: "draft,linenumbers"
-title: "RocML: Rock Properties Prediction Computational Machine Learning"
+title: "RocMLMs: Rock Properties Prediction through Machine Learning Models"
 authors:
   - name: "Buchanan Kerswell"
     affil: 1

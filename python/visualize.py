@@ -770,13 +770,13 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
     label_color_mapping["Dataset PT Range"] = "gray"
 
     training_data_handle = mpatches.Patch(facecolor="blue", edgecolor="black", alpha=0.1,
-                                          label="Expected Mantle Conditions")
+                                          label="Mantle Conditions")
 
-    labels_660.add("Expected Mantle Conditions")
-    label_color_mapping["Expected Mantle Conditions"] = "gray"
+    labels_660.add("Mantle Conditions")
+    label_color_mapping["Mantle Conditions"] = "gray"
 
     # Define the desired order of the legend items
-    desired_order = ["Dataset PT Range", "Expected Mantle Conditions", "[410 km] Akaogi89",
+    desired_order = ["Dataset PT Range", "Mantle Conditions", "[410 km] Akaogi89",
                      "[410 km] Katsura89", "[410 km] Morishima94", "[660 km] Ito82",
                      "[660 km] Ito89 & Hirose02", "[660 km] Ito90", "[660 km] Katsura03",
                      "[660 km] Akaogi07", "Geotherm 1", "Geotherm 2"]

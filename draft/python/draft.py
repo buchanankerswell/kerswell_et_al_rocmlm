@@ -63,6 +63,8 @@ def copy_assets():
 
     shutil.copytree(os.path.join(main_dir, "assets/data"), "assets/data")
 
+    return None
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # copy figs !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -104,6 +106,8 @@ def copy_figs(manuscript):
                 else:
                     shutil.copy(fullpath, os.path.join(fig_dir_draft, basename))
                     print(f"    {basename}")
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # replace placeholders !!
@@ -147,6 +151,8 @@ def replace_placeholders(filepath, out_filepath):
     # Write the result to the output file
     with open(out_filepath, "w") as output_file:
         output_file.write(output_text)
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # write markdown tables !!
@@ -297,4 +303,6 @@ def write_markdown_tables():
     else:
         print(f"Warning {data_dir}/gfem-efficiency.csv does not exist!")
 
-print("write-markdown-tables.py done!")
+    print("write-markdown-tables.py done!")
+
+    return None

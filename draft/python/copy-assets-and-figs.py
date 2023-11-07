@@ -13,4 +13,4 @@ copy_assets()
 # Copy figs
 copy_figs(ms)
 
-print("copy-assets-and-figs.py done!")
+print("Assets and figures copied!")

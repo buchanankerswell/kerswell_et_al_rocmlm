@@ -13,4 +13,4 @@ write_markdown_tables()
 # Place markdown tables in manuscript
 replace_placeholders(f"{ms}.md", "tmp.md")
 
-print("place-tables.py done!")
+print("Markdown tables placed in manuscript!")

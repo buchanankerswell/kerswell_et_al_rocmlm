@@ -14,25 +14,21 @@ locals().update(valid_args)
 if "benchmark" in source:
     source = "assets/data/benchmark-samples-normalized.csv"
     programs = ["magemin", "perplex"]
-    nbatches = 1
-    batch = 0
 else:
     source = f"assets/data/synthetic-samples.csv"
     programs = ["perplex"]
-    nbatches = 32
-    batch = 0
 
 # Initialize gfem models
 gfem_models = []
 
 # Build GFEM models
-gfem_models.extend(build_gfem_models(source, programs, batch=batch, nbatches=nbatches))
+gfem_models.extend(build_gfem_models(source, programs))
 
-# Visualize GFEM models
-visualize_gfem(gfem_models)
-visualize_gfem_diff(gfem_models)
-compose_dataset_plots(gfem_models)
-visualize_gfem_design()
-visualize_gfem_efficiency()
-
-print("GFEM models visualized!")
+## Visualize GFEM models
+#visualize_gfem(gfem_models)
+#visualize_gfem_diff(gfem_models)
+#compose_dataset_plots(gfem_models)
+#visualize_gfem_design()
+#visualize_gfem_efficiency()
+#
+#print("GFEM models visualized!")
