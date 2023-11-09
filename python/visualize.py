@@ -9,6 +9,8 @@ import glob
 import shutil
 import warnings
 import subprocess
+from scipy.interpolate import interp1d
+from sklearn.metrics import r2_score, mean_squared_error
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # dataframes and arrays !!
@@ -33,6 +35,7 @@ import matplotlib.ticker as ticker
 import matplotlib.patches as mpatches
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib.colors import ListedColormap
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 #######################################################
 ## .1.              Visualizations               !!! ##
@@ -916,8 +919,8 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_prem(program, sample_id, dataset, res, target, target_unit, results_mgm=None,
                    results_ppx=None, results_ml=None, model=None, geotherm_threshold=0.1,
-                   metrics=None, title=None, fig_dir="figs", filename=None, figwidth=6.3,
-                   figheight=4.725, fontsize=22):
+                   title=None, fig_dir="figs", filename=None, figwidth=6.3, figheight=4.725,
+                   fontsize=22):
     """
     """
     # Data asset dir
@@ -1011,17 +1014,23 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Plotting
     fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
 
-    # Plot PREM data on the primary y-axis
-    ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
-
     if results_pum:
         ax1.plot(target_pum, P_pum, "--", linewidth=3, color=colormap(0), label="PUM")
     if results_mgm:
+        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_mgm))
+        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
         ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(2), label=sample_id)
     if results_ppx:
+        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ppx))
+        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
         ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(3), label=sample_id)
     if results_ml:
+        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ml))
+        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
         ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(4), label=model)
+
+    # Plot PREM
+    ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
 
     if target == "rho":
         target_label = "Density"
@@ -1036,24 +1045,29 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
-    if metrics is not None:
-        # Vertical text spacing
-        text_margin_x = 0.04
-        text_margin_y = 0.15
-        text_spacing_y = 0.1
+    # Vertical text spacing
+    text_margin_x = 0.04
+    text_margin_y = 0.15
+    text_spacing_y = 0.1
 
-        # Get metrics
-        rmse_mean, r2_mean = metrics
+    # Compute metrics
+    if results_mgm:
+        rmse = np.sqrt(mean_squared_error(target_prem, target_mgm))
+        r2 = r2_score(target_prem, target_mgm)
+    if results_ppx:
+        rmse = np.sqrt(mean_squared_error(target_prem, target_ppx))
+        r2 = r2_score(target_prem, target_ppx)
+    if results_ml:
+        rmse = np.sqrt(mean_squared_error(target_prem, target_ml))
+        r2 = r2_score(target_prem, target_ml)
 
-        # Add R-squared and RMSE values as text annotations in the plot
-        plt.text(1 - text_margin_x, text_margin_y - (text_spacing_y * 0),
-                 f"R$^2$: {r2_mean:.3f}", transform=plt.gca().transAxes,
-                 fontsize=fontsize * 0.833, horizontalalignment="right",
-                 verticalalignment="bottom")
-        plt.text(1 - text_margin_x, text_margin_y - (text_spacing_y * 1),
-                 f"RMSE: {rmse_mean:.3f}", transform=plt.gca().transAxes,
-                 fontsize=fontsize * 0.833, horizontalalignment="right",
-                 verticalalignment="bottom")
+    # Add R-squared and RMSE values as text annotations in the plot
+    plt.text(1 - text_margin_x, text_margin_y - (text_spacing_y * 0), f"R$^2$: {r2:.3f}",
+             transform=plt.gca().transAxes, fontsize=fontsize * 0.833,
+             horizontalalignment="right", verticalalignment="bottom")
+    plt.text(1 - text_margin_x, text_margin_y - (text_spacing_y * 1), f"RMSE: {rmse:.3f}",
+             transform=plt.gca().transAxes, fontsize=fontsize * 0.833,
+             horizontalalignment="right", verticalalignment="bottom")
 
     # Convert the primary y-axis data (pressure) to depth
     depth_conversion = lambda P: P * 30
@@ -2267,10 +2281,25 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     pca = mixing_array.pca_model
     oxides = mixing_array.oxides_system
     n_pca_components = mixing_array.n_pca_components
+    pca_model = mixing_array.pca_model
+    pca_scaler = mixing_array.scaler
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
     mixing_array_tops = mixing_array.mixing_array_tops
     mixing_array_bottoms = mixing_array.mixing_array_bottoms
     data = mixing_array.earthchem_pca
+
+    # Check for benchmark samples
+    df_bench_path = "assets/data/benchmark-samples.csv"
+    df_synth_bench_path = "assets/data/synthetic-samples-benchmarks.csv"
+
+    if os.path.exists(df_bench_path) and os.path.exists(df_synth_bench_path):
+        # Read benchmark samples
+        df_bench = pd.read_csv(df_bench_path)
+        df_synth_bench = pd.read_csv(df_synth_bench_path)
+
+        # Fit PCA to benchmark samples
+        df_bench[["PC1", "PC2"]] = pca_model.transform(
+            pca_scaler.fit_transform(df_bench[oxides]))
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -2326,17 +2355,18 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     # Legend order
     legend_order = ["lherzolite", "harzburgite", "dunite"]
 
-    for n in range(n_pca_components - 1):
-        fig = plt.figure(figsize=(figwidth, figheight))
-        ax = fig.add_subplot(111)
+    fig = plt.figure(figsize=(figwidth * 2, figheight))
+    ax = fig.add_subplot(121)
 
+    for n in range(n_pca_components - 1):
         ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
         ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
         legend_handles = []
         for i, comp in enumerate(legend_order):
             marker = mlines.Line2D([0], [0], marker='o', color='w', label=comp, markersize=4,
-                                  markerfacecolor=colormap(i), alpha=1)
+                                  markerfacecolor=colormap(i), markeredgewidth=0,
+                                   linestyle="None", alpha=1)
             legend_handles.append(marker)
 
             indices = data.loc[data["ROCKNAME"] == comp].index
@@ -2349,10 +2379,6 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
                     hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
         for c in range(len(mixing_array_endpoints)):
-            ax.text(mixing_array_endpoints[c, n], mixing_array_endpoints[c, n + 1], f"{c+1}",
-                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
-                    fontsize=fontsize * 0.694, color="black", ha="center", va="center")
-
             # Calculate mixing lines between mixing array endpoints
             if len(mixing_array_endpoints) > 1:
                 for i in range(c + 1, len(mixing_array_endpoints)):
@@ -2392,19 +2418,50 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
                         ax.plot(x_vals_bottoms, y_vals_bottoms, color="black", linestyle="-",
                                 linewidth=1.2)
 
-        for oxide in ["SIO2", "MGO", "FEO", "AL2O3"]:
-            ax.arrow(3, 5, loadings.at[n, oxide] * 1.5, loadings.at[n + 1, oxide] * 1.5,
-                     width=0.1, head_width=0.4, color="black")
-            ax.text(3 + (loadings.at[n, oxide] * 3), 5 + (loadings.at[n + 1, oxide] * 3),
-                    oxide, bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
-                                     pad=0.1), fontsize=fontsize * 0.579, color="black",
-                    ha="center", va="center")
+        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
+                        x=f"PC{n + 1}", y=f"PC{n + 2}", facecolor="None", edgecolor="black",
+                        linewidth=2, s=75, legend=False, ax=ax, zorder=6)
+        ax.annotate("FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                   f"PC{n + 1}"].iloc[0],
+                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                   f"PC{n + 2}"].iloc[0]),
+                    xytext=(-45, 5), textcoords="offset points",
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
+                              alpha=0.8),
+                    fontsize=fontsize * 0.579, zorder=8)
 
-        ax.text(3, 8.5, "PCA Loadings", fontsize=fontsize * 0.833, color="black",
-                ha="center", va="center")
+        x_offset = 3.8
+        y_offset = 5.5
+        for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]:
+            ax.arrow(x_offset, y_offset, loadings.at[n, oxide] * 1.5,
+                     loadings.at[n + 1, oxide] * 1.5, width=0.1, head_width=0.4,
+                     color="black")
+            ax.text(x_offset + (loadings.at[n, oxide] * 3),
+                    y_offset + (loadings.at[n + 1, oxide] * 3), oxide,
+                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
+                    fontsize=fontsize * 0.579, color="black", ha="center", va="center")
 
-        legend = ax.legend(handles=legend_handles, loc="upper center",
-                           bbox_to_anchor=(0.5, -0.2), ncol=4, columnspacing=0,
+        ax.text(x_offset, y_offset + 3.5, "PCA Loadings", fontsize=fontsize * 0.833,
+                color="black", ha="center", va="center")
+
+        edge_colors = ["white", "black"]
+        face_colors = ["black", "white"]
+        for l, name in enumerate(["PUM", "DMM"]):
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=f"PC{n + 1}",
+                            y=f"PC{n + 2}", facecolor=face_colors[l],
+                            edgecolor=edge_colors[l], linewidth=2, s=75, legend=False, ax=ax,
+                            zorder=7)
+            ax.annotate(
+                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 1}"].iloc[0],
+                          df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 2}"].iloc[0]),
+                xytext=(-35, 5), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                          edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
+                fontsize=fontsize * 0.579, zorder=8
+            )
+
+        legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
+                           bbox_to_anchor=(0.5, 0.12), ncol=4, columnspacing=0,
                            handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.694)
         # Legend order
         for i, label in enumerate(legend_order):
@@ -2412,13 +2469,113 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 
         ax.set_xlabel(f"PC{n + 1}")
         ax.set_ylabel(f"PC{n + 2}")
+        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
-        plt.title("Earthchem Samples")
+        plt.title("Earthchem Mixing Arrays")
+
+    ax2 = fig.add_subplot(122)
+    for n in range(n_pca_components - 1):
+        ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+        ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+
+        sns.scatterplot(data=data, x=f"PC{n + 1}", y=f"PC{n + 2}", hue="DEPLETION",
+                        palette="magma", edgecolor="None", linewidth=2, s=12,
+                        legend=False, ax=ax2, zorder=0)
+
+        # Create colorbar
+        norm = plt.Normalize(data["DEPLETION"].min(), data["DEPLETION"].max())
+        sm = plt.cm.ScalarMappable(cmap="magma", norm=norm)
+        sm.set_array([])
+
+        for c in range(len(mixing_array_endpoints)):
+            # Calculate mixing lines between mixing array endpoints
+            if len(mixing_array_endpoints) > 1:
+                for i in range(c + 1, len(mixing_array_endpoints)):
+                    if (((c == 0) & (i == 1)) | ((c == 1) & (i == 2)) |
+                        ((c == 2) & (i == 3)) | ((c == 3) & (i == 4)) |
+                        ((c == 4) & (i == 5))):
+                        m = ((mixing_array_endpoints[i, n + 1] -
+                              mixing_array_endpoints[c, n + 1]) /
+                             (mixing_array_endpoints[i, n] - mixing_array_endpoints[c, n]))
+                        m_tops = ((mixing_array_tops[i, n + 1] -
+                                   mixing_array_tops[c, n + 1]) /
+                                  (mixing_array_tops[i, n] - mixing_array_tops[c, n]))
+                        m_bottoms = ((mixing_array_bottoms[i, n + 1] -
+                                      mixing_array_bottoms[c, n + 1]) /
+                                     (mixing_array_bottoms[i, n] -
+                                      mixing_array_bottoms[c, n]))
+                        b = (mixing_array_endpoints[c, n + 1] - m *
+                             mixing_array_endpoints[c, n])
+                        b_tops = (mixing_array_tops[c, n + 1] - m_tops *
+                                  mixing_array_tops[c, n])
+                        b_bottoms = (mixing_array_bottoms[c, n + 1] - m_bottoms *
+                                     mixing_array_bottoms[c, n])
+
+                        x_vals = np.linspace(mixing_array_endpoints[c, n],
+                                             mixing_array_endpoints[i, n], res)
+                        x_vals_tops = np.linspace(mixing_array_tops[c, n],
+                                                  mixing_array_tops[i, n], res)
+                        x_vals_bottoms = np.linspace(mixing_array_bottoms[c, n],
+                                                     mixing_array_bottoms[i, n], res)
+                        y_vals = m * x_vals + b
+                        y_vals_tops = m * x_vals_tops + b_tops
+                        y_vals_bottoms = m * x_vals_bottoms + b_bottoms
+
+                        ax2.plot(x_vals, y_vals, color="black", linestyle="--",
+                                 linewidth=1.2)
+                        ax2.plot(x_vals_tops, y_vals_tops, color="black", linestyle="-",
+                                linewidth=1.2)
+                        ax2.plot(x_vals_bottoms, y_vals_bottoms, color="black",
+                                 linestyle="-", linewidth=1.2)
+
+        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
+                        x=f"PC{n + 1}", y=f"PC{n + 2}", facecolor="None", edgecolor="black",
+                        linewidth=2, s=75, legend=False, ax=ax2, zorder=6)
+        ax2.annotate("FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                   f"PC{n + 1}"].iloc[0],
+                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                   f"PC{n + 2}"].iloc[0]),
+                    xytext=(-45, 5), textcoords="offset points",
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
+                              alpha=0.8),
+                    fontsize=fontsize * 0.579, zorder=8)
+
+        edge_colors = ["white", "black"]
+        face_colors = ["black", "white"]
+        for l, name in enumerate(["PUM", "DMM"]):
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=f"PC{n + 1}",
+                            y=f"PC{n + 2}", facecolor=face_colors[l],
+                            edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
+                            ax=ax2, zorder=7)
+            ax2.annotate(
+                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 1}"].iloc[0],
+                          df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 2}"].iloc[0]),
+                xytext=(-35, 5), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                          edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
+                fontsize=fontsize * 0.579, zorder=8
+            )
+
+        plt.title("Depletion Index")
+        plt.xlim(ax.get_xlim())
+        plt.ylim(ax.get_ylim())
+
+        # Add colorbar
+        cbaxes = inset_axes(ax2, width="40%", height="3%", loc=1)
+        colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="", orientation="horizontal")
+        colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
+
+        ax2.set_xlabel(f"PC{n + 1}")
+        ax2.set_ylabel(f"PC{n + 2}")
+        ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+        ax2.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
         # Save the plot to a file if a filename is provided
         if filename:
-            plt.savefig(f"{fig_dir}/{filename}-loadings-pca{n + 1}{n + 2}.png")
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UserWarning)
+                plt.savefig(f"{fig_dir}/{filename}-mixing-arrays.png")
 
         else:
             # Print plot
@@ -2444,8 +2601,14 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
     mixing_array_bottoms = mixing_array.mixing_array_bottoms
     data = mixing_array.earthchem_filtered
 
-    # Read benchmark samples
-    df_bench = pd.read_csv("assets/data/benchmark-samples.csv")
+    # Check for benchmark samples
+    df_bench_path = "assets/data/benchmark-samples.csv"
+    df_synth_bench_path = "assets/data/synthetic-samples-benchmarks.csv"
+
+    if os.path.exists(df_bench_path) and os.path.exists(df_synth_bench_path):
+        # Read benchmark samples
+        df_bench = pd.read_csv(df_bench_path)
+        df_synth_bench = pd.read_csv(df_synth_bench_path)
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -2469,7 +2632,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
         raise Exception("No synthetic data found! Call create_mixing_arrays() first ...")
 
     # Initialize synthetic datasets
-    synthetic_samples = pd.read_csv(f"assets/data/synthetic-samples.csv")
+    synthetic_samples = pd.read_csv(f"assets/data/synthetic-samples-mixing-random.csv")
 
     # Create a grid of subplots
     num_plots = len(oxides) + 1
@@ -2522,8 +2685,12 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
             for l, name in enumerate(["PUM", "DMM"]):
                 sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name],
                                 x="SIO2", y=y, facecolor=face_colors[l],
-                                edgecolor=edge_colors[l], linewidth=1.2, s=75, legend=False,
+                                edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
                                 ax=ax, zorder=7)
+
+            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
+                            x="SIO2", y=y, facecolor="None", edgecolor="black",
+                            linewidth=2, s=75, legend=False, ax=ax, zorder=6)
 
         if k == 5:
             for l, name in enumerate(["PUM", "DMM"]):
@@ -2532,9 +2699,18 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
                               df_bench.loc[df_bench["SAMPLEID"] == name, y].iloc[0]),
                     xytext=(-35, 5), textcoords="offset points",
                     bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
-                              edgecolor=edge_colors[l], alpha=0.8),
+                              edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
                     fontsize=fontsize * 0.579, zorder=6
                 )
+                ax.annotate(
+                    "FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                                   "SIO2"].iloc[0],
+                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                                   y].iloc[0]),
+                    xytext=(5, 5), textcoords="offset points",
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
+                              alpha=0.8),
+                    fontsize=fontsize * 0.579, zorder=8)
 
         if k < (num_plots - num_cols - 1):
             ax.set_xticks([])

@@ -231,6 +231,33 @@ def normalize_volatile_free(df, oxides, volatiles, loi, digits=3):
 
     return data
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# samples to csv !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def samples_to_csv(sampleids, source, filename):
+    """
+    """
+    # Check for file
+    if not os.path.exists(source):
+        raise Exception("Sample data source does not exist!")
+
+    # Read data
+    df = pd.read_csv(source)
+
+    # Subset samples
+    samples = df[df["SAMPLEID"].isin(sampleids)]
+
+    # Write csv
+    if os.path.exists(filename):
+        df_bench = pd.read_csv(filename)
+        df_bench = df_bench[~df_bench["SAMPLEID"].isin(sampleids)]
+        df_bench = pd.concat([df_bench, samples])
+        df_bench.to_csv(filename, index=False)
+    else:
+        samples.to_csv(filename, index=False)
+
+    return None
+
 #######################################################
 ## .0.            MixingArray Class              !!! ##
 #######################################################
@@ -238,11 +265,9 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res=128, n_pca_components=2, mc_sample=1, weighted_random=True, k=10,
-                 seed=42, verbose=1):
+    def __init__(self, res=128, mc_sample=1, weighted_random=True, k=3, seed=42, verbose=1):
         # Input
         self.res = res
-        self.n_pca_components = n_pca_components
         self.mc_sample = mc_sample
         self.weighted_random = weighted_random
         self.k = k
@@ -267,6 +292,7 @@ class MixingArray:
         self.earthchem_pca = pd.DataFrame()
 
         # PCA results
+        self.n_pca_components = 2
         self.scaler = None
         self.pca_model = None
         self.pca_results = np.array([])
@@ -424,7 +450,7 @@ class MixingArray:
         data = data[cols]
 
         # Arrange rows by SIO2
-        data = data.sort_values(by=["SIO2", "MGO"], ascending=[True, False])
+        data = data.sort_values(by=["SIO2", "MGO"], ascending=[True, False], ignore_index=True)
 
         # Update self attribute
         self.earthchem_filtered = data.copy()
@@ -513,7 +539,6 @@ class MixingArray:
             print("PCA summary:")
             print(f"    number of samples: {pca.n_samples_}")
             print(f"    PCA components: {n_pca_components}")
-            print(f"    features ({len(oxides)}): {oxides}")
             print("    explained variance:")
             for i, value in enumerate(pca.explained_variance_ratio_):
                 print(f"        PC{i+1}: {round(value, 3)}")
@@ -644,8 +669,8 @@ class MixingArray:
 
                 # Identify highest SIO2 sample in Q1
                 if quadrant == "Q1":
-                    endpoint_x2 = median_x + 1.2 * iqr_pc1
-                    endpoint_y2 = median_y + 0.8 * iqr_pc2
+                    endpoint_x2 = median_x + 1.7 * iqr_pc1
+                    endpoint_y2 = median_y + 1.1 * iqr_pc2
 
                     mixing_array_endpoints[-1] = [endpoint_x2, endpoint_y2]
 
@@ -714,6 +739,87 @@ class MixingArray:
             self.top_arrays = top_lines
             self.bottom_arrays = bottom_lines
 
+            # Initialize dataframes
+            mixing_list = []
+            top_list = []
+            bottom_list = []
+
+            # Write mixing lines to csv
+            for i in range(len(mixing_array_endpoints)):
+                for j in range(i + 1, len(mixing_array_endpoints)):
+                    if (((i == 0) & (j == 1)) | ((i == 1) & (j == 2)) |
+                        ((i == 2) & (j == 3)) | ((i == 3) & (j == 4)) |
+                        ((i == 4) & (j == 5))):
+                        # Create dataframe
+                        mixing_synthetic = pd.DataFrame(
+                            np.hstack((scaler.inverse_transform(pca.inverse_transform(
+                                mixing_lines[f"{i + 1}{j + 1}"].T)),
+                                mixing_lines[f"{i + 1}{j + 1}"].T)),
+                            columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
+                        ).round(3)
+                        tops_synthetic = pd.DataFrame(
+                            np.hstack((scaler.inverse_transform(pca.inverse_transform(
+                                top_lines[f"{i + 1}{j + 1}"].T)),
+                                top_lines[f"{i + 1}{j + 1}"].T)),
+                            columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
+                        ).round(3)
+                        bottoms_synthetic = pd.DataFrame(
+                            np.hstack((scaler.inverse_transform(pca.inverse_transform(
+                                bottom_lines[f"{i + 1}{j + 1}"].T)),
+                                bottom_lines[f"{i + 1}{j + 1}"].T)),
+                            columns=oxides + [f"PC{n + 1}" for n in range(n_pca_components)]
+                        ).round(3)
+
+                        # Add sample id column
+                        mixing_synthetic.insert(
+                            0, "SAMPLEID", [f"sm{i + 1}{j + 1}{str(n).zfill(3)}" for
+                                            n in range(len(mixing_synthetic))])
+                        tops_synthetic.insert(
+                            0, "SAMPLEID", [f"st{i + 1}{j + 1}{str(n).zfill(3)}" for
+                                            n in range(len(tops_synthetic))])
+                        bottoms_synthetic.insert(
+                            0, "SAMPLEID", [f"sb{i + 1}{j + 1}{str(n).zfill(3)}" for
+                                            n in range(len(bottoms_synthetic))])
+
+                        # Append to list
+                        mixing_list.append(mixing_synthetic)
+                        top_list.append(tops_synthetic)
+                        bottom_list.append(bottoms_synthetic)
+
+            # Combine mixing arrays
+            all_mixing = pd.concat(mixing_list, ignore_index=True)
+            all_tops = pd.concat(top_list, ignore_index=True)
+            all_bottoms = pd.concat(bottom_list, ignore_index=True)
+
+            # Get PCA position of FSUM
+            fsum = all_mixing.iloc[-1][["PC1", "PC2"]].values
+
+            # Calculate fertility index
+            data["DEPLETION"] = round(np.sqrt((fsum[0] - data["PC1"])**2 +
+                                              (fsum[1] - data["PC2"])**2), 3)
+            max_depletion = data["DEPLETION"].max()
+            data["DEPLETION"] = round(data["DEPLETION"] / max_depletion, 3)
+
+            self.earthchem_pca = data.copy()
+
+            all_mixing["DEPLETION"] = round(np.sqrt((fsum[0] - all_mixing["PC1"])**2 +
+                                                    (fsum[1] - all_mixing["PC2"])**2), 3)
+            all_mixing["DEPLETION"] = round(all_mixing["DEPLETION"] / max_depletion, 3)
+            all_tops["DEPLETION"] = round(np.sqrt((fsum[0] - all_tops["PC1"])**2 +
+                                                  (fsum[1] - all_tops["PC2"])**2), 3)
+            all_tops["DEPLETION"] = round(all_tops["DEPLETION"] / max_depletion, 3)
+            all_bottoms["DEPLETION"] = round(np.sqrt((fsum[0] - all_bottoms["PC1"])**2 +
+                                                     (fsum[1] - all_bottoms["PC2"])**2), 3)
+            all_bottoms["DEPLETION"] = round(all_bottoms["DEPLETION"] / max_depletion, 3)
+
+            # Write to csv
+            fname = (f"assets/data/synthetic-samples-mixing-middle.csv")
+            all_mixing.to_csv(fname, index=False)
+            fname = (f"assets/data/synthetic-samples-mixing-tops.csv")
+            all_tops.to_csv(fname, index=False)
+            fname = (f"assets/data/synthetic-samples-mixing-bottoms.csv")
+            all_bottoms.to_csv(fname, index=False)
+
             # Define bounding box around top and bottom mixing arrays
             min_x = min(mixing_array_tops[:, 0].min(), mixing_array_bottoms[:, 0].min())
             max_x = max(mixing_array_tops[:, 0].max(), mixing_array_bottoms[:, 0].max())
@@ -770,7 +876,7 @@ class MixingArray:
                 randomly_sampled_points.append([sampled_points[i] for i in sample_idx])
 
                 # Save random points
-                sample_ids.extend([f"sr{j}{str(n).zfill(3)}" for n in range(len(sample_idx))])
+                sample_ids.extend([f"sr{j}{str(n).zfill(4)}" for n in range(len(sample_idx))])
 
             # Combine randomly sampled points
             randomly_sampled_points = np.vstack(randomly_sampled_points)
@@ -785,8 +891,14 @@ class MixingArray:
             # Add sample id column
             random_synthetic.insert(0, "SAMPLEID", sample_ids)
 
+            # Calculate fertility index
+            random_synthetic["DEPLETION"] = round(
+                np.sqrt((fsum[0] - random_synthetic["PC1"])**2 +
+                        (fsum[1] - random_synthetic["PC2"])**2),
+                3)
+
             # Write to csv
-            fname = (f"assets/data/synthetic-samples.csv")
+            fname = (f"assets/data/synthetic-samples-mixing-random.csv")
             random_synthetic.to_csv(fname, index=False)
 
             # Update attribute

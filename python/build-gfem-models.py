@@ -10,25 +10,41 @@ valid_args = check_arguments(args, "build-gfem-models.py")
 # Load valid arguments
 locals().update(valid_args)
 
-# Get samples filepath
-if "benchmark" in source:
-    source = "assets/data/benchmark-samples-normalized.csv"
-    programs = ["magemin", "perplex"]
-else:
-    source = f"assets/data/synthetic-samples.csv"
-    programs = ["perplex"]
-
 # Initialize gfem models
 gfem_models = []
 
-# Build GFEM models
-gfem_models.extend(build_gfem_models(source, programs))
+# Configure and build GFEM models
+if "benchmark" in source:
+    programs = ["magemin", "perplex"]
+    source = "assets/data/benchmark-samples-normalized.csv"
 
-## Visualize GFEM models
+    gfem_models.extend(build_gfem_models(source, programs))
+
+else:
+    programs = ["perplex"]
+
+    # Build synthetic benchmark models
+    sources = ["assets/data/synthetic-samples-mixing-tops.csv",
+               "assets/data/synthetic-samples-mixing-middle.csv",
+               "assets/data/synthetic-samples-mixing-bottoms.csv"]
+    sampleids = [["st12000", "st23000", "st23127"],
+                 ["sm12000", "sm23000", "sm23127"],
+                 ["sb12000", "sb23000", "sb23127"]]
+
+    for source, sids in zip(sources, sampleids):
+        gfem_models.extend(build_gfem_models(source, sids, programs))
+
+#    # Random samples along mixing array
+#    source = f"assets/data/synthetic-samples-mixing-random.csv"
+#    sampleids.append(get_sampleids(source, "all"))
+#
+#    gfem_models.extend(build_gfem_models(source, programs))
+
+# Visualize GFEM models
 #visualize_gfem(gfem_models)
 #visualize_gfem_diff(gfem_models)
 #compose_dataset_plots(gfem_models)
 #visualize_gfem_design()
 #visualize_gfem_efficiency()
-#
+
 #print("GFEM models visualized!")

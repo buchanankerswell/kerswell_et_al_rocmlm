@@ -36,7 +36,7 @@ from sklearn.impute import KNNImputer
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get sampleids !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_sampleids(filepath, batch, n_batches=4):
+def get_sampleids(filepath, batch, n_batches=8):
     """
     """
     # Check for file
@@ -103,18 +103,29 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_gfem_models(source, programs=["perplex"], datasets=["train", "valid"], batch="all",
-                      nbatches=8, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273,
-                      oxides_exclude=["H2O", "FE2O3"], targets=["rho", "Vp", "Vs", "melt"],
-                      maskgeotherm=False, parallel=True, nprocs=os.cpu_count(), verbose=1,
-                      debug=True):
+def build_gfem_models(source, sampleids=None, programs=["perplex"],
+                      datasets=["train", "valid"], batch="all", nbatches=8, res=128, Pmin=1,
+                      Pmax=28, Tmin=773, Tmax=2273, oxides_exclude=["H2O", "FE2O3"],
+                      targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, parallel=True,
+                      nprocs=os.cpu_count(), verbose=1, debug=True):
     """
     """
-    # Get samples
-    if os.path.exists(source):
+    # Check sampleids
+    if os.path.exists(source) and not sampleids:
         sampleids = sorted(get_sampleids(source, batch, nbatches))
+
+    elif os.path.exists(source) and sampleids:
+        sids = get_sampleids(source, batch, nbatches)
+
+        if not set(sampleids).issubset(sids):
+            raise Exception(f"Sampleids {sampleids} not in source: {source}!")
+
     else:
         raise Exception(f"Source {source} does not exist!")
+
+    # Select sampleids
+    if not sampleids:
+        sampleids = samples
 
     print("Building GFEM models for samples:")
     print(sampleids)
