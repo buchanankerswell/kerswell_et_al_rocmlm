@@ -304,6 +304,7 @@ class MixingArray:
         self.mixing_arrays = None
         self.top_arrays = None
         self.bottom_arrays = None
+        self.max_depletion = None
         self.synthetic_data_written = False
 
         # Errors
@@ -797,7 +798,10 @@ class MixingArray:
             # Calculate fertility index
             data["DEPLETION"] = round(np.sqrt((fsum[0] - data["PC1"])**2 +
                                               (fsum[1] - data["PC2"])**2), 3)
+
             max_depletion = data["DEPLETION"].max()
+            self.max_depletion = max_depletion
+
             data["DEPLETION"] = round(data["DEPLETION"] / max_depletion, 3)
 
             self.earthchem_pca = data.copy()
@@ -896,6 +900,8 @@ class MixingArray:
                 np.sqrt((fsum[0] - random_synthetic["PC1"])**2 +
                         (fsum[1] - random_synthetic["PC2"])**2),
                 3)
+            random_synthetic["DEPLETION"] = round(
+                random_synthetic["DEPLETION"] / max_depletion, 3)
 
             # Write to csv
             fname = (f"assets/data/synthetic-samples-mixing-random.csv")

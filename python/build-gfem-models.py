@@ -1,7 +1,7 @@
 from scripting import parse_arguments, check_arguments
-from gfem import get_sampleids, build_gfem_models
+from gfem import get_sampleids, build_gfem_models, analyze_gfem_model
 from visualize import (visualize_gfem_design, visualize_gfem_efficiency, visualize_gfem,
-                       visualize_gfem_diff, compose_dataset_plots)
+                       visualize_gfem_diff, visualize_gfem_analysis, compose_dataset_plots)
 
 # Parse arguments and check
 args = parse_arguments()
@@ -10,41 +10,55 @@ valid_args = check_arguments(args, "build-gfem-models.py")
 # Load valid arguments
 locals().update(valid_args)
 
-# Initialize gfem models
-gfem_models = []
+# GFEM analysis csv
+csv_file = "assets/data/gfem-analysis.csv"
 
-# Configure and build GFEM models
-if "benchmark" in source:
-    programs = ["magemin", "perplex"]
-    source = "assets/data/benchmark-samples-normalized.csv"
+# Build benchmark models from literature and analyze
+#source = "assets/data/benchmark-samples-normalized.csv"
+#gfem_benchmark = []
+#gfem_benchmark.extend(build_gfem_models(source, programs=programs, res=res))
+#for model in [model for model in gfem_benchmark if model.dataset == "train"]:
+#    analyze_gfem_model(model, csv_file)
 
-    gfem_models.extend(build_gfem_models(source, programs))
+# Build synthetic benchmark models derived from Earthchem samples
+#source = "assets/data/synthetic-samples-mixing-tops.csv"
+#sids = get_sampleids(source, "all")[::16]
+#gfem_top = []
+#gfem_top.extend(build_gfem_models(source, sids, programs=programs, res=res))
+#for model in [model for model in gfem_top if model.dataset == "train"]:
+#    analyze_gfem_model(model, csv_file)
 
-else:
-    programs = ["perplex"]
+#source = "assets/data/synthetic-samples-mixing-middle.csv"
+#sids = get_sampleids(source, "all")[::16]
+#gfem_middle = []
+#gfem_middle.extend(build_gfem_models(source, sids, programs=programs, res=res))
+#for model in [model for model in gfem_middle if model.dataset == "train"]:
+#    analyze_gfem_model(model, csv_file)
 
-    # Build synthetic benchmark models
-    sources = ["assets/data/synthetic-samples-mixing-tops.csv",
-               "assets/data/synthetic-samples-mixing-middle.csv",
-               "assets/data/synthetic-samples-mixing-bottoms.csv"]
-    sampleids = [["st12000", "st23000", "st23127"],
-                 ["sm12000", "sm23000", "sm23127"],
-                 ["sb12000", "sb23000", "sb23127"]]
+#source = "assets/data/synthetic-samples-mixing-bottoms.csv"
+#sids = get_sampleids(source, "all")[::16]
+#gfem_bottom = []
+#gfem_bottom.extend(build_gfem_models(source, sids, programs=programs, res=res))
+#for model in [model for model in gfem_bottom if model.dataset == "train"]:
+#    analyze_gfem_model(model, csv_file)
 
-    for source, sids in zip(sources, sampleids):
-        gfem_models.extend(build_gfem_models(source, sids, programs))
-
-#    # Random samples along mixing array
-#    source = f"assets/data/synthetic-samples-mixing-random.csv"
-#    sampleids.append(get_sampleids(source, "all"))
-#
-#    gfem_models.extend(build_gfem_models(source, programs))
+# Build synthetic models sampled randomly along mixing array
+#source = f"assets/data/synthetic-samples-mixing-random.csv"
+#sids = get_sampleids(source, "all")
+#gfem_random = []
+#gfem_random.extend(build_gfem_models(source, sids, programs=programs, res=res))
+#for model in [model for model in gfem_random if model.dataset == "train"]:
+#    analyze_gfem_model(model, csv_file)
 
 # Visualize GFEM models
-#visualize_gfem(gfem_models)
-#visualize_gfem_diff(gfem_models)
-#compose_dataset_plots(gfem_models)
+#gfems = [gfem_benchmark, gfem_top, gfem_middle, gfem_bottom, gfem_random]
+#for models in gfems:
+#    visualize_gfem(models)
+#    visualize_gfem_diff(models)
+#    compose_dataset_plots(models)
+
+visualize_gfem_analysis()
 #visualize_gfem_design()
 #visualize_gfem_efficiency()
 
-#print("GFEM models visualized!")
+print("GFEM models visualized!")

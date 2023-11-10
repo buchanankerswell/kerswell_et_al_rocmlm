@@ -63,12 +63,8 @@ earthchem_rocml: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/train-rocml-models.py --source 'synthetic' $(LOG)
 	@echo "=============================================" $(LOG)
 
-benchmark_gfem: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source 'benchmark' $(LOG)
-	@echo "=============================================" $(LOG)
-
-earthchem_gfem: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --source 'synthetic' $(LOG)
+gfem_models: $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --res 64 --programs '["perplex"]' $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
@@ -139,4 +135,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env get_assets mixing_arrays earthchem_gfem benchmark_gfem earthchem_rocml benchmark_rocml init all
+.PHONY: purge clean find_conda_env remove_conda_env create_conda_env get_assets mixing_arrays gfem_models earthchem_rocml benchmark_rocml init all

@@ -9,8 +9,6 @@ import glob
 import shutil
 import warnings
 import subprocess
-from scipy.interpolate import interp1d
-from sklearn.metrics import r2_score, mean_squared_error
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # dataframes and arrays !!
@@ -18,6 +16,12 @@ from sklearn.metrics import r2_score, mean_squared_error
 import cv2
 import numpy as np
 import pandas as pd
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# machine learning !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from scipy.interpolate import interp1d
+from sklearn.metrics import r2_score, mean_squared_error
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GFEM models !!
@@ -403,6 +407,14 @@ def compose_dataset_plots(gfem_models):
 
     # Check for multiple movie frames
     if sample_id not in ["PUM", "DMM"]:
+        if "sb" in sample_id:
+            pattern = "sb?????"
+        if "sm" in sample_id:
+            pattern = "sm?????"
+        if "st" in sample_id:
+            pattern = "st?????"
+        if "sr" in sample_id:
+            pattern = "sr?????"
         # Make movies
         print("Creating mp4 movies ...")
 
@@ -415,14 +427,14 @@ def compose_dataset_plots(gfem_models):
         for target in targets_rename:
             if perplex and magemin:
                 ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/s?????_{res}/image2-s?????-{dataset}-"
+                          f"'figs/gfem/{pattern}_{res}/image2-{pattern}-{dataset}-"
                           f"{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt yuv420p "
                           f"'figs/movies/image2-{target}.mp4'")
             else:
                 ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/{program[:4]}_s?????_{res}/image2-s?????-{dataset}-"
-                          f"{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt yuv420p "
-                          f"'figs/movies/image2-{target}.mp4'")
+                          f"'figs/gfem/{program[:4]}_{pattern}_{res}/image2-{pattern}-"
+                          f"{dataset}-{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt"
+                          f"yuv420p 'figs/movies/image2-{target}.mp4'")
 
             try:
                 subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
@@ -436,12 +448,12 @@ def compose_dataset_plots(gfem_models):
             for target in ["rho", "Vp", "Vs"]:
                 if perplex and magemin:
                     ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                              f"'figs/gfem/s?????_{res}/image3-s?????-"
+                              f"'figs/gfem/{pattern}_{res}/image3-{pattern}-"
                               f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v h264 "
                               f"-pix_fmt yuv420p 'figs/movies/image3-{target}.mp4'")
                 else:
                     ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                              f"'figs/gfem/{program[:4]}_s?????_{res}/image3-s?????-"
+                              f"'figs/gfem/{program[:4]}_{pattern}_{res}/image3-{pattern}-"
                               f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v h264 "
                               f"-pix_fmt yuv420p 'figs/movies/image3-{target}.mp4'")
 
@@ -455,12 +467,12 @@ def compose_dataset_plots(gfem_models):
 
             if perplex and magemin:
                 ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/s?????_{res}/image9-s?????-{dataset}.png' "
+                          f"'figs/gfem/{pattern}_{res}/image9-{pattern}-{dataset}.png' "
                           f"-vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
                           f"'figs/movies/image9.mp4'")
             else:
                 ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/{program[:4]}_s?????_{res}/image9-s?????-"
+                          f"'figs/gfem/{program[:4]}_{pattern}_{res}/image9-{pattern}-"
                           f"{dataset}.png' -vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
                           f"'figs/movies/image9.mp4'")
 
@@ -926,6 +938,10 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Data asset dir
     data_dir = "assets/data"
 
+    # Check for data dir
+    if not os.path.exists(data_dir):
+        raise Exception(f"Data not found at {data_dir}!")
+
     # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
@@ -1037,7 +1053,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     else:
         target_label = target
 
-    ax1.set_xlabel(f"{target_label } ({target_unit})")
+    ax1.set_xlabel(f"{target_label} ({target_unit})")
     ax1.set_ylabel("P (GPa)")
     ax1.set_xticks(np.linspace(target_min, target_max, num=4))
 
@@ -1797,7 +1813,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                 diff[~mask] = np.nan
 
                 # Rename target
-                target_rename = target.replace('_', '-')
+                target_rename = target.replace("_", "-")
 
                 # Print filepath
                 if verbose >= 2:
@@ -1827,18 +1843,19 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                 else:
                     geotherm_threshold = 0.125
 
+                filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
+
                 # Plot PREM comparisons
                 if target == "rho":
                     # Print filepath
                     if verbose >= 2:
-                        print(f"Saving figure: prem-{sample_id}-{dataset}"
-                              f"-{target_rename}.png")
+                        print(f"Saving figure: {filename}")
 
                     visualize_prem("perplex", sample_id, dataset, res, target, "g/cm$^3$",
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                                   filename=filename)
 
                 if target in ["Vp", "Vs"]:
                     # Print filepath
@@ -1850,7 +1867,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                                    results_mgm, results_ppx,
                                    geotherm_threshold=geotherm_threshold,
                                    title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=f"prem-{sample_id}-{dataset}-{target_rename}.png")
+                                   filename=filename)
 
     return None
 
@@ -2095,7 +2112,8 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
     )
 
     # Define the metrics to plot
-    metrics = ["training_time_mean", "inference_time_mean", "rmse_test_mean", "rmse_val_mean"]
+    metrics = ["training_time_mean", "inference_time_mean", "rmse_test_mean",
+               "rmse_val_mean"]
     metric_names = ["Training Efficiency", "Prediction Efficiency", "Training Error",
                     "Validation Error"]
 
@@ -2286,20 +2304,38 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
     mixing_array_tops = mixing_array.mixing_array_tops
     mixing_array_bottoms = mixing_array.mixing_array_bottoms
+    max_depletion = mixing_array.max_depletion
     data = mixing_array.earthchem_pca
 
     # Check for benchmark samples
     df_bench_path = "assets/data/benchmark-samples.csv"
+    df_bench_pca_path = "assets/data/benchmark-samples-pca.csv"
     df_synth_bench_path = "assets/data/synthetic-samples-benchmarks.csv"
 
+    # Read benchmark samples
     if os.path.exists(df_bench_path) and os.path.exists(df_synth_bench_path):
-        # Read benchmark samples
-        df_bench = pd.read_csv(df_bench_path)
-        df_synth_bench = pd.read_csv(df_synth_bench_path)
+        if os.path.exists(df_bench_pca_path):
+            df_bench = pd.read_csv(df_bench_pca_path)
+            df_synth_bench = pd.read_csv(df_synth_bench_path)
 
-        # Fit PCA to benchmark samples
-        df_bench[["PC1", "PC2"]] = pca_model.transform(
-            pca_scaler.fit_transform(df_bench[oxides]))
+        else:
+            df_bench = pd.read_csv(df_bench_path)
+            df_synth_bench = pd.read_csv(df_synth_bench_path)
+
+            # Fit PCA to benchmark samples
+            df_bench[["PC1", "PC2"]] = pca_model.transform(
+                pca_scaler.fit_transform(df_bench[oxides]))
+            df_bench[["PC1", "PC2"]] = df_bench[["PC1", "PC2"]].round(3)
+
+            # Calculate depletion index
+            fsum = df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"][["PC1", "PC2"]]
+            fsum = fsum.values.flatten()
+            df_bench["DEPLETION"] = round(np.sqrt((fsum[0] - df_bench["PC1"])**2 +
+                                                  (fsum[1] - df_bench["PC2"])**2), 3)
+            df_bench["DEPLETION"] = round(df_bench["DEPLETION"] / max_depletion, 3)
+
+            # Save to csv
+            df_bench.to_csv("assets/data/benchmark-samples-pca.csv", index=False)
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -2336,7 +2372,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
         ax.set_ylabel("")
         ax.xaxis.set_major_locator(ticker.FixedLocator(range(len(oxides))))
         ax.set_xticklabels(oxides, rotation=90)
-        plt.title(f"PC{i+1} Loadings")
+        plt.title(f"PC{i + 1} Loadings")
 
         if i == 0:
             ax.set_xticks([])
@@ -2356,233 +2392,180 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     legend_order = ["lherzolite", "harzburgite", "dunite"]
 
     fig = plt.figure(figsize=(figwidth * 2, figheight))
+
     ax = fig.add_subplot(121)
+    ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+    ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-    for n in range(n_pca_components - 1):
-        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
-        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+    legend_handles = []
+    for i, comp in enumerate(legend_order):
+        marker = mlines.Line2D([0], [0], marker="o", color="w", label=comp, markersize=4,
+                               markerfacecolor=colormap(i), markeredgewidth=0,
+                               linestyle="None", alpha=1)
+        legend_handles.append(marker)
 
-        legend_handles = []
-        for i, comp in enumerate(legend_order):
-            marker = mlines.Line2D([0], [0], marker='o', color='w', label=comp, markersize=4,
-                                  markerfacecolor=colormap(i), markeredgewidth=0,
-                                   linestyle="None", alpha=1)
-            legend_handles.append(marker)
+        indices = data.loc[data["ROCKNAME"] == comp].index
 
-            indices = data.loc[data["ROCKNAME"] == comp].index
+        scatter = ax.scatter(data.loc[indices, "PC1"],
+                             data.loc[indices, "PC2"], edgecolors="none",
+                             color=colormap(i), marker=".", s=55, label=comp, alpha=0.1)
 
-            scatter = ax.scatter(data.loc[indices, f"PC{n + 1}"],
-                                 data.loc[indices, f"PC{n + 2}"], edgecolors="none",
-                                 color=colormap(i), marker=".", s=55, label=comp, alpha=0.1)
+    sns.kdeplot(data=data, x="PC1", y="PC2", hue="ROCKNAME",
+                hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
-        sns.kdeplot(data=data, x=f"PC{n + 1}", y=f"PC{n + 2}", hue="ROCKNAME",
-                    hue_order=legend_order, ax=ax, levels=5, zorder=1)
+    x_offset = 3.8
+    y_offset = 5.5
+    for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]:
+        ax.arrow(x_offset, y_offset, loadings.at[0, oxide] * 1.5,
+                 loadings.at[1, oxide] * 1.5, width=0.1, head_width=0.4,
+                 color="black")
+        ax.text(x_offset + (loadings.at[0, oxide] * 3),
+                y_offset + (loadings.at[1, oxide] * 3), oxide,
+                bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
+                fontsize=fontsize * 0.579, color="black", ha="center", va="center")
 
-        for c in range(len(mixing_array_endpoints)):
-            # Calculate mixing lines between mixing array endpoints
-            if len(mixing_array_endpoints) > 1:
-                for i in range(c + 1, len(mixing_array_endpoints)):
-                    if (((c == 0) & (i == 1)) | ((c == 1) & (i == 2)) |
-                        ((c == 2) & (i == 3)) | ((c == 3) & (i == 4)) |
-                        ((c == 4) & (i == 5))):
-                        m = ((mixing_array_endpoints[i, n + 1] -
-                              mixing_array_endpoints[c, n + 1]) /
-                             (mixing_array_endpoints[i, n] - mixing_array_endpoints[c, n]))
-                        m_tops = ((mixing_array_tops[i, n + 1] -
-                                   mixing_array_tops[c, n + 1]) /
-                                  (mixing_array_tops[i, n] - mixing_array_tops[c, n]))
-                        m_bottoms = ((mixing_array_bottoms[i, n + 1] -
-                                      mixing_array_bottoms[c, n + 1]) /
-                                     (mixing_array_bottoms[i, n] -
-                                      mixing_array_bottoms[c, n]))
-                        b = (mixing_array_endpoints[c, n + 1] - m *
-                             mixing_array_endpoints[c, n])
-                        b_tops = (mixing_array_tops[c, n + 1] - m_tops *
-                                  mixing_array_tops[c, n])
-                        b_bottoms = (mixing_array_bottoms[c, n + 1] - m_bottoms *
-                                     mixing_array_bottoms[c, n])
+    ax.text(x_offset, y_offset + 3.5, "PCA Loadings", fontsize=fontsize * 0.833,
+            color="black", ha="center", va="center")
 
-                        x_vals = np.linspace(mixing_array_endpoints[c, n],
-                                             mixing_array_endpoints[i, n], res)
-                        x_vals_tops = np.linspace(mixing_array_tops[c, n],
-                                                  mixing_array_tops[i, n], res)
-                        x_vals_bottoms = np.linspace(mixing_array_bottoms[c, n],
-                                                     mixing_array_bottoms[i, n], res)
-                        y_vals = m * x_vals + b
-                        y_vals_tops = m * x_vals_tops + b_tops
-                        y_vals_bottoms = m * x_vals_bottoms + b_bottoms
+    edge_colors = ["white", "black"]
+    face_colors = ["black", "white"]
+    for l, name in enumerate(["PUM", "DMM"]):
+        sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
+                        y="PC2", facecolor=face_colors[l],
+                        edgecolor=edge_colors[l], linewidth=2, s=75, legend=False, ax=ax,
+                        zorder=7)
+        ax.annotate(
+            name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
+                      df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
+            xytext=(-35, 5), textcoords="offset points",
+            bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                      edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
+            fontsize=fontsize * 0.579, zorder=8
+        )
 
-                        ax.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=1.2)
-                        ax.plot(x_vals_tops, y_vals_tops, color="black", linestyle="-",
-                                linewidth=1.2)
-                        ax.plot(x_vals_bottoms, y_vals_bottoms, color="black", linestyle="-",
-                                linewidth=1.2)
+    legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
+                       bbox_to_anchor=(0.5, 0.12), ncol=4, columnspacing=0,
+                       handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.694)
+    # Legend order
+    for i, label in enumerate(legend_order):
+        legend.get_texts()[i].set_text(label)
 
-        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
-                        x=f"PC{n + 1}", y=f"PC{n + 2}", facecolor="None", edgecolor="black",
-                        linewidth=2, s=75, legend=False, ax=ax, zorder=6)
-        ax.annotate("FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
-                                   f"PC{n + 1}"].iloc[0],
-                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
-                                   f"PC{n + 2}"].iloc[0]),
-                    xytext=(-45, 5), textcoords="offset points",
-                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
-                              alpha=0.8),
-                    fontsize=fontsize * 0.579, zorder=8)
+    ax.set_xlabel("PC1")
+    ax.set_ylabel("PC2")
+    ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
-        x_offset = 3.8
-        y_offset = 5.5
-        for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]:
-            ax.arrow(x_offset, y_offset, loadings.at[n, oxide] * 1.5,
-                     loadings.at[n + 1, oxide] * 1.5, width=0.1, head_width=0.4,
-                     color="black")
-            ax.text(x_offset + (loadings.at[n, oxide] * 3),
-                    y_offset + (loadings.at[n + 1, oxide] * 3), oxide,
-                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
-                    fontsize=fontsize * 0.579, color="black", ha="center", va="center")
-
-        ax.text(x_offset, y_offset + 3.5, "PCA Loadings", fontsize=fontsize * 0.833,
-                color="black", ha="center", va="center")
-
-        edge_colors = ["white", "black"]
-        face_colors = ["black", "white"]
-        for l, name in enumerate(["PUM", "DMM"]):
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=f"PC{n + 1}",
-                            y=f"PC{n + 2}", facecolor=face_colors[l],
-                            edgecolor=edge_colors[l], linewidth=2, s=75, legend=False, ax=ax,
-                            zorder=7)
-            ax.annotate(
-                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 1}"].iloc[0],
-                          df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 2}"].iloc[0]),
-                xytext=(-35, 5), textcoords="offset points",
-                bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
-                          edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
-                fontsize=fontsize * 0.579, zorder=8
-            )
-
-        legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
-                           bbox_to_anchor=(0.5, 0.12), ncol=4, columnspacing=0,
-                           handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.694)
-        # Legend order
-        for i, label in enumerate(legend_order):
-            legend.get_texts()[i].set_text(label)
-
-        ax.set_xlabel(f"PC{n + 1}")
-        ax.set_ylabel(f"PC{n + 2}")
-        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-
-        plt.title("Earthchem Mixing Arrays")
+    plt.title("Earthchem Data")
 
     ax2 = fig.add_subplot(122)
-    for n in range(n_pca_components - 1):
-        ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
-        ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+    ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+    ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-        sns.scatterplot(data=data, x=f"PC{n + 1}", y=f"PC{n + 2}", hue="DEPLETION",
-                        palette="magma", edgecolor="None", linewidth=2, s=12,
-                        legend=False, ax=ax2, zorder=0)
+    sns.scatterplot(data=data, x="PC1", y="PC2", hue="DEPLETION",
+                    palette="magma", edgecolor="None", linewidth=2, s=12,
+                    legend=False, ax=ax2, zorder=0)
 
-        # Create colorbar
-        norm = plt.Normalize(data["DEPLETION"].min(), data["DEPLETION"].max())
-        sm = plt.cm.ScalarMappable(cmap="magma", norm=norm)
-        sm.set_array([])
+    # Create colorbar
+    norm = plt.Normalize(data["DEPLETION"].min(), data["DEPLETION"].max())
+    sm = plt.cm.ScalarMappable(cmap="magma", norm=norm)
+    sm.set_array([])
 
-        for c in range(len(mixing_array_endpoints)):
-            # Calculate mixing lines between mixing array endpoints
-            if len(mixing_array_endpoints) > 1:
-                for i in range(c + 1, len(mixing_array_endpoints)):
-                    if (((c == 0) & (i == 1)) | ((c == 1) & (i == 2)) |
-                        ((c == 2) & (i == 3)) | ((c == 3) & (i == 4)) |
-                        ((c == 4) & (i == 5))):
-                        m = ((mixing_array_endpoints[i, n + 1] -
-                              mixing_array_endpoints[c, n + 1]) /
-                             (mixing_array_endpoints[i, n] - mixing_array_endpoints[c, n]))
-                        m_tops = ((mixing_array_tops[i, n + 1] -
-                                   mixing_array_tops[c, n + 1]) /
-                                  (mixing_array_tops[i, n] - mixing_array_tops[c, n]))
-                        m_bottoms = ((mixing_array_bottoms[i, n + 1] -
-                                      mixing_array_bottoms[c, n + 1]) /
-                                     (mixing_array_bottoms[i, n] -
-                                      mixing_array_bottoms[c, n]))
-                        b = (mixing_array_endpoints[c, n + 1] - m *
-                             mixing_array_endpoints[c, n])
-                        b_tops = (mixing_array_tops[c, n + 1] - m_tops *
-                                  mixing_array_tops[c, n])
-                        b_bottoms = (mixing_array_bottoms[c, n + 1] - m_bottoms *
-                                     mixing_array_bottoms[c, n])
+    for c in range(len(mixing_array_endpoints)):
+        # Calculate mixing lines between mixing array endpoints
+        if len(mixing_array_endpoints) > 1:
+            for i in range(c + 1, len(mixing_array_endpoints)):
+                if (((c == 0) & (i == 1)) | ((c == 1) & (i == 2)) |
+                    ((c == 2) & (i == 3)) | ((c == 3) & (i == 4)) |
+                    ((c == 4) & (i == 5))):
+                    m = ((mixing_array_endpoints[i, 1] -
+                          mixing_array_endpoints[c, 1]) /
+                         (mixing_array_endpoints[i, 0] - mixing_array_endpoints[c, 0]))
+                    m_tops = ((mixing_array_tops[i, 1] -
+                               mixing_array_tops[c, 1]) /
+                              (mixing_array_tops[i, 0] - mixing_array_tops[c, 0]))
+                    m_bottoms = ((mixing_array_bottoms[i, 1] -
+                                  mixing_array_bottoms[c, 1]) /
+                                 (mixing_array_bottoms[i, 0] -
+                                  mixing_array_bottoms[c, 0]))
+                    b = (mixing_array_endpoints[c, 1] - m *
+                         mixing_array_endpoints[c, 0])
+                    b_tops = (mixing_array_tops[c, 1] - m_tops *
+                              mixing_array_tops[c, 0])
+                    b_bottoms = (mixing_array_bottoms[c, 1] - m_bottoms *
+                                 mixing_array_bottoms[c, 0])
 
-                        x_vals = np.linspace(mixing_array_endpoints[c, n],
-                                             mixing_array_endpoints[i, n], res)
-                        x_vals_tops = np.linspace(mixing_array_tops[c, n],
-                                                  mixing_array_tops[i, n], res)
-                        x_vals_bottoms = np.linspace(mixing_array_bottoms[c, n],
-                                                     mixing_array_bottoms[i, n], res)
-                        y_vals = m * x_vals + b
-                        y_vals_tops = m * x_vals_tops + b_tops
-                        y_vals_bottoms = m * x_vals_bottoms + b_bottoms
+                    x_vals = np.linspace(mixing_array_endpoints[c, 0],
+                                         mixing_array_endpoints[i, 0], res)
+                    x_vals_tops = np.linspace(mixing_array_tops[c, 0],
+                                              mixing_array_tops[i, 0], res)
+                    x_vals_bottoms = np.linspace(mixing_array_bottoms[c, 0],
+                                                 mixing_array_bottoms[i, 0], res)
+                    y_vals = m * x_vals + b
+                    y_vals_tops = m * x_vals_tops + b_tops
+                    y_vals_bottoms = m * x_vals_bottoms + b_bottoms
 
-                        ax2.plot(x_vals, y_vals, color="black", linestyle="--",
-                                 linewidth=1.2)
-                        ax2.plot(x_vals_tops, y_vals_tops, color="black", linestyle="-",
-                                linewidth=1.2)
-                        ax2.plot(x_vals_bottoms, y_vals_bottoms, color="black",
-                                 linestyle="-", linewidth=1.2)
+                    ax2.plot(x_vals, y_vals, color="black", linestyle="--",
+                             linewidth=1.2)
+                    ax2.plot(x_vals_tops, y_vals_tops, color="black", linestyle="-",
+                            linewidth=1.2)
+                    ax2.plot(x_vals_bottoms, y_vals_bottoms, color="black",
+                             linestyle="-", linewidth=1.2)
 
-        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
-                        x=f"PC{n + 1}", y=f"PC{n + 2}", facecolor="None", edgecolor="black",
-                        linewidth=2, s=75, legend=False, ax=ax2, zorder=6)
-        ax2.annotate("FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
-                                   f"PC{n + 1}"].iloc[0],
-                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
-                                   f"PC{n + 2}"].iloc[0]),
-                    xytext=(-45, 5), textcoords="offset points",
-                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
-                              alpha=0.8),
-                    fontsize=fontsize * 0.579, zorder=8)
+    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
+                    x="PC1", y="PC2", facecolor="None", edgecolor="black",
+                    linewidth=2, s=75, legend=False, ax=ax2, zorder=6)
+    ax2.annotate("FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                               "PC1"].iloc[0],
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                               "PC2"].iloc[0]),
+                xytext=(-45, 5), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
+                          alpha=0.8),
+                fontsize=fontsize * 0.579, zorder=8)
 
-        edge_colors = ["white", "black"]
-        face_colors = ["black", "white"]
-        for l, name in enumerate(["PUM", "DMM"]):
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=f"PC{n + 1}",
-                            y=f"PC{n + 2}", facecolor=face_colors[l],
-                            edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
-                            ax=ax2, zorder=7)
-            ax2.annotate(
-                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 1}"].iloc[0],
-                          df_bench.loc[df_bench["SAMPLEID"] == name, f"PC{n + 2}"].iloc[0]),
-                xytext=(-35, 5), textcoords="offset points",
-                bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
-                          edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
-                fontsize=fontsize * 0.579, zorder=8
-            )
+    edge_colors = ["white", "black"]
+    face_colors = ["black", "white"]
+    for l, name in enumerate(["PUM", "DMM"]):
+        sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
+                        y="PC2", facecolor=face_colors[l],
+                        edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
+                        ax=ax2, zorder=7)
+        ax2.annotate(
+            name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
+                      df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
+            xytext=(-35, 5), textcoords="offset points",
+            bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                      edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
+            fontsize=fontsize * 0.579, zorder=8
+        )
 
-        plt.title("Depletion Index")
-        plt.xlim(ax.get_xlim())
-        plt.ylim(ax.get_ylim())
+    plt.title("Mixing Arrays")
+    plt.xlim(ax.get_xlim())
+    plt.ylim(ax.get_ylim())
 
-        # Add colorbar
-        cbaxes = inset_axes(ax2, width="40%", height="3%", loc=1)
-        colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="", orientation="horizontal")
-        colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
+    # Add colorbar
+    cbaxes = inset_axes(ax2, width="50%", height="3%", loc=1)
+    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Depletion Index",
+                            orientation="horizontal")
+    colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
 
-        ax2.set_xlabel(f"PC{n + 1}")
-        ax2.set_ylabel(f"PC{n + 2}")
-        ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-        ax2.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+    ax2.set_xlabel("PC1")
+    ax2.set_ylabel("PC2")
+    ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+    ax2.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
-        # Save the plot to a file if a filename is provided
-        if filename:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=UserWarning)
-                plt.savefig(f"{fig_dir}/{filename}-mixing-arrays.png")
+    # Save the plot to a file if a filename is provided
+    if filename:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.savefig(f"{fig_dir}/{filename}-mixing-arrays.png")
 
-        else:
-            # Print plot
-            plt.show()
+    else:
+        # Print plot
+        plt.show()
 
-        # Close device
-        plt.close()
+    # Close device
+    plt.close()
 
     return None
 
@@ -2749,3 +2732,133 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
 
     # Close device
     plt.close()
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# visualize gfem analysis !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_gfem_analysis(fig_dir="figs/other", filename="depletion", figwidth=6.3,
+                                figheight=6.3, fontsize=22):
+    """
+    """
+    # Check for analysis data
+    analysis_path = "assets/data/gfem-analysis.csv"
+    if os.path.exists(analysis_path):
+        # Read analysis data
+        df_analysis = pd.read_csv(analysis_path)
+    else:
+        raise Exception(f"GFEM analysis not found at {analysis_path}!")
+
+    # Samples data paths
+    df_paths = ["assets/data/benchmark-samples-pca.csv",
+                "assets/data/synthetic-samples-mixing-tops.csv",
+                "assets/data/synthetic-samples-mixing-bottoms.csv",
+                "assets/data/synthetic-samples-mixing-random.csv"]
+    df_names = ["benchmark", "top", "bottom", "random"]
+    dfs = {}
+
+    # Read data
+    for name, path in zip(df_names, df_paths):
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+            dfs[name] = df.merge(df_analysis, on="SAMPLEID", how="inner")
+        else:
+            raise Exception(f"Missing sample data: {path}!")
+
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.loc"] = "upper left"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Colormap
+    colormap = plt.cm.get_cmap("tab10")
+
+    # Legend order
+    legend_order = df_names[1:]
+
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(figwidth * 3, figheight))
+    for j, target in enumerate(["rho", "Vp", "Vs"]):
+        # Define units
+        if target == "rho":
+            units = "g/cm$^3$"
+            target_label = "Density"
+        elif target in ["Vp", "Vs"]:
+            units = "km/s"
+            target_label = target
+
+        ax = axes[j]
+        legend_handles = []
+        for i, comp in enumerate(legend_order):
+            data = dfs[comp]
+            data = data[data["TARGET"] == target]
+
+            marker = mlines.Line2D([0], [0], marker="o", color="w", label=comp, markersize=4,
+                                   markerfacecolor=colormap(i + 5), markeredgewidth=0,
+                                   linestyle="None", alpha=1)
+            legend_handles.append(marker)
+
+            scatter = ax.scatter(data["DEPLETION"], data["RMSE_PREM_PROFILE"],
+                                 edgecolors="none", color=colormap(i + 5), marker=".", s=150,
+                                 label=comp)
+
+            ax.set_title(f"{target_label} ({units})")
+
+        edge_colors = ["white", "black"]
+        face_colors = ["black", "white"]
+        df_bench = dfs["benchmark"]
+        df_bench = df_bench[df_bench["TARGET"] == target]
+        for l, name in enumerate(["PUM", "DMM"]):
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="DEPLETION",
+                            y="RMSE_PREM_PROFILE", facecolor=face_colors[l],
+                            edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
+                            ax=ax, zorder=7)
+            ax.annotate(
+                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "DEPLETION"].iloc[0],
+                          df_bench.loc[df_bench["SAMPLEID"] == name,
+                                       "RMSE_PREM_PROFILE"].iloc[0]),
+                xytext=(-35, 5), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                          edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
+                fontsize=fontsize * 0.579, zorder=8
+            )
+
+        if j == 1:
+            legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
+                               title="Mixing Array", bbox_to_anchor=(0.5, 0.20), ncol=4,
+                               columnspacing=0, handletextpad=-0.5, markerscale=3,
+                               fontsize=fontsize * 0.694)
+
+            # Legend order
+            for i, label in enumerate(legend_order):
+                legend.get_texts()[i].set_text(label)
+
+        ax.set_xlabel("Depletion Index")
+        ax.set_ylabel("RMSE vs. PREM")
+        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+
+    # Save the plot to a file if a filename is provided
+    if filename:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            plt.savefig(f"{fig_dir}/{filename}-gfem-analysis.png")
+
+    else:
+        # Print plot
+        plt.show()
+
+    # Close device
+    plt.close()
+
+    return None

@@ -28,6 +28,7 @@ import pandas as pd
 # machine learning !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from sklearn.impute import KNNImputer
+from sklearn.metrics import r2_score, mean_squared_error
 
 #######################################################
 ## .1.             Helper Functions              !!! ##
@@ -103,7 +104,7 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_gfem_models(source, sampleids=None, programs=["perplex"],
+def build_gfem_models(source, sampleids=None, programs=["magemin", "perplex"],
                       datasets=["train", "valid"], batch="all", nbatches=8, res=128, Pmin=1,
                       Pmax=28, Tmin=773, Tmax=2273, oxides_exclude=["H2O", "FE2O3"],
                       targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, parallel=True,
@@ -111,10 +112,10 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"],
     """
     """
     # Check sampleids
-    if os.path.exists(source) and not sampleids:
+    if os.path.exists(source) and sampleids is None:
         sampleids = sorted(get_sampleids(source, batch, nbatches))
 
-    elif os.path.exists(source) and sampleids:
+    elif os.path.exists(source) and sampleids is not None:
         sids = get_sampleids(source, batch, nbatches)
 
         if not set(sampleids).issubset(sids):
@@ -122,10 +123,6 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"],
 
     else:
         raise Exception(f"Source {source} does not exist!")
-
-    # Select sampleids
-    if not sampleids:
-        sampleids = samples
 
     print("Building GFEM models for samples:")
     print(sampleids)
@@ -179,6 +176,155 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"],
     successful_models = [model for model in models if not model.model_build_error]
 
     return successful_models
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# get geotherm !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_geotherm(results, target, threshold, thermal_gradient=0.5, mantle_potential_T=1573):
+    """
+    """
+    # Get PT and target values and transform units
+    df = pd.DataFrame({"P": results["P"], "T": results["T"],
+                       target: results[target]}).sort_values(by="P")
+
+    # Calculate geotherm
+    df["geotherm_P"] = (df["T"] - mantle_potential_T) / (thermal_gradient * 35)
+
+    # Subset df along geotherm
+    df_geotherm = df[abs(df["P"] - df["geotherm_P"]) < threshold]
+
+    # Extract the three vectors
+    P_values = df_geotherm["P"].values
+    T_values = df_geotherm["T"].values
+    targets = df_geotherm[target].values
+
+    return P_values, T_values, targets
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# analyze gfem models !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def analyze_gfem_model(gfem_model, filename, geotherm_threshold=0.1):
+    """
+    """
+    # Get model attributes
+    sample_id = gfem_model.sample_id
+    program = gfem_model.program
+    dataset = gfem_model.dataset
+    res = gfem_model.res
+    results_model = gfem_model.results
+
+    # Data asset dir
+    data_dir = "assets/data"
+
+    # Check for data dir
+    if not os.path.exists(data_dir):
+        raise Exception(f"Data not found at {data_dir}!")
+
+    # Read PREM data
+    df_prem = pd.read_csv(f"{data_dir}/prem.csv")
+
+    # Get benchmark models
+    pum_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
+    source = "assets/data/benchmark-samples.csv"
+    targets = ["rho", "Vp", "Vs"]
+
+    # Get PUM model
+    if os.path.exists(pum_path):
+        pum_model = GFEMModel(program, dataset, "PUM", source, res, 1, 28, 773, 2273, "all",
+                              targets, False, 0, False)
+        results_pum = pum_model.results
+
+        if not results_pum:
+            raise Exception("PUM model results not found!")
+
+    else:
+        raise Exception("PUM model results not found!")
+
+    # Initialize metrics lists
+    rmse_prem_profile, rmse_pum_profile, r2_prem_profile, r2_pum_profile = [], [], [], []
+    rmse_pum_model, r2_pum_model = [], []
+
+    for target in targets:
+        # Get PREM profile
+        P_prem, target_prem = df_prem["depth"] / 30, df_prem[target],
+
+        # Get PUM profile
+        P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold)
+
+        # Get model profile
+        P_model, _, target_model = get_geotherm(results_model, target, geotherm_threshold)
+
+        # Get min and max P
+        P_min = min(np.nanmin(P) for P in [P_model, P_pum] if P is not None)
+        P_max = max(np.nanmax(P) for P in [P_model, P_pum] if P is not None)
+
+        # Crop profiles
+        mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
+        P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
+        mask_model = (P_model >= P_min) & (P_model <= P_max)
+        P_model, target_model = P_model[mask_model], target_model[mask_model]
+        mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
+        P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
+
+        # Interpolate PREM profile
+        x_new = np.linspace(np.min(target_prem), np.max(target_prem), len(target_model))
+        P_prem, target_prem = np.interp(x_new, target_prem, P_prem), x_new
+
+        # Calculate rmse and r2 vs. PREM along geotherm profile
+        rmse_prem_profile.append(
+            round(np.sqrt(mean_squared_error(target_prem, target_model)), 3)
+        )
+        r2_prem_profile.append(round(r2_score(target_prem, target_model), 3))
+
+        # Calculate rmse and r2 vs. PUM along geotherm profile
+        rmse_pum_profile.append(
+            round(np.sqrt(mean_squared_error(target_pum, target_model)), 3)
+        )
+        r2_pum_profile.append(round(r2_score(target_pum, target_model), 3))
+
+        # Remove nans from model results
+        target_array_pum, target_array_model = results_pum[target], results_model[target]
+        nan_mask = np.isnan(target_array_pum) | np.isnan(target_array_model)
+        target_array_pum  = target_array_pum[~nan_mask]
+        target_array_model = target_array_model[~nan_mask]
+
+        # Calculate rmse and r2 vs. PUM for entire model
+        rmse_pum_model.append(
+            round(np.sqrt(mean_squared_error(target_array_pum, target_array_model)), 3)
+        )
+        r2_pum_model.append(round(r2_score(target_array_pum, target_array_model), 3))
+
+    # Save results
+    results = {"SAMPLEID": [sample_id] * len(targets), "PROGRAM": [program] * len(targets),
+               "TARGET": targets, "RMSE_PREM_PROFILE": rmse_prem_profile,
+               "R2_PREM_PROFILE": r2_prem_profile, "RMSE_PUM_PROFILE": rmse_pum_profile,
+               "R2_PUM_PROFILE": r2_pum_profile, "RMSE_PUM_MODEL": rmse_pum_model,
+               "R2_PUM_MODEL": r2_pum_model}
+
+    # Create dataframe
+    df = pd.DataFrame(results)
+
+    # Write csv
+    if os.path.exists(filename):
+        df_existing = pd.read_csv(filename)
+
+        # Check existing samples
+        new_samples = df["SAMPLEID"].values
+        existing_samples = df_existing["SAMPLEID"].values
+        overlap = set(existing_samples).intersection(new_samples)
+
+        if overlap:
+            print(f"Samples already saved to {filename}!")
+
+        else:
+            print(f"Saving {sample_id} analysis to {filename}!")
+            df_existing = pd.concat([df_existing, df])
+            df_existing.to_csv(filename, index=False)
+
+    else:
+        df.to_csv(filename, index=False)
+
+    return None
 
 #######################################################
 ## .2.              GFEMModel class              !!! ##
