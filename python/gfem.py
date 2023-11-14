@@ -180,30 +180,69 @@ def build_gfem_models(source, sampleids=None, programs=["magemin", "perplex"],
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_geotherm(results, target, threshold, thermal_gradient=0.5, mantle_potential_T=1573):
+def get_geotherm(results, target, threshold, Qs=60e-3, Ts=273, crust_thickness=35,
+                 litho_thickness=100):
     """
     """
     # Get PT and target values and transform units
     df = pd.DataFrame({"P": results["P"], "T": results["T"],
                        target: results[target]}).sort_values(by="P")
 
-    # Calculate geotherm
-    df["geotherm_P"] = (df["T"] - mantle_potential_T) / (thermal_gradient * 35)
+    # Geotherm Parameters
+    P = results["P"]
+    Z_min = np.min(P) * 35e3
+    Z_max = np.max(P) * 35e3
+    z = np.linspace(Z_min, Z_max, len(P))
+    T_geotherm = np.zeros(len(P))
+
+    # Layer1 (crust)
+    A1 = 1e-6 # Radiogenic heat production (W/m^3)
+    k1 = 2.3 # Thermal conductivity (W/mK)
+    D1 = crust_thickness * 1e3 # Thickness (m)
+
+    # Layer2 (lithospheric mantle)
+    A2 = 2.2e-8
+    k2 = 3.0
+    D2 = litho_thickness * 1e3
+
+    # Calculate heat flow at the top of each layer
+    Qt2 = Qs - (A1 * D1)
+    Qt1 = Qs
+
+    # Calculate T at the top of each layer
+    Tt1 = Ts
+    Tt2 = Tt1 + (Qt1 * D1 / k1) - (A1 / 2 / k1 * D1**2)
+    Tt3 = Tt2 + (Qt2 * D2 / k2) - (A2 / 2 / k2 * D2**2)
+
+    # Calculate T within each layer
+    for j in range(len(P)):
+        if z[j] <= D1:
+            T_geotherm[j] = Tt1 + (Qt1 / k1 * z[j]) - (A1 / (2 * k1) * z[j]**2)
+        elif D1 < z[j] <= D2 + D1:
+            T_geotherm[j] = Tt2 + (Qt2 / k2 * (z[j] - D1)) - (A2 / (2 * k2) * (z[j] - D1)**2)
+        elif z[j] > D2 + D1:
+            T_geotherm[j] = Tt3 + 0.5e-3 * (z[j] - D1 - D2)
+
+    P_geotherm = np.round(z / 35e3, 1)
+    T_geotherm = np.round(T_geotherm, 2)
+
+    df["geotherm_P"] = P_geotherm
+    df["geotherm_T"] = T_geotherm
 
     # Subset df along geotherm
-    df_geotherm = df[abs(df["P"] - df["geotherm_P"]) < threshold]
+    df = df[abs(df["T"] - df["geotherm_T"]) < 10]
 
     # Extract the three vectors
-    P_values = df_geotherm["P"].values
-    T_values = df_geotherm["T"].values
-    targets = df_geotherm[target].values
+    P_values = df["P"].values
+    T_values = df["T"].values
+    targets = df[target].values
 
     return P_values, T_values, targets
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # analyze gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def analyze_gfem_model(gfem_model, filename, geotherm_threshold=0.1):
+def analyze_gfem_model(gfem_model, filename):
     """
     """
     # Get model attributes
@@ -239,6 +278,20 @@ def analyze_gfem_model(gfem_model, filename, geotherm_threshold=0.1):
 
     else:
         raise Exception("PUM model results not found!")
+
+    # Set geotherm threshold for extracting depth profiles
+    if res <= 8:
+        geotherm_threshold = 80
+    elif res <= 16:
+        geotherm_threshold = 40
+    elif res <= 32:
+        geotherm_threshold = 20
+    elif res <= 64:
+        geotherm_threshold = 10
+    elif res <= 128:
+        geotherm_threshold = 5
+    else:
+        geotherm_threshold = 2.5
 
     # Initialize metrics lists
     rmse_prem_profile, rmse_pum_profile, r2_prem_profile, r2_pum_profile = [], [], [], []
@@ -314,7 +367,7 @@ def analyze_gfem_model(gfem_model, filename, geotherm_threshold=0.1):
         overlap = set(existing_samples).intersection(new_samples)
 
         if overlap:
-            print(f"Samples already saved to {filename}!")
+            print(f"Sample {sample_id} already saved to {filename}!")
 
         else:
             print(f"Saving {sample_id} analysis to {filename}!")
@@ -421,7 +474,7 @@ class GFEMModel:
                     return None
 
                 if self.verbose >= 1:
-                    print(f"Found [{self.program}] results for model {self.model_prefix}!")
+                    print(f"Found [{self.program}] model for sample {self.model_prefix}!")
 
             else:
                 # Make new model if results not found

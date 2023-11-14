@@ -1,7 +1,8 @@
 from scripting import parse_arguments, check_arguments
 from gfem import get_sampleids, build_gfem_models, analyze_gfem_model
 from visualize import (visualize_gfem_design, visualize_gfem_efficiency, visualize_gfem,
-                       visualize_gfem_diff, visualize_gfem_analysis, compose_dataset_plots)
+                       visualize_gfem_diff, visualize_gfem_analysis, compose_dataset_plots,
+                       create_dataset_movies)
 
 # Parse arguments and check
 args = parse_arguments()
@@ -14,51 +15,45 @@ locals().update(valid_args)
 csv_file = "assets/data/gfem-analysis.csv"
 
 # Build benchmark models from literature and analyze
-#source = "assets/data/benchmark-samples-normalized.csv"
-#gfem_benchmark = []
-#gfem_benchmark.extend(build_gfem_models(source, programs=programs, res=res))
-#for model in [model for model in gfem_benchmark if model.dataset == "train"]:
-#    analyze_gfem_model(model, csv_file)
+source = "assets/data/benchmark-samples-normalized.csv"
+gfem_benchmark = []
+gfem_benchmark.extend(build_gfem_models(source, programs=programs, res=res))
+for model in [model for model in gfem_benchmark if model.dataset == "train"]:
+    analyze_gfem_model(model, csv_file)
 
 # Build synthetic benchmark models derived from Earthchem samples
-#source = "assets/data/synthetic-samples-mixing-tops.csv"
-#sids = get_sampleids(source, "all")[::16]
-#gfem_top = []
-#gfem_top.extend(build_gfem_models(source, sids, programs=programs, res=res))
-#for model in [model for model in gfem_top if model.dataset == "train"]:
-#    analyze_gfem_model(model, csv_file)
+source = "assets/data/synthetic-samples-mixing-tops.csv"
+sids = get_sampleids(source, "all")[::16]
+gfem_top = []
+gfem_top.extend(build_gfem_models(source, sids, programs=programs, res=res))
+for model in [model for model in gfem_top if model.dataset == "train"]:
+    analyze_gfem_model(model, csv_file)
 
-#source = "assets/data/synthetic-samples-mixing-middle.csv"
-#sids = get_sampleids(source, "all")[::16]
-#gfem_middle = []
-#gfem_middle.extend(build_gfem_models(source, sids, programs=programs, res=res))
-#for model in [model for model in gfem_middle if model.dataset == "train"]:
-#    analyze_gfem_model(model, csv_file)
-
-#source = "assets/data/synthetic-samples-mixing-bottoms.csv"
-#sids = get_sampleids(source, "all")[::16]
-#gfem_bottom = []
-#gfem_bottom.extend(build_gfem_models(source, sids, programs=programs, res=res))
-#for model in [model for model in gfem_bottom if model.dataset == "train"]:
-#    analyze_gfem_model(model, csv_file)
+source = "assets/data/synthetic-samples-mixing-bottoms.csv"
+sids = get_sampleids(source, "all")[::16]
+gfem_bottom = []
+gfem_bottom.extend(build_gfem_models(source, sids, programs=programs, res=res))
+for model in [model for model in gfem_bottom if model.dataset == "train"]:
+    analyze_gfem_model(model, csv_file)
 
 # Build synthetic models sampled randomly along mixing array
-#source = f"assets/data/synthetic-samples-mixing-random.csv"
-#sids = get_sampleids(source, "all")
-#gfem_random = []
-#gfem_random.extend(build_gfem_models(source, sids, programs=programs, res=res))
-#for model in [model for model in gfem_random if model.dataset == "train"]:
-#    analyze_gfem_model(model, csv_file)
+source = f"assets/data/synthetic-samples-mixing-random.csv"
+sids = get_sampleids(source, "all")[::16]
+gfem_random = []
+gfem_random.extend(build_gfem_models(source, sids, programs=programs, res=res))
+for model in [model for model in gfem_random if model.dataset == "train"]:
+    analyze_gfem_model(model, csv_file)
 
 # Visualize GFEM models
-#gfems = [gfem_benchmark, gfem_top, gfem_middle, gfem_bottom, gfem_random]
-#for models in gfems:
-#    visualize_gfem(models)
-#    visualize_gfem_diff(models)
-#    compose_dataset_plots(models)
+gfems = [gfem_benchmark, gfem_top, gfem_bottom, gfem_random]
+for models in gfems:
+    visualize_gfem(models)
+    visualize_gfem_diff(models)
+    compose_dataset_plots(models)
+    create_dataset_movies(models)
 
 visualize_gfem_analysis()
-#visualize_gfem_design()
-#visualize_gfem_efficiency()
+visualize_gfem_design()
+visualize_gfem_efficiency()
 
 print("GFEM models visualized!")

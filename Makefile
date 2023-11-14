@@ -63,7 +63,7 @@ earthchem_rocml: $(LOGFILE) $(PYTHON) get_assets
 	@$(CONDAPYTHON) -u python/train-rocml-models.py --source 'synthetic' $(LOG)
 	@echo "=============================================" $(LOG)
 
-gfem_models: $(LOGFILE) $(PYTHON) get_assets
+gfem_models: $(LOGFILE) $(PYTHON) get_assets mixing_arrays
 	@$(CONDAPYTHON) -u python/build-gfem-models.py --res 64 --programs '["perplex"]' $(LOG)
 	@echo "=============================================" $(LOG)
 

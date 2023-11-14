@@ -52,23 +52,62 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_geotherm(results, target, threshold, thermal_gradient=0.5, mantle_potential_T=1573):
+def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, crust_thickness=35,
+                 litho_thickness=150):
     """
     """
     # Get PT and target values and transform units
     df = pd.DataFrame({"P": results["P"], "T": results["T"],
                        target: results[target]}).sort_values(by="P")
 
-    # Calculate geotherm
-    df["geotherm_P"] = (df["T"] - mantle_potential_T) / (thermal_gradient * 35)
+    # Geotherm Parameters
+    P = results["P"]
+    Z_min = np.min(P) * 35e3
+    Z_max = np.max(P) * 35e3
+    z = np.linspace(Z_min, Z_max, len(P))
+    T_geotherm = np.zeros(len(P))
+
+    # Layer1 (crust)
+    A1 = 1e-6 # Radiogenic heat production (W/m^3)
+    k1 = 2.3 # Thermal conductivity (W/mK)
+    D1 = crust_thickness * 1e3 # Thickness (m)
+
+    # Layer2 (lithospheric mantle)
+    A2 = 2.2e-8
+    k2 = 3.0
+    D2 = litho_thickness * 1e3
+
+    # Calculate heat flow at the top of each layer
+    Qt2 = Qs - (A1 * D1)
+    Qt1 = Qs
+
+    # Calculate T at the top of each layer
+    Tt1 = Ts
+    Tt2 = Tt1 + (Qt1 * D1 / k1) - (A1 / 2 / k1 * D1**2)
+    Tt3 = Tt2 + (Qt2 * D2 / k2) - (A2 / 2 / k2 * D2**2)
+
+    # Calculate T within each layer
+    for j in range(len(P)):
+        if z[j] <= D1:
+            T_geotherm[j] = Tt1 + (Qt1 / k1 * z[j]) - (A1 / (2 * k1) * z[j]**2)
+        elif D1 < z[j] <= D2 + D1:
+            T_geotherm[j] = Tt2 + (Qt2 / k2 * (z[j] - D1)) - (A2 / (2 * k2) * (z[j] - D1)**2)
+        elif z[j] > D2 + D1:
+            T_geotherm[j] = Tt3 + 0.5e-3 * (z[j] - D1 - D2)
+
+    P_geotherm = np.round(z / 35e3, 1)
+    T_geotherm = np.round(T_geotherm, 2)
+
+    df["geotherm_P"] = P_geotherm
+    df["geotherm_T"] = T_geotherm
 
     # Subset df along geotherm
-    df_geotherm = df[abs(df["P"] - df["geotherm_P"]) < threshold]
+    df = df[abs(df["T"] - df["geotherm_T"]) < 10]
 
     # Extract the three vectors
-    P_values = df_geotherm["P"].values
-    T_values = df_geotherm["T"].values
-    targets = df_geotherm[target].values
+    P_values = df["P"].values
+    T_values = df["T"].values
+    targets = df[target].values
 
     return P_values, T_values, targets
 
@@ -198,11 +237,16 @@ def compose_dataset_plots(gfem_models):
                 targets = magemin_model.targets
             else:
                 raise ValueError("Model targets are not the same!")
+            if magemin_model.model_prefix == perplex_model.model_prefix:
+                model_prefix = magemin_model.model_prefix
+            else:
+                raise ValueError("Model prefix are not the same!")
             if magemin_model.verbose == perplex_model.verbose:
                 verbose = magemin_model.verbose
             else:
                 verbose = 1
 
+            program = "magemin + perplex"
             fig_dir_mage = magemin_model.fig_dir
             fig_dir_perp = perplex_model.fig_dir
             fig_dir_diff = f"figs/gfem/diff_{sample_id}_{res}"
@@ -218,6 +262,7 @@ def compose_dataset_plots(gfem_models):
             dataset = magemin_model.dataset
             targets = magemin_model.targets
             fig_dir = magemin_model.fig_dir
+            model_prefix = magemin_model.model_prefix
             verbose = magemin_model.verbose
 
         elif perplex and not magemin:
@@ -228,31 +273,46 @@ def compose_dataset_plots(gfem_models):
             dataset = perplex_model.dataset
             targets = perplex_model.targets
             fig_dir = perplex_model.fig_dir
+            model_prefix = perplex_model.model_prefix
             verbose = perplex_model.verbose
 
         # Set geotherm threshold for extracting depth profiles
         if res <= 8:
-            geotherm_threshold = 4
-
+            geotherm_threshold = 80
         elif res <= 16:
-            geotherm_threshold = 2
-
+            geotherm_threshold = 40
         elif res <= 32:
-            geotherm_threshold = 1
-
+            geotherm_threshold = 20
         elif res <= 64:
-            geotherm_threshold = 0.5
-
+            geotherm_threshold = 10
         elif res <= 128:
-            geotherm_threshold = 0.25
-
+            geotherm_threshold = 5
         else:
-            geotherm_threshold = 0.125
+            geotherm_threshold = 2.5
 
         # Rename targets
         targets_rename = [target.replace("_", "-") for target in targets]
 
-        print(f"Composing plots: {fig_dir}")
+        print(f"Composing {model_prefix} [{program}] ...")
+
+        # Check for existing plots
+        existing_figs = []
+        for target in targets_rename:
+            fig_1 = f"{fig_dir}/image2-{sample_id}-{dataset}-{target}.png"
+            fig_2 = f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png"
+            fig_3 = f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png"
+            fig_4 = f"{fig_dir}/image9-{sample_id}-{dataset}.png"
+
+            check = ((os.path.exists(fig_3) and os.path.exists(fig_4)) |
+                     (os.path.exists(fig_1) and os.path.exists(fig_2)) |
+                     (os.path.exists(fig_1) and os.path.exists(fig_2) and
+                      os.path.exists(fig_4)))
+
+            if check:
+                existing_figs.append(check)
+
+        if existing_figs:
+            return None
 
         if magemin and perplex:
             for target in targets_rename:
@@ -298,8 +358,8 @@ def compose_dataset_plots(gfem_models):
                         caption2=""
                     )
 
-            for dir in [fig_dir_mage, fig_dir_perp, fig_dir_diff]:
-                shutil.rmtree(dir)
+                for dir in [fig_dir_mage, fig_dir_perp, fig_dir_diff]:
+                    shutil.rmtree(dir)
 
         elif magemin and not perplex:
             for target in targets_rename:
@@ -405,84 +465,186 @@ def compose_dataset_plots(gfem_models):
         for file in tmp_files + prem_files + grad_files + mgm_files + ppx_files:
             os.remove(file)
 
-    # Check for multiple movie frames
-    if sample_id not in ["PUM", "DMM"]:
-        if "sb" in sample_id:
-            pattern = "sb?????"
-        if "sm" in sample_id:
-            pattern = "sm?????"
-        if "st" in sample_id:
-            pattern = "st?????"
-        if "sr" in sample_id:
-            pattern = "sr?????"
-        # Make movies
-        print("Creating mp4 movies ...")
+    return None
 
-        if os.path.exists("figs/movies"):
-            shutil.rmtree("figs/movies")
-            os.makedirs("figs/movies", exist_ok=True)
-        else:
-            os.makedirs("figs/movies", exist_ok=True)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# create dataset movies !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def create_dataset_movies(gfem_models):
+    """
+    """
+    # Parse and sort models
+    magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
+                      None for m in gfem_models]
+    magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
 
-        for target in targets_rename:
-            if perplex and magemin:
-                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/{pattern}_{res}/image2-{pattern}-{dataset}-"
-                          f"{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt yuv420p "
-                          f"'figs/movies/image2-{target}.mp4'")
+    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+                      None for m in gfem_models]
+    perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
+
+    # Iterate through all models
+    for magemin_model, perplex_model in zip(magemin_models, perplex_models):
+        magemin = True if magemin_model is not None else False
+        perplex = True if perplex_model is not None else False
+
+        if not magemin and not perplex:
+            continue
+
+        if magemin and perplex:
+            # Get model data
+            if magemin_model.sample_id == perplex_model.sample_id:
+                sample_id = magemin_model.sample_id
             else:
-                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/{program[:4]}_{pattern}_{res}/image2-{pattern}-"
-                          f"{dataset}-{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt"
-                          f"yuv420p 'figs/movies/image2-{target}.mp4'")
-
-            try:
-                subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL, shell=True)
-                print(f"Image2 [{target}] movie created!")
-
-            except subprocess.CalledProcessError as e:
-                print(f"Error running FFmpeg command: {e}")
-
-        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-            for target in ["rho", "Vp", "Vs"]:
-                if perplex and magemin:
-                    ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                              f"'figs/gfem/{pattern}_{res}/image3-{pattern}-"
-                              f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v h264 "
-                              f"-pix_fmt yuv420p 'figs/movies/image3-{target}.mp4'")
-                else:
-                    ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                              f"'figs/gfem/{program[:4]}_{pattern}_{res}/image3-{pattern}-"
-                              f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v h264 "
-                              f"-pix_fmt yuv420p 'figs/movies/image3-{target}.mp4'")
-
-                try:
-                    subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
-                                   stderr=subprocess.DEVNULL, shell=True)
-                    print(f"Image3 [{target}] movie created!")
-
-                except subprocess.CalledProcessError as e:
-                    print(f"Error running FFmpeg command: {e}")
-
-            if perplex and magemin:
-                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/{pattern}_{res}/image9-{pattern}-{dataset}.png' "
-                          f"-vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
-                          f"'figs/movies/image9.mp4'")
+                raise ValueError("Model samples are not the same!")
+            if magemin_model.res == perplex_model.res:
+                res = magemin_model.res
             else:
-                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                          f"'figs/gfem/{program[:4]}_{pattern}_{res}/image9-{pattern}-"
-                          f"{dataset}.png' -vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
-                          f"'figs/movies/image9.mp4'")
+                raise ValueError("Model resolutions are not the same!")
+            if magemin_model.dataset == perplex_model.dataset:
+                dataset = magemin_model.dataset
+            else:
+                raise ValueError("Model datasets are not the same!")
+            if magemin_model.targets == perplex_model.targets:
+                targets = magemin_model.targets
+            else:
+                raise ValueError("Model targets are not the same!")
+            if magemin_model.model_prefix == perplex_model.model_prefix:
+                model_prefix = magemin_model.model_prefix
+            else:
+                raise ValueError("Model prefix are not the same!")
+            if magemin_model.verbose == perplex_model.verbose:
+                verbose = magemin_model.verbose
+            else:
+                verbose = 1
 
-            try:
-                subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL, shell=True)
-                print(f"Image9 movie created!")
+            program = "magemin + perplex"
+            fig_dir_mage = magemin_model.fig_dir
+            fig_dir_perp = perplex_model.fig_dir
+            fig_dir_diff = f"figs/gfem/diff_{sample_id}_{res}"
 
-            except subprocess.CalledProcessError as e:
-                print(f"Error running FFmpeg command: {e}")
+            fig_dir = f"figs/gfem/{sample_id}_{res}"
+            os.makedirs(fig_dir, exist_ok=True)
+
+        elif magemin and not perplex:
+            # Get model data
+            program = "magemin"
+            sample_id = magemin_model.sample_id
+            res = magemin_model.res
+            dataset = magemin_model.dataset
+            targets = magemin_model.targets
+            fig_dir = magemin_model.fig_dir
+            model_prefix = magemin_model.model_prefix
+            verbose = magemin_model.verbose
+
+        elif perplex and not magemin:
+            # Get model data
+            program = "perplex"
+            sample_id = perplex_model.sample_id
+            res = perplex_model.res
+            dataset = perplex_model.dataset
+            targets = perplex_model.targets
+            fig_dir = perplex_model.fig_dir
+            model_prefix = perplex_model.model_prefix
+            verbose = perplex_model.verbose
+
+        # Rename targets
+        targets_rename = [target.replace("_", "-") for target in targets]
+
+        # Check for existing movies
+        if sample_id not in ["PUM", "DMM"]:
+            if "sb" in sample_id:
+                pattern = "sb?????"
+                prefix = "sb"
+            if "sm" in sample_id:
+                pattern = "sm?????"
+                prefix = "sm"
+            if "st" in sample_id:
+                pattern = "st?????"
+                prefix = "st"
+            if "sr" in sample_id:
+                pattern = "sr?????"
+                prefix = "sr"
+
+            existing_movs = []
+            for target in targets_rename:
+                mov_1 = f"figs/movies/image2-{prefix}-{target}.mp4"
+                mov_2 = f"figs/movies/image3-{prefix}-{target}.mp4"
+                mov_3 = f"figs/movies/image9-{prefix}.mp4"
+
+                check = ((os.path.exists(mov_1) and os.path.exists(mov_3)) |
+                         (os.path.exists(mov_2) and os.path.exists(mov_3)))
+
+                if check:
+                    existing_movs.append(check)
+
+            if existing_movs:
+                return None
+
+            else:
+                print(f"Creating movie for {prefix} samples [{program}] ...")
+
+                if not os.path.exists("figs/movies"):
+                    os.makedirs("figs/movies", exist_ok=True)
+
+                for target in targets_rename:
+                    if perplex and magemin:
+                        ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                                  f"'figs/gfem/{pattern}_{res}/image2-{pattern}-{dataset}-"
+                                  f"{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt "
+                                  f"yuv420p 'figs/movies/image2-{prefix}-{target}.mp4'")
+                    else:
+                        ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                                  f"'figs/gfem/{program[:4]}_{pattern}_{res}/image2-"
+                                  f"{pattern}-{dataset}-{target}.png' -vf 'scale=3915:1432' "
+                                  f"-c:v h264 -pix_fmt yuv420p 'figs/movies/image2-{prefix}-"
+                                  f"{target}.mp4'")
+
+                    try:
+                        subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL, shell=True)
+
+                    except subprocess.CalledProcessError as e:
+                        print(f"Error running FFmpeg command: {e}")
+
+                if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+                    for target in ["rho", "Vp", "Vs"]:
+                        if perplex and magemin:
+                            ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                                      f"'figs/gfem/{pattern}_{res}/image3-{pattern}-"
+                                      f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v "
+                                      f"h264 -pix_fmt yuv420p 'figs/movies/image3-{prefix}-"
+                                      f"{target}.mp4'")
+                        else:
+                            ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                                      f"'figs/gfem/{program[:4]}_{pattern}_{res}/image3-"
+                                      f"{pattern}-{dataset}-{target}.png' -vf 'scale=5832:"
+                                      f"1432' -c:v h264 -pix_fmt yuv420p 'figs/movies/"
+                                      f"image3-{prefix}-{target}.mp4'")
+
+                        try:
+                            subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL, shell=True)
+
+                        except subprocess.CalledProcessError as e:
+                            print(f"Error running FFmpeg command: {e}")
+
+                    if perplex and magemin:
+                        ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                                  f"'figs/gfem/{pattern}_{res}/image9-{pattern}-{dataset}."
+                                  f"png' -vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
+                                  f"'figs/movies/image9-{prefix}.mp4'")
+                    else:
+                        ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                                  f"'figs/gfem/{program[:4]}_{pattern}_{res}/image9-"
+                                  f"{pattern}-{dataset}.png' -vf 'scale=5842:4296' -c:v "
+                                  f"h264 -pix_fmt yuv420p 'figs/movies/image9-{prefix}.mp4'")
+
+                    try:
+                        subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL, shell=True)
+
+                    except subprocess.CalledProcessError as e:
+                        print(f"Error running FFmpeg command: {e}")
 
     return None
 
@@ -1135,6 +1297,25 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
     plt.rcParams["figure.dpi"] = 330
     plt.rcParams["savefig.bbox"] = "tight"
 
+    # Set geotherm threshold for extracting depth profiles
+    res = target_array.shape[0]
+    if res <= 8:
+        geotherm_threshold = 80
+    elif res <= 16:
+        geotherm_threshold = 40
+    elif res <= 32:
+        geotherm_threshold = 20
+    elif res <= 64:
+        geotherm_threshold = 10
+    elif res <= 128:
+        geotherm_threshold = 5
+    else:
+        geotherm_threshold = 2.5
+
+    # Get geotherm
+    results = pd.DataFrame({"P": P, "T": T, target: target_array.flatten()})
+    P_geotherm, T_geotherm, _ = get_geotherm(results, target, geotherm_threshold)
+
     if color_discrete:
         # Discrete color palette
         num_colors = vmax - vmin + 1
@@ -1142,42 +1323,31 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         if palette == "viridis":
             if color_reverse:
                 pal = plt.cm.get_cmap("viridis_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("viridis", num_colors)
-
         elif palette == "bone":
             if color_reverse:
                 pal = plt.cm.get_cmap("bone_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("bone", num_colors)
-
         elif palette == "pink":
             if color_reverse:
                 pal = plt.cm.get_cmap("pink_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("pink", num_colors)
-
         elif palette == "seismic":
             if color_reverse:
                 pal = plt.cm.get_cmap("seismic_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("seismic", num_colors)
-
         elif palette == "grey":
             if color_reverse:
                 pal = plt.cm.get_cmap("Greys_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("Greys", num_colors)
-
         elif palette not in ["viridis", "grey", "bone", "pink", "seismic"]:
             if color_reverse:
                 pal = plt.cm.get_cmap("Blues_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("Blues", num_colors)
 
@@ -1194,6 +1364,7 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
                                              np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
+        ax.plot(T_geotherm, P_geotherm, linestyle="-", color="white", linewidth=3)
         ax.set_xlabel("T (K)")
         ax.set_ylabel("P (GPa)")
         plt.colorbar(im, ax=ax, ticks=np.arange(vmin, vmax, num_colors // 4), label="")
@@ -1203,42 +1374,31 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         if palette == "viridis":
             if color_reverse:
                 cmap = "viridis_r"
-
             else:
                 cmap = "viridis"
-
         elif palette == "bone":
             if color_reverse:
                 cmap = "bone_r"
-
             else:
                 cmap = "bone"
-
         elif palette == "pink":
             if color_reverse:
                 cmap = "pink_r"
-
             else:
                 cmap = "pink"
-
         elif palette == "seismic":
             if color_reverse:
                 cmap = "seismic_r"
-
             else:
                 cmap = "seismic"
-
         elif palette == "grey":
             if color_reverse:
                 cmap = "Greys_r"
-
             else:
                 cmap = "Greys"
-
         elif palette not in ["viridis", "grey", "bone", "pink", "seismic"]:
             if color_reverse:
                 cmap="Blues_r"
-
             else:
                 cmap="Blues"
 
@@ -1246,7 +1406,6 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         if palette == "seismic":
             vmin=-np.max(np.abs(target_array[np.logical_not(np.isnan(target_array))]))
             vmax=np.max(np.abs(target_array[np.logical_not(np.isnan(target_array))]))
-
         else:
             vmin, vmax = vmin, vmax
 
@@ -1268,6 +1427,7 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
                                              np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
+        ax.plot(T_geotherm, P_geotherm, linestyle="-", color="white", linewidth=3)
         ax.set_xlabel("T (K)")
         ax.set_ylabel("P (GPa)")
 
@@ -1560,6 +1720,22 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
 
         print(f"Visualizing {model_prefix} [{program}] ...")
 
+        # Check for existing plots
+        existing_figs = []
+        for i, target in enumerate(targets):
+            fig_1 = f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png"
+            fig_2 = f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png"
+            fig_3 = f"{fig_dir}/image9-{sample_id}-{dataset}.png"
+
+            check = ((os.path.exists(fig_1) and os.path.exists(fig_3)) |
+                     (os.path.exists(fig_1) and os.path.exists(fig_3)))
+
+            if check:
+                existing_figs.append(check)
+
+        if existing_figs:
+            return None
+
         for i, target in enumerate(targets):
             # Reshape targets into square array
             square_target = target_array[:, i].reshape(res + 1, res + 1)
@@ -1599,13 +1775,14 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
             target_rename = target.replace("_", "-")
 
             # Print filepath
+            filename = f"{program}-{sample_id}-{dataset}-{target_rename}.png"
             if verbose >= 2:
-                print(f"Saving figure: {program}-{sample_id}-{dataset}-{target_rename}.png")
+                print(f"Saving figure: {filename}")
 
             # Plot targets
             visualize_target_array(P, T, square_target, target, program_title, palette,
                                    color_discrete, color_reverse, vmin, vmax, fig_dir,
-                                   f"{program}-{sample_id}-{dataset}-{target_rename}.png")
+                                   filename)
             if edges:
                 original_image = square_target.copy()
 
@@ -1626,27 +1803,21 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
 
                 visualize_target_array(P, T, magnitude, target, "Gradient", palette,
                                        color_discrete, color_reverse, vmin_mag, vmax_mag,
-                                       fig_dir, f"grad-{program}-{sample_id}-{dataset}-"
-                                       f"{target_rename}.png")
+                                       fig_dir, f"grad-{filename}")
 
             # Set geotherm threshold for extracting depth profiles
             if res <= 8:
-                geotherm_threshold = 4
-
+                geotherm_threshold = 80
             elif res <= 16:
-                geotherm_threshold = 2
-
+                geotherm_threshold = 40
             elif res <= 32:
-                geotherm_threshold = 1
-
+                geotherm_threshold = 20
             elif res <= 64:
-                geotherm_threshold = 0.5
-
+                geotherm_threshold = 10
             elif res <= 128:
-                geotherm_threshold = 0.25
-
+                geotherm_threshold = 5
             else:
-                geotherm_threshold = 0.125
+                geotherm_threshold = 2.5
 
             filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
 
@@ -1755,119 +1926,129 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
         target_array_ppx = perplex_model.target_array
 
         for i, target in enumerate(targets):
-            # Reshape targets into square array
-            square_array_mgm = target_array_mgm[:, i].reshape(res + 1, res + 1)
-            square_array_ppx = target_array_ppx[:, i].reshape(res + 1, res + 1)
+            # Check for existing figures
+            fig_1 = f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png"
+            fig_2 = f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png"
+            fig_3 = f"{fig_dir}/image9-{sample_id}-{dataset}.png"
 
-            # Use discrete colorscale
-            if target in ["assemblage", "variance"]:
-                color_discrete = True
-
-            else:
-                color_discrete = False
-
-            # Reverse color scale
-            if palette in ["grey"]:
-                if target in ["variance"]:
-                    color_reverse = True
-
-                else:
-                    color_reverse = False
+            if os.path.exists(fig_1) and os.path.exists(fig_2) and os.path.exists(fig_3):
+                print(f"Found composed plots at {fig_1}!")
+                print(f"Found composed plots at {fig_2}!")
+                print(f"Found composed plots at {fig_3}!")
 
             else:
-                if target in ["variance"]:
-                    color_reverse = False
+                # Reshape targets into square array
+                square_array_mgm = target_array_mgm[:, i].reshape(res + 1, res + 1)
+                square_array_ppx = target_array_ppx[:, i].reshape(res + 1, res + 1)
+
+                # Use discrete colorscale
+                if target in ["assemblage", "variance"]:
+                    color_discrete = True
 
                 else:
-                    color_reverse = True
+                    color_discrete = False
 
-            # Set colorbar limits for better comparisons
-            if not color_discrete:
-                vmin_mgm=np.min(square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
-                vmax_mgm=np.max(square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
-                vmin_ppx=np.min(square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
-                vmax_ppx=np.max(square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
+                # Reverse color scale
+                if palette in ["grey"]:
+                    if target in ["variance"]:
+                        color_reverse = True
 
-                vmin = min(vmin_mgm, vmin_ppx)
-                vmax = max(vmax_mgm, vmax_ppx)
-
-            else:
-                num_colors_mgm = len(np.unique(square_array_mgm))
-                num_colors_ppx = len(np.unique(square_array_ppx))
-
-                vmin = 1
-                vmax = max(num_colors_mgm, num_colors_ppx) + 1
-
-            if not color_discrete:
-                # Define a filter to ignore the specific warning
-                warnings.filterwarnings("ignore",
-                                        message="invalid value encountered in divide")
-
-                # Create nan mask
-                mask = ~np.isnan(square_array_mgm) & ~np.isnan(square_array_ppx)
-
-                # Compute normalized diff
-                diff = square_array_mgm - square_array_ppx
-
-                # Add nans to match original target arrays
-                diff[~mask] = np.nan
-
-                # Rename target
-                target_rename = target.replace("_", "-")
-
-                # Print filepath
-                if verbose >= 2:
-                    print(f"Saving figure: diff-{sample_id}-{dataset}-{target_rename}.png")
-
-                # Plot target array normalized diff mgm-ppx
-                visualize_target_array(P_ppx, T_ppx, diff, target, "Residuals", "seismic",
-                                       color_discrete, False, vmin, vmax, fig_dir,
-                                       f"diff-{sample_id}-{dataset}-{target_rename}.png")
-
-                # Set geotherm threshold for extracting depth profiles
-                if res <= 8:
-                    geotherm_threshold = 4
-
-                elif res <= 16:
-                    geotherm_threshold = 2
-
-                elif res <= 32:
-                    geotherm_threshold = 1
-
-                elif res <= 64:
-                    geotherm_threshold = 0.5
-
-                elif res <= 128:
-                    geotherm_threshold = 0.25
+                    else:
+                        color_reverse = False
 
                 else:
-                    geotherm_threshold = 0.125
+                    if target in ["variance"]:
+                        color_reverse = False
 
-                filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
+                    else:
+                        color_reverse = True
 
-                # Plot PREM comparisons
-                if target == "rho":
+                # Set colorbar limits for better comparisons
+                if not color_discrete:
+                    vmin_mgm=np.min(
+                        square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
+                    vmax_mgm=np.max(
+                        square_array_mgm[np.logical_not(np.isnan(square_array_mgm))])
+                    vmin_ppx=np.min(
+                        square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
+                    vmax_ppx=np.max(
+                        square_array_ppx[np.logical_not(np.isnan(square_array_ppx))])
+
+                    vmin = min(vmin_mgm, vmin_ppx)
+                    vmax = max(vmax_mgm, vmax_ppx)
+
+                else:
+                    num_colors_mgm = len(np.unique(square_array_mgm))
+                    num_colors_ppx = len(np.unique(square_array_ppx))
+
+                    vmin = 1
+                    vmax = max(num_colors_mgm, num_colors_ppx) + 1
+
+                if not color_discrete:
+                    # Define a filter to ignore the specific warning
+                    warnings.filterwarnings("ignore",
+                                            message="invalid value encountered in divide")
+
+                    # Create nan mask
+                    mask = ~np.isnan(square_array_mgm) & ~np.isnan(square_array_ppx)
+
+                    # Compute normalized diff
+                    diff = square_array_mgm - square_array_ppx
+
+                    # Add nans to match original target arrays
+                    diff[~mask] = np.nan
+
+                    # Rename target
+                    target_rename = target.replace("_", "-")
+
                     # Print filepath
+                    filename = f"diff-{sample_id}-{dataset}-{target_rename}.png"
                     if verbose >= 2:
                         print(f"Saving figure: {filename}")
 
-                    visualize_prem("perplex", sample_id, dataset, res, target, "g/cm$^3$",
-                                   results_mgm, results_ppx,
-                                   geotherm_threshold=geotherm_threshold,
-                                   title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=filename)
+                    # Plot target array normalized diff mgm-ppx
+                    visualize_target_array(P_ppx, T_ppx, diff, target, "Residuals",
+                                           "seismic", color_discrete, False, vmin, vmax,
+                                           fig_dir, filename)
 
-                if target in ["Vp", "Vs"]:
-                    # Print filepath
-                    if verbose >= 2:
-                        print(f"Saving figure: prem-{sample_id}-{dataset}"
-                              f"-{target_rename}.png")
+                    # Set geotherm threshold for extracting depth profiles
+                    if res <= 8:
+                        geotherm_threshold = 80
+                    elif res <= 16:
+                        geotherm_threshold = 40
+                    elif res <= 32:
+                        geotherm_threshold = 20
+                    elif res <= 64:
+                        geotherm_threshold = 10
+                    elif res <= 128:
+                        geotherm_threshold = 5
+                    else:
+                        geotherm_threshold = 2.5
 
-                    visualize_prem("perplex", sample_id, dataset, res, target, "km/s",
-                                   results_mgm, results_ppx,
-                                   geotherm_threshold=geotherm_threshold,
-                                   title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=filename)
+                    filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
+
+                    # Plot PREM comparisons
+                    if target == "rho":
+                        # Print filepath
+                        if verbose >= 2:
+                            print(f"Saving figure: {filename}")
+
+                        visualize_prem("perplex", sample_id, dataset, res, target,
+                                       "g/cm$^3$", results_mgm, results_ppx,
+                                       geotherm_threshold=geotherm_threshold,
+                                       title="PREM Comparison", fig_dir=fig_dir,
+                                       filename=filename)
+
+                    if target in ["Vp", "Vs"]:
+                        # Print filepath
+                        if verbose >= 2:
+                            print(f"Saving figure: {filename}")
+
+                        visualize_prem("perplex", sample_id, dataset, res, target, "km/s",
+                                       results_mgm, results_ppx,
+                                       geotherm_threshold=geotherm_threshold,
+                                       title="PREM Comparison", fig_dir=fig_dir,
+                                       filename=filename)
 
     return None
 
@@ -2040,22 +2221,17 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
             res = w - 1
 
             if res <= 8:
-                geotherm_threshold = 4
-
+                geotherm_threshold = 80
             elif res <= 16:
-                geotherm_threshold = 2
-
+                geotherm_threshold = 40
             elif res <= 32:
-                geotherm_threshold = 1
-
+                geotherm_threshold = 20
             elif res <= 64:
-                geotherm_threshold = 0.5
-
+                geotherm_threshold = 10
             elif res <= 128:
-                geotherm_threshold = 0.25
-
+                geotherm_threshold = 5
             else:
-                geotherm_threshold = 0.125
+                geotherm_threshold = 2.5
 
             # Plot PREM comparisons
             if target == "rho":
