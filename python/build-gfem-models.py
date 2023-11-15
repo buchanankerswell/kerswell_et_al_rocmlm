@@ -23,14 +23,14 @@ for model in [model for model in gfem_benchmark if model.dataset == "train"]:
 
 # Build synthetic benchmark models derived from Earthchem samples
 source = "assets/data/synthetic-samples-mixing-tops.csv"
-sids = get_sampleids(source, "all")[::16]
+sids = get_sampleids(source, "all")
 gfem_top = []
 gfem_top.extend(build_gfem_models(source, sids, programs=programs, res=res))
 for model in [model for model in gfem_top if model.dataset == "train"]:
     analyze_gfem_model(model, csv_file)
 
 source = "assets/data/synthetic-samples-mixing-bottoms.csv"
-sids = get_sampleids(source, "all")[::16]
+sids = get_sampleids(source, "all")
 gfem_bottom = []
 gfem_bottom.extend(build_gfem_models(source, sids, programs=programs, res=res))
 for model in [model for model in gfem_bottom if model.dataset == "train"]:
@@ -38,7 +38,7 @@ for model in [model for model in gfem_bottom if model.dataset == "train"]:
 
 # Build synthetic models sampled randomly along mixing array
 source = f"assets/data/synthetic-samples-mixing-random.csv"
-sids = get_sampleids(source, "all")[::16]
+sids = get_sampleids(source, "all")
 gfem_random = []
 gfem_random.extend(build_gfem_models(source, sids, programs=programs, res=res))
 for model in [model for model in gfem_random if model.dataset == "train"]:

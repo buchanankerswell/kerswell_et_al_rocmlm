@@ -304,7 +304,6 @@ class MixingArray:
         self.mixing_arrays = None
         self.top_arrays = None
         self.bottom_arrays = None
-        self.max_depletion = None
         self.synthetic_data_written = False
 
         # Errors
@@ -565,9 +564,6 @@ class MixingArray:
         # Update self attribute
         self.earthchem_pca = data.copy()
 
-        # Write csv file
-        data.to_csv(f"assets/data/earthchem-samples-pca.csv", index=False)
-
         return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -792,29 +788,36 @@ class MixingArray:
             all_tops = pd.concat(top_list, ignore_index=True)
             all_bottoms = pd.concat(bottom_list, ignore_index=True)
 
-            # Get PCA position of FSUM
-            fsum = all_mixing.iloc[-1][["PC1", "PC2"]].values
+            # No negative oxides
+            data[oxides] = data[oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
+            all_mixing[oxides] = all_mixing[
+                oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
+            all_tops[oxides] = all_tops[
+                oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
+            all_bottoms[oxides] = all_bottoms[
+                oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
 
-            # Calculate fertility index
-            data["DEPLETION"] = round(np.sqrt((fsum[0] - data["PC1"])**2 +
-                                              (fsum[1] - data["PC2"])**2), 3)
-
-            max_depletion = data["DEPLETION"].max()
-            self.max_depletion = max_depletion
-
-            data["DEPLETION"] = round(data["DEPLETION"] / max_depletion, 3)
+            # Calculate F melt
+            D_tio2 = 1e-1
+            ti_init = all_mixing.iloc[-1]["TIO2"]
+            print(ti_init, data["TIO2"].min())
+            data["R_TIO2"] = round(data["TIO2"] / ti_init, 3)
+            data["F_MELT"] = round(1 - data["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             self.earthchem_pca = data.copy()
 
-            all_mixing["DEPLETION"] = round(np.sqrt((fsum[0] - all_mixing["PC1"])**2 +
-                                                    (fsum[1] - all_mixing["PC2"])**2), 3)
-            all_mixing["DEPLETION"] = round(all_mixing["DEPLETION"] / max_depletion, 3)
-            all_tops["DEPLETION"] = round(np.sqrt((fsum[0] - all_tops["PC1"])**2 +
-                                                  (fsum[1] - all_tops["PC2"])**2), 3)
-            all_tops["DEPLETION"] = round(all_tops["DEPLETION"] / max_depletion, 3)
-            all_bottoms["DEPLETION"] = round(np.sqrt((fsum[0] - all_bottoms["PC1"])**2 +
-                                                     (fsum[1] - all_bottoms["PC2"])**2), 3)
-            all_bottoms["DEPLETION"] = round(all_bottoms["DEPLETION"] / max_depletion, 3)
+            # Write csv file
+            data.to_csv(f"assets/data/earthchem-samples-pca.csv", index=False)
+
+            all_mixing["R_TIO2"] = round(all_mixing["TIO2"] / ti_init, 3)
+            all_mixing["F_MELT"] = round(
+                1 - all_mixing["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
+            all_tops["R_TIO2"] = round(all_tops["TIO2"] / ti_init, 3)
+            all_tops["F_MELT"] = round(
+                1 - all_tops["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
+            all_bottoms["R_TIO2"] = round(all_bottoms["TIO2"] / ti_init, 3)
+            all_bottoms["F_MELT"] = round(
+                1 - all_bottoms["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             # Write to csv
             fname = (f"assets/data/synthetic-samples-mixing-middle.csv")
@@ -895,13 +898,10 @@ class MixingArray:
             # Add sample id column
             random_synthetic.insert(0, "SAMPLEID", sample_ids)
 
-            # Calculate fertility index
-            random_synthetic["DEPLETION"] = round(
-                np.sqrt((fsum[0] - random_synthetic["PC1"])**2 +
-                        (fsum[1] - random_synthetic["PC2"])**2),
-                3)
-            random_synthetic["DEPLETION"] = round(
-                random_synthetic["DEPLETION"] / max_depletion, 3)
+            # Calculate F melt
+            random_synthetic["R_TIO2"] = round(random_synthetic["TIO2"] / ti_init, 3)
+            random_synthetic["F_MELT"] = round(
+                1 - random_synthetic["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             # Write to csv
             fname = (f"assets/data/synthetic-samples-mixing-random.csv")

@@ -988,7 +988,7 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
 # visualize gfem efficiency !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.png",
-                              fontsize=12, figwidth=6.3, figheight=3.54):
+                              figwidth=6.3, figheight=5, fontsize=22):
     """
     """
     # Data assets dir
@@ -1022,7 +1022,9 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
 
     # Create a dictionary to map samples to colors using a colormap
     colormap = plt.cm.get_cmap("tab10")
-    sample_colors = {"DMM": colormap(0), "PUM": colormap(1)}
+    #sample_colors = {"DMM": colormap(0), "PUM": colormap(1)}
+    sample_colors = {"DMM": "black", "PUM": "black"}
+    sample_linetypes = {"DMM": ":", "PUM": "-"}
 
     # Group the data by sample
     grouped_data = data.groupby(["sample"])
@@ -1035,6 +1037,7 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
     for group, group_data in grouped_data:
         sample_id = group[0]
         color_val = sample_colors[sample_id]
+        line_val = sample_linetypes[sample_id]
 
         # Filter out rows with missing time values for mgm column
         mgm_data = group_data[group_data["program"] == "magemin"]
@@ -1048,28 +1051,28 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
 
         # Plot mgm data points and connect them with lines
         line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color=color_val,
-                             linestyle="-", label=f"{sample_id} [MAGEMin]")
+                             linestyle=line_val, label=f"{sample_id} MAGEMin")
 
         legend_handles.append(line_mgm)
-        legend_labels.append(f"[MAGEMin] {sample_id}")
+        legend_labels.append(f"{sample_id} MAGEMin")
 
         # Plot ppx data points and connect them with lines
         line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color=color_val,
-                             linestyle="--", label=f"{sample_id} [Perple_X]")
+                             linestyle=line_val, label=f"{sample_id} Perple_X")
 
         legend_handles.append(line_ppx)
-        legend_labels.append(f"[Perple_X] {sample_id}")
+        legend_labels.append(f"{sample_id} Perple_X")
 
     # Set labels and title
-    plt.xlabel("Number of Minimizations (PT Points)")
+    plt.xlabel("Number of PT Points")
     plt.ylabel("Elapsed Time (s)")
-    plt.title("Solution Efficiency")
+    plt.title("GFEM Efficiency")
     plt.xscale("log")
     plt.yscale("log")
 
     # Create the legend with the desired order
-    plt.legend(legend_handles, legend_labels, title="",
-               bbox_to_anchor=(1.02, 0.5), loc="center left")
+    plt.legend(legend_handles, legend_labels, title="", fontsize=fontsize * 0.694,
+               handletextpad=0.1)
 
     # Adjust the figure size
     fig = plt.gcf()
@@ -2467,7 +2470,7 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
 # visualize pca loadings !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthchem",
-                           figwidth=6.3, figheight=6.3, fontsize=22):
+                           figwidth=6.3, figheight=5, fontsize=22):
     """
     """
     # Get mixing array attributes
@@ -2480,7 +2483,6 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
     mixing_array_tops = mixing_array.mixing_array_tops
     mixing_array_bottoms = mixing_array.mixing_array_bottoms
-    max_depletion = mixing_array.max_depletion
     data = mixing_array.earthchem_pca
 
     # Check for benchmark samples
@@ -2503,15 +2505,19 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
                 pca_scaler.fit_transform(df_bench[oxides]))
             df_bench[["PC1", "PC2"]] = df_bench[["PC1", "PC2"]].round(3)
 
-            # Calculate depletion index
-            fsum = df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"][["PC1", "PC2"]]
-            fsum = fsum.values.flatten()
-            df_bench["DEPLETION"] = round(np.sqrt((fsum[0] - df_bench["PC1"])**2 +
-                                                  (fsum[1] - df_bench["PC2"])**2), 3)
-            df_bench["DEPLETION"] = round(df_bench["DEPLETION"] / max_depletion, 3)
+            # Calculate F melt
+            D_tio2 = 1e-1
+            ti_init = df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"]["TIO2"].values
+            df_bench["R_TIO2"] = round(df_bench["TIO2"] / ti_init, 3)
+            df_bench["F_MELT"] = round(1 - df_bench["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             # Save to csv
             df_bench.to_csv("assets/data/benchmark-samples-pca.csv", index=False)
+
+    # Filter F melt < 1
+    data = data[data["F_MELT"] < 1]
+    df_bench = df_bench[df_bench["F_MELT"] < 1]
+    df_synth_bench = df_synth_bench[df_synth_bench["F_MELT"] < 1]
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -2567,7 +2573,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     # Legend order
     legend_order = ["lherzolite", "harzburgite", "dunite"]
 
-    fig = plt.figure(figsize=(figwidth * 2, figheight))
+    fig = plt.figure(figsize=(figwidth * 2, figheight * 1.2))
 
     ax = fig.add_subplot(121)
     ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
@@ -2637,12 +2643,12 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
     ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-    sns.scatterplot(data=data, x="PC1", y="PC2", hue="DEPLETION",
+    sns.scatterplot(data=data, x="PC1", y="PC2", hue="F_MELT",
                     palette="magma", edgecolor="None", linewidth=2, s=12,
                     legend=False, ax=ax2, zorder=0)
 
     # Create colorbar
-    norm = plt.Normalize(data["DEPLETION"].min(), data["DEPLETION"].max())
+    norm = plt.Normalize(data["F_MELT"].min(), data["F_MELT"].max())
     sm = plt.cm.ScalarMappable(cmap="magma", norm=norm)
     sm.set_array([])
 
@@ -2721,12 +2727,13 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 
     # Add colorbar
     cbaxes = inset_axes(ax2, width="50%", height="3%", loc=1)
-    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Depletion Index",
+    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="F Melt",
                             orientation="horizontal")
     colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
 
     ax2.set_xlabel("PC1")
-    ax2.set_ylabel("PC2")
+    ax2.set_ylabel("")
+    ax2.set_yticks([])
     ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
     ax2.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
@@ -2798,16 +2805,12 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
 
     if num_plots == 1:
         num_cols = 1
-
     elif num_plots > 1 and num_plots <= 4:
         num_cols = 2
-
     elif num_plots > 4 and num_plots <= 9:
         num_cols = 3
-
     elif num_plots > 9 and num_plots <= 16:
         num_cols = 4
-
     else:
         num_cols = 5
 
@@ -2914,14 +2917,13 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize gfem analysis !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_analysis(fig_dir="figs/other", filename="depletion", figwidth=6.3,
-                                figheight=6.3, fontsize=22):
+def visualize_gfem_analysis(fig_dir="figs/other", filename="fmelt", figwidth=6.3,
+                            figheight=5, fontsize=22):
     """
     """
     # Check for analysis data
     analysis_path = "assets/data/gfem-analysis.csv"
     if os.path.exists(analysis_path):
-        # Read analysis data
         df_analysis = pd.read_csv(analysis_path)
     else:
         raise Exception(f"GFEM analysis not found at {analysis_path}!")
@@ -2938,6 +2940,7 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="depletion", figwidth
     for name, path in zip(df_names, df_paths):
         if os.path.exists(path):
             df = pd.read_csv(path)
+            df = df[df["F_MELT"] < 1]
             dfs[name] = df.merge(df_analysis, on="SAMPLEID", how="inner")
         else:
             raise Exception(f"Missing sample data: {path}!")
@@ -2980,12 +2983,12 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="depletion", figwidth
             data = data[data["TARGET"] == target]
 
             marker = mlines.Line2D([0], [0], marker="o", color="w", label=comp, markersize=4,
-                                   markerfacecolor=colormap(i + 5), markeredgewidth=0,
+                                   markerfacecolor=colormap(i), markeredgewidth=0,
                                    linestyle="None", alpha=1)
             legend_handles.append(marker)
 
-            scatter = ax.scatter(data["DEPLETION"], data["RMSE_PREM_PROFILE"],
-                                 edgecolors="none", color=colormap(i + 5), marker=".", s=150,
+            scatter = ax.scatter(data["F_MELT"], data["RMSE_PREM_PROFILE"],
+                                 edgecolors="none", color=colormap(i), marker=".", s=150,
                                  label=comp)
 
             ax.set_title(f"{target_label} ({units})")
@@ -2995,23 +2998,23 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="depletion", figwidth
         df_bench = dfs["benchmark"]
         df_bench = df_bench[df_bench["TARGET"] == target]
         for l, name in enumerate(["PUM", "DMM"]):
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="DEPLETION",
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="F_MELT",
                             y="RMSE_PREM_PROFILE", facecolor=face_colors[l],
                             edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
                             ax=ax, zorder=7)
             ax.annotate(
-                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "DEPLETION"].iloc[0],
+                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "F_MELT"].iloc[0],
                           df_bench.loc[df_bench["SAMPLEID"] == name,
                                        "RMSE_PREM_PROFILE"].iloc[0]),
-                xytext=(-35, 5), textcoords="offset points",
+                xytext=(5, 5), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                           edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.579, zorder=8
             )
 
-        if j == 1:
+        if j == 0:
             legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
-                               title="Mixing Array", bbox_to_anchor=(0.5, 0.20), ncol=4,
+                               title="Mixing Array", bbox_to_anchor=(0.5, 0.28), ncol=4,
                                columnspacing=0, handletextpad=-0.5, markerscale=3,
                                fontsize=fontsize * 0.694)
 
@@ -3019,7 +3022,7 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="depletion", figwidth
             for i, label in enumerate(legend_order):
                 legend.get_texts()[i].set_text(label)
 
-        ax.set_xlabel("Depletion Index")
+        ax.set_xlabel("F Melt")
         ax.set_ylabel("RMSE vs. PREM")
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
