@@ -61,10 +61,10 @@ def get_unique_value(input_list):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # train rocml models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO"],
-                       tune=True, epochs=100, batchprop=0.2, kfolds=os.cpu_count(),
-                       parallel=True, nprocs=os.cpu_count(), seed=42, palette="bone",
-                       verbose=1):
+def train_rocml_models(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"],
+                       training_features=["F_MELT_FRAC"], tune=True, epochs=100,
+                       batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
+                       nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
     """
     """
     # Check for models
@@ -78,12 +78,18 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO
     targets = get_unique_value([m.targets for m in gfem_models if m.dataset == "train"])
     mask_geotherm = get_unique_value([m.mask_geotherm for m in gfem_models if
                                       m.dataset == "train"])
+    features = get_unique_value([m.features for m in gfem_models if m.dataset == "train"])
+    oxides_exclude = get_unique_value([m.oxides_exclude for m in gfem_models if
+                                       m.dataset == "train"])
+    oxides = get_unique_value([m.oxides_system for m in gfem_models if m.dataset == "train"])
+    subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
+    feature_list = subset_oxides + features
 
     # Array shapes
     M = int(len(gfem_models) / 2)
     W = int((res+1)**2)
     w = int(np.sqrt(W))
-    F = int(len(oxides) + 2)
+    F = int(len(training_features) + 2)
     T = int(len(targets))
     shape_feature = (M, W, F)
     shape_feature_square = (M, w, w, F)
@@ -98,35 +104,34 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO
     pt_valid_unmasked = np.stack([m.feature_array_unmasked for m in gfem_models if
                                   m.dataset == "valid"])
 
-    # Select oxides
-    oxides_list = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "FE2O3",
-                   "CR2O3", "H2O"]
-    oxide_indices = [i for i, oxide in enumerate(oxides_list) if oxide in oxides]
+    # Select features
+    feature_indices = [i for i, feature in enumerate(feature_list) if feature in
+                       training_features]
 
-    # Get sample compositions with selected oxides
-    comp_train, comp_valid = [], []
+    # Get sample features
+    feat_train, feat_valid = [], []
 
     for m in gfem_models:
         if m.dataset == "train":
-            selected_composition = [m.norm_sample_composition[i] for i in oxide_indices]
-            comp_train.append(selected_composition)
+            selected_features = [m.sample_features[i] for i in feature_indices]
+            feat_train.append(selected_features)
 
         elif m.dataset == "valid":
-            selected_composition = [m.norm_sample_composition[i] for i in oxide_indices]
-            comp_valid.append(selected_composition)
+            selected_features = [m.sample_features[i] for i in feature_indices]
+            feat_valid.append(selected_features)
 
-    comp_train = np.array(comp_train)
-    comp_valid = np.array(comp_valid)
+    feat_train = np.array(feat_train)
+    feat_valid = np.array(feat_valid)
 
-    # Tile compositions to match PT array shape
-    comp_train = np.tile(comp_train[:, np.newaxis, :], (1, pt_train.shape[1], 1))
-    comp_valid = np.tile(comp_valid[:, np.newaxis, :], (1, pt_valid.shape[1], 1))
+    # Tile features to match PT array shape
+    feat_train = np.tile(feat_train[:, np.newaxis, :], (1, pt_train.shape[1], 1))
+    feat_valid = np.tile(feat_valid[:, np.newaxis, :], (1, pt_valid.shape[1], 1))
 
     # Combine features
-    combined_train = np.concatenate((comp_train, pt_train), axis=2)
-    combined_train_unmasked = np.concatenate((comp_train, pt_train_unmasked), axis=2)
-    combined_valid = np.concatenate((comp_valid, pt_valid), axis=2)
-    combined_valid_unmasked = np.concatenate((comp_valid, pt_valid_unmasked), axis=2)
+    combined_train = np.concatenate((feat_train, pt_train), axis=2)
+    combined_train_unmasked = np.concatenate((feat_train, pt_train_unmasked), axis=2)
+    combined_valid = np.concatenate((feat_valid, pt_valid), axis=2)
+    combined_valid_unmasked = np.concatenate((feat_valid, pt_valid_unmasked), axis=2)
 
     # Flatten features
     feature_train = combined_train.reshape(-1, combined_train.shape[-1])
@@ -143,10 +148,10 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN"], oxides=["SIO2", "MGO
                                       m.dataset == "valid"])
 
     # Flatten targets
-    target_train = target_train.reshape(-1, combined_train.shape[-1])
-    target_train_unmasked = target_train_unmasked.reshape(-1, combined_train.shape[-1])
-    target_valid = target_valid.reshape(-1, combined_valid.shape[-1])
-    target_valid_unmasked = target_valid_unmasked.reshape(-1, combined_valid.shape[-1])
+    target_train = target_train.reshape(-1, target_train.shape[-1])
+    target_train_unmasked = target_train_unmasked.reshape(-1, target_train.shape[-1])
+    target_valid = target_valid.reshape(-1, target_train.shape[-1])
+    target_valid_unmasked = target_valid_unmasked.reshape(-1, target_train.shape[-1])
 
     # Get geotherm mask
     geotherm_mask_train = np.stack([m._create_geotherm_mask() for m in gfem_models if
@@ -246,7 +251,8 @@ class RocML:
             self.model_prefix = f"{self.program[:4]}-benchmark-{self.ml_model_label}"
             self.fig_dir = f"figs/rocml/{self.program[:4]}_benchmark_{self.ml_model_label}"
         else:
-            self.model_prefix = f"{self.program[:4]}-synthetic-{self.ml_model_label}"
+            self.model_prefix = (f"{self.program[:4]}-synthetic-{self.ml_model_label}-"
+                                 f"{self.sample_ids[0][:2]}")
             self.fig_dir = f"figs/rocml/{self.program[:4]}_synthetic_{self.ml_model_label}"
         self.ml_model_path = f"{self.model_out_dir}/{self.model_prefix}.pkl"
 
@@ -295,7 +301,7 @@ class RocML:
                 self.ml_model_trained = True
 
                 if self.verbose >= 1:
-                    print(f"Found pretrained model: {self.ml_model_path}!")
+                    print(f"Found pretrained model {self.ml_model_path}!")
 
         else:
             os.makedirs(self.model_out_dir, exist_ok=True)
@@ -317,6 +323,10 @@ class RocML:
 
         # Remove nans
         X, y = X[~mask,:], y[~mask,:]
+
+        # Check for infinity in input data
+        if not np.isfinite(X).all() or not np.isfinite(y).all():
+            raise ValueError("Input data contains NaN or infinity values.")
 
         # Initialize scalers
         scaler_X, scaler_y = StandardScaler(), StandardScaler()
@@ -646,13 +656,9 @@ class RocML:
         # Calculate performance metrics to evaluate the model
         rmse_test = np.sqrt(mean_squared_error(y_test_original, y_pred_original,
                                                multioutput="raw_values"))
-        range_test = y_test_original.max() - y_test_original.min()
-        rmse_test = rmse_test / range_test * 100
 
         rmse_valid = np.sqrt(mean_squared_error(y_valid_original, y_pred_original_valid,
                                               multioutput="raw_values"))
-        range_valid = y_valid_original.max() - y_valid_original.min()
-        rmse_valid = rmse_valid / range_valid * 100
 
         r2_test = r2_score(y_test_original, y_pred_original, multioutput="raw_values")
         r2_valid = r2_score(y_valid_original, y_pred_original_valid,

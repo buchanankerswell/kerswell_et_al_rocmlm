@@ -30,13 +30,19 @@ PYTHON = \
 # Cleanup directories
 DATAPURGE = \
 						log \
-						runs \
-						rocmls \
 						python/__pycache__ \
 						$(DATADIR)/benchmark-rocml-performance.csv \
 						$(DATADIR)/synthetic*.csv \
-						$(DATADIR)/earthchem-samples-pca.csv
-DATACLEAN = assets MAGEMin Perple_X
+						$(DATADIR)/earthchem-samples-pca.csv \
+						$(DATADIR)/benchmark-samples-pca.csv \
+						$(DATADIR)/gfem-analysis.csv 
+DATACLEAN = \
+						assets \
+						MAGEMin \
+						Perple_X \
+						runs \
+						rocmls \
+						$(DATADIR)/rocml-performance.csv 
 FIGSPURGE = figs
 FIGSCLEAN = figs
 
@@ -55,16 +61,12 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "    make remove_conda_env" $(LOG)
 	@echo "=============================================" $(LOG)
 
-benchmark_rocml: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source 'benchmark' $(LOG)
-	@echo "=============================================" $(LOG)
-
-earthchem_rocml: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --source 'synthetic' $(LOG)
+rocml_models: $(LOGFILE) $(PYTHON) get_assets
+	@$(CONDAPYTHON) -u python/train-rocml-models.py --res 128 --programs '["perplex"]' $(LOG)
 	@echo "=============================================" $(LOG)
 
 gfem_models: $(LOGFILE) $(PYTHON) get_assets mixing_arrays
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --res 64 --programs '["perplex"]' $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py --res 128 --programs '["perplex"]' $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets

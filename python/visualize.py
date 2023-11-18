@@ -293,7 +293,8 @@ def compose_dataset_plots(gfem_models):
         # Rename targets
         targets_rename = [target.replace("_", "-") for target in targets]
 
-        print(f"Composing {model_prefix} [{program}] ...")
+        if verbose >= 1:
+            print(f"Composing {model_prefix} [{program}] ...")
 
         # Check for existing plots
         existing_figs = []
@@ -663,49 +664,34 @@ def compose_rocml_plots(rocml_model):
     targets = rocml_model.targets
     fig_dir = rocml_model.fig_dir
     fig_dir_perf = "figs/rocml"
+    verbose = rocml_model.verbose
 
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
 
-    print(f"Composing plots: {fig_dir}")
+    # Check for existing plots
+    existing_figs = []
+    for target in targets_rename:
+        for sample_id in rocml_model.sample_ids:
+            fig_1 = f"{fig_dir}/prem-{sample_id}-{ml_model_label}-{target}.png"
+            fig_2 = f"{fig_dir}/surf-{sample_id}-{ml_model_label}-{target}.png"
+            fig_3 = f"{fig_dir}/image-{sample_id}-{ml_model_label}-{target}.png"
 
-    visualize_rocml_performance(targets, res, fig_dir_perf, "rocml")
+            check = (
+                (os.path.exists(fig_1) and os.path.exists(fig_2) and os.path.exists(fig_3)) |
+                (os.path.exists(fig_2) and os.path.exists(fig_3))
+            )
 
-    combine_plots_horizontally(
-        f"{fig_dir_perf}/rocml-inference-time-mean.png",
-        f"{fig_dir_perf}/rocml-training-time-mean.png",
-        f"{fig_dir_perf}/temp1.png",
-        caption1="a)",
-        caption2="b)"
-    )
+            if check:
+                existing_figs.append(check)
 
-    os.remove(f"{fig_dir_perf}/rocml-inference-time-mean.png")
-    os.remove(f"{fig_dir_perf}/rocml-training-time-mean.png")
-
-    combine_plots_horizontally(
-        f"{fig_dir_perf}/rocml-rmse-test-mean.png",
-        f"{fig_dir_perf}/rocml-rmse-val-mean.png",
-        f"{fig_dir_perf}/temp2.png",
-        caption1="c)",
-        caption2="d)"
-    )
-
-    os.remove(f"{fig_dir_perf}/rocml-rmse-test-mean.png")
-    os.remove(f"{fig_dir_perf}/rocml-rmse-val-mean.png")
-
-    combine_plots_vertically(
-        f"{fig_dir_perf}/temp1.png",
-        f"{fig_dir_perf}/temp2.png",
-        f"{fig_dir_perf}/rocml-performance.png",
-        caption1="",
-        caption2=""
-    )
-
-    os.remove(f"{fig_dir_perf}/temp1.png")
-    os.remove(f"{fig_dir_perf}/temp2.png")
+    if existing_figs:
+        return None
 
     for target in targets_rename:
         for sample_id in rocml_model.sample_ids:
+            if verbose >= 1:
+                print(f"Composing {model_prefix}-{sample_id}-{target} [{program}] ...")
 
             if target in ["rho", "Vp", "Vs"]:
                 combine_plots_horizontally(
@@ -1127,7 +1113,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Get benchmark models
     pum_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
-    source = "assets/data/benchmark-samples.csv"
+    source = "assets/data/benchmark-samples-pca.csv"
     targets = ["rho", "Vp", "Vs"]
 
     if os.path.exists(pum_path) and sample_id != "PUM":
@@ -1446,7 +1432,7 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         if target == "rho":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
         elif target == "Vp":
-            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.2g"))
+            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
         elif target == "Vs":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
         elif target == "melt":
@@ -1503,42 +1489,31 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
         if palette == "viridis":
             if color_reverse:
                 pal = plt.cm.get_cmap("viridis_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("viridis", num_colors)
-
         elif palette == "bone":
             if color_reverse:
                 pal = plt.cm.get_cmap("bone_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("bone", num_colors)
-
         elif palette == "pink":
             if color_reverse:
                 pal = plt.cm.get_cmap("pink_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("pink", num_colors)
-
         elif palette == "seismic":
             if color_reverse:
                 pal = plt.cm.get_cmap("seismic_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("seismic", num_colors)
-
         elif palette == "grey":
             if color_reverse:
                 pal = plt.cm.get_cmap("Greys_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("Greys", num_colors)
-
         elif palette not in ["viridis", "grey", "bone", "pink", "seismic"]:
             if color_reverse:
                 pal = plt.cm.get_cmap("Blues_r", num_colors)
-
             else:
                 pal = plt.cm.get_cmap("Blues", num_colors)
 
@@ -1665,8 +1640,8 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
             ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
         elif target == "Vp":
-            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.2g"))
-            ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.2g"))
+            cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
+            ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
         elif target == "Vs":
             cbar.ax.yaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
             ax.zaxis.set_major_formatter(plt.FormatStrFormatter("%.1f"))
@@ -1721,7 +1696,8 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
         elif program == "perplex":
             program_title = "Perple_X"
 
-        print(f"Visualizing {model_prefix} [{program}] ...")
+        if verbose >= 1:
+            print(f"Visualizing {model_prefix} [{program}] ...")
 
         # Check for existing plots
         existing_figs = []
@@ -1746,7 +1722,6 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
             # Use discrete colorscale
             if target in ["assemblage", "variance"]:
                 color_discrete = True
-
             else:
                 color_discrete = False
 
@@ -1754,14 +1729,11 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
             if palette in ["grey"]:
                 if target in ["variance"]:
                     color_reverse = True
-
                 else:
                     color_reverse = False
-
             else:
                 if target in ["variance"]:
                     color_reverse = False
-
                 else:
                     color_reverse = True
 
@@ -2078,7 +2050,7 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
     targets = rocml_model.targets
     fig_dir = rocml_model.fig_dir
     palette = rocml_model.palette
-    n_oxides = feature_arrays.shape[-1] - 2
+    n_feats = feature_arrays.shape[-1] - 2
     n_models = feature_arrays.shape[0]
     w = feature_arrays.shape[1]
     verbose = rocml_model.verbose
@@ -2097,7 +2069,8 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
 
     for s, sample_id in enumerate(sample_ids):
         if verbose >= 1:
-            print(f"Visualizing {sample_id} ...")
+            print(f"Visualizing {model_prefix}-{sample_id} [{program}] ...")
+
         # Slice arrays
         feature_array = feature_arrays[s, :, :, :]
         target_array = target_arrays[s, :, :, :]
@@ -2145,7 +2118,7 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
             pred_array[:, :, i][mask] = np.nan
 
             # Compute normalized diff
-            diff = target_array[:,:,i] - pred_array[:,:,i]
+            diff = target_array[: ,: , i] - pred_array[: , :, i]
 
             # Make nans consistent
             diff[mask] = np.nan
@@ -2160,41 +2133,41 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
             else:
                 color_reverse = True
 
+            # Filename
+            filename = f"{model_prefix}-{sample_id}-{target_rename}"
+
             # Plot target array 2d
-            P = feature_array[:, :, 0 + n_oxides]
-            T = feature_array[:, :, 1 + n_oxides]
+            P = feature_array[:, :, 0 + n_feats]
+            T = feature_array[:, :, 1 + n_feats]
             t = target_array[:, :, i]
             p = pred_array[:, :, i]
 
-            visualize_target_array(P, T, t, target, program_label, palette, False,
-                                   color_reverse, vmin[i], vmax[i], fig_dir,
-                                   f"{model_prefix}-{sample_id}-{target_rename}-targets.png")
+            visualize_target_array(P.flatten(), T.flatten(), t, target, program_label,
+                                   palette, False, color_reverse, vmin[i], vmax[i], fig_dir,
+                                   f"{filename}-targets.png")
             # Plot target array 3d
             visualize_target_surf(P, T, t, target, program_label, palette, False,
                                   color_reverse, vmin[i], vmax[i], fig_dir,
-                                  f"{model_prefix}-{sample_id}-{target_rename}"
-                                  f"-targets-surf.png")
+                                  f"{filename}-targets-surf.png")
 
             # Plot ML model predictions array 2d
-            visualize_target_array(P, T, p, target, model_label_full, palette, False,
-                                   color_reverse, vmin[i], vmax[i], fig_dir,
-                                   f"{model_prefix}-{sample_id}-{target_rename}"
-                                   f"-predictions.png")
+            visualize_target_array(P.flatten(), T.flatten(), p, target, model_label_full,
+                                   palette, False, color_reverse, vmin[i], vmax[i], fig_dir,
+                                   f"{filename}-predictions.png")
 
             # Plot ML model predictions array 3d
             visualize_target_surf(P, T, p, target, model_label_full, palette, False,
                                   color_reverse, vmin[i], vmax[i], fig_dir,
-                                  f"{model_prefix}-{sample_id}-{target_rename}-surf.png")
+                                  f"{filename}-surf.png")
 
             # Plot PT normalized diff targets vs. ML model predictions 2d
-            visualize_target_array(P, T, diff, target, "Residuals", "seismic", False, False,
-                                   vmin[i], vmax[i], fig_dir, f"{model_prefix}-{sample_id}"
-                                   f"-{target_rename}-diff.png")
+            visualize_target_array(P.flatten(), T.flatten(), diff, target, "Residuals",
+                                   "seismic", False, False, vmin[i], vmax[i], fig_dir,
+                                   f"{filename}-diff.png")
 
             # Plot PT normalized diff targets vs. ML model predictions 3d
             visualize_target_surf(P, T, diff, target, "Residuals", "seismic", False, False,
-                                  vmin[i], vmax[i], fig_dir, f"{model_prefix}-{sample_id}"
-                                  f"-{target_rename}-diff-surf.png")
+                                  vmin[i], vmax[i], fig_dir, f"{filename}-diff-surf.png")
 
             # Reshape results and transform units for MAGEMin
             if program == "magemin":
@@ -2240,23 +2213,21 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
             if target == "rho":
                 visualize_prem(program, sample_id, "train", res, target, "g/cm$^3$",
                                results_mgm, results_ppx, results_rocml, model_label,
-                               geotherm_threshold, metrics, title=model_label_full,
-                               fig_dir=fig_dir, filename=f"{model_prefix}-{sample_id}"
-                               f"-{target_rename}-prem.png")
+                               geotherm_threshold, title=model_label_full, fig_dir=fig_dir,
+                               filename=f"{filename}-prem.png")
 
             if target in ["Vp", "Vs"]:
-                visualize_prem(program, sample_id, "train", res, target, "km/s", results_mgm,
-                               results_ppx, results_rocml, model_label, geotherm_threshold,
-                               metrics, title=model_label_full, fig_dir=fig_dir,
-                               filename=f"{model_prefix}-{sample_id}-{target_rename}"
-                               f"-prem.png")
+                visualize_prem(program, sample_id, "train", res, target, "km/s",
+                               results_mgm, results_ppx, results_rocml, model_label,
+                               geotherm_threshold, title=model_label_full, fig_dir=fig_dir,
+                               filename=f"{filename}-prem.png")
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize rocml performance !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, figwidth=6.3,
-                                figheight=4.725):
+                                figheight=5):
     """
     """
     # Data assets dir
@@ -2270,6 +2241,7 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
     data = pd.read_csv(f"{data_dir}/rocml-performance.csv")
 
     # Summarize data
+    data = data[data["size"] == data["size"].min()]
     numeric_columns = data.select_dtypes(include=[float, int]).columns
     summary_df = data.groupby("model")[numeric_columns].mean().reset_index()
 
@@ -2311,18 +2283,11 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
     models = ["KN", "DT", "RF", "NN1", "NN2", "NN3"]
 
     # Create a dictionary to map each model to a specific color
-    color_mapping = {"KN": colormap(2), "DT": colormap(0), "RF": colormap(5),
-                     "NN1": colormap(1), "NN2": colormap(4), "NN3": colormap(3)}
+    color_mapping = {"DT": colormap(0), "KN": colormap(1), "NN1": colormap(2),
+                     "NN2": colormap(3), "NN3": colormap(4), "RF": colormap(5)}
 
     for i, metric in enumerate(metrics):
         plt.figure(figsize=(figwidth, figheight))
-
-        # Show MAGEMin and Perple_X compute times
-        if metric == "inference_time_mean":
-            mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin",
-                                   alpha=0.3)
-            ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X",
-                                   alpha=0.3)
 
         # Define the offset for side-by-side bars
         bar_width = 0.1
@@ -2333,23 +2298,28 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
             x_pos = np.arange(len(summary_df[metric]))
 
             bars = plt.bar(x_pos * bar_width, summary_df.loc[order][metric],
-                           edgecolor="black", width=bar_width / 0.75,
+                           edgecolor="black", width=bar_width / 1.5,
                            color=[color_mapping[model] for model in models_order],
                            label=models_order if i == 1 else "")
 
             plt.title(f"{metric_names[i]}")
-            plt.ylabel("Elapsed Time (ms)")
+            plt.ylabel("")
             plt.yscale("log")
             plt.gca().set_xticks([])
             plt.gca().set_xticklabels([])
 
         elif metric == "inference_time_mean":
+            mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin",
+                                   alpha=0.3)
+            ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X",
+                                   alpha=0.3)
+
             order = summary_df[metric].sort_values().index
             models_order = summary_df.loc[order]["model"].tolist()
             x_pos = np.arange(len(summary_df[metric]))
 
             bars = plt.bar(x_pos * bar_width, summary_df.loc[order][metric],
-                           edgecolor="black", width=bar_width / 0.75,
+                           edgecolor="black", width=bar_width / 1.5,
                            color=[color_mapping[model] for model in models_order],
                            label=models_order if i == 1 else "")
 
@@ -2359,7 +2329,6 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
             handles = [mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
-            legend.set_bbox_to_anchor((0.02, 1.0))
             plt.gca().set_xticks([])
             plt.gca().set_xticklabels([])
 
@@ -2384,7 +2353,7 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
                     summary_df.loc[order][f"rmse_val_mean_{target}"].values
                 ]))
 
-                vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
+                vmax = max_mean + max_error + ((max_mean + max_error) * 0.5)
 
                 bars = plt.bar(x_pos * bar_width,
                                summary_df.loc[order][f"rmse_test_mean_{target}"],
@@ -2399,10 +2368,9 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
                 mult += 1
 
             plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"RMSE (%)")
+            plt.ylabel(f"RMSE")
             plt.yscale("log")
-            plt.ylim(0.001, vmax)
-            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+            plt.ylim(1e-3, vmax)
             x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
                           (len(models_order) / 2 * bar_width) for p, o in
                           zip(np.arange(len(targets)), np.arange(len(targets)))]
@@ -2429,7 +2397,7 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
                     summary_df.loc[order][f"rmse_val_mean_{target}"].values
                 ]))
 
-                vmax = max_mean + max_error + ((max_mean + max_error) * 0.05)
+                vmax = max_mean + max_error + ((max_mean + max_error) * 0.5)
 
                 bars = plt.bar(x_pos * bar_width,
                                summary_df.loc[order][f"rmse_val_mean_{target}"],
@@ -2444,10 +2412,9 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
                 mult += 1
 
             plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"RMSE (%)")
+            plt.ylabel(f"")
             plt.yscale("log")
-            plt.ylim(0.001, vmax)
-            plt.gca().yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+            plt.ylim(1e-3, vmax)
             x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
                           (len(models_order) / 2 * bar_width) for p, o in
                           zip(np.arange(len(targets)), np.arange(len(targets)))]
@@ -2464,13 +2431,47 @@ def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, fi
         # Close device
         plt.close()
 
+    # Compose plots
+    combine_plots_horizontally(
+        f"{fig_dir}/rocml-inference-time-mean.png",
+        f"{fig_dir}/rocml-training-time-mean.png",
+        f"{fig_dir}/temp1.png",
+        caption1="a)",
+        caption2="b)"
+    )
+
+    os.remove(f"{fig_dir}/rocml-inference-time-mean.png")
+    os.remove(f"{fig_dir}/rocml-training-time-mean.png")
+
+    combine_plots_horizontally(
+        f"{fig_dir}/rocml-rmse-test-mean.png",
+        f"{fig_dir}/rocml-rmse-val-mean.png",
+        f"{fig_dir}/temp2.png",
+        caption1="c)",
+        caption2="d)"
+    )
+
+    os.remove(f"{fig_dir}/rocml-rmse-test-mean.png")
+    os.remove(f"{fig_dir}/rocml-rmse-val-mean.png")
+
+    combine_plots_vertically(
+        f"{fig_dir}/temp1.png",
+        f"{fig_dir}/temp2.png",
+        f"{fig_dir}/rocml-performance.png",
+        caption1="",
+        caption2=""
+    )
+
+    os.remove(f"{fig_dir}/temp1.png")
+    os.remove(f"{fig_dir}/temp2.png")
+
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize pca loadings !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthchem",
-                           figwidth=6.3, figheight=5, fontsize=22):
+def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="earthchem",
+                           batch=False, figwidth=6.3, figheight=5, fontsize=22):
     """
     """
     # Get mixing array attributes
@@ -2484,6 +2485,13 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     mixing_array_tops = mixing_array.mixing_array_tops
     mixing_array_bottoms = mixing_array.mixing_array_bottoms
     data = mixing_array.earthchem_pca
+    D_tio2 = mixing_array.D_tio2
+
+    # Get correct F Melt column
+    if batch:
+        F_col = "F_MELT_BATCH"
+    else:
+        F_col = "F_MELT_FRAC"
 
     # Check for benchmark samples
     df_bench_path = "assets/data/benchmark-samples.csv"
@@ -2506,18 +2514,21 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
             df_bench[["PC1", "PC2"]] = df_bench[["PC1", "PC2"]].round(3)
 
             # Calculate F melt
-            D_tio2 = 1e-1
             ti_init = df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"]["TIO2"].values
             df_bench["R_TIO2"] = round(df_bench["TIO2"] / ti_init, 3)
-            df_bench["F_MELT"] = round(1 - df_bench["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
+            df_bench["F_MELT_BATCH"] = round(
+                ((D_tio2 / df_bench["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
+            df_bench["F_MELT_FRAC"] = round(
+                1 - df_bench["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             # Save to csv
             df_bench.to_csv("assets/data/benchmark-samples-pca.csv", index=False)
 
     # Filter F melt < 1
-    data = data[data["F_MELT"] < 1]
-    df_bench = df_bench[df_bench["F_MELT"] < 1]
-    df_synth_bench = df_synth_bench[df_synth_bench["F_MELT"] < 1]
+    data = data[(data[F_col] < 1) & (data[F_col] >= 0)]
+    df_bench = df_bench[(df_bench[F_col] < 1) & (df_bench[F_col] >= 0)]
+    df_synth_bench = df_synth_bench[(df_synth_bench[F_col] < 1) &
+                                    (df_synth_bench[F_col] >= 0)]
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -2643,12 +2654,12 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
     ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
     ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-    sns.scatterplot(data=data, x="PC1", y="PC2", hue="F_MELT",
+    sns.scatterplot(data=data, x="PC1", y="PC2", hue=F_col,
                     palette="magma", edgecolor="None", linewidth=2, s=12,
                     legend=False, ax=ax2, zorder=0)
 
     # Create colorbar
-    norm = plt.Normalize(data["F_MELT"].min(), data["F_MELT"].max())
+    norm = plt.Normalize(data[F_col].min(), data[F_col].max())
     sm = plt.cm.ScalarMappable(cmap="magma", norm=norm)
     sm.set_array([])
 
@@ -2727,7 +2738,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 
     # Add colorbar
     cbaxes = inset_axes(ax2, width="50%", height="3%", loc=1)
-    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="F Melt",
+    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Melt Fraction",
                             orientation="horizontal")
     colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
 
@@ -2755,7 +2766,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/other", filename="earthch
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize harker diagrams !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="earthchem",
+def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filename="earthchem",
                               figwidth=6.3, figheight=6.3, fontsize=22):
     """
     """
@@ -2917,8 +2928,8 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/other", filename="eart
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize gfem analysis !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_analysis(fig_dir="figs/other", filename="fmelt", figwidth=6.3,
-                            figheight=5, fontsize=22):
+def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="fmelt",
+                            figwidth=6.3, figheight=5.5, fontsize=22):
     """
     """
     # Check for analysis data
@@ -2927,6 +2938,12 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="fmelt", figwidth=6.3
         df_analysis = pd.read_csv(analysis_path)
     else:
         raise Exception(f"GFEM analysis not found at {analysis_path}!")
+
+    # Get correct F Melt column
+    if batch:
+        F_col = "F_MELT_BATCH"
+    else:
+        F_col = "F_MELT_FRAC"
 
     # Samples data paths
     df_paths = ["assets/data/benchmark-samples-pca.csv",
@@ -2940,7 +2957,7 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="fmelt", figwidth=6.3
     for name, path in zip(df_names, df_paths):
         if os.path.exists(path):
             df = pd.read_csv(path)
-            df = df[df["F_MELT"] < 1]
+            df = df[(df[F_col] < 1) & (df[F_col] >= 0)]
             dfs[name] = df.merge(df_analysis, on="SAMPLEID", how="inner")
         else:
             raise Exception(f"Missing sample data: {path}!")
@@ -2987,23 +3004,21 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="fmelt", figwidth=6.3
                                    linestyle="None", alpha=1)
             legend_handles.append(marker)
 
-            scatter = ax.scatter(data["F_MELT"], data["RMSE_PREM_PROFILE"],
+            scatter = ax.scatter(data[F_col], data["RMSE_PREM_PROFILE"],
                                  edgecolors="none", color=colormap(i), marker=".", s=150,
                                  label=comp)
-
-            ax.set_title(f"{target_label} ({units})")
 
         edge_colors = ["white", "black"]
         face_colors = ["black", "white"]
         df_bench = dfs["benchmark"]
         df_bench = df_bench[df_bench["TARGET"] == target]
         for l, name in enumerate(["PUM", "DMM"]):
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="F_MELT",
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=F_col,
                             y="RMSE_PREM_PROFILE", facecolor=face_colors[l],
                             edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
                             ax=ax, zorder=7)
             ax.annotate(
-                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "F_MELT"].iloc[0],
+                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, F_col].iloc[0],
                           df_bench.loc[df_bench["SAMPLEID"] == name,
                                        "RMSE_PREM_PROFILE"].iloc[0]),
                 xytext=(5, 5), textcoords="offset points",
@@ -3022,10 +3037,14 @@ def visualize_gfem_analysis(fig_dir="figs/other", filename="fmelt", figwidth=6.3
             for i, label in enumerate(legend_order):
                 legend.get_texts()[i].set_text(label)
 
-        ax.set_xlabel("F Melt")
-        ax.set_ylabel("RMSE vs. PREM")
+        ax.set_title(f"{target_label} vs. PREM")
+        ax.set_xlabel("Melt Fraction")
+        if j == 0:
+            ax.set_ylabel(f"RMSE ({units})")
+        else:
+            ax.set_ylabel("")
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
 
     # Save the plot to a file if a filename is provided
     if filename:

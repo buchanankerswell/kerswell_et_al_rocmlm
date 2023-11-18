@@ -265,12 +265,14 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res=128, mc_sample=1, weighted_random=True, k=3, seed=42, verbose=1):
+    def __init__(self, res=128, mc_sample=1, weighted_random=True, k=3, D_tio2=5e-2,
+                 seed=42, verbose=1):
         # Input
         self.res = res
         self.mc_sample = mc_sample
         self.weighted_random = weighted_random
         self.k = k
+        self.D_tio2 = D_tio2
         self.seed = seed
         self.verbose = verbose
 
@@ -592,6 +594,7 @@ class MixingArray:
         mc_sample = self.mc_sample
         weighted_random = self.weighted_random
         k = self.k
+        D_tio2 = self.D_tio2
         seed = self.seed
         verbose = self.verbose
 
@@ -666,14 +669,14 @@ class MixingArray:
 
                 # Identify highest SIO2 sample in Q1
                 if quadrant == "Q1":
-                    endpoint_x2 = median_x + 1.7 * iqr_pc1
-                    endpoint_y2 = median_y + 1.1 * iqr_pc2
+                    endpoint_x2 = median_x + 2.0 * iqr_pc1
+                    endpoint_y2 = median_y + 1.7 * iqr_pc2
 
                     mixing_array_endpoints[-1] = [endpoint_x2, endpoint_y2]
 
                 # Identify lowest SIO2 sample in Q2
                 if quadrant == "Q2":
-                    endpoint_x2 = median_x - 0.6 * iqr_pc1
+                    endpoint_x2 = median_x - 1.2 * iqr_pc1
                     endpoint_y2 = median_y + 0.2 * iqr_pc2
 
                     mixing_array_endpoints[-1] = [endpoint_x2, endpoint_y2]
@@ -798,11 +801,11 @@ class MixingArray:
                 oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
 
             # Calculate F melt
-            D_tio2 = 1e-1
             ti_init = all_mixing.iloc[-1]["TIO2"]
-            print(ti_init, data["TIO2"].min())
             data["R_TIO2"] = round(data["TIO2"] / ti_init, 3)
-            data["F_MELT"] = round(1 - data["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
+            data["F_MELT_BATCH"] = round(
+                ((D_tio2 / data["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
+            data["F_MELT_FRAC"] = round(1 - data["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             self.earthchem_pca = data.copy()
 
@@ -810,13 +813,21 @@ class MixingArray:
             data.to_csv(f"assets/data/earthchem-samples-pca.csv", index=False)
 
             all_mixing["R_TIO2"] = round(all_mixing["TIO2"] / ti_init, 3)
-            all_mixing["F_MELT"] = round(
+            all_mixing["F_MELT_BATCH"] = round(
+                ((D_tio2 / all_mixing["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
+            all_mixing["F_MELT_FRAC"] = round(
                 1 - all_mixing["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
+
             all_tops["R_TIO2"] = round(all_tops["TIO2"] / ti_init, 3)
-            all_tops["F_MELT"] = round(
+            all_tops["F_MELT_BATCH"] = round(
+                ((D_tio2 / all_tops["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
+            all_tops["F_MELT_FRAC"] = round(
                 1 - all_tops["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
+
             all_bottoms["R_TIO2"] = round(all_bottoms["TIO2"] / ti_init, 3)
-            all_bottoms["F_MELT"] = round(
+            all_bottoms["F_MELT_BATCH"] = round(
+                ((D_tio2 / all_bottoms["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
+            all_bottoms["F_MELT_FRAC"] = round(
                 1 - all_bottoms["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             # Write to csv
@@ -900,7 +911,9 @@ class MixingArray:
 
             # Calculate F melt
             random_synthetic["R_TIO2"] = round(random_synthetic["TIO2"] / ti_init, 3)
-            random_synthetic["F_MELT"] = round(
+            random_synthetic["F_MELT_BATCH"] = round(
+                ((D_tio2 / random_synthetic["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
+            random_synthetic["F_MELT_FRAC"] = round(
                 1 - random_synthetic["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
 
             # Write to csv

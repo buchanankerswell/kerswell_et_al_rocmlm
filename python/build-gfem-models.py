@@ -14,14 +14,14 @@ locals().update(valid_args)
 # GFEM analysis csv
 csv_file = "assets/data/gfem-analysis.csv"
 
-# Build benchmark models from literature and analyze
-source = "assets/data/benchmark-samples-normalized.csv"
+# Build benchmark GFEM models
+source = "assets/data/benchmark-samples-pca.csv"
 gfem_benchmark = []
 gfem_benchmark.extend(build_gfem_models(source, programs=programs, res=res))
 for model in [model for model in gfem_benchmark if model.dataset == "train"]:
     analyze_gfem_model(model, csv_file)
 
-# Build synthetic benchmark models derived from Earthchem samples
+# Build GFEM models sampled along synthetic mixing arrays
 source = "assets/data/synthetic-samples-mixing-tops.csv"
 sids = get_sampleids(source, "all")
 gfem_top = []
@@ -36,7 +36,6 @@ gfem_bottom.extend(build_gfem_models(source, sids, programs=programs, res=res))
 for model in [model for model in gfem_bottom if model.dataset == "train"]:
     analyze_gfem_model(model, csv_file)
 
-# Build synthetic models sampled randomly along mixing array
 source = f"assets/data/synthetic-samples-mixing-random.csv"
 sids = get_sampleids(source, "all")
 gfem_random = []

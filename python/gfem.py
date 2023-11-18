@@ -251,6 +251,7 @@ def analyze_gfem_model(gfem_model, filename):
     dataset = gfem_model.dataset
     res = gfem_model.res
     results_model = gfem_model.results
+    targets = ["rho", "Vp", "Vs"]
 
     # Data asset dir
     data_dir = "assets/data"
@@ -261,23 +262,6 @@ def analyze_gfem_model(gfem_model, filename):
 
     # Read PREM data
     df_prem = pd.read_csv(f"{data_dir}/prem.csv")
-
-    # Get benchmark models
-    pum_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
-    source = "assets/data/benchmark-samples.csv"
-    targets = ["rho", "Vp", "Vs"]
-
-    # Get PUM model
-    if os.path.exists(pum_path):
-        pum_model = GFEMModel(program, dataset, "PUM", source, res, 1, 28, 773, 2273, "all",
-                              targets, False, 0, False)
-        results_pum = pum_model.results
-
-        if not results_pum:
-            raise Exception("PUM model results not found!")
-
-    else:
-        raise Exception("PUM model results not found!")
 
     # Set geotherm threshold for extracting depth profiles
     if res <= 8:
@@ -294,65 +278,43 @@ def analyze_gfem_model(gfem_model, filename):
         geotherm_threshold = 2.5
 
     # Initialize metrics lists
-    rmse_prem_profile, rmse_pum_profile, r2_prem_profile, r2_pum_profile = [], [], [], []
-    rmse_pum_model, r2_pum_model = [], []
+    rmse_prem_profile, r2_prem_profile = [], []
 
     for target in targets:
         # Get PREM profile
         P_prem, target_prem = df_prem["depth"] / 30, df_prem[target],
 
-        # Get PUM profile
-        P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold)
-
         # Get model profile
         P_model, _, target_model = get_geotherm(results_model, target, geotherm_threshold)
 
         # Get min and max P
-        P_min = min(np.nanmin(P) for P in [P_model, P_pum] if P is not None)
-        P_max = max(np.nanmax(P) for P in [P_model, P_pum] if P is not None)
+        P_min = np.nanmin(P_model)
+        P_max = np.nanmax(P_model)
 
         # Crop profiles
         mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
         P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
         mask_model = (P_model >= P_min) & (P_model <= P_max)
         P_model, target_model = P_model[mask_model], target_model[mask_model]
-        mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
-        P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
 
         # Interpolate PREM profile
         x_new = np.linspace(np.min(target_prem), np.max(target_prem), len(target_model))
         P_prem, target_prem = np.interp(x_new, target_prem, P_prem), x_new
 
         # Calculate rmse and r2 vs. PREM along geotherm profile
-        rmse_prem_profile.append(
-            round(np.sqrt(mean_squared_error(target_prem, target_model)), 3)
-        )
+        rmse = np.sqrt(mean_squared_error(target_prem, target_model))
+        rmse_prem_profile.append(round(rmse, 3))
         r2_prem_profile.append(round(r2_score(target_prem, target_model), 3))
 
-        # Calculate rmse and r2 vs. PUM along geotherm profile
-        rmse_pum_profile.append(
-            round(np.sqrt(mean_squared_error(target_pum, target_model)), 3)
-        )
-        r2_pum_profile.append(round(r2_score(target_pum, target_model), 3))
-
         # Remove nans from model results
-        target_array_pum, target_array_model = results_pum[target], results_model[target]
-        nan_mask = np.isnan(target_array_pum) | np.isnan(target_array_model)
-        target_array_pum  = target_array_pum[~nan_mask]
+        target_array_model = results_model[target]
+        nan_mask = np.isnan(target_array_model)
         target_array_model = target_array_model[~nan_mask]
-
-        # Calculate rmse and r2 vs. PUM for entire model
-        rmse_pum_model.append(
-            round(np.sqrt(mean_squared_error(target_array_pum, target_array_model)), 3)
-        )
-        r2_pum_model.append(round(r2_score(target_array_pum, target_array_model), 3))
 
     # Save results
     results = {"SAMPLEID": [sample_id] * len(targets), "PROGRAM": [program] * len(targets),
                "TARGET": targets, "RMSE_PREM_PROFILE": rmse_prem_profile,
-               "R2_PREM_PROFILE": r2_prem_profile, "RMSE_PUM_PROFILE": rmse_pum_profile,
-               "R2_PUM_PROFILE": r2_pum_profile, "RMSE_PUM_MODEL": rmse_pum_model,
-               "R2_PUM_MODEL": r2_pum_model}
+               "R2_PREM_PROFILE": r2_prem_profile}
 
     # Create dataframe
     df = pd.DataFrame(results)
@@ -387,7 +349,7 @@ class GFEMModel:
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, program, dataset, sample_id, source, res, P_min=1, P_max=28,
-                 T_min=773, T_max=2273, oxides_exclude=["FE2O3", "H2O"],
+                 T_min=773, T_max=2273, oxides_exclude=["H2O", "FE2O3"],
                  targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, verbose=1,
                  debug=True):
         """
@@ -414,6 +376,9 @@ class GFEMModel:
         # System oxide components
         self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
                               "FE2O3", "CR2O3", "H2O"]
+
+        # Features
+        self.features = ["PC1", "PC2", "R_TIO2", "F_MELT_BATCH", "F_MELT_FRAC"]
 
         # Program and config paths
         if self.program == "magemin":
@@ -442,6 +407,7 @@ class GFEMModel:
 
         # Results
         self.sample_composition = []
+        self.sample_features = []
         self.norm_sample_composition = []
         self.comp_time = None
         self.model_built = False
@@ -464,9 +430,19 @@ class GFEMModel:
                     self.model_built = True
                     self._get_sample_composition()
                     self._normalize_sample_composition()
+                    self._get_sample_features()
                     self.get_results()
                     self.get_feature_array()
                     self.get_target_array()
+                    if self.verbose >= 1:
+                        oxides = [oxide for oxide in self.oxides_system if oxide not in
+                                  self.oxides_exclude]
+                        sample_comp = self.norm_sample_composition
+                        max_oxide_width = max(len(oxide) for oxide in oxides)
+                        max_comp_width = max(len(str(comp)) for comp in sample_comp)
+                        max_width = max(max_oxide_width, max_comp_width)
+                        print(" ".join([f"  {oxide:<{max_width}}" for oxide in oxides]))
+                        print(" ".join([f"  {comp:<{max_width}}" for comp in sample_comp]))
 
                 except Exception as e:
                     print(f"!!! {e} !!!")
@@ -591,6 +567,41 @@ class GFEMModel:
         self.norm_sample_composition = normalized_concentrations
 
         return normalized_concentrations
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # get sample features !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _get_sample_features(self):
+        """
+        """
+        # Get self attributes
+        program = self.program
+        source = self.source
+        sample_id = self.sample_id
+        features = self.features
+        norm_sample_composition = self.norm_sample_composition
+
+        # Check for sample composition
+        if not norm_sample_composition:
+            raise Exception("Sample composition not normalized yet! "
+                            "Call _normalize_sample_composition() first ...")
+
+        # Read the data file
+        df = pd.read_csv(source)
+
+        # Subset the DataFrame based on the sample name
+        subset_df = df[df["SAMPLEID"] == sample_id]
+
+        if subset_df.empty:
+            raise ValueError("Sample name not found in the dataset!")
+
+        # Get features for selected sample
+        feature_values = subset_df[features].values.flatten().tolist()
+        sample_features = norm_sample_composition + feature_values
+
+        self.sample_features = sample_features
+
+        return sample_features
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # count lines !!
@@ -827,13 +838,13 @@ class GFEMModel:
         if not os.path.exists(magemin_in_path):
             raise Exception("No MAGEMin input! Call _configure_magemin_model() first ...")
 
-        print(f"Building MAGEMin model: {model_prefix}...")
-        max_oxide_width = max(len(oxide) for oxide in oxides)
-        max_comp_width = max(len(str(comp)) for comp in norm_sample_composition)
-        max_width = max(max_oxide_width, max_comp_width)
-        total_comp = sum(norm_sample_composition)
-        print(" ".join([f"  {oxide:<{max_width}}" for oxide in oxides]))
-        print(" ".join([f"  {comp:<{max_width}}" for comp in norm_sample_composition]))
+        if verbose >= 1:
+            print(f"Building MAGEMin model: {model_prefix}...")
+            max_oxide_width = max(len(oxide) for oxide in oxides)
+            max_comp_width = max(len(str(comp)) for comp in norm_sample_composition)
+            max_width = max(max_oxide_width, max_comp_width)
+            print(" ".join([f"  {oxide:<{max_width}}" for oxide in oxides]))
+            print(" ".join([f"  {comp:<{max_width}}" for comp in norm_sample_composition]))
 
         # Get number of pt points
         n_points = self._count_lines()
@@ -1051,19 +1062,19 @@ class GFEMModel:
             if key in point_params:
                 if key == "P":
                     # Convert from kbar to GPa
-                    results[key] = np.array(value) / 10
+                    results[key] = round(np.array(value) / 10, 3)
 
                 elif key == "T":
                     # Convert from C to K
-                    results[key] = np.array(value) + 273
+                    results[key] = round(np.array(value) + 273, 3)
 
                 elif key == "rho":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = np.array(value) / 1000
+                    results[key] = round(np.array(value) / 1000, 3)
 
                 elif key == "melt":
-                    # Convert from kg/m3 to g/cm3
-                    results[key] = np.array(value) * 100
+                    # Convert from fraction to percent
+                    results[key] = round(np.array(value) * 100, 3)
 
                 else:
                     results[key] = np.array(value)
@@ -1209,12 +1220,13 @@ class GFEMModel:
         if not os.path.exists(f"{model_out_dir}/perplex-build-config"):
             raise Exception("No Perple_X input! Call _configure_perplex_model() first ...")
 
-        print(f"Building Perple_X model: {model_prefix} ...")
-        max_oxide_width = max(len(oxide) for oxide in subset_oxides)
-        max_comp_width = max(len(str(comp)) for comp in norm_sample_composition)
-        max_width = max(max_oxide_width, max_comp_width)
-        print(" ".join([f"  {oxide:<{max_width}}" for oxide in subset_oxides]))
-        print(" ".join([f"  {comp:<{max_width}}" for comp in norm_sample_composition]))
+        if verbose >= 1:
+            print(f"Building Perple_X model: {model_prefix} ...")
+            max_oxide_width = max(len(oxide) for oxide in subset_oxides)
+            max_comp_width = max(len(str(comp)) for comp in norm_sample_composition)
+            max_width = max(max_oxide_width, max_comp_width)
+            print(" ".join([f"  {oxide:<{max_width}}" for oxide in subset_oxides]))
+            print(" ".join([f"  {comp:<{max_width}}" for comp in norm_sample_composition]))
 
         # Run programs with corresponding configuration files
         for program in ["build", "vertex", "werami", "pssect"]:
@@ -1461,11 +1473,11 @@ class GFEMModel:
             if key in point_params:
                 if key == "rho":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = np.array(value) / 1000
+                    results[key] = round(np.array(value) / 1000, 3)
 
                 elif key == "melt":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = np.array(value) * 100
+                    results[key] = round(np.array(value) * 100, 3)
 
                 else:
                     results[key] = np.array(value)
