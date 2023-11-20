@@ -2526,9 +2526,6 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
 
     # Filter F melt < 1
     data = data[(data[F_col] < 1) & (data[F_col] >= 0)]
-    df_bench = df_bench[(df_bench[F_col] < 1) & (df_bench[F_col] >= 0)]
-    df_synth_bench = df_synth_bench[(df_synth_bench[F_col] < 1) &
-                                    (df_synth_bench[F_col] >= 0)]
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -2607,38 +2604,35 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
                 hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
     x_offset = 3.8
-    y_offset = 5.5
+    y_offset = 5.3
     for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]:
         ax.arrow(x_offset, y_offset, loadings.at[0, oxide] * 1.5,
                  loadings.at[1, oxide] * 1.5, width=0.1, head_width=0.4,
                  color="black")
-        ax.text(x_offset + (loadings.at[0, oxide] * 3),
-                y_offset + (loadings.at[1, oxide] * 3), oxide,
+        ax.text(x_offset + (loadings.at[0, oxide] * 3.2),
+                y_offset + (loadings.at[1, oxide] * 3.2), oxide,
                 bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
-                fontsize=fontsize * 0.579, color="black", ha="center", va="center")
-
-    ax.text(x_offset, y_offset + 3.5, "PCA Loadings", fontsize=fontsize * 0.833,
-            color="black", ha="center", va="center")
+                fontsize=fontsize * 0.833, color="black", ha="center", va="center")
 
     edge_colors = ["white", "black"]
     face_colors = ["black", "white"]
     for l, name in enumerate(["PUM", "DMM"]):
         sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
                         y="PC2", facecolor=face_colors[l],
-                        edgecolor=edge_colors[l], linewidth=2, s=75, legend=False, ax=ax,
+                        edgecolor=edge_colors[l], linewidth=2, s=150, legend=False, ax=ax,
                         zorder=7)
         ax.annotate(
             name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
                       df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
-            xytext=(-35, 5), textcoords="offset points",
+            xytext=(-35, 10), textcoords="offset points",
             bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                       edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
-            fontsize=fontsize * 0.579, zorder=8
+            fontsize=fontsize * 0.833, zorder=8
         )
 
     legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
                        bbox_to_anchor=(0.5, 0.12), ncol=4, columnspacing=0,
-                       handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.694)
+                       handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.833)
     # Legend order
     for i, label in enumerate(legend_order):
         legend.get_texts()[i].set_text(label)
@@ -2698,38 +2692,49 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
                     y_vals_bottoms = m * x_vals_bottoms + b_bottoms
 
                     ax2.plot(x_vals, y_vals, color="black", linestyle="--",
-                             linewidth=1.2)
+                             linewidth=4)
                     ax2.plot(x_vals_tops, y_vals_tops, color="black", linestyle="-",
-                            linewidth=1.2)
+                            linewidth=4)
                     ax2.plot(x_vals_bottoms, y_vals_bottoms, color="black",
-                             linestyle="-", linewidth=1.2)
+                             linestyle="-", linewidth=4)
 
+    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12000"],
+                    x="PC1", y="PC2", facecolor="white", edgecolor="black",
+                    linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
     sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
-                    x="PC1", y="PC2", facecolor="None", edgecolor="black",
-                    linewidth=2, s=75, legend=False, ax=ax2, zorder=6)
-    ax2.annotate("FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                    x="PC1", y="PC2", facecolor="black", edgecolor="white",
+                    linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
+    ax2.annotate("DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+                               "PC1"].iloc[0],
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+                               "PC2"].iloc[0]),
+                xytext=(-45, 10), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
+                          linewidth=1.5, alpha=0.8),
+                fontsize=fontsize * 0.833, zorder=8)
+    ax2.annotate("PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
                                "PC1"].iloc[0],
                             df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
                                "PC2"].iloc[0]),
-                xytext=(-45, 5), textcoords="offset points",
-                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
-                          alpha=0.8),
-                fontsize=fontsize * 0.579, zorder=8)
+                xytext=(-45, 10), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="white",
+                          linewidth=1.5, alpha=0.8),
+                fontsize=fontsize * 0.833, zorder=8)
 
     edge_colors = ["white", "black"]
     face_colors = ["black", "white"]
     for l, name in enumerate(["PUM", "DMM"]):
         sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
-                        y="PC2", facecolor=face_colors[l],
-                        edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
+                        y="PC2", marker="s", facecolor=face_colors[l],
+                        edgecolor=edge_colors[l], linewidth=2, s=150, legend=False,
                         ax=ax2, zorder=7)
         ax2.annotate(
             name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
                       df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
-            xytext=(-35, 5), textcoords="offset points",
+            xytext=(5, 10), textcoords="offset points",
             bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                       edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
-            fontsize=fontsize * 0.579, zorder=8
+            fontsize=fontsize * 0.833, zorder=8
         )
 
     plt.title("Mixing Arrays")
@@ -2857,12 +2862,15 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
 
             for l, name in enumerate(["PUM", "DMM"]):
                 sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name],
-                                x="SIO2", y=y, facecolor=face_colors[l],
+                                x="SIO2", y=y, marker="s", facecolor=face_colors[l],
                                 edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
                                 ax=ax, zorder=7)
 
+            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12000"],
+                            x="SIO2", y=y, facecolor="white", edgecolor="black",
+                            linewidth=2, s=75, legend=False, ax=ax, zorder=6)
             sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
-                            x="SIO2", y=y, facecolor="None", edgecolor="black",
+                            x="SIO2", y=y, facecolor="black", edgecolor="white",
                             linewidth=2, s=75, legend=False, ax=ax, zorder=6)
 
         if k == 5:
@@ -2875,15 +2883,24 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
                               edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
                     fontsize=fontsize * 0.579, zorder=6
                 )
-                ax.annotate(
-                    "FSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
-                                                   "SIO2"].iloc[0],
-                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
-                                                   y].iloc[0]),
-                    xytext=(5, 5), textcoords="offset points",
-                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", linewidth=1.5,
-                              alpha=0.8),
-                    fontsize=fontsize * 0.579, zorder=8)
+            ax.annotate(
+                "DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+                                               "SIO2"].iloc[0],
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+                                               y].iloc[0]),
+                xytext=(5, -5), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
+                          linewidth=1.5, alpha=0.8),
+                fontsize=fontsize * 0.579, zorder=8)
+            ax.annotate(
+                "PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                               "SIO2"].iloc[0],
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                                               y].iloc[0]),
+                xytext=(5, -5), textcoords="offset points",
+                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="white",
+                          linewidth=1.5, alpha=0.8),
+                fontsize=fontsize * 0.579, zorder=8)
 
         if k < (num_plots - num_cols - 1):
             ax.set_xticks([])
@@ -2901,10 +2918,15 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
             ax.set_title(f"{y}")
 
         if y == "pie":
+            colormap = plt.cm.get_cmap("tab10")
+            colors = {"lherzolite": colormap(1), "harzburgite": colormap(0),
+                      "dunite": colormap(2)}
+            legend_colors = [colors[label] for label in legend_order]
             rock_counts = data["ROCKNAME"].value_counts()
             labels, counts = zip(*rock_counts.items())
             plt.pie(counts, labels=labels, autopct="%1.0f%%", startangle=0, pctdistance=0.3,
-                    labeldistance=0.6, textprops={"fontsize": fontsize * 0.694}, radius=1.3)
+                    labeldistance=0.6, textprops={"fontsize": fontsize * 0.694}, radius=1.3,
+                    colors=legend_colors)
 
     fig.suptitle("Harker Diagrams vs. SIO2 (wt.%)")
 

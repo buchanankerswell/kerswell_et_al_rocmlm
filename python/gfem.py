@@ -301,15 +301,15 @@ def analyze_gfem_model(gfem_model, filename):
         x_new = np.linspace(np.min(target_prem), np.max(target_prem), len(target_model))
         P_prem, target_prem = np.interp(x_new, target_prem, P_prem), x_new
 
+        # Remove nans
+        nan_mask = np.isnan(target_model)
+        P_model, target_model = P_model[~nan_mask], target_model[~nan_mask]
+        P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
+
         # Calculate rmse and r2 vs. PREM along geotherm profile
         rmse = np.sqrt(mean_squared_error(target_prem, target_model))
-        rmse_prem_profile.append(round(rmse, 3))
-        r2_prem_profile.append(round(r2_score(target_prem, target_model), 3))
-
-        # Remove nans from model results
-        target_array_model = results_model[target]
-        nan_mask = np.isnan(target_array_model)
-        target_array_model = target_array_model[~nan_mask]
+        rmse_prem_profile.append(np.round(rmse, 3))
+        r2_prem_profile.append(np.round(r2_score(target_prem, target_model), 3))
 
     # Save results
     results = {"SAMPLEID": [sample_id] * len(targets), "PROGRAM": [program] * len(targets),
@@ -1062,19 +1062,19 @@ class GFEMModel:
             if key in point_params:
                 if key == "P":
                     # Convert from kbar to GPa
-                    results[key] = round(np.array(value) / 10, 3)
+                    results[key] = np.round(np.array(value) / 10, 3)
 
                 elif key == "T":
                     # Convert from C to K
-                    results[key] = round(np.array(value) + 273, 3)
+                    results[key] = np.round(np.array(value) + 273, 3)
 
                 elif key == "rho":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = round(np.array(value) / 1000, 3)
+                    results[key] = np.round(np.array(value) / 1000, 3)
 
                 elif key == "melt":
                     # Convert from fraction to percent
-                    results[key] = round(np.array(value) * 100, 3)
+                    results[key] = np.round(np.array(value) * 100, 3)
 
                 else:
                     results[key] = np.array(value)
@@ -1473,11 +1473,11 @@ class GFEMModel:
             if key in point_params:
                 if key == "rho":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = round(np.array(value) / 1000, 3)
+                    results[key] = np.round(np.array(value) / 1000, 3)
 
                 elif key == "melt":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = round(np.array(value) * 100, 3)
+                    results[key] = np.round(np.array(value) * 100, 3)
 
                 else:
                     results[key] = np.array(value)

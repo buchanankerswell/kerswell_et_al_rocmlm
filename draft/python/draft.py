@@ -166,29 +166,43 @@ def write_markdown_tables():
     # Pandoc dir
     pandoc_dir = "assets/pandoc"
 
-    if os.path.exists(f"{data_dir}/benchmark-samples-normalized.csv"):
+    if (os.path.exists(f"{data_dir}/benchmark-samples-normalized.csv") and
+        os.path.exists(f"{data_dir}/synthetic-samples-benchmarks.csv")):
         print("Writing benchmark-samples-normalized.md")
 
         # Benchmark compositions
         df = pd.read_csv(f"{data_dir}/benchmark-samples-normalized.csv")
+        df_synth = pd.read_csv(f"{data_dir}/synthetic-samples-benchmarks.csv")
 
-        # Drop references
+        # Drop columns
         df = df.drop(columns=["REFERENCE", "FE2O3", "H2O"])
+        df_synth = df_synth.drop(columns=["FE2O3", "H2O", "PC1", "PC2", "R_TIO2",
+                                          "F_MELT_BATCH", "F_MELT_FRAC"])
+
+        # Get synth samples
+        df_synth = df_synth[df_synth["SAMPLEID"].isin(["sm12000", "sm23127"])]
+        df_synth.loc[df_synth["SAMPLEID"] == "sm12000", "SAMPLEID"] = "DSUM"
+        df_synth.loc[df_synth["SAMPLEID"] == "sm23127", "SAMPLEID"] = "PSUM"
+
+        # Combine data
+        df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
 
         # Rename columns
         col_headers = {"SAMPLEID": "Sample", "SIO2": "SiO$_2$", "AL2O3": "Al$_2$O$_3$",
                        "CAO": "CaO", "MGO": "MgO", "FEO": "FeO", "K2O": "K$_2$O",
                        "NA2O": "Na$_2$O", "TIO2": "TiO$_2$", "CR2O3": "Cr$_2$O$_3$"}
 
-        df.rename(columns=col_headers, inplace=True)
+        df_combined.rename(columns=col_headers, inplace=True)
 
         # Generate markdown table
-        markdown_table = df.to_markdown(index=False, floatfmt=".2f")
+        markdown_table = df_combined.to_markdown(index=False, floatfmt=".2f")
 
         # Table caption
-        caption = (": Compositions (in wt. % oxides) for the benchmark samples: Primitive "
-                   "Upper Mantle [PUM, @sun1989] and Depleted Morb Mantle "
-                   "[DMM, @workman2005] {#tbl:benchmark-samples-normalized}")
+        caption = (": Compositions (in wt. % oxides) for the benchmark samples: Depleted "
+                   "Morb Mantle [DMM, @workman2005], Depleted Synthetic Upper Mantle "
+                   "(DSUM, this study), Primitive Synthetic Upper Mantle (PSUM, this "
+                   "study), and Primitive Upper Mantle [PUM, @sun1989]. "
+                   "{#tbl:benchmark-samples-normalized}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/benchmark-samples-normalized.md", "w") as file:
