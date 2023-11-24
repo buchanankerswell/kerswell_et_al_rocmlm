@@ -457,6 +457,25 @@ class MixingArray:
         # Update self attribute
         self.earthchem_filtered = data.copy()
 
+        # Save info
+        numeric_columns = data.select_dtypes(include="number").columns
+        data[numeric_columns] = data[numeric_columns].apply(pd.to_numeric, errors="coerce")
+        numeric_info = []
+        for column in numeric_columns:
+            numeric_info.append({
+                "column": column,
+                "measured": data[column].count(),
+                "missing": data[column].isnull().sum(),
+                "min": data[column].min().round(3),
+                "max": data[column].max().round(3),
+                "mean": data[column].mean().round(3),
+                "median": data[column].median().round(3),
+                "std": data[column].std().round(3),
+                "iqr": round(data[column].quantile(0.75) - data[column].quantile(0.25), 3)
+            })
+        info_df = pd.DataFrame(numeric_info)
+        info_df.to_csv("assets/data/earthchem-counts.csv", index=False)
+
         if verbose >= 1:
             # Print info
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -792,13 +811,14 @@ class MixingArray:
             all_bottoms = pd.concat(bottom_list, ignore_index=True)
 
             # No negative oxides
-            data[oxides] = data[oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
-            all_mixing[oxides] = all_mixing[
-                oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
-            all_tops[oxides] = all_tops[
-                oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
-            all_bottoms[oxides] = all_bottoms[
-                oxides].apply(lambda x: x.apply(lambda y: max(0.0, y)))
+            oxs = oxides[:-1]
+            data[oxs] = data[oxs].apply(lambda x: x.apply(lambda y: max(0.001, y)))
+            all_mixing[oxs] = all_mixing[
+                oxs].apply(lambda x: x.apply(lambda y: max(0.001, y)))
+            all_tops[oxs] = all_tops[
+                oxs].apply(lambda x: x.apply(lambda y: max(0.001, y)))
+            all_bottoms[oxs] = all_bottoms[
+                oxs].apply(lambda x: x.apply(lambda y: max(0.001, y)))
 
             # Calculate F melt
             ti_init = all_mixing.iloc[-1]["TIO2"]
@@ -908,6 +928,10 @@ class MixingArray:
 
             # Add sample id column
             random_synthetic.insert(0, "SAMPLEID", sample_ids)
+
+            # No negative oxides
+            random_synthetic[oxs] = random_synthetic[oxs].apply(
+                lambda x: x.apply(lambda y: max(0.001, y)))
 
             # Calculate F melt
             random_synthetic["R_TIO2"] = round(random_synthetic["TIO2"] / ti_init, 3)

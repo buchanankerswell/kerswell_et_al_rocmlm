@@ -166,18 +166,20 @@ def write_markdown_tables():
     # Pandoc dir
     pandoc_dir = "assets/pandoc"
 
-    if (os.path.exists(f"{data_dir}/benchmark-samples-normalized.csv") and
-        os.path.exists(f"{data_dir}/synthetic-samples-benchmarks.csv")):
-        print("Writing benchmark-samples-normalized.md")
+    # CSV paths
+    df_path = f"{data_dir}/benchmark-samples-pca.csv"
+    df_synth_path = f"{data_dir}/synthetic-samples-benchmarks.csv"
+
+    if (os.path.exists(df_path) and os.path.exists(df_synth_path)):
+        print("Writing benchmark-samples.md")
 
         # Benchmark compositions
-        df = pd.read_csv(f"{data_dir}/benchmark-samples-normalized.csv")
-        df_synth = pd.read_csv(f"{data_dir}/synthetic-samples-benchmarks.csv")
+        df = pd.read_csv(df_path)
+        df_synth = pd.read_csv(df_synth_path)
 
         # Drop columns
-        df = df.drop(columns=["REFERENCE", "FE2O3", "H2O"])
-        df_synth = df_synth.drop(columns=["FE2O3", "H2O", "PC1", "PC2", "R_TIO2",
-                                          "F_MELT_BATCH", "F_MELT_FRAC"])
+        df = df.drop(columns=["REFERENCE", "FE2O3", "PC1", "PC2", "R_TIO2", "F_MELT_BATCH"])
+        df_synth = df_synth.drop(columns=["FE2O3", "PC1", "PC2", "R_TIO2", "F_MELT_BATCH"])
 
         # Get synth samples
         df_synth = df_synth[df_synth["SAMPLEID"].isin(["sm12000", "sm23127"])]
@@ -188,29 +190,56 @@ def write_markdown_tables():
         df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
 
         # Rename columns
-        col_headers = {"SAMPLEID": "Sample", "SIO2": "SiO$_2$", "AL2O3": "Al$_2$O$_3$",
-                       "CAO": "CaO", "MGO": "MgO", "FEO": "FeO", "K2O": "K$_2$O",
-                       "NA2O": "Na$_2$O", "TIO2": "TiO$_2$", "CR2O3": "Cr$_2$O$_3$"}
+        col_headers = {"SAMPLEID": "Sample", "F_MELT_FRAC": "F"}
 
         df_combined.rename(columns=col_headers, inplace=True)
 
         # Generate markdown table
-        markdown_table = df_combined.to_markdown(index=False, floatfmt=".2f")
+        markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = (": Compositions (in wt. % oxides) for the benchmark samples: Depleted "
-                   "Morb Mantle [DMM, @workman2005], Depleted Synthetic Upper Mantle "
-                   "(DSUM, this study), Primitive Synthetic Upper Mantle (PSUM, this "
-                   "study), and Primitive Upper Mantle [PUM, @sun1989]. "
-                   "{#tbl:benchmark-samples-normalized}")
+        caption = (": Compositions (in wt.%) and melt fractions (F) of hypothetical "
+                   "mantle endmembers. {#tbl:benchmark-samples}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/benchmark-samples-normalized.md", "w") as file:
+        with open(f"{pandoc_dir}/benchmark-samples.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
     else:
-        print(f"Warning: {data_dir}/benchmark-samples-normalized.csv does not exist!")
+        print(f"Warning: {df_path} does not exist!")
+
+    if os.path.exists(f"{data_dir}/earthchem-counts.csv"):
+        print("Writing earthchem-counts.md")
+
+        # Earthchem imputed data counts
+        df = pd.read_csv(f"{data_dir}/earthchem-counts.csv")
+
+        # Subset oxides
+        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "CR2O3", "H2O"]
+        df = df[df["column"].isin(oxides)]
+
+        # Rename columns
+        df.loc[df["column"] == "FEO", "column"] = "FEOT"
+        col_headers = {"column": "Oxide", "min": "Min", "max": "Max", "mean": "Mean",
+                       "std": "Std", "median": "Median", "iqr": "IQR",
+                       "measured": "Measured", "missing": "Missing", "imputed": "Imputed"}
+        df.rename(columns=col_headers, inplace=True)
+
+        # Generate markdown table
+        markdown_table = df.to_markdown(index=False, floatfmt=".3g")
+
+        # Table caption
+        caption = (": Summary of the filtered and standardized Earthchem dataset (in wt.%). "
+                   "{#tbl:earthchem-counts}")
+
+        # Write markdown table
+        with open(f"{pandoc_dir}/earthchem-counts.md", "w") as file:
+            file.write(f"{markdown_table}\n")
+            file.write(f"\n{caption}")
+
+    else:
+        print(f"Warning: {data_dir}/earthchem-counts.csv does not exist!")
 
     if os.path.exists(f"{data_dir}/mlm-pro-con.csv"):
         print("Writing mlm-pro-con.md")
@@ -222,7 +251,7 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": Advantages and disadvantages of various non-linear ML models. "
+        caption = (": Advantages and disadvantages of various non-linear RocMLMs. "
                    "{#tbl:mlm-pro-con}")
 
         # Write markdown table
@@ -254,7 +283,7 @@ def write_markdown_tables():
                 std_col = col.replace("_mean", "_std")
                 if std_col in df.columns:
                     df[std_col] = df[std_col].apply(lambda x: f"{2 * x:.2g}")
-                    df[col] = df[col].astype(str) + " ± " + (df[std_col]).astype(str)
+#                    df[col] = df[col].astype(str) + " ± " + (df[std_col]).astype(str)
 
         # Drop the std_ columns
         df.drop([col for col in df.columns if "_std" in col], axis=1, inplace=True)
@@ -272,8 +301,7 @@ def write_markdown_tables():
         # Rename columns
         df.columns = ["Model", "t$_{\\text{train}}$ (ms)",
                       "t$_{\\text{predict}}$ (ms)", "$\\epsilon_\\rho$ (g/cm$^3$)",
-                      "$\\epsilon_{\\text{Vp}}$ (km/s)", "$\\epsilon_{\\text{Vs}}$ (km/s)",
-                      "$\\epsilon_{\\text{melt}}$ (%)"]
+                      "$\\epsilon_{\\text{Vp}}$ (km/s)", "$\\epsilon_{\\text{Vs}}$ (km/s)"]
 
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)

@@ -33,6 +33,7 @@ DATAPURGE = \
 						python/__pycache__ \
 						$(DATADIR)/benchmark-rocml-performance.csv \
 						$(DATADIR)/synthetic*.csv \
+						$(DATADIR)/earthchem-counts.csv \
 						$(DATADIR)/earthchem-samples-pca.csv \
 						$(DATADIR)/benchmark-samples-pca.csv \
 						$(DATADIR)/gfem-analysis.csv 
@@ -62,11 +63,11 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 
 rocml_models: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py --res 128 --programs '["perplex"]' $(LOG)
+	@$(CONDAPYTHON) -u python/train-rocml-models.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 gfem_models: $(LOGFILE) $(PYTHON) get_assets mixing_arrays
-	@$(CONDAPYTHON) -u python/build-gfem-models.py --res 128 --programs '["perplex"]' $(LOG)
+	@$(CONDAPYTHON) -u python/build-gfem-models.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets

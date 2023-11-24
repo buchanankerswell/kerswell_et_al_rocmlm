@@ -11,43 +11,35 @@ valid_args = check_arguments(args, "train-rocml-models.py")
 # Load valid arguments
 locals().update(valid_args)
 
-# Build benchmark GFEM models
-source = "assets/data/benchmark-samples-pca.csv"
-gfem_benchmark = []
-gfem_benchmark.extend(build_gfem_models(source, programs=programs, res=res))
+# Initialize models
+gfems, rocmls = {}, {}
 
-# Build GFEM models sampled along synthetic mixing arrays
-source = "assets/data/synthetic-samples-mixing-tops.csv"
-sids = get_sampleids(source, "all")
-gfem_top = []
-gfem_top.extend(build_gfem_models(source, sids, programs=programs, res=res))
+# Sample sources
+sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
+           "top": "assets/data/synthetic-samples-mixing-tops.csv",
+           "bottom": "assets/data/synthetic-samples-mixing-bottoms.csv",
+           "random": "assets/data/synthetic-samples-mixing-random.csv"}
 
-source = "assets/data/synthetic-samples-mixing-bottoms.csv"
-sids = get_sampleids(source, "all")
-gfem_bottom = []
-gfem_bottom.extend(build_gfem_models(source, sids, programs=programs, res=res))
+# Build GFEM models
+for name, source in sources.items():
+    sids = get_sampleids(source, "all")
+    gfems[name] = build_gfem_models(source, sids)
 
-source = f"assets/data/synthetic-samples-mixing-random.csv"
-sids = get_sampleids(source, "all")
-gfem_random = []
-gfem_random.extend(build_gfem_models(source, sids, programs=programs, res=res))
-
-# Train benchmark RocML models
-ml_models_benchmark = ["DT", "KN", "RF", "NN1", "NN2", "NN3"]
-rocml_benchmark = train_rocml_models(gfem_benchmark, ml_models_benchmark)
-
-# Train synthetic RocML models
-ml_models_synthetic = ["DT", "KN"]
-rocml_top = train_rocml_models(gfem_top, ml_models_synthetic)
-rocml_bottom = train_rocml_models(gfem_bottom, ml_models_synthetic)
-rocml_random = train_rocml_models(gfem_random, ml_models_synthetic)
+# Train RocML models
+for name, models in gfems.items():
+    if name == "benchmark":
+        rocmls[name] = train_rocml_models(models, ["KN", "DT"])
+#        rocmls[name] = train_rocml_models(models, ["KN", "DT", "RF", "NN1", "NN2", "NN3"])
+    else:
+        rocmls[name] = train_rocml_models(models, ["DT", "KN"])
 
 # Visualize rocml performance
-visualize_rocml_performance(["rho", "Vp", "Vs", "melt"], res, "figs/rocml", "rocml")
+visualize_rocml_performance(["rho", "Vp", "Vs"], 128)
 
 # Visualize RocML models
-for model in rocml_benchmark + rocml_top + rocml_bottom + rocml_random:
-    visualize_rocml_model(model)
-    compose_rocml_plots(model)
+for name, models in rocmls.items():
+    for model in models:
+        visualize_rocml_model(model)
+        compose_rocml_plots(model)
 
 print("RocML visualized!")

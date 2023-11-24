@@ -70,114 +70,6 @@ def get_sampleids(filepath, batch, n_batches=8):
     return df[start:end]["SAMPLEID"].values
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# gfem_iteration !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def gfem_iteration(args):
-    """
-    """
-    # Unpack arguments
-    program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, oxides_exclude, \
-        targets, maskgeotherm, verbose, debug = args
-
-    # Initiate GFEM model
-    iteration = GFEMModel(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
-                          oxides_exclude, targets, maskgeotherm, verbose, debug)
-
-    if iteration.model_built:
-        return iteration
-
-    else:
-        iteration.build_model()
-
-        if not iteration.model_build_error:
-            iteration.get_results()
-            iteration.get_feature_array()
-            iteration.get_target_array()
-
-            return iteration
-
-        else:
-            return iteration
-
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# build gfem models !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_gfem_models(source, sampleids=None, programs=["magemin", "perplex"],
-                      datasets=["train", "valid"], batch="all", nbatches=8, res=128, Pmin=1,
-                      Pmax=28, Tmin=773, Tmax=2273, oxides_exclude=["H2O", "FE2O3"],
-                      targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, parallel=True,
-                      nprocs=os.cpu_count(), verbose=1, debug=True):
-    """
-    """
-    # Check sampleids
-    if os.path.exists(source) and sampleids is None:
-        sampleids = sorted(get_sampleids(source, batch, nbatches))
-
-    elif os.path.exists(source) and sampleids is not None:
-        sids = get_sampleids(source, batch, nbatches)
-
-        if not set(sampleids).issubset(sids):
-            raise Exception(f"Sampleids {sampleids} not in source: {source}!")
-
-    else:
-        raise Exception(f"Source {source} does not exist!")
-
-    print("Building GFEM models for samples:")
-    print(sampleids)
-
-    # Create combinations of samples and datasets
-    combinations = list(itertools.product(programs, datasets, sampleids))
-
-    # Define number of processors
-    if not parallel:
-        nprocs = 1
-
-    elif parallel:
-        if nprocs is None or nprocs > os.cpu_count():
-            nprocs = os.cpu_count()
-
-        else:
-            nprocs = nprocs
-
-    # Make sure nprocs is not greater than sample combinations
-    if nprocs > len(combinations):
-        nprocs = len(combinations)
-
-    # Create list of args for mp pooling
-    run_args = [(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
-                 oxides_exclude, targets, maskgeotherm, verbose, debug) for
-                program, dataset, sampleid in combinations]
-
-    # Create a multiprocessing pool
-    with mp.Pool(processes=nprocs) as pool:
-        models = pool.map(gfem_iteration, run_args)
-
-        # Wait for all processes
-        pool.close()
-        pool.join()
-
-    # Check for errors in the models
-    error_count = 0
-
-    for model in models:
-        if model.model_build_error:
-            error_count += 1
-
-    if error_count > 0:
-        print(f"Total models with errors: {error_count}")
-
-    else:
-        print("All GFEM models built successfully!")
-
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-    successful_models = [model for model in models if not model.model_build_error]
-
-    return successful_models
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_geotherm(results, target, threshold, Qs=60e-3, Ts=273, crust_thickness=35,
@@ -186,7 +78,7 @@ def get_geotherm(results, target, threshold, Qs=60e-3, Ts=273, crust_thickness=3
     """
     # Get PT and target values and transform units
     df = pd.DataFrame({"P": results["P"], "T": results["T"],
-                       target: results[target]}).sort_values(by="P")
+                       target: results[target]}).sort_values(by="P", ignore_index=True)
 
     # Geotherm Parameters
     P = results["P"]
@@ -252,6 +144,7 @@ def analyze_gfem_model(gfem_model, filename):
     res = gfem_model.res
     results_model = gfem_model.results
     targets = ["rho", "Vp", "Vs"]
+    verbose = gfem_model.verbose
 
     # Data asset dir
     data_dir = "assets/data"
@@ -320,26 +213,171 @@ def analyze_gfem_model(gfem_model, filename):
     df = pd.DataFrame(results)
 
     # Write csv
-    if os.path.exists(filename):
-        df_existing = pd.read_csv(filename)
+    if os.path.exists(filename) and os.stat(filename).st_size > 0:
+        try:
+            df_existing = pd.read_csv(filename)
 
-        # Check existing samples
-        new_samples = df["SAMPLEID"].values
-        existing_samples = df_existing["SAMPLEID"].values
-        overlap = set(existing_samples).intersection(new_samples)
+            if df_existing.empty:
+                if verbose >= 1:
+                    print(f"Saving {sample_id} analysis to {filename}!")
 
-        if overlap:
-            print(f"Sample {sample_id} already saved to {filename}!")
+                df.to_csv(filename, index=False)
 
-        else:
-            print(f"Saving {sample_id} analysis to {filename}!")
-            df_existing = pd.concat([df_existing, df])
-            df_existing.to_csv(filename, index=False)
+            else:
+                # Check existing samples
+                new_samples = df["SAMPLEID"].values
+                existing_samples = df_existing["SAMPLEID"].values
+                overlap = set(existing_samples).intersection(new_samples)
+
+                if overlap:
+                    if verbose >= 1:
+                        print(f"Sample {sample_id} already saved to {filename}!")
+
+                else:
+                    if verbose >= 1:
+                        print(f"Saving {sample_id} analysis to {filename}!")
+
+                    df_existing = pd.concat([df_existing, df], ignore_index=True)
+                    df_existing = df_existing.sort_values(by=["SAMPLEID", "TARGET"],
+                                                          ignore_index=True)
+                    df_existing.to_csv(filename, index=False)
+
+        except pd.errors.EmptyDataError:
+            if verbose >= 1:
+                print(f"Saving {sample_id} analysis to {filename}!")
+
+            df.to_csv(filename, index=False)
 
     else:
+        if verbose >= 1:
+            print(f"Saving {sample_id} analysis to {filename}!")
+
         df.to_csv(filename, index=False)
 
     return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# gfem_iteration !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def gfem_iteration(args):
+    """
+    """
+
+    # Unpack arguments
+    program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, oxides_exclude, \
+        targets, maskgeotherm, verbose, debug = args
+
+    # Initiate GFEM model
+    iteration = GFEMModel(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
+                          oxides_exclude, targets, maskgeotherm, verbose, debug)
+
+    if iteration.model_built:
+        return iteration
+
+    else:
+        iteration.build_model()
+
+        if not iteration.model_build_error:
+            iteration.get_results()
+            iteration.get_feature_array()
+            iteration.get_target_array()
+            return iteration
+
+        else:
+            return iteration
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# build gfem models !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def build_gfem_models(source, sampleids=None, programs=["perplex"],
+                      datasets=["train", "valid"], batch="all", nbatches=8, res=128, Pmin=1,
+                      Pmax=28, Tmin=773, Tmax=2273, oxides_exclude=["H2O", "FE2O3"],
+                      targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, parallel=True,
+                      nprocs=os.cpu_count(), verbose=1, debug=True):
+    """
+    """
+    # Check sampleids
+    if os.path.exists(source) and sampleids is None:
+        sampleids = sorted(get_sampleids(source, batch, nbatches))
+
+    elif os.path.exists(source) and sampleids is not None:
+        sids = get_sampleids(source, batch, nbatches)
+
+        if not set(sampleids).issubset(sids):
+            raise Exception(f"Sampleids {sampleids} not in source: {source}!")
+
+    else:
+        raise Exception(f"Source {source} does not exist!")
+
+    # CSV path
+    filename = "assets/data/gfem-analysis.csv"
+
+    # Write blank CSV
+    if not os.path.exists(filename):
+        columns = ["SAMPLEID", "PROGRAM", "TARGET", "RMSE_PREM_PROFILE", "R2_PREM_PROFILE"]
+        df = pd.DataFrame(columns=columns)
+        df.to_csv(filename, index=False, header=True)
+
+    print("Building GFEM models for samples:")
+    print(sampleids)
+
+    # Create combinations of samples and datasets
+    combinations = list(itertools.product(programs, datasets, sampleids))
+
+    # Define number of processors
+    if not parallel:
+        nprocs = 1
+
+    elif parallel:
+        if nprocs is None or nprocs > os.cpu_count():
+            nprocs = os.cpu_count()
+
+        else:
+            nprocs = nprocs
+
+    # Make sure nprocs is not greater than sample combinations
+    if nprocs > len(combinations):
+        nprocs = len(combinations)
+
+    # Create list of args for mp pooling
+    run_args = [(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
+                 oxides_exclude, targets, maskgeotherm, verbose, debug) for
+                program, dataset, sampleid in combinations]
+
+    # Create a multiprocessing pool
+    with mp.Pool(processes=nprocs) as pool:
+        models = pool.map(gfem_iteration, run_args)
+
+        # Wait for all processes
+        pool.close()
+        pool.join()
+
+    # Get successful models
+    successful_models = [model for model in models if not model.model_build_error]
+
+    # Analyze GFEM models
+    for model in successful_models:
+        if model.dataset == "train":
+            analyze_gfem_model(model, filename)
+
+    # Check for errors in the models
+    error_count = 0
+
+    for model in models:
+        if model.model_build_error:
+            error_count += 1
+
+    if error_count > 0:
+        print(f"Total models with errors: {error_count}")
+
+    else:
+        print("All GFEM models built successfully!")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+    return successful_models
 
 #######################################################
 ## .2.              GFEMModel class              !!! ##
@@ -434,15 +472,6 @@ class GFEMModel:
                     self.get_results()
                     self.get_feature_array()
                     self.get_target_array()
-                    if self.verbose >= 1:
-                        oxides = [oxide for oxide in self.oxides_system if oxide not in
-                                  self.oxides_exclude]
-                        sample_comp = self.norm_sample_composition
-                        max_oxide_width = max(len(oxide) for oxide in oxides)
-                        max_comp_width = max(len(str(comp)) for comp in sample_comp)
-                        max_width = max(max_oxide_width, max_comp_width)
-                        print(" ".join([f"  {oxide:<{max_width}}" for oxide in oxides]))
-                        print(" ".join([f"  {comp:<{max_width}}" for comp in sample_comp]))
 
                 except Exception as e:
                     print(f"!!! {e} !!!")

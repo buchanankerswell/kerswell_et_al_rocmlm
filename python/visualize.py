@@ -1186,15 +1186,15 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if results_mgm:
         xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_mgm))
         P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(2), label=sample_id)
+        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(1), label=sample_id)
     if results_ppx:
         xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ppx))
         P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(3), label=sample_id)
+        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(1), label=sample_id)
     if results_ml:
         xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ml))
         P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(4), label=model)
+        ax1.plot(target_ml, P_ml, ":", linewidth=3, color=colormap(2), label=model)
 
     # Plot PREM
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
@@ -1219,12 +1219,21 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Compute metrics
     if results_mgm:
+        nan_mask = np.isnan(target_mgm)
+        P_mgm, target_mgm = P_mgm[~nan_mask], target_mgm[~nan_mask]
+        P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_mgm))
         r2 = r2_score(target_prem, target_mgm)
     if results_ppx:
+        nan_mask = np.isnan(target_ppx)
+        P_ppx, target_ppx = P_ppx[~nan_mask], target_ppx[~nan_mask]
+        P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_ppx))
         r2 = r2_score(target_prem, target_ppx)
     if results_ml:
+        nan_mask = np.isnan(target_ml)
+        P_ml, target_ml = P_ml[~nan_mask], target_ml[~nan_mask]
+        P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_ml))
         r2 = r2_score(target_prem, target_ml)
 
@@ -2067,6 +2076,26 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
     plt.rcParams["figure.dpi"] = 330
     plt.rcParams["savefig.bbox"] = "tight"
 
+    # Rename targets
+    targets_rename = [target.replace("_", "-") for target in targets]
+
+    # Check for existing plots
+    existing_figs = []
+    for target in targets_rename:
+        for s in sample_ids:
+            fig_1 = f"{fig_dir}/prem-{s}-{model_label}-{target}.png"
+            fig_2 = f"{fig_dir}/surf-{s}-{model_label}-{target}.png"
+            fig_3 = f"{fig_dir}/image-{s}-{model_label}-{target}.png"
+
+            check = (os.path.exists(fig_1) and os.path.exists(fig_2) and
+                     os.path.exists(fig_3))
+
+            if check:
+                existing_figs.append(check)
+
+    if existing_figs:
+        return None
+
     for s, sample_id in enumerate(sample_ids):
         if verbose >= 1:
             print(f"Visualizing {model_prefix}-{sample_id} [{program}] ...")
@@ -2226,8 +2255,8 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize rocml performance !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocml_performance(targets, res, fig_dir, filename, fontsize=22, figwidth=6.3,
-                                figheight=5):
+def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="rocml",
+                                fontsize=22, figwidth=6.3, figheight=5):
     """
     """
     # Data assets dir
@@ -2548,36 +2577,6 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     # Colormap
     colormap = plt.cm.get_cmap("tab10")
 
-    # Plot PCA loadings
-    fig = plt.figure(figsize=(figheight, figwidth))
-
-    for i in [0, 1]:
-        ax = fig.add_subplot(2, 1, i+1)
-
-        ax.bar(oxides, loadings.iloc[i], color="black")
-        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
-
-        ax.set_xlabel("")
-        ax.set_ylim([-1, 1])
-        ax.set_ylabel("")
-        ax.xaxis.set_major_locator(ticker.FixedLocator(range(len(oxides))))
-        ax.set_xticklabels(oxides, rotation=90)
-        plt.title(f"PC{i + 1} Loadings")
-
-        if i == 0:
-            ax.set_xticks([])
-
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}-loadings-bars.png")
-
-    else:
-        # Print plot
-        plt.show()
-
-    # Close device
-    plt.close()
-
     # Legend order
     legend_order = ["lherzolite", "harzburgite", "dunite"]
 
@@ -2618,7 +2617,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     face_colors = ["black", "white"]
     for l, name in enumerate(["PUM", "DMM"]):
         sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
-                        y="PC2", facecolor=face_colors[l],
+                        y="PC2", marker="s", facecolor=face_colors[l],
                         edgecolor=edge_colors[l], linewidth=2, s=150, legend=False, ax=ax,
                         zorder=7)
         ax.annotate(
@@ -2928,8 +2927,6 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
                     labeldistance=0.6, textprops={"fontsize": fontsize * 0.694}, radius=1.3,
                     colors=legend_colors)
 
-    fig.suptitle("Harker Diagrams vs. SIO2 (wt.%)")
-
     if num_plots < len(axes):
         for i in range(num_plots, len(axes)):
             fig.delaxes(axes[i])
@@ -2956,6 +2953,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
     """
     # Check for analysis data
     analysis_path = "assets/data/gfem-analysis.csv"
+
     if os.path.exists(analysis_path):
         df_analysis = pd.read_csv(analysis_path)
     else:
@@ -3061,12 +3059,9 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
 
         ax.set_title(f"{target_label} vs. PREM")
         ax.set_xlabel("Melt Fraction")
-        if j == 0:
-            ax.set_ylabel(f"RMSE ({units})")
-        else:
-            ax.set_ylabel("")
+        ax.set_ylabel(f"RMSE ({units})")
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
-        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
 
     # Save the plot to a file if a filename is provided
     if filename:

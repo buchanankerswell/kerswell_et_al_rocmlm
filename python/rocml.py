@@ -62,7 +62,8 @@ def get_unique_value(input_list):
 # train rocml models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def train_rocml_models(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"],
-                       training_features=["F_MELT_FRAC"], tune=True, epochs=100,
+                       training_features=["F_MELT_FRAC"],
+                       training_targets=["rho", "Vp", "Vs"], tune=True, epochs=100,
                        batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
                        nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
     """
@@ -84,17 +85,6 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "
     oxides = get_unique_value([m.oxides_system for m in gfem_models if m.dataset == "train"])
     subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
     feature_list = subset_oxides + features
-
-    # Array shapes
-    M = int(len(gfem_models) / 2)
-    W = int((res+1)**2)
-    w = int(np.sqrt(W))
-    F = int(len(training_features) + 2)
-    T = int(len(targets))
-    shape_feature = (M, W, F)
-    shape_feature_square = (M, w, w, F)
-    shape_target = (M, W, T)
-    shape_target_square = (M, w, w, T)
 
     # Get all PT arrays
     pt_train = np.stack([m.feature_array for m in gfem_models if m.dataset == "train"])
@@ -139,6 +129,10 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "
     feature_valid = combined_valid.reshape(-1, combined_valid.shape[-1])
     feature_valid_unmasked = combined_valid_unmasked.reshape(-1, combined_valid.shape[-1])
 
+    # Define target indices
+    target_indices = [targets.index(target) for target in training_targets]
+    targets = [target for target in training_targets]
+
     # Get target arrays
     target_train = np.stack([m.target_array for m in gfem_models if m.dataset == "train"])
     target_train_unmasked = np.stack([m.target_array_unmasked for m in gfem_models if
@@ -153,11 +147,28 @@ def train_rocml_models(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "
     target_valid = target_valid.reshape(-1, target_train.shape[-1])
     target_valid_unmasked = target_valid_unmasked.reshape(-1, target_train.shape[-1])
 
+    # Select training targets
+    target_train = target_train[:, target_indices]
+    target_train_unmasked = target_train_unmasked[:, target_indices]
+    target_valid = target_valid[:, target_indices]
+    target_valid_unmasked = target_valid_unmasked[:, target_indices]
+
     # Get geotherm mask
     geotherm_mask_train = np.stack([m._create_geotherm_mask() for m in gfem_models if
                                     m.dataset == "train"]).flatten()
     geotherm_mask_valid = np.stack([m._create_geotherm_mask() for m in gfem_models if
                                     m.dataset == "valid"]).flatten()
+
+    # Define array shapes
+    M = int(len(gfem_models) / 2)
+    W = int((res+1)**2)
+    w = int(np.sqrt(W))
+    F = int(len(training_features) + 2)
+    T = int(len(targets))
+    shape_feature = (M, W, F)
+    shape_feature_square = (M, w, w, F)
+    shape_target = (M, W, T)
+    shape_target_square = (M, w, w, T)
 
     # Train rocml models
     rocmls = []
@@ -251,9 +262,10 @@ class RocML:
             self.model_prefix = f"{self.program[:4]}-benchmark-{self.ml_model_label}"
             self.fig_dir = f"figs/rocml/{self.program[:4]}_benchmark_{self.ml_model_label}"
         else:
-            self.model_prefix = (f"{self.program[:4]}-synthetic-{self.ml_model_label}-"
-                                 f"{self.sample_ids[0][:2]}")
-            self.fig_dir = f"figs/rocml/{self.program[:4]}_synthetic_{self.ml_model_label}"
+            self.model_prefix = (f"{self.program[:4]}-{self.sample_ids[0][:2]}-"
+                                 f"{self.ml_model_label}")
+            self.fig_dir = (f"figs/rocml/{self.program[:4]}_{self.sample_ids[0][:2]}_"
+                            f"{self.ml_model_label}")
         self.ml_model_path = f"{self.model_out_dir}/{self.model_prefix}.pkl"
 
         # Check for figs directory
@@ -318,8 +330,12 @@ class RocML:
         X = feature_array
         y = target_array
 
+        # Replace inf with nan
+        X[~np.isfinite(X)] = np.nan
+        y[~np.isfinite(y)] = np.nan
+
         # Create nan mask
-        mask = np.any([np.isnan(y[:,i]) for i in range(y.shape[1])], axis=0)
+        mask = np.any(np.isnan(y), axis=1)
 
         # Remove nans
         X, y = X[~mask,:], y[~mask,:]
@@ -967,8 +983,12 @@ class RocML:
         print("Retraining successful!")
         self.ml_model_trained = True
 
+        # Copy feature and target arrays
+        X = feature_array.copy()
+        y = target_array.copy()
+
         # Make predictions on unmasked features
-        pred_scaled = model.predict(scaler_X.fit_transform(feature_array))
+        pred_scaled = model.predict(scaler_X.fit_transform(X))
 
         # Inverse transform predictions
         pred_original = scaler_y.inverse_transform(pred_scaled)
@@ -979,19 +999,19 @@ class RocML:
                 print("Masking geotherm!")
 
             # Apply mask to all target arrays
-            for array in [feature_array, target_array, pred_original]:
+            for array in [X, y, pred_original]:
                 for j in range(array.shape[-1]):
                     array[:, j][geotherm_mask] = np.nan
 
         # Reshape arrays into squares for visualization
-        feature_array = feature_array.reshape(shape_feature_square)
-        target_array = target_array.reshape(shape_target_square)
-        pred_array_original = pred_original.reshape(shape_target_square)
+        feature_square = X.reshape(shape_feature_square)
+        target_square = y.reshape(shape_target_square)
+        pred_square = pred_original.reshape(shape_target_square)
 
         # Update arrays
-        self.feature_square = feature_array
-        self.target_square = target_array
-        self.prediction_square = pred_array_original
+        self.feature_square = feature_square
+        self.target_square = target_square
+        self.prediction_square = pred_square
 
         return None
 
