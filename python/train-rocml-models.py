@@ -28,8 +28,7 @@ for name, source in sources.items():
 # Train RocML models
 for name, models in gfems.items():
     if name == "benchmark":
-        rocmls[name] = train_rocml_models(models, ["KN", "DT"])
-#        rocmls[name] = train_rocml_models(models, ["KN", "DT", "RF", "NN1", "NN2", "NN3"])
+        rocmls[name] = train_rocml_models(models, ["KN", "DT", "RF", "NN1", "NN2", "NN3"])
     else:
         rocmls[name] = train_rocml_models(models, ["DT", "KN"])
 

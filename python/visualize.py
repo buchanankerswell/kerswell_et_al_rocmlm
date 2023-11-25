@@ -1181,20 +1181,20 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Plotting
     fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
 
-    if results_pum:
-        ax1.plot(target_pum, P_pum, "--", linewidth=3, color=colormap(0), label="PUM")
-    if results_mgm:
-        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_mgm))
-        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(1), label=sample_id)
+#    if results_pum:
+#        ax1.plot(target_pum, P_pum, "-", linewidth=3, color=colormap(0), label="PUM")
+#    if results_mgm:
+#        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_mgm))
+#        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
+#        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(0), label=sample_id)
     if results_ppx:
         xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ppx))
         P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(1), label=sample_id)
+        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(0), label=sample_id)
     if results_ml:
         xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ml))
         P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        ax1.plot(target_ml, P_ml, ":", linewidth=3, color=colormap(2), label=model)
+        ax1.plot(target_ml, P_ml, "--", linewidth=3, color=colormap(1), label=model)
 
     # Plot PREM
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
