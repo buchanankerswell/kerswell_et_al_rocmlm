@@ -676,11 +676,12 @@ def compose_rocml_plots(rocml_model):
             fig_1 = f"{fig_dir}/prem-{sample_id}-{ml_model_label}-{target}.png"
             fig_2 = f"{fig_dir}/surf-{sample_id}-{ml_model_label}-{target}.png"
             fig_3 = f"{fig_dir}/image-{sample_id}-{ml_model_label}-{target}.png"
+            fig_4 = f"{fig_dir}/image9-{sample_id}-{ml_model_label}-{target}.png"
 
-            check = (
-                (os.path.exists(fig_1) and os.path.exists(fig_2) and os.path.exists(fig_3)) |
-                (os.path.exists(fig_2) and os.path.exists(fig_3))
-            )
+            check = ((os.path.exists(fig_1) and os.path.exists(fig_2) and
+                      os.path.exists(fig_3) and os.path.exists(fig_4)) |
+                     (os.path.exists(fig_2) and os.path.exists(fig_3) and
+                      os.path.exists(fig_4)))
 
             if check:
                 existing_figs.append(check)
@@ -740,6 +741,43 @@ def compose_rocml_plots(rocml_model):
                 f"{fig_dir}/image-{sample_id}-{ml_model_label}-{target}.png",
                 caption1="",
                 caption2="c)"
+            )
+
+        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+            captions = [("a", "b", "c"), ("d", "e", "f"), ("g", "h", "i")]
+            targets = ["rho", "Vp", "Vs"]
+
+            for i, target in enumerate(targets):
+                combine_plots_horizontally(
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1=captions[i][0],
+                    caption2=captions[i][1]
+                )
+
+                combine_plots_horizontally(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/prem-{sample_id}-{ml_model_label}-{target}.png",
+                    f"{fig_dir}/temp-{target}.png",
+                    caption1="",
+                    caption2=captions[i][2]
+                )
+
+            combine_plots_vertically(
+                f"{fig_dir}/temp-rho.png",
+                f"{fig_dir}/temp-Vp.png",
+                f"{fig_dir}/temp1.png",
+                caption1="",
+                caption2=""
+            )
+
+            combine_plots_vertically(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp-Vs.png",
+                f"{fig_dir}/image9-{sample_id}-{ml_model_label}-{target}.png",
+                caption1="",
+                caption2=""
             )
 
     # Clean up directory

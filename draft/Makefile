@@ -23,8 +23,9 @@ DATAPURGE = \
 						eisvogel-draft-rocml.pdf \
 						assets/pandoc/mlm-pro-con.md \
 						assets/pandoc/rocml-performance.md \
-						assets/pandoc/benchmark-samples-normalized.md \
 						assets/pandoc/gfem-efficiency.md \
+						assets/pandoc/benchmark-samples.md \
+						assets/pandoc/earthchem-counts.md \
 DATACLEAN = assets/data
 FIGSPURGE =
 FIGSCLEAN = assets/figs

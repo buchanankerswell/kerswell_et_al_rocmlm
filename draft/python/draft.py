@@ -292,24 +292,19 @@ def write_markdown_tables():
         df.drop(["program"], axis=1, inplace=True)
 
         # Select largest model size
-        condition = df["size"] == df["size"].max()
+        condition = df["size"] == df["size"].min()
         df = df[condition]
 
-        # Drop size column
-        df.drop(["size"], axis=1, inplace=True)
-
         # Rename columns
-        df.columns = ["Model", "t$_{\\text{train}}$ (ms)",
-                      "t$_{\\text{predict}}$ (ms)", "$\\epsilon_\\rho$ (g/cm$^3$)",
-                      "$\\epsilon_{\\text{Vp}}$ (km/s)", "$\\epsilon_{\\text{Vs}}$ (km/s)"]
+        df.columns = ["Model", "$n$ Examples", "Training (ms)", "Prediction (ms)",
+                      "RMSE$_{\\text{density}}$ (g/cm$^3$)", "RMSE$_{\\text{Vp}}$ (km/s)",
+                      "RMSE$_{\\text{Vs}}$ (km/s)"]
 
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": RocML performance measured on an independent (unseen) validation "
-                   "dataset during kfold cross-validation (t = elapsed time; "
-                   "$\\epsilon = RMSE$). Uncertainties are 2$\\sigma$ "
+        caption = (": RocML performance measured on an (unseen) validation dataset. "
                    "{#tbl:rocml-performance}")
 
         # Write markdown table

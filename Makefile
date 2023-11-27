@@ -35,6 +35,7 @@ DATAPURGE = \
 						$(DATADIR)/synthetic*.csv \
 						$(DATADIR)/earthchem-counts.csv \
 						$(DATADIR)/earthchem-samples-pca.csv \
+						$(DATADIR)/earthchem-imputed-counts.csv \
 						$(DATADIR)/benchmark-samples-pca.csv \
 						$(DATADIR)/gfem-analysis.csv 
 DATACLEAN = \
