@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import argparse
+import numpy as np
 import pandas as pd
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -198,8 +199,9 @@ def write_markdown_tables():
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = (": Compositions (in wt.%) and melt fractions (F) of hypothetical "
-                   "mantle endmembers. {#tbl:benchmark-samples}")
+        caption = (": Compositions (in wt.%) of hypothetical upper mantle endmembers. Melt "
+                   "fractions (F) were calculated with a modal fractional melting model "
+                   "(@eq:melt-fraction). {#tbl:benchmark-samples}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/benchmark-samples.md", "w") as file:
@@ -230,8 +232,8 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = (": Summary of the filtered and standardized Earthchem dataset (in wt.%). "
-                   "{#tbl:earthchem-counts}")
+        caption = (": Summary (in wt.%) of the filtered and standardized peridotite dataset "
+                   "from Earthchem.org. {#tbl:earthchem-counts}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/earthchem-counts.md", "w") as file:
@@ -241,26 +243,34 @@ def write_markdown_tables():
     else:
         print(f"Warning: {data_dir}/earthchem-counts.csv does not exist!")
 
-    if os.path.exists(f"{data_dir}/mlm-pro-con.csv"):
-        print("Writing mlm-pro-con.md")
+    if os.path.exists(f"{data_dir}/rocml-config.csv"):
+        print("Writing rocml-config.md")
 
         # MLM pro con
-        df = pd.read_csv(f"{data_dir}/mlm-pro-con.csv")
+        df = pd.read_csv(f"{data_dir}/rocml-config.csv")
+
+        # Rename columns
+        col_headers = {"model": "Model", "hyperparam": "Hyperparameter",
+                       "hyperparams_value": "Value", "hyperparams_tuned": "Tuned"}
+        df.rename(columns=col_headers, inplace=True)
 
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": Advantages and disadvantages of various non-linear RocMLMs. "
-                   "{#tbl:mlm-pro-con}")
+        caption = (": RocMLM hyperparameter configuration. Values in parentheses are chosen "
+                   "by a cross-validation grid search algorithm. Percentages refer to the "
+                   "total number of training examples. All other hyperparameters use "
+                   "defaults values (see scikit-learn "
+                   "[documentation](htpps://scikit-learn.org)). {#tbl:rocml-config}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/mlm-pro-con.md", "w") as file:
+        with open(f"{pandoc_dir}/rocml-config.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
     else:
-        print(f"Warning: {data_dir}/mlm-pro-con.csv does not exist!")
+        print(f"Warning: {data_dir}/rocml-config.csv does not exist!")
 
     if os.path.exists(f"{data_dir}/rocml-performance.csv"):
         print("Writing rocml-performance.md")
@@ -291,21 +301,25 @@ def write_markdown_tables():
         # Drop program column
         df.drop(["program"], axis=1, inplace=True)
 
-        # Select largest model size
-        condition = df["size"] == df["size"].min()
-        df = df[condition]
+        # Select two smallset model sizes (benchmark and random mixing models)
+        two_smallest_sizes = np.sort(np.unique(df["size"]))[:2]
+        df = df[df["size"].isin(two_smallest_sizes)]
+
+        # Sort df
+        df = df.sort_values(by=["size", "model"])
 
         # Rename columns
-        df.columns = ["Model", "$n$ Examples", "Training (ms)", "Prediction (ms)",
-                      "RMSE$_{\\text{density}}$ (g/cm$^3$)", "RMSE$_{\\text{Vp}}$ (km/s)",
-                      "RMSE$_{\\text{Vs}}$ (km/s)"]
+        df.columns = ["Model", "$n_\\text{train}$", "t$_\\text{train}$ (ms)",
+                      "t$_\\text{pred}$ (ms)", "$\\varepsilon_{\\rho}$ (g/cm$^3$)",
+                      "$\\varepsilon_{\\text{Vp}}$ (km/s)",
+                      "$\\varepsilon_{\\text{Vs}}$ (km/s)"]
 
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
         caption = (": RocML performance measured on an (unseen) validation dataset. "
-                   "{#tbl:rocml-performance}")
+                   "t = elapsed time, $\\varepsilon$ = RMSE. {#tbl:rocml-performance}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/rocml-performance.md", "w") as file:

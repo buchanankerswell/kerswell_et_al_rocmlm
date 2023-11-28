@@ -26,7 +26,7 @@ for name, source in sources.items():
     gfems[name] = build_gfem_models(source, sids)
 
 # Visualize GFEM models
-for name, models in gfems:
+for name, models in gfems.items():
     for model in models:
         visualize_gfem(models)
         visualize_gfem_diff(models)

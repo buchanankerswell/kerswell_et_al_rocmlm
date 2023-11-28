@@ -758,7 +758,7 @@ def compose_rocml_plots(rocml_model):
 
                 combine_plots_horizontally(
                     f"{fig_dir}/temp1.png",
-                    f"{fig_dir}/prem-{sample_id}-{ml_model_label}-{target}.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
                     f"{fig_dir}/temp-{target}.png",
                     caption1="",
                     caption2=captions[i][2]
@@ -2428,10 +2428,10 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
                                color=[color_mapping[model] for model in models_order],
                                label=models_order)
 
-                plt.errorbar(x_pos * bar_width,
-                             summary_df.loc[order][f"rmse_test_mean_{target}"],
-                             yerr=summary_df.loc[order][f"rmse_test_std_{target}"] * 2,
-                             fmt="none", capsize=5, color="black", linewidth=2)
+#                plt.errorbar(x_pos * bar_width,
+#                             summary_df.loc[order][f"rmse_test_mean_{target}"],
+#                             yerr=summary_df.loc[order][f"rmse_test_std_{target}"] * 2,
+#                             fmt="none", capsize=5, color="black", linewidth=2)
                 mult += 1
 
             plt.title(f"{metric_names[i]}")
@@ -2472,10 +2472,10 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
                                color=[color_mapping[model] for model in models_order],
                                label=models_order if i == 1 else "")
 
-                plt.errorbar(x_pos * bar_width,
-                             summary_df.loc[order][f"rmse_val_mean_{target}"],
-                             yerr=summary_df.loc[order][f"rmse_val_std_{target}"] * 2,
-                             fmt="none", capsize=5, color="black", linewidth=2)
+#                plt.errorbar(x_pos * bar_width,
+#                             summary_df.loc[order][f"rmse_val_mean_{target}"],
+#                             yerr=summary_df.loc[order][f"rmse_val_std_{target}"] * 2,
+#                             fmt="none", capsize=5, color="black", linewidth=2)
                 mult += 1
 
             plt.title(f"{metric_names[i]}")
