@@ -39,7 +39,7 @@ DATACLEAN = \
 						assets \
 						MAGEMin \
 						Perple_X \
-						training_data \
+						gfems \
 						rocmlms \
 						$(DATADIR)/gfem-analysis.csv \
 						$(DATADIR)/rocmlm-performance.csv
