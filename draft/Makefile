@@ -21,7 +21,7 @@ DATAPURGE = \
 						python/__pycache__ \
 						agu-draft-rocmlm.pdf \
 						eisvogel-draft-rocmlm.pdf \
-						assets/pandoc/mlm-pro-con.md \
+						assets/pandoc/rocmlm-config.md \
 						assets/pandoc/rocmlm-performance.md \
 						assets/pandoc/gfem-efficiency.md \
 						assets/pandoc/benchmark-samples.md \
