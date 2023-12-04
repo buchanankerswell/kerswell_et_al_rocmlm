@@ -2567,11 +2567,11 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     data = mixing_array.earthchem_pca
     D_tio2 = mixing_array.D_tio2
 
-    # Get correct F Melt column
+    # Get correct Depletion column
     if batch:
-        F_col = "F_MELT_BATCH"
+        D_col = "D_BATCH"
     else:
-        F_col = "F_MELT_FRAC"
+        D_col = "D_FRAC"
 
     # Check for benchmark samples
     df_bench_path = "assets/data/benchmark-samples.csv"
@@ -2594,18 +2594,20 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
             df_bench[["PC1", "PC2"]] = df_bench[["PC1", "PC2"]].round(3)
 
             # Calculate F melt
-            ti_init = df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"]["TIO2"].values
+            ti_init = 0.199
             df_bench["R_TIO2"] = round(df_bench["TIO2"] / ti_init, 3)
             df_bench["F_MELT_BATCH"] = round(
                 ((D_tio2 / df_bench["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
+            df_bench["D_BATCH"] = round(1 - df_bench["F_MELT_BATCH"], 3)
             df_bench["F_MELT_FRAC"] = round(
                 1 - df_bench["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
+            df_bench["D_FRAC"] = round(1 - df_bench["F_MELT_FRAC"], 3)
 
             # Save to csv
             df_bench.to_csv("assets/data/benchmark-samples-pca.csv", index=False)
 
-    # Filter F melt < 1
-    data = data[(data[F_col] < 1) & (data[F_col] >= 0)]
+    # Filter Depletion < 1
+    data = data[(data[D_col] < 1) & (data[D_col] >= 0)]
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -2629,7 +2631,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     colormap = plt.cm.get_cmap("tab10")
 
     # Legend order
-    legend_order = ["lherzolite", "harzburgite", "dunite"]
+    legend_order = ["lherzolite", "harzburgite"]
 
     fig = plt.figure(figsize=(figwidth * 2, figheight * 1.2))
 
@@ -2653,14 +2655,13 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     sns.kdeplot(data=data, x="PC1", y="PC2", hue="ROCKNAME",
                 hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
-    x_offset = 3.8
-    y_offset = 5.3
+    x_offset, y_offset, text_fac, arrow_fac = 3.0, 6.0, 3.5, 1.8
     for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]:
-        ax.arrow(x_offset, y_offset, loadings.at[0, oxide] * 1.5,
-                 loadings.at[1, oxide] * 1.5, width=0.1, head_width=0.4,
+        ax.arrow(x_offset, y_offset, loadings.at[0, oxide] * arrow_fac,
+                 loadings.at[1, oxide] * 1.8, width=0.1, head_width=0.4,
                  color="black")
-        ax.text(x_offset + (loadings.at[0, oxide] * 3.2),
-                y_offset + (loadings.at[1, oxide] * 3.2), oxide,
+        ax.text(x_offset + (loadings.at[0, oxide] * text_fac),
+                y_offset + (loadings.at[1, oxide] * text_fac), oxide,
                 bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
                 fontsize=fontsize * 0.833, color="black", ha="center", va="center")
 
@@ -2674,7 +2675,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
         ax.annotate(
             name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
                       df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
-            xytext=(-35, 10), textcoords="offset points",
+            xytext=(-35, 15), textcoords="offset points",
             bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                       edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
             fontsize=fontsize * 0.833, zorder=8
@@ -2698,12 +2699,12 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
     ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-    sns.scatterplot(data=data, x="PC1", y="PC2", hue=F_col,
-                    palette="magma", edgecolor="None", linewidth=2, s=12,
-                    legend=False, ax=ax2, zorder=0)
+    sns.scatterplot(data=data, x="PC1", y="PC2", hue=D_col,
+                    palette=sns.color_palette("magma", as_cmap=True).reversed(),
+                    edgecolor="None", linewidth=2, s=12, legend=False, ax=ax2, zorder=0)
 
     # Create colorbar
-    norm = plt.Normalize(data[F_col].min(), data[F_col].max())
+    norm = plt.Normalize(data[D_col].min(), data[D_col].max())
     sm = plt.cm.ScalarMappable(cmap="magma", norm=norm)
     sm.set_array([])
 
@@ -2751,41 +2752,25 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12000"],
                     x="PC1", y="PC2", facecolor="white", edgecolor="black",
                     linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
-    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
+    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12127"],
                     x="PC1", y="PC2", facecolor="black", edgecolor="white",
                     linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
     ax2.annotate("DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
                                "PC1"].iloc[0],
                             df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
                                "PC2"].iloc[0]),
-                xytext=(-45, 10), textcoords="offset points",
+                xytext=(-45, 15), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
                           linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.833, zorder=8)
-    ax2.annotate("PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+    ax2.annotate("PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
                                "PC1"].iloc[0],
-                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
                                "PC2"].iloc[0]),
-                xytext=(-45, 10), textcoords="offset points",
+                xytext=(-45, 15), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="white",
                           linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.833, zorder=8)
-
-    edge_colors = ["white", "black"]
-    face_colors = ["black", "white"]
-    for l, name in enumerate(["PUM", "DMM"]):
-        sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
-                        y="PC2", marker="s", facecolor=face_colors[l],
-                        edgecolor=edge_colors[l], linewidth=2, s=150, legend=False,
-                        ax=ax2, zorder=7)
-        ax2.annotate(
-            name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
-                      df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
-            xytext=(5, 10), textcoords="offset points",
-            bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
-                      edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
-            fontsize=fontsize * 0.833, zorder=8
-        )
 
     plt.title("Mixing Arrays")
     plt.xlim(ax.get_xlim())
@@ -2793,7 +2778,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
 
     # Add colorbar
     cbaxes = inset_axes(ax2, width="50%", height="3%", loc=1)
-    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Melt Fraction",
+    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Depletion",
                             orientation="horizontal")
     colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
 
@@ -2893,7 +2878,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
     axes = axes.flatten()
 
     # Legend order
-    legend_order = ["lherzolite", "harzburgite", "dunite"]
+    legend_order = ["lherzolite", "harzburgite"]
 
     for k, y in enumerate(oxides + ["pie"]):
         ax = axes[k]
@@ -2909,7 +2894,6 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
 
             edge_colors = ["white", "black"]
             face_colors = ["black", "white"]
-
             for l, name in enumerate(["PUM", "DMM"]):
                 sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name],
                                 x="SIO2", y=y, marker="s", facecolor=face_colors[l],
@@ -2919,7 +2903,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
             sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12000"],
                             x="SIO2", y=y, facecolor="white", edgecolor="black",
                             linewidth=2, s=75, legend=False, ax=ax, zorder=6)
-            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm23127"],
+            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12127"],
                             x="SIO2", y=y, facecolor="black", edgecolor="white",
                             linewidth=2, s=75, legend=False, ax=ax, zorder=6)
 
@@ -2928,7 +2912,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
                 ax.annotate(
                     name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "SIO2"].iloc[0],
                               df_bench.loc[df_bench["SAMPLEID"] == name, y].iloc[0]),
-                    xytext=(-35, 5), textcoords="offset points",
+                    xytext=(-35, 10), textcoords="offset points",
                     bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                               edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
                     fontsize=fontsize * 0.579, zorder=6
@@ -2938,16 +2922,16 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
                                                "SIO2"].iloc[0],
                             df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
                                                y].iloc[0]),
-                xytext=(5, -5), textcoords="offset points",
+                xytext=(5, -10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
                           linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.579, zorder=8)
             ax.annotate(
-                "PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                "PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
                                                "SIO2"].iloc[0],
-                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm23127",
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
                                                y].iloc[0]),
-                xytext=(5, -5), textcoords="offset points",
+                xytext=(5, -10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="white",
                           linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.579, zorder=8)
@@ -2969,14 +2953,13 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filenam
 
         if y == "pie":
             colormap = plt.cm.get_cmap("tab10")
-            colors = {"lherzolite": colormap(1), "harzburgite": colormap(0),
-                      "dunite": colormap(2)}
+            colors = {"lherzolite": colormap(1), "harzburgite": colormap(0)}
             legend_colors = [colors[label] for label in legend_order]
             rock_counts = data["ROCKNAME"].value_counts()
             labels, counts = zip(*rock_counts.items())
-            plt.pie(counts, labels=labels, autopct="%1.0f%%", startangle=0, pctdistance=0.3,
-                    labeldistance=0.6, textprops={"fontsize": fontsize * 0.694}, radius=1.3,
-                    colors=legend_colors)
+            plt.pie(counts, labels=labels, autopct="%1.0f%%", startangle=0,
+                    pctdistance=0.3, labeldistance=0.6, radius=1.3, colors=legend_colors,
+                    textprops={"fontsize": fontsize * 0.694})
 
     if num_plots < len(axes):
         for i in range(num_plots, len(axes)):
@@ -3010,11 +2993,11 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
     else:
         raise Exception(f"GFEM analysis not found at {analysis_path}!")
 
-    # Get correct F Melt column
+    # Get correct Depletion column
     if batch:
-        F_col = "F_MELT_BATCH"
+        D_col = "D_BATCH"
     else:
-        F_col = "F_MELT_FRAC"
+        D_col = "D_FRAC"
 
     # Samples data paths
     df_paths = ["assets/data/benchmark-samples-pca.csv",
@@ -3028,7 +3011,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
     for name, path in zip(df_names, df_paths):
         if os.path.exists(path):
             df = pd.read_csv(path)
-            df = df[(df[F_col] < 1) & (df[F_col] >= 0)]
+            df = df[(df[D_col] < 1) & (df[D_col] >= 0)]
             dfs[name] = df.merge(df_analysis, on="SAMPLEID", how="inner")
         else:
             raise Exception(f"Missing sample data: {path}!")
@@ -3075,7 +3058,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
                                    linestyle="None", alpha=1)
             legend_handles.append(marker)
 
-            scatter = ax.scatter(data[F_col], data["RMSE_PREM_PROFILE"],
+            scatter = ax.scatter(data[D_col], data["RMSE_PREM_PROFILE"],
                                  edgecolors="none", color=colormap(i), marker=".", s=150,
                                  label=comp)
 
@@ -3084,15 +3067,15 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
         df_bench = dfs["benchmark"]
         df_bench = df_bench[df_bench["TARGET"] == target]
         for l, name in enumerate(["PUM", "DMM"]):
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=F_col,
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=D_col,
                             y="RMSE_PREM_PROFILE", facecolor=face_colors[l],
                             edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
                             ax=ax, zorder=7)
             ax.annotate(
-                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, F_col].iloc[0],
+                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, D_col].iloc[0],
                           df_bench.loc[df_bench["SAMPLEID"] == name,
                                        "RMSE_PREM_PROFILE"].iloc[0]),
-                xytext=(5, 5), textcoords="offset points",
+                xytext=(5, 10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                           edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.579, zorder=8
@@ -3109,7 +3092,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
                 legend.get_texts()[i].set_text(label)
 
         ax.set_title(f"{target_label} vs. PREM")
-        ax.set_xlabel("Melt Fraction")
+        ax.set_xlabel("Depletion")
         ax.set_ylabel(f"RMSE ({units})")
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))

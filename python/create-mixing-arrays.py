@@ -21,9 +21,7 @@ filename = "assets/data/synthetic-samples-benchmarks.csv"
 sources = ["assets/data/synthetic-samples-mixing-tops.csv",
            "assets/data/synthetic-samples-mixing-middle.csv",
            "assets/data/synthetic-samples-mixing-bottoms.csv"]
-sampleids = [["st12000", "st23000", "st23127"],
-             ["sm12000", "sm23000", "sm23127"],
-             ["sb12000", "sb23000", "sb23127"]]
+sampleids = [["st12000", "st12127"], ["sm12000", "sm12127"], ["sb12000", "sb12127"]]
 
 for source, sids in zip(sources, sampleids):
     samples_to_csv(sids, source, filename)
