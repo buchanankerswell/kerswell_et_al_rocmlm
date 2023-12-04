@@ -421,7 +421,7 @@ class GFEMModel:
         # Program and config paths
         if self.program == "magemin":
             # Magemin dirs and filepaths
-            self.model_out_dir = (f"runs/{self.program[:4]}_{self.sample_id}_"
+            self.model_out_dir = (f"gfems/{self.program[:4]}_{self.sample_id}_"
                                   f"{self.dataset[0]}{self.res}")
             self.magemin_in_path = f"{self.model_out_dir}/in.dat"
             self.magemin_out_path = f"{self.model_out_dir}/output/_pseudosection_output.txt"
@@ -430,7 +430,7 @@ class GFEMModel:
             # Perplex dirs and filepaths
             cwd = os.getcwd()
             self.perplex_dir = f"{cwd}/Perple_X"
-            self.model_out_dir = (f"{cwd}/runs/{self.program[:4]}_{self.sample_id}_"
+            self.model_out_dir = (f"{cwd}/gfems/{self.program[:4]}_{self.sample_id}_"
                                   f"{self.dataset[0]}{self.res}")
             self.perplex_targets = f"{self.model_out_dir}/target-array.tab"
             self.perplex_assemblages = f"{self.model_out_dir}/assemblages.txt"

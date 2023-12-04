@@ -3,12 +3,12 @@ DATE = $(shell date +"%d-%m-%Y")
 LOGFILE := log/log
 LOG := 2>&1 | tee -a log/log
 # Conda config
-CONDAENVNAME = rocml
+CONDAENVNAME = rocmlm
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
 # Manuscript
-MS = rocml
+MS = rocmlm
 # Python scripts
 PYTHON = \
 				 python/draft.py \
@@ -19,10 +19,10 @@ DATAPURGE = \
 						log \
 						tmp.md \
 						python/__pycache__ \
-						agu-draft-rocml.pdf \
-						eisvogel-draft-rocml.pdf \
+						agu-draft-rocmlm.pdf \
+						eisvogel-draft-rocmlm.pdf \
 						assets/pandoc/mlm-pro-con.md \
-						assets/pandoc/rocml-performance.md \
+						assets/pandoc/rocmlm-performance.md \
 						assets/pandoc/gfem-efficiency.md \
 						assets/pandoc/benchmark-samples.md \
 						assets/pandoc/earthchem-counts.md \
@@ -103,4 +103,4 @@ clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 	@rm -f *.{html,acr,alg,gz,glg,gls,ilg,nls,acn,glo,ist,lof,lot,nlo,aux,dvi,log,bbl,blg,brf,fls,toc,thm,out,fdb_latexmk,tex,pdf}
 
-.PHONY: find_conda_env create_conda_env copy_assets_and_figs place_md_tables eisvogel agu all purge clean
+.PHONY: clean purge find_conda_env create_conda_env copy_assets_and_figs place_md_tables eisvogel agu all

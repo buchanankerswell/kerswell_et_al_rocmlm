@@ -1,4 +1,4 @@
-name: rocml
+name: rocmlm
 channels:
   - conda-forge
   - defaults

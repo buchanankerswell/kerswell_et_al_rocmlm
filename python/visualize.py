@@ -650,21 +650,21 @@ def create_dataset_movies(gfem_models):
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# compose rocml plots !!
+# compose rocmlm plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_rocml_plots(rocml_model):
+def compose_rocmlm_plots(rocmlm):
     """
     """
     # Get ml model attributes
-    program = rocml_model.program
-    model_prefix = rocml_model.model_prefix
-    ml_model_label = rocml_model.ml_model_label
-    sample_ids = rocml_model.sample_ids
-    res = rocml_model.res
-    targets = rocml_model.targets
-    fig_dir = rocml_model.fig_dir
-    fig_dir_perf = "figs/rocml"
-    verbose = rocml_model.verbose
+    program = rocmlm.program
+    model_prefix = rocmlm.model_prefix
+    ml_model_label = rocmlm.ml_model_label
+    sample_ids = rocmlm.sample_ids
+    res = rocmlm.res
+    targets = rocmlm.targets
+    fig_dir = rocmlm.fig_dir
+    fig_dir_perf = "figs/rocmlm"
+    verbose = rocmlm.verbose
 
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
@@ -672,7 +672,7 @@ def compose_rocml_plots(rocml_model):
     # Check for existing plots
     existing_figs = []
     for target in targets_rename:
-        for sample_id in rocml_model.sample_ids:
+        for sample_id in rocmlm.sample_ids:
             fig_1 = f"{fig_dir}/prem-{sample_id}-{ml_model_label}-{target}.png"
             fig_2 = f"{fig_dir}/surf-{sample_id}-{ml_model_label}-{target}.png"
             fig_3 = f"{fig_dir}/image-{sample_id}-{ml_model_label}-{target}.png"
@@ -690,7 +690,7 @@ def compose_rocml_plots(rocml_model):
         return None
 
     for target in targets_rename:
-        for sample_id in rocml_model.sample_ids:
+        for sample_id in rocmlm.sample_ids:
             if verbose >= 1:
                 print(f"Composing {model_prefix}-{sample_id}-{target} [{program}] ...")
 
@@ -781,11 +781,11 @@ def compose_rocml_plots(rocml_model):
             )
 
     # Clean up directory
-    rocml_files = glob.glob(f"{fig_dir}/rocml*.png")
+    rocmlm_files = glob.glob(f"{fig_dir}/rocmlm*.png")
     tmp_files = glob.glob(f"{fig_dir}/temp*.png")
     program_files = glob.glob(f"{fig_dir}/{program[:4]}*.png")
 
-    for file in rocml_files + tmp_files + program_files:
+    for file in rocmlm_files + tmp_files + program_files:
         os.remove(file)
 
     return None
@@ -1150,7 +1150,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     target_mgm, target_ppx, target_ml, target_pum = None, None, None, None
 
     # Get benchmark models
-    pum_path = f"runs/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
+    pum_path = f"gfems/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
     source = "assets/data/benchmark-samples-pca.csv"
     targets = ["rho", "Vp", "Vs"]
 
@@ -2075,32 +2075,32 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize rocml model !!
+# visualize rocmlm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=22):
+def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
     """
     """
     # Get ml model attributes
-    program = rocml_model.program
+    program = rocmlm.program
     if program == "perplex":
         program_label = "Perple_X"
     elif program == "magemin":
         program_label = "MAGEMin"
-    model_label_full = rocml_model.ml_model_label_full
-    model_label = rocml_model.ml_model_label
-    model_prefix = rocml_model.model_prefix
-    sample_ids = rocml_model.sample_ids
-    feature_arrays = rocml_model.feature_square
-    target_arrays = rocml_model.target_square
-    pred_arrays = rocml_model.prediction_square
-    cv_info = rocml_model.cv_info
-    targets = rocml_model.targets
-    fig_dir = rocml_model.fig_dir
-    palette = rocml_model.palette
+    model_label_full = rocmlm.ml_model_label_full
+    model_label = rocmlm.ml_model_label
+    model_prefix = rocmlm.model_prefix
+    sample_ids = rocmlm.sample_ids
+    feature_arrays = rocmlm.feature_square
+    target_arrays = rocmlm.target_square
+    pred_arrays = rocmlm.prediction_square
+    cv_info = rocmlm.cv_info
+    targets = rocmlm.targets
+    fig_dir = rocmlm.fig_dir
+    palette = rocmlm.palette
     n_feats = feature_arrays.shape[-1] - 2
     n_models = feature_arrays.shape[0]
     w = feature_arrays.shape[1]
-    verbose = rocml_model.verbose
+    verbose = rocmlm.verbose
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2251,8 +2251,8 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
                 results_mgm = None
 
             # Reshape results and transform units for ML model
-            results_rocml = {"P": P.flatten().tolist(), "T": T.flatten().tolist(),
-                             target: p.flatten().tolist()}
+            results_rocmlm = {"P": P.flatten().tolist(), "T": T.flatten().tolist(),
+                              target: p.flatten().tolist()}
 
             # Get relevant metrics for PREM plot
             rmse = cv_info[f"rmse_val_mean_{target}"]
@@ -2279,22 +2279,22 @@ def visualize_rocml_model(rocml_model, figwidth=6.3, figheight=4.725, fontsize=2
             # Plot PREM comparisons
             if target == "rho":
                 visualize_prem(program, sample_id, "train", res, target, "g/cm$^3$",
-                               results_mgm, results_ppx, results_rocml, model_label,
+                               results_mgm, results_ppx, results_rocmlm, model_label,
                                geotherm_threshold, title=model_label_full, fig_dir=fig_dir,
                                filename=f"{filename}-prem.png")
 
             if target in ["Vp", "Vs"]:
                 visualize_prem(program, sample_id, "train", res, target, "km/s",
-                               results_mgm, results_ppx, results_rocml, model_label,
+                               results_mgm, results_ppx, results_rocmlm, model_label,
                                geotherm_threshold, title=model_label_full, fig_dir=fig_dir,
                                filename=f"{filename}-prem.png")
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize rocml performance !!
+# visualize rocmlm performance !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="rocml",
-                                fontsize=22, figwidth=6.3, figheight=5):
+def visualize_rocmlm_performance(targets, res, fig_dir="figs/rocmlm", filename="rocmlm",
+                                 fontsize=22, figwidth=6.3, figheight=5):
     """
     """
     # Data assets dir
@@ -2305,7 +2305,7 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
         os.makedirs(fig_dir, exist_ok=True)
 
     # Read regression data
-    data = pd.read_csv(f"{data_dir}/rocml-performance.csv")
+    data = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
 
     # Summarize data
     data = data[data["size"] == data["size"].min()]
@@ -2350,8 +2350,8 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
     models = ["KN", "DT", "RF", "NN1", "NN2", "NN3"]
 
     # Create a dictionary to map each model to a specific color
-    color_mapping = {"DT": colormap(0), "KN": colormap(1), "NN1": colormap(2),
-                     "NN2": colormap(3), "NN3": colormap(4), "RF": colormap(5)}
+    color_mapping = {"DT": colormap(0), "KN": colormap(2), "NN1": colormap(1),
+                     "NN2": colormap(4), "NN3": colormap(3), "RF": colormap(5)}
 
     for i, metric in enumerate(metrics):
         plt.figure(figsize=(figwidth, figheight))
@@ -2370,7 +2370,7 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
                            label=models_order if i == 1 else "")
 
             plt.title(f"{metric_names[i]}")
-            plt.ylabel("")
+            plt.ylabel("Elapsed Time (ms)")
             plt.yscale("log")
             plt.gca().set_xticks([])
             plt.gca().set_xticklabels([])
@@ -2401,6 +2401,7 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
 
         elif metric == "rmse_test_mean":
             mult = 0
+            y_label_pos = []
             for j, target in enumerate(targets):
                 var = f"rmse_test_mean_{target}"
 
@@ -2420,7 +2421,8 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
                     summary_df.loc[order][f"rmse_val_mean_{target}"].values
                 ]))
 
-                vmax = max_mean + max_error + ((max_mean + max_error) * 0.5)
+                vmax = max_mean + max_error + ((max_mean + max_error) * 0.01)
+                y_label_pos.append(max_mean)
 
                 bars = plt.bar(x_pos * bar_width,
                                summary_df.loc[order][f"rmse_test_mean_{target}"],
@@ -2434,17 +2436,27 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
 #                             fmt="none", capsize=5, color="black", linewidth=2)
                 mult += 1
 
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"RMSE")
-            plt.yscale("log")
-            plt.ylim(1e-3, vmax)
             x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
-                          (len(models_order) / 2 * bar_width) for p, o in
+                          (len(models_order) / 2 * bar_width) - (bar_width / 2) for p, o in
                           zip(np.arange(len(targets)), np.arange(len(targets)))]
-            plt.gca().set_xticks(x_tick_pos, targets)
+
+            for x_pos, y_pos, label in zip(x_tick_pos, y_label_pos, targets):
+                if label == "rho":
+                    unit = "g/cm$^3$"
+                elif label in ["Vp", "Vs"]:
+                    unit = "km/s"
+
+                plt.text(x_pos, y_pos + (y_pos * 0.05), f"{label}\n({unit})", ha="center",
+                         va="bottom")
+
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel("RMSE")
+            plt.yscale("log")
+            plt.gca().set_xticks([])
 
         elif metric == "rmse_val_mean":
             mult = 0
+            y_label_pos = []
             for j, target in enumerate(targets):
                 var = f"rmse_test_mean_{target}"
 
@@ -2464,7 +2476,8 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
                     summary_df.loc[order][f"rmse_val_mean_{target}"].values
                 ]))
 
-                vmax = max_mean + max_error + ((max_mean + max_error) * 0.5)
+                vmax = max_mean + max_error + ((max_mean + max_error) * 0.01)
+                y_label_pos.append(max_mean)
 
                 bars = plt.bar(x_pos * bar_width,
                                summary_df.loc[order][f"rmse_val_mean_{target}"],
@@ -2478,14 +2491,24 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
 #                             fmt="none", capsize=5, color="black", linewidth=2)
                 mult += 1
 
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel(f"")
-            plt.yscale("log")
-            plt.ylim(1e-3, vmax)
             x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
-                          (len(models_order) / 2 * bar_width) for p, o in
+                          (len(models_order) / 2 * bar_width) - (bar_width / 2) for p, o in
                           zip(np.arange(len(targets)), np.arange(len(targets)))]
-            plt.gca().set_xticks(x_tick_pos, targets)
+
+            for x_pos, y_pos, label in zip(x_tick_pos, y_label_pos, targets):
+                if label == "rho":
+                    unit = "g/cm$^3$"
+                elif label in ["Vp", "Vs"]:
+                    unit = "km/s"
+
+                plt.text(x_pos, y_pos + (y_pos * 0.05), f"{label}\n({unit})", ha="center",
+                         va="bottom")
+
+            plt.title(f"{metric_names[i]}")
+            plt.ylabel("RMSE")
+            plt.yscale("log")
+            plt.ylim(5e-3, vmax)
+            plt.gca().set_xticks([])
 
         # Save the plot to a file if a filename is provided
         if filename:
@@ -2500,37 +2523,27 @@ def visualize_rocml_performance(targets, res, fig_dir="figs/rocml", filename="ro
 
     # Compose plots
     combine_plots_horizontally(
-        f"{fig_dir}/rocml-inference-time-mean.png",
-        f"{fig_dir}/rocml-training-time-mean.png",
+        f"{fig_dir}/rocmlm-inference-time-mean.png",
+        f"{fig_dir}/rocmlm-training-time-mean.png",
         f"{fig_dir}/temp1.png",
         caption1="a)",
         caption2="b)"
     )
 
-    os.remove(f"{fig_dir}/rocml-inference-time-mean.png")
-    os.remove(f"{fig_dir}/rocml-training-time-mean.png")
+    os.remove(f"{fig_dir}/rocmlm-inference-time-mean.png")
+    os.remove(f"{fig_dir}/rocmlm-training-time-mean.png")
 
     combine_plots_horizontally(
-        f"{fig_dir}/rocml-rmse-test-mean.png",
-        f"{fig_dir}/rocml-rmse-val-mean.png",
-        f"{fig_dir}/temp2.png",
-        caption1="c)",
-        caption2="d)"
-    )
-
-    os.remove(f"{fig_dir}/rocml-rmse-test-mean.png")
-    os.remove(f"{fig_dir}/rocml-rmse-val-mean.png")
-
-    combine_plots_vertically(
         f"{fig_dir}/temp1.png",
-        f"{fig_dir}/temp2.png",
-        f"{fig_dir}/rocml-performance.png",
+        f"{fig_dir}/rocmlm-rmse-val-mean.png",
+        f"{fig_dir}/rocmlm-performance.png",
         caption1="",
-        caption2=""
+        caption2="c)"
     )
 
+    os.remove(f"{fig_dir}/rocmlm-rmse-test-mean.png")
+    os.remove(f"{fig_dir}/rocmlm-rmse-val-mean.png")
     os.remove(f"{fig_dir}/temp1.png")
-    os.remove(f"{fig_dir}/temp2.png")
 
     return None
 

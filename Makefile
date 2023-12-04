@@ -3,7 +3,7 @@ DATE = $(shell date +"%d-%m-%Y")
 LOGFILE := log/log-$(DATE)
 LOG := 2>&1 | tee -a $(LOGFILE)
 # Conda config
-CONDAENVNAME = rocml
+CONDAENVNAME = rocmlm
 HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
@@ -17,61 +17,57 @@ DATADIR = assets/data
 CONFIGDIR = assets/config
 # Python scripts
 PYTHON = \
-				 python/build-gfem-models.py \
+				 python/build-gfems.py \
 				 python/initialize.py \
 				 python/gfem.py \
 				 python/create-mixing-arrays.py \
 				 python/pca.py \
-				 python/rocml.py \
+				 python/rocmlm.py \
 				 python/scripting.py \
-				 python/submit-jobs.py \
-				 python/train-rocml-models.py \
+				 python/train-rocmlms.py \
 				 python/visualize.py
 # Cleanup directories
 DATAPURGE = \
 						log \
 						python/__pycache__ \
-						$(DATADIR)/benchmark-rocml-performance.csv \
 						$(DATADIR)/synthetic*.csv \
 						$(DATADIR)/earthchem-counts.csv \
 						$(DATADIR)/earthchem-samples-pca.csv \
 						$(DATADIR)/earthchem-imputed-counts.csv \
-						$(DATADIR)/benchmark-samples-pca.csv \
-						$(DATADIR)/gfem-analysis.csv 
+						$(DATADIR)/benchmark-samples-pca.csv
 DATACLEAN = \
 						assets \
 						MAGEMin \
 						Perple_X \
-						runs \
-						rocmls \
-						$(DATADIR)/rocml-performance.csv 
-FIGSPURGE = figs
+						training_data \
+						rocmlms \
+						$(DATADIR)/gfem-analysis.csv \
+						$(DATADIR)/rocmlm-performance.csv
+FIGSPURGE =
 FIGSCLEAN = figs
 
-all: $(LOGFILE) $(PYTHON) create_conda_env get_assets
-	@echo "=============================================" $(LOG)
-	@$(MAKE) benchmark_datasets
-	@$(MAKE) benchmark_models
+all: $(LOGFILE) $(PYTHON) initialize
+	@$(MAKE) mixing_arrays
+	@$(MAKE) gfems
+	@$(MAKE) rocmlms
 
 initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 	@echo "Run the following in order:" $(LOG)
-	@echo "    make build_benchmark_datasets" $(LOG)
-	@echo "    make train_benchmark_models" $(LOG)
-	@echo "To clean up the directory:" $(LOG)
-	@echo "    make purge" $(LOG)
-	@echo "    make remove_conda_env" $(LOG)
+	@echo "    make mixing_arrays" $(LOG)
+	@echo "    make gfems" $(LOG)
+	@echo "    make rocmlms" $(LOG)
 	@echo "=============================================" $(LOG)
 
-rocml_models: $(LOGFILE) $(PYTHON) get_assets
-	@$(CONDAPYTHON) -u python/train-rocml-models.py $(LOG)
+rocmlms: initialize
+	@$(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
 	@echo "=============================================" $(LOG)
 
-gfem_models: $(LOGFILE) $(PYTHON) get_assets mixing_arrays
-	@$(CONDAPYTHON) -u python/build-gfem-models.py $(LOG)
+gfems: initialize
+	@$(CONDAPYTHON) -u python/build-gfems.py $(LOG)
 	@echo "=============================================" $(LOG)
 
-mixing_arrays:  $(LOGFILE) $(PYTHON) get_assets
+mixing_arrays: initialize
 	@$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG)
 	@echo "=============================================" $(LOG)
 
@@ -118,7 +114,7 @@ remove_conda_env:
 create_conda_env: $(LOGFILE) $(CONDASPECSFILE) find_conda_env
 	@if [ "$(HASCONDA)" = "false" ]; then \
 		echo "Install conda first!" $(LOG); \
-		echo "See: https://github.com/buchanankerswell/kerswell_et_al_rocml" $(LOG); \
+		echo "See: https://github.com/buchanankerswell/kerswell_et_al_rocmlm" $(LOG); \
 		exit 1; \
 	fi
 	@if [ -d "$(MYENVDIR)" ]; then \
@@ -139,4 +135,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: purge clean find_conda_env remove_conda_env create_conda_env get_assets mixing_arrays gfem_models earthchem_rocml benchmark_rocml init all
+.PHONY: clean purge find_conda_env create_conda_env remove_conda_env get_assets mixing_arrays gfems rocmlms init all
