@@ -416,7 +416,8 @@ class GFEMModel:
                               "FE2O3", "CR2O3", "H2O"]
 
         # Features
-        self.features = ["PC1", "PC2", "R_TIO2", "F_MELT_BATCH", "F_MELT_FRAC"]
+        self.features = ["PC1", "PC2", "R_TIO2", "F_MELT_BATCH", "D_BATCH", "F_MELT_FRAC",
+                         "D_FRAC"]
 
         # Program and config paths
         if self.program == "magemin":

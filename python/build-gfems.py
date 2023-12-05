@@ -22,8 +22,11 @@ sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
 
 # Build GFEM models
 for name, source in sources.items():
-    sids = get_sampleids(source, "all")
-    gfems[name] = build_gfem_models(source, sids)
+    if name == "benchmark":
+        sids = get_sampleids(source, "all")
+    else:
+        sids = get_sampleids(source, "all")[::32]
+    gfems[name] = build_gfem_models(source, sids, res=64)
 
 # Visualize GFEM models
 for name, models in gfems.items():
