@@ -27,11 +27,10 @@ for name, source in sources.items():
 
 # Visualize GFEM models
 for name, models in gfems.items():
-    for model in models:
-        visualize_gfem(models)
-        visualize_gfem_diff(models)
-        compose_dataset_plots(models)
-        create_dataset_movies(models)
+    visualize_gfem(models)
+    visualize_gfem_diff(models)
+    compose_dataset_plots(models)
+    create_dataset_movies(models)
 
 visualize_gfem_analysis()
 visualize_gfem_design()

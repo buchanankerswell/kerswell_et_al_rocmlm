@@ -62,7 +62,7 @@ def get_unique_value(input_list):
 # train rocmlms !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"],
-                  training_features=["F_MELT_FRAC"], training_targets=["rho", "Vp", "Vs"],
+                  training_features=["D_FRAC"], training_targets=["rho", "Vp", "Vs"],
                   tune=True, epochs=100, batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
                   nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
     """

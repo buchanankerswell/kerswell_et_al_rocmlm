@@ -2607,7 +2607,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
             df_bench.to_csv("assets/data/benchmark-samples-pca.csv", index=False)
 
     # Filter Depletion < 1
-    data = data[(data[D_col] < 1) & (data[D_col] >= 0)]
+    data = data[(data[D_col] <= 1) & (data[D_col] >= 0)]
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -3011,7 +3011,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
     for name, path in zip(df_names, df_paths):
         if os.path.exists(path):
             df = pd.read_csv(path)
-            df = df[(df[D_col] < 1) & (df[D_col] >= 0)]
+            df = df[(df[D_col] <= 1) & (df[D_col] >= 0)]
             dfs[name] = df.merge(df_analysis, on="SAMPLEID", how="inner")
         else:
             raise Exception(f"Missing sample data: {path}!")
