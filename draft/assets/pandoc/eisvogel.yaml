@@ -1,8 +1,14 @@
 ---
 title: "RocMLMs: Rock Properties Prediction through Machine Learning Models"
 subtitle: ""
-author: "Buchanan Kerswell"
-institute: "Géosciences Montpellier, 34070 Montpellier France"
+author:
+  - "Buchanan Kerswell"
+  - "Nestor Cerpa"
+  - "Andréa Tommasi"
+  - "José Alberto Padrón Navarta"
+institute:
+  - "Géosciences Montpellier, Université de Montpellier & CNRS, Montpellier, France"
+  - "Instituto Andaluz de Ciencias de la Tierra, CSIC–UGR, Granada, Spain"
 keywords: [draft, manuscript]
 titlepage: true
 titlepage-logo: "assets/images/erc-logo.jpg"

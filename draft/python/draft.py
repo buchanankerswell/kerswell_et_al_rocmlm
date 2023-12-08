@@ -179,8 +179,10 @@ def write_markdown_tables():
         df_synth = pd.read_csv(df_synth_path)
 
         # Drop columns
-        df = df.drop(columns=["REFERENCE", "FE2O3", "PC1", "PC2", "R_TIO2", "F_MELT_BATCH"])
-        df_synth = df_synth.drop(columns=["FE2O3", "PC1", "PC2", "R_TIO2", "F_MELT_BATCH"])
+        df = df.drop(columns=["REFERENCE", "FE2O3", "PC1", "PC2", "R_TIO2", "F_MELT_BATCH",
+                              "F_MELT_FRAC", "D_BATCH"])
+        df_synth = df_synth.drop(columns=["FE2O3", "PC1", "PC2", "R_TIO2", "F_MELT_BATCH",
+                                          "F_MELT_FRAC", "D_BATCH"])
 
         # Get synth samples
         df_synth = df_synth[df_synth["SAMPLEID"].isin(["sm12000", "sm23127"])]
@@ -191,7 +193,7 @@ def write_markdown_tables():
         df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
 
         # Rename columns
-        col_headers = {"SAMPLEID": "Sample", "F_MELT_FRAC": "F"}
+        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "FI"}
 
         df_combined.rename(columns=col_headers, inplace=True)
 
@@ -199,9 +201,10 @@ def write_markdown_tables():
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = (": Compositions (in wt.%) of hypothetical upper mantle endmembers. Melt "
-                   "fractions (F) were calculated with a modal fractional melting model "
-                   "(@eq:melt-fraction). {#tbl:benchmark-samples}")
+        caption = (": Hypothetical upper mantle endmember compositions (in wt.%). "
+                   "Fertility Index (FI) was calculated with a modal fractional melting "
+                   "model based on TIO2 content (@eq:melt-fraction). "
+                   "{#tbl:benchmark-samples}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/benchmark-samples.md", "w") as file:
@@ -243,11 +246,11 @@ def write_markdown_tables():
     else:
         print(f"Warning: {data_dir}/earthchem-counts.csv does not exist!")
 
-    if os.path.exists(f"{data_dir}/rocml-config.csv"):
-        print("Writing rocml-config.md")
+    if os.path.exists(f"{data_dir}/rocmlm-config.csv"):
+        print("Writing rocmlm-config.md")
 
         # MLM pro con
-        df = pd.read_csv(f"{data_dir}/rocml-config.csv")
+        df = pd.read_csv(f"{data_dir}/rocmlm-config.csv")
 
         # Rename columns
         col_headers = {"model": "Model", "hyperparam": "Hyperparameter",
@@ -258,19 +261,19 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": RocMLM hyperparameter configuration. Values in parentheses are chosen "
+        caption = (": RocMLM configuration. Hyperparameter values in parentheses are chosen "
                    "by a cross-validation grid search algorithm. Percentages refer to the "
                    "total number of training examples. All other hyperparameters use "
-                   "defaults values (see scikit-learn "
-                   "[documentation](htpps://scikit-learn.org)). {#tbl:rocml-config}")
+                   "defaults values (see regression model documentation on "
+                   "[scikit-learn.org](htpps://scikit-learn.org)). {#tbl:rocmlm-config}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/rocml-config.md", "w") as file:
+        with open(f"{pandoc_dir}/rocmlm-config.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
     else:
-        print(f"Warning: {data_dir}/rocml-config.csv does not exist!")
+        print(f"Warning: {data_dir}/rocmlm-config.csv does not exist!")
 
     if os.path.exists(f"{data_dir}/rocml-performance.csv"):
         print("Writing rocml-performance.md")

@@ -26,13 +26,12 @@ for name, source in sources.items():
         sids = get_sampleids(source, "all")
     else:
         sids = get_sampleids(source, "all")[::32]
-    gfems[name] = build_gfem_models(source, sids, res=64)
+    gfems[name] = build_gfem_models(source, sids)
 
 # Train RocMLMs
 for name, models in gfems.items():
     if name == "benchmark":
-        #rocmlms[name] = train_rocmlms(models, ["KN", "DT", "RF", "NN1", "NN2", "NN3"])
-        rocmlms[name] = train_rocmlms(models, ["KN", "DT"])
+        rocmlms[name] = train_rocmlms(models, ["KN", "DT", "RF", "NN1", "NN2", "NN3"])
     else:
         rocmlms[name] = train_rocmlms(models, ["DT", "KN"])
 

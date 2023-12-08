@@ -132,6 +132,61 @@ def get_geotherm(results, target, threshold, Qs=60e-3, Ts=273, crust_thickness=3
     return P_values, T_values, targets
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# get 1d reference models !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_1d_reference_models():
+    """
+    """
+    # Data asset dir
+    data_dir = "assets/data"
+
+    # Check for data dir
+    if not os.path.exists(data_dir):
+        raise Exception(f"Data not found at {data_dir}!")
+
+    # Reference model paths
+    ref_paths = {"prem": f"{data_dir}/PREM_1s.csv", "ak135": f"{data_dir}/AK135F_AVG.csv",
+                 "stw105": f"{data_dir}/STW105.csv"}
+
+    # Define column headers
+    prem_cols = ["radius", "depth", "rho", "Vp", "Vph", "Vs", "Vsh", "eta", "Q_mu",
+                 "Q_kappa"]
+    ak135_cols = ["depth", "rho", "Vp", "Vs", "Q_kappa", "Q_mu"]
+    stw105_cols = ["radius", "rho", "Vp", "Vs", "unk1", "unk2", "Vph", "Vsh", "eta"]
+
+    ref_cols = {"prem": prem_cols, "ak135": ak135_cols, "stw105": stw105_cols}
+    columns_to_keep = ["depth", "P", "rho", "Vp", "Vs"]
+
+    # Initialize reference models
+    ref_models = {}
+
+    # Load reference models
+    for name, path in ref_paths.items():
+        if not os.path.exists(path):
+            raise Exception(f"Refernce model {name} not found at {path}!")
+
+        # Read reference model
+        model = pd.read_csv(path, header=None, names=ref_cols[name])
+
+        # Transform units
+        if name == "stw105":
+            model["depth"] = (model["radius"].max() - model["radius"]) / 1000
+            model["rho"] = model["rho"] / 1000
+            model["Vp"] = model["Vp"] / 1000
+            model["Vs"] = model["Vs"] / 1000
+
+        model["P"] = model["depth"] / 30
+
+        # Clean up df
+        model = model[columns_to_keep]
+        model = model.round(3)
+
+        # Save model
+        ref_models[name] = model
+
+    return ref_models
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # analyze gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def analyze_gfem_model(gfem_model, filename):
@@ -153,8 +208,8 @@ def analyze_gfem_model(gfem_model, filename):
     if not os.path.exists(data_dir):
         raise Exception(f"Data not found at {data_dir}!")
 
-    # Read PREM data
-    df_prem = pd.read_csv(f"{data_dir}/prem.csv")
+    # Get 1D reference models
+    ref_models = get_1d_reference_models()
 
     # Set geotherm threshold for extracting depth profiles
     if res <= 8:
@@ -172,10 +227,14 @@ def analyze_gfem_model(gfem_model, filename):
 
     # Initialize metrics lists
     rmse_prem_profile, r2_prem_profile = [], []
+    rmse_ak135_profile, r2_ak135_profile = [], []
+    rmse_stw105_profile, r2_stw105_profile = [], []
 
     for target in targets:
-        # Get PREM profile
-        P_prem, target_prem = df_prem["depth"] / 30, df_prem[target],
+        # Get 1D refernce model profiles
+        P_prem, target_prem = ref_models["prem"]["P"], ref_models["prem"][target]
+        P_ak135, target_ak135 = ref_models["ak135"]["P"], ref_models["ak135"][target]
+        P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
 
         # Get model profile
         P_model, _, target_model = get_geotherm(results_model, target, geotherm_threshold)
@@ -187,27 +246,51 @@ def analyze_gfem_model(gfem_model, filename):
         # Crop profiles
         mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
         P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
+        mask_ak135 = (P_ak135 >= P_min) & (P_ak135 <= P_max)
+        P_ak135, target_ak135 = P_ak135[mask_ak135], target_ak135[mask_ak135]
+        mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
+        P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
         mask_model = (P_model >= P_min) & (P_model <= P_max)
         P_model, target_model = P_model[mask_model], target_model[mask_model]
 
-        # Interpolate PREM profile
-        x_new = np.linspace(np.min(target_prem), np.max(target_prem), len(target_model))
+        # Get min max
+        target_min = min(min(target_model), min(np.nanmin(lst) for lst in
+                                            [target_prem, target_ak135, target_stw105]))
+        target_max = max(max(target_model), max(np.nanmin(lst) for lst in
+                                                [target_prem, target_ak135, target_stw105]))
+
+        # Interpolate profiles
+        x_new = np.linspace(target_min, target_max, len(target_model))
         P_prem, target_prem = np.interp(x_new, target_prem, P_prem), x_new
+        P_ak135, target_ak135 = np.interp(x_new, target_ak135, P_ak135), x_new
+        P_stw105, target_stw105 = np.interp(x_new, target_stw105, P_stw105), x_new
 
         # Remove nans
         nan_mask = np.isnan(target_model)
         P_model, target_model = P_model[~nan_mask], target_model[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
+        P_ak135, target_ak135 = P_ak135[~nan_mask], target_ak135[~nan_mask]
+        P_stw105, target_stw105 = P_stw105[~nan_mask], target_stw105[~nan_mask]
 
-        # Calculate rmse and r2 vs. PREM along geotherm profile
-        rmse = np.sqrt(mean_squared_error(target_prem, target_model))
-        rmse_prem_profile.append(np.round(rmse, 3))
+        # Calculate rmse and r2 along profiles
+        rmse_prem = np.sqrt(mean_squared_error(target_prem, target_model))
+        rmse_prem_profile.append(np.round(rmse_prem, 3))
         r2_prem_profile.append(np.round(r2_score(target_prem, target_model), 3))
+        rmse_ak135 = np.sqrt(mean_squared_error(target_ak135, target_model))
+        rmse_ak135_profile.append(np.round(rmse_ak135, 3))
+        r2_ak135_profile.append(np.round(r2_score(target_ak135, target_model), 3))
+        rmse_stw105 = np.sqrt(mean_squared_error(target_stw105, target_model))
+        rmse_stw105_profile.append(np.round(rmse_stw105, 3))
+        r2_stw105_profile.append(np.round(r2_score(target_stw105, target_model), 3))
 
     # Save results
     results = {"SAMPLEID": [sample_id] * len(targets), "PROGRAM": [program] * len(targets),
                "TARGET": targets, "RMSE_PREM_PROFILE": rmse_prem_profile,
-               "R2_PREM_PROFILE": r2_prem_profile}
+               "R2_PREM_PROFILE": r2_prem_profile,
+               "RMSE_AK135_PROFILE": rmse_ak135_profile,
+               "R2_AK135_PROFILE": r2_ak135_profile,
+               "RMSE_STW105_PROFILE": rmse_stw105_profile,
+               "R2_STW105_PROFILE": r2_stw105_profile}
 
     # Create dataframe
     df = pd.DataFrame(results)
@@ -316,7 +399,9 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"],
 
     # Write blank CSV
     if not os.path.exists(filename):
-        columns = ["SAMPLEID", "PROGRAM", "TARGET", "RMSE_PREM_PROFILE", "R2_PREM_PROFILE"]
+        columns = ["SAMPLEID", "PROGRAM", "TARGET", "RMSE_PREM_PROFILE", "R2_PREM_PROFILE",
+                   "RMSE_AK135_PROFILE", "R2_AK135_PROFILE", "RMSE_STW105_PROFILE",
+                   "R2_STW105_PROFILE"]
         df = pd.DataFrame(columns=columns)
         df.to_csv(filename, index=False, header=True)
 

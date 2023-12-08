@@ -7,9 +7,15 @@ authors:
     affil: 1
   - name: "Nestor Cerpa"
     affil: 1
+  - name: "Andréa Tommasi"
+    affil: 1
+  - name: "José Alberto Padrón Navarta"
+    affil: 2
 affiliations:
   - number: 1
-    name: "Géosciences Montpellier, Université de Montpellier, 34070 Montpellier France"
+    name: "Géosciences Montpellier, Université de Montpellier & CNRS, Montpellier, France"
+  - number: 2
+    name: "Instituto Andaluz de Ciencias de la Tierra, CSIC–UGR, Granada, Spain"
 corresponding_author:
   - name: "Buchanan Kerswell"
     email: "buchanan.kerswell@umontpellier.fr"

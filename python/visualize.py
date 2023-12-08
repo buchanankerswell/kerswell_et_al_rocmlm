@@ -112,6 +112,61 @@ def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, crust_thickness=3
     return P_values, T_values, targets
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# get 1d reference models !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_1d_reference_models():
+    """
+    """
+    # Data asset dir
+    data_dir = "assets/data"
+
+    # Check for data dir
+    if not os.path.exists(data_dir):
+        raise Exception(f"Data not found at {data_dir}!")
+
+    # Reference model paths
+    ref_paths = {"prem": f"{data_dir}/PREM_1s.csv", "ak135": f"{data_dir}/AK135F_AVG.csv",
+                 "stw105": f"{data_dir}/STW105.csv"}
+
+    # Define column headers
+    prem_cols = ["radius", "depth", "rho", "Vp", "Vph", "Vs", "Vsh", "eta", "Q_mu",
+                 "Q_kappa"]
+    ak135_cols = ["depth", "rho", "Vp", "Vs", "Q_kappa", "Q_mu"]
+    stw105_cols = ["radius", "rho", "Vp", "Vs", "unk1", "unk2", "Vph", "Vsh", "eta"]
+
+    ref_cols = {"prem": prem_cols, "ak135": ak135_cols, "stw105": stw105_cols}
+    columns_to_keep = ["depth", "P", "rho", "Vp", "Vs"]
+
+    # Initialize reference models
+    ref_models = {}
+
+    # Load reference models
+    for name, path in ref_paths.items():
+        if not os.path.exists(path):
+            raise Exception(f"Refernce model {name} not found at {path}!")
+
+        # Read reference model
+        model = pd.read_csv(path, header=None, names=ref_cols[name])
+
+        # Transform units
+        if name == "stw105":
+            model["depth"] = (model["radius"].max() - model["radius"]) / 1000
+            model["rho"] = model["rho"] / 1000
+            model["Vp"] = model["Vp"] / 1000
+            model["Vs"] = model["Vs"] / 1000
+
+        model["P"] = model["depth"] / 30
+
+        # Clean up df
+        model = model[columns_to_keep]
+        model = model.round(3)
+
+        # Save model
+        ref_models[name] = model
+
+    return ref_models
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # combine plots horizontally !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def combine_plots_horizontally(image1_path, image2_path, output_path, caption1, caption2,
@@ -1012,7 +1067,7 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
 # visualize gfem efficiency !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.png",
-                              figwidth=6.3, figheight=5, fontsize=22):
+                              figwidth=6.3, figheight=3.54, fontsize=12):
     """
     """
     # Data assets dir
@@ -1095,8 +1150,8 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
     plt.yscale("log")
 
     # Create the legend with the desired order
-    plt.legend(legend_handles, legend_labels, title="", fontsize=fontsize * 0.694,
-               handletextpad=0.1)
+    plt.legend(title="", handles=legend_handles, loc="center left",
+               bbox_to_anchor=(1.02, 0.5))
 
     # Adjust the figure size
     fig = plt.gcf()
@@ -1135,15 +1190,13 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
 
-    # Read PREM data
-    df_prem = pd.read_csv(f"{data_dir}/prem.csv")
+    # Get 1D reference models
+    ref_models = get_1d_reference_models()
 
-    # Extract depth and target values
-    target_prem = df_prem[target]
-    depth_prem = df_prem["depth"]
-
-    # Transform depth to pressure
-    P_prem = depth_prem / 30
+    # Get 1D refernce model profiles
+    P_prem, target_prem = ref_models["prem"]["P"], ref_models["prem"][target]
+    P_ak135, target_ak135 = ref_models["ak135"]["P"], ref_models["ak135"][target]
+    P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
 
     # Initialize geotherms
     P_mgm, P_ppx, P_ml, P_pum = None, None, None, None
@@ -1177,9 +1230,13 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Create cropping mask for prem
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
+    mask_ak135 = (P_ak135 >= P_min) & (P_ak135 <= P_max)
+    mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
 
     # Crop pressure and target values
     P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
+    P_ak135, target_ak135 = P_ak135[mask_ak135], target_ak135[mask_ak135]
+    P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
 
     # Crop results
     if results_mgm:
@@ -1198,10 +1255,24 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Get min max
     target_min = min(min(np.nanmin(lst) for lst in
                          [target_mgm, target_ppx, target_ml, target_pum] if lst is not None),
-                     min(target_prem))
+                     min(np.nanmin(lst) for lst in
+                         [target_prem, target_ak135, target_stw105]))
     target_max = max(max(np.nanmax(lst) for lst in
                          [target_mgm, target_ppx, target_ml, target_pum] if lst is not None),
-                     max(target_prem))
+                     max(np.nanmin(lst) for lst in
+                         [target_prem, target_ak135, target_stw105]))
+
+    # Interpolate reference models to match GFEM and RocMLM profiles
+    if results_ppx:
+        xnew = np.linspace(target_min, target_max, len(target_ppx))
+        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
+        P_ak135, target_ak135 = np.interp(xnew, target_ak135, P_ak135), xnew
+        P_stw105, target_stw105 = np.interp(xnew, target_stw105, P_stw105), xnew
+    if results_ml:
+        xnew = np.linspace(target_min, target_max, len(target_ml))
+        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
+        P_ak135, target_ak135 = np.interp(xnew, target_ak135, P_ak135), xnew
+        P_stw105, target_stw105 = np.interp(xnew, target_stw105, P_stw105), xnew
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1219,23 +1290,16 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Plotting
     fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
 
-#    if results_pum:
-#        ax1.plot(target_pum, P_pum, "-", linewidth=3, color=colormap(0), label="PUM")
-#    if results_mgm:
-#        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_mgm))
-#        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-#        ax1.plot(target_mgm, P_mgm, "-", linewidth=3, color=colormap(0), label=sample_id)
+    # Plot GFEM and RocMLM profiles
     if results_ppx:
-        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ppx))
-        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
         ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(0), label=sample_id)
     if results_ml:
-        xnew = np.linspace(np.min(target_prem), np.max(target_prem), len(target_ml))
-        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        ax1.plot(target_ml, P_ml, "--", linewidth=3, color=colormap(1), label=model)
+        ax1.plot(target_ml, P_ml, "-.", linewidth=3, color=colormap(1), label=model)
 
-    # Plot PREM
+    # Plot reference models
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
+    ax1.plot(target_ak135, P_ak135, "--", linewidth=2, color="black", label="AK135")
+    ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black", label="STW105")
 
     if target == "rho":
         target_label = "Density"
@@ -2778,7 +2842,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
 
     # Add colorbar
     cbaxes = inset_axes(ax2, width="50%", height="3%", loc=1)
-    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Depletion",
+    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility Index",
                             orientation="horizontal")
     colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
 
