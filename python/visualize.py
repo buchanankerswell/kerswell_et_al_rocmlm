@@ -2769,7 +2769,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
 
     # Create colorbar
     norm = plt.Normalize(data[D_col].min(), data[D_col].max())
-    sm = plt.cm.ScalarMappable(cmap="magma", norm=norm)
+    sm = plt.cm.ScalarMappable(cmap="magma_r", norm=norm)
     sm.set_array([])
 
     for c in range(len(mixing_array_endpoints)):

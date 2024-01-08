@@ -104,7 +104,7 @@ def get_conda_packages(condafile):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def download_and_unzip(url, filename, destination):
     try:
-        print(f"Downloading assets and extracting into {destination} ...")
+        print(f"Downloading assets ...")
         # Download the file
         response = urllib.request.urlopen(url)
 
