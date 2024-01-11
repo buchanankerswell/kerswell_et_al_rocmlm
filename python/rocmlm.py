@@ -22,6 +22,8 @@ import multiprocessing as mp
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter
+from scipy.interpolate import RegularGridInterpolator
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # plotting !!
@@ -57,6 +59,62 @@ def get_unique_value(input_list):
             raise ValueError("Not all values are the same!")
 
     return unique_value
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# evaluate lut efficiency !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def evaluate_lut_efficiency(gfem_models):
+    """
+    """
+    # Check for models
+    if not gfem_models:
+        raise Exception("No GFEM models to compile!")
+
+    # Get feature (PTX) arrays
+    P = np.unique(gfem_models[0].feature_array[:, 0])
+    T = np.unique(gfem_models[0].feature_array[:, 1])
+    X = np.array([m.fertility_index for m in gfem_models if m.dataset == "train"])
+
+    # Make X increase monotonically
+    X = np.linspace(np.min(X), np.max(X), X.shape[0])
+
+    # Get central PTX points
+    P_point = (np.max(P) - np.min(P)) / 2
+    T_point = (np.max(T) - np.min(T)) / 2
+    X_point = (np.max(X) - np.min(X)) / 2
+
+    # Get target arrays
+    target_train = np.stack([m.target_array for m in gfem_models if m.dataset == "train"])
+
+    # Initialize eval times
+    eval_times = []
+
+    # Clock evaluation time for each target
+    for i in range(target_train.shape[-1] - 1):
+        # Select a single target array
+        Z = target_train[:, :, i]
+
+        # Reshape into 3d rectilinear grid
+        Z = np.reshape(Z, (X.shape[0], P.shape[0], T.shape[0]))
+
+        # Initialize interpolator
+        I = RegularGridInterpolator((X, P, T), Z, method="cubic", bounds_error=False)
+
+        # Time lookup table evaluation at central PT point
+        start_time = time.time()
+        point_eval = I(np.array([X_point, P_point, T_point]))
+        end_time = time.time()
+
+        # Calculate evaluation time
+        elapsed_time = (end_time - start_time) * 1000
+
+        # Save elapsed time
+        eval_times.append(elapsed_time)
+
+    with open("assets/data/lut-efficiency.txt", "w") as f:
+        f.write(str(sum(eval_times)) + "\n")
+
+    return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # train rocmlms !!

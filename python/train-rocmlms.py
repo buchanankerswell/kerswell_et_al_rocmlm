@@ -1,7 +1,7 @@
 import glob
 from scripting import parse_arguments, check_arguments
 from gfem import get_sampleids, build_gfem_models
-from rocmlm import train_rocmlms
+from rocmlm import train_rocmlms, evaluate_lut_efficiency
 from visualize import visualize_rocmlm_performance, visualize_rocmlm, compose_rocmlm_plots
 
 # Parse arguments and check
@@ -22,21 +22,26 @@ sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
 
 # Build GFEM models
 for name, source in sources.items():
-    if name == "benchmark":
-        sids = get_sampleids(source, "all")
-    else:
-        sids = get_sampleids(source, "all")[::32]
+    sids = get_sampleids(source, "all")
     gfems[name] = build_gfem_models(source, sids)
 
 # Train RocMLMs
 for name, models in gfems.items():
     if name == "benchmark":
-        rocmlms[name] = train_rocmlms(models, ["KN", "DT", "RF", "NN1", "NN2", "NN3"])
+        mlms = ["KN", "DT", "RF", "NN1", "NN2", "NN3"]
     else:
-        rocmlms[name] = train_rocmlms(models, ["DT", "KN"])
+        mlms = ["KN", "DT"]
+
+    # Train RocMLMs
+    rocmlms[name] = train_rocmlms(models, mlms)
+
+    # Clock LUT efficiency
+    if name == "top":
+        evaluate_lut_efficiency(models)
 
 # Visualize rocmlm performance
-visualize_rocmlm_performance(["rho", "Vp", "Vs"], 128)
+targets, res  = ["rho", "Vp", "Vs"], 128
+visualize_rocmlm_performance(targets, res)
 
 # Visualize RocMLMs
 for name, models in rocmlms.items():

@@ -35,6 +35,20 @@ from sklearn.metrics import r2_score, mean_squared_error
 #######################################################
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# get unique value !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def get_unique_value(input_list):
+    """
+    """
+    unique_value = input_list[0]
+
+    for item in input_list[1:]:
+        if item != unique_value:
+            raise ValueError("Not all values are the same!")
+
+    return unique_value
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get sampleids !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_sampleids(filepath, batch, n_batches=8):
@@ -473,7 +487,7 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, program, dataset, sample_id, source, res, P_min=1, P_max=28,
                  T_min=773, T_max=2273, oxides_exclude=["H2O", "FE2O3"],
-                 targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, verbose=1,
+                 targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, seed=42, verbose=1,
                  debug=True):
         """
         """
@@ -490,6 +504,7 @@ class GFEMModel:
         self.dataset = dataset
         self.targets = targets
         self.mask_geotherm = maskgeotherm
+        self.seed = seed
         self.verbose = verbose
         self.debug = debug
 
@@ -531,6 +546,7 @@ class GFEMModel:
 
         # Results
         self.sample_composition = []
+        self.fertility_index = None
         self.sample_features = []
         self.norm_sample_composition = []
         self.comp_time = None
@@ -603,6 +619,9 @@ class GFEMModel:
 
         if subset_df.empty:
             raise ValueError("Sample name not found in the dataset!")
+
+        # Get Fertility Index
+        self.fertility_index = float(subset_df["D_FRAC"].values)
 
         # Get the oxide compositions for the selected sample
         composition = []

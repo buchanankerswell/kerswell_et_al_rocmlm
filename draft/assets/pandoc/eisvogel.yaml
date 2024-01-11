@@ -1,11 +1,12 @@
 ---
-title: "RocMLMs: Rock Properties Prediction through Machine Learning Models"
+title: "RocMLMs: Predicting Rock Properties through Machine Learning Models"
 subtitle: ""
 author:
   - "Buchanan Kerswell"
   - "Nestor Cerpa"
   - "Andréa Tommasi"
-  - "José Alberto Padrón Navarta"
+  - "Marguerite Godard"
+  - "José Alberto Padrón-Navarta"
 institute:
   - "Géosciences Montpellier, Université de Montpellier & CNRS, Montpellier, France"
   - "Instituto Andaluz de Ciencias de la Tierra, CSIC–UGR, Granada, Spain"

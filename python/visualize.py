@@ -2393,6 +2393,11 @@ def visualize_rocmlm_performance(targets, res, fig_dir="figs/rocmlm", filename="
         1000
     )
 
+    # Get LUT time
+    with open(f"{data_dir}/lut-efficiency.txt", "r") as f:
+        content = f.read()
+        time_lut = float(content)
+
     # Define the metrics to plot
     metrics = ["training_time_mean", "inference_time_mean", "rmse_test_mean",
                "rmse_val_mean"]
@@ -2440,10 +2445,12 @@ def visualize_rocmlm_performance(targets, res, fig_dir="figs/rocmlm", filename="
             plt.gca().set_xticklabels([])
 
         elif metric == "inference_time_mean":
+            lut_line = plt.axhline(time_lut, color="black", linestyle=":",
+                                   label="Lookup Table", alpha=0.5)
             mgm_line = plt.axhline(time_mgm, color="black", linestyle="-", label="MAGEMin",
-                                   alpha=0.3)
+                                   alpha=0.5)
             ppx_line = plt.axhline(time_ppx, color="black", linestyle="--", label="Perple_X",
-                                   alpha=0.3)
+                                   alpha=0.5)
 
             order = summary_df[metric].sort_values().index
             models_order = summary_df.loc[order]["model"].tolist()
@@ -2457,7 +2464,7 @@ def visualize_rocmlm_performance(targets, res, fig_dir="figs/rocmlm", filename="
             plt.title(f"{metric_names[i]}")
             plt.ylabel("Elapsed Time (ms)")
             plt.yscale("log")
-            handles = [mgm_line, ppx_line]
+            handles = [lut_line, mgm_line, ppx_line]
             labels = [handle.get_label() for handle in handles]
             legend = plt.legend(fontsize="x-small")
             plt.gca().set_xticks([])
@@ -2540,7 +2547,7 @@ def visualize_rocmlm_performance(targets, res, fig_dir="figs/rocmlm", filename="
                     summary_df.loc[order][f"rmse_val_mean_{target}"].values
                 ]))
 
-                vmax = max_mean + max_error + ((max_mean + max_error) * 0.01)
+                vmax = max_mean + max_error + ((max_mean + max_error) * 1)
                 y_label_pos.append(max_mean)
 
                 bars = plt.bar(x_pos * bar_width,

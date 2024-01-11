@@ -1,7 +1,7 @@
 ---
 journal: "Geochemistry, Geophysics, Geosystems"
 classoption: "draft,linenumbers"
-title: "RocMLMs: Rock Properties Prediction through Machine Learning Models"
+title: "RocMLMs: Predicting Rock Properties through Machine Learning Models"
 authors:
   - name: "Buchanan Kerswell"
     affil: 1
@@ -9,7 +9,9 @@ authors:
     affil: 1
   - name: "Andréa Tommasi"
     affil: 1
-  - name: "José Alberto Padrón Navarta"
+  - name: "Marguerite Godard"
+    affil: 1
+  - name: "José Alberto Padrón-Navarta"
     affil: 2
 affiliations:
   - number: 1

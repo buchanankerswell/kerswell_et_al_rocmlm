@@ -3,15 +3,15 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - python
   - numpy
   - pandas
-  - scikit-learn
-  - python
+  - pandas
   - scipy
+  - scikit-learn
   - seaborn
-  - pyyaml
   - matplotlib
   - gitpython
-  - tabulate
+  - pyyaml
   - tqdm
   - opencv

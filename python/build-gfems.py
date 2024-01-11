@@ -1,5 +1,5 @@
 from scripting import parse_arguments, check_arguments
-from gfem import get_sampleids, build_gfem_models, analyze_gfem_model
+from gfem import get_sampleids, build_gfem_models
 from visualize import (visualize_gfem_design, visualize_gfem_efficiency, visualize_gfem,
                        visualize_gfem_diff, visualize_gfem_analysis, compose_dataset_plots,
                        create_dataset_movies)
