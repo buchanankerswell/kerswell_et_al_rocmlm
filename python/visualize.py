@@ -1242,16 +1242,16 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if results_pum:
         P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold)
 
-    # Get min and max P from geotherms
+    # Get min and max P
     P_min = min(np.nanmin(P) for P in [P_mgm, P_ppx, P_ml, P_pum] if P is not None)
     P_max = max(np.nanmax(P) for P in [P_mgm, P_ppx, P_ml, P_pum] if P is not None)
 
-    # Create cropping mask for prem
+    # Create cropping mask
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
     mask_ak135 = (P_ak135 >= P_min) & (P_ak135 <= P_max)
     mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
 
-    # Crop pressure and target values
+    # Crop profiles
     P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
     P_ak135, target_ak135 = P_ak135[mask_ak135], target_ak135[mask_ak135]
     P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
@@ -1270,27 +1270,21 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
         P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
 
-    # Get min max
-    target_min = min(min(np.nanmin(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum] if lst is not None),
-                     min(np.nanmin(lst) for lst in
-                         [target_prem, target_ak135, target_stw105]))
-    target_max = max(max(np.nanmax(lst) for lst in
-                         [target_mgm, target_ppx, target_ml, target_pum] if lst is not None),
-                     max(np.nanmin(lst) for lst in
-                         [target_prem, target_ak135, target_stw105]))
+    # Initialize interpolators
+    interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
+    interp_ak135 = interp1d(P_ak135, target_ak135, fill_value="extrapolate")
+    interp_stw105 = interp1d(P_stw105, target_stw105, fill_value="extrapolate")
 
-    # Interpolate reference models to match GFEM and RocMLM profiles
+    # New x values for interpolation
     if results_ppx:
-        xnew = np.linspace(target_min, target_max, len(target_ppx))
-        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        P_ak135, target_ak135 = np.interp(xnew, target_ak135, P_ak135), xnew
-        P_stw105, target_stw105 = np.interp(xnew, target_stw105, P_stw105), xnew
+        x_new = np.linspace(P_min, P_max, len(P_ppx))
     if results_ml:
-        xnew = np.linspace(target_min, target_max, len(target_ml))
-        P_prem, target_prem = np.interp(xnew, target_prem, P_prem), xnew
-        P_ak135, target_ak135 = np.interp(xnew, target_ak135, P_ak135), xnew
-        P_stw105, target_stw105 = np.interp(xnew, target_stw105, P_stw105), xnew
+        x_new = np.linspace(P_min, P_max, len(P_ml))
+
+    # Interpolate profiles
+    P_prem, target_prem = x_new, interp_prem(x_new)
+    P_ak135, target_ak135 = x_new, interp_ak135(x_new)
+    P_stw105, target_stw105 = x_new, interp_stw105(x_new)
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1316,8 +1310,8 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Plot reference models
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
-    ax1.plot(target_ak135, P_ak135, "--", linewidth=2, color="black", label="AK135")
-    ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black", label="STW105")
+    ax1.plot(target_ak135, P_ak135, "--", linewidth=2, color="black", label="")
+    ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black", label="")
 
     if target == "rho":
         target_label = "Density"
@@ -1326,7 +1320,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     ax1.set_xlabel(f"{target_label} ({target_unit})")
     ax1.set_ylabel("P (GPa)")
-    ax1.set_xticks(np.linspace(target_min, target_max, num=4))
 
     if target in ["Vp", "Vs", "rho"]:
         ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
@@ -3147,7 +3140,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
                                    linestyle="None", alpha=1)
             legend_handles.append(marker)
 
-            scatter = ax.scatter(data[D_col], data["RMSE_PREM_PROFILE"],
+            scatter = ax.scatter(data[D_col], data["RMSE_PREM"],
                                  edgecolors="none", color=colormap(i), marker=".", s=150,
                                  label=comp)
 
@@ -3157,13 +3150,13 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
         df_bench = df_bench[df_bench["TARGET"] == target]
         for l, name in enumerate(["PUM", "DMM"]):
             sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=D_col,
-                            y="RMSE_PREM_PROFILE", facecolor=face_colors[l],
+                            y="RMSE_PREM", facecolor=face_colors[l],
                             edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
                             ax=ax, zorder=7)
             ax.annotate(
                 name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, D_col].iloc[0],
                           df_bench.loc[df_bench["SAMPLEID"] == name,
-                                       "RMSE_PREM_PROFILE"].iloc[0]),
+                                       "RMSE_PREM"].iloc[0]),
                 xytext=(5, 10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                           edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),

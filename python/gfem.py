@@ -11,7 +11,6 @@ import shutil
 import itertools
 import subprocess
 from datetime import datetime
-import matplotlib.pyplot as plt
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parallel computing !!
@@ -203,17 +202,6 @@ def get_1d_reference_models():
     # Invert STW105
     ref_models["stw105"] = ref_models["stw105"].sort_values(by="depth", ascending=True)
 
-#    prem = ref_models["prem"][ref_models["prem"]["P"] <= 28]
-#    ak135 = ref_models["ak135"][ref_models["ak135"]["P"] <= 28]
-#    stw105 = ref_models["stw105"][ref_models["stw105"]["P"] <= 28]
-#
-#    plt.plot(prem["Vs"], prem["P"], label="prem")
-#    plt.plot(ak135["Vs"], ak135["P"], label="ak135")
-#    plt.plot(stw105["Vs"], stw105["P"], label="stw105")
-#
-#    plt.legend()
-#    plt.show()
-
     return ref_models
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -273,14 +261,16 @@ def analyze_gfem_model(gfem_model, filename):
         P_min = np.nanmin(P_model)
         P_max = np.nanmax(P_model)
 
-        # Crop profiles
+        # Create cropping mask
         mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
-        P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
         mask_ak135 = (P_ak135 >= P_min) & (P_ak135 <= P_max)
-        P_ak135, target_ak135 = P_ak135[mask_ak135], target_ak135[mask_ak135]
         mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
-        P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
         mask_model = (P_model >= P_min) & (P_model <= P_max)
+
+        # Crop profiles
+        P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
+        P_ak135, target_ak135 = P_ak135[mask_ak135], target_ak135[mask_ak135]
+        P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
         P_model, target_model = P_model[mask_model], target_model[mask_model]
 
         # Initialize interpolators
