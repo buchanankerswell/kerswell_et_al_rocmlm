@@ -268,7 +268,7 @@ class MixingArray:
     def __init__(self, res=128, mc_sample=1, weighted_random=True, k=1.5, D_tio2=5e-2,
                  seed=42, verbose=1):
         # Input
-        self.res = res
+        self.res = res + 1
         self.mc_sample = mc_sample
         self.weighted_random = weighted_random
         self.k = k

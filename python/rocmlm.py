@@ -86,33 +86,63 @@ def evaluate_lut_efficiency(gfem_models):
     # Get target arrays
     target_train = np.stack([m.target_array for m in gfem_models if m.dataset == "train"])
 
-    # Initialize eval times
-    eval_times = []
+    # Initialize df columns
+    sample, program, dataset, size, eval_time = [], [], [], [], []
 
-    # Clock evaluation time for each target
-    for i in range(target_train.shape[-1] - 1):
-        # Select a single target array
-        Z = target_train[:, :, i]
+    # Iterate through X resolutions (8, 16, 32, 64, 128)
+    for X_step in [1, 2, 4, 8, 16]:
+        # Subset grid
+        X_sub = X[::X_step]
 
-        # Reshape into 3d rectilinear grid
-        Z = np.reshape(Z, (X.shape[0], P.shape[0], T.shape[0]))
+        # Iterate through PT grid resolutions (8, 16, 32, 64, 128)
+        for step in [1, 2, 4, 8, 16]:
+            # Subset grid
+            P_sub = P[::step]
+            T_sub = T[::step]
 
-        # Initialize interpolator
-        I = RegularGridInterpolator((X, P, T), Z, method="cubic", bounds_error=False)
+            # Initialize eval times
+            eval_times = []
 
-        # Time lookup table evaluation at central PT point
-        start_time = time.time()
-        point_eval = I(np.array([X_point, P_point, T_point]))
-        end_time = time.time()
+            # Clock evaluation time for each target
+            for i in range(target_train.shape[-1] - 1):
+                # Select a single target array
+                Z = target_train[:, :, i]
 
-        # Calculate evaluation time
-        elapsed_time = (end_time - start_time) * 1000
+                # Reshape into 3d rectilinear grid
+                Z = np.reshape(Z, (X.shape[0], P.shape[0], T.shape[0]))
 
-        # Save elapsed time
-        eval_times.append(elapsed_time)
+                # Subset grid
+                Z_sub = Z[::X_step, ::step, ::step]
 
-    with open("assets/data/lut-efficiency.txt", "w") as f:
-        f.write(str(sum(eval_times)) + "\n")
+                # Initialize interpolator
+                I = RegularGridInterpolator((X_sub, P_sub, T_sub), Z_sub, method="cubic",
+                                            bounds_error=False)
+
+                # Time lookup table evaluation at central PT point
+                start_time = time.time()
+                point_eval = I(np.array([X_point, P_point, T_point]))
+                end_time = time.time()
+
+                # Calculate evaluation time
+                elapsed_time = (end_time - start_time)
+
+                # Save elapsed time
+                eval_times.append(elapsed_time)
+
+            # Store df info
+            sample.append(f"SMA{X_sub.shape[0] - 1}")
+            program.append("LUT")
+            dataset.append("train")
+            size.append((P_sub.shape[0] - 1)**2)
+            eval_time.append(round(sum(eval_times), 5))
+
+    # Create df
+    evals = {"sample": sample, "program": program, "dataset": dataset, "size": size,
+             "time": eval_time}
+    evals_df = pd.DataFrame(evals)
+
+    # Write CSV
+    evals_df.to_csv("assets/data/lut-efficiency.csv", index=False)
 
     return None
 

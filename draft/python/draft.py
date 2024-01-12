@@ -275,11 +275,11 @@ def write_markdown_tables():
     else:
         print(f"Warning: {data_dir}/rocmlm-config.csv does not exist!")
 
-    if os.path.exists(f"{data_dir}/rocml-performance.csv"):
-        print("Writing rocml-performance.md")
+    if os.path.exists(f"{data_dir}/rocmlm-performance.csv"):
+        print("Writing rocmlm-performance.md")
 
-        # RocML performance metrics
-        df = pd.read_csv(f"{data_dir}/rocml-performance.csv")
+        # RocMLM performance metrics
+        df = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
 
         # Drop columns
         df.drop(["n_targets", "k_folds"], axis=1, inplace=True)
@@ -321,16 +321,16 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": RocML performance measured on an (unseen) validation dataset. "
-                   "t = elapsed time, $\\varepsilon$ = RMSE. {#tbl:rocml-performance}")
+        caption = (": RocMLM performance measured on an (unseen) validation dataset. "
+                   "t = elapsed time, $\\varepsilon$ = RMSE. {#tbl:rocmlm-performance}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/rocml-performance.md", "w") as file:
+        with open(f"{pandoc_dir}/rocmlm-performance.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
     else:
-        print(f"Warning: {data_dir}/rocml-performance.csv does not exist!")
+        print(f"Warning: {data_dir}/rocmlm-performance.csv does not exist!")
 
     if os.path.exists(f"{data_dir}/gfem-efficiency.csv"):
         print("Writing gfem-efficiency.md")

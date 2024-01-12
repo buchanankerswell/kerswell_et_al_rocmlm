@@ -11,6 +11,7 @@ import shutil
 import itertools
 import subprocess
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # parallel computing !!
@@ -28,6 +29,7 @@ import pandas as pd
 # machine learning !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from sklearn.impute import KNNImputer
+from scipy.interpolate import interp1d
 from sklearn.metrics import r2_score, mean_squared_error
 
 #######################################################
@@ -198,6 +200,20 @@ def get_1d_reference_models():
         # Save model
         ref_models[name] = model
 
+    # Invert STW105
+    ref_models["stw105"] = ref_models["stw105"].sort_values(by="depth", ascending=True)
+
+#    prem = ref_models["prem"][ref_models["prem"]["P"] <= 28]
+#    ak135 = ref_models["ak135"][ref_models["ak135"]["P"] <= 28]
+#    stw105 = ref_models["stw105"][ref_models["stw105"]["P"] <= 28]
+#
+#    plt.plot(prem["Vs"], prem["P"], label="prem")
+#    plt.plot(ak135["Vs"], ak135["P"], label="ak135")
+#    plt.plot(stw105["Vs"], stw105["P"], label="stw105")
+#
+#    plt.legend()
+#    plt.show()
+
     return ref_models
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -267,20 +283,23 @@ def analyze_gfem_model(gfem_model, filename):
         mask_model = (P_model >= P_min) & (P_model <= P_max)
         P_model, target_model = P_model[mask_model], target_model[mask_model]
 
-        # Get min max
-        target_min = min(min(target_model), min(np.nanmin(lst) for lst in
-                                            [target_prem, target_ak135, target_stw105]))
-        target_max = max(max(target_model), max(np.nanmin(lst) for lst in
-                                                [target_prem, target_ak135, target_stw105]))
+        # Initialize interpolators
+        interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
+        interp_ak135 = interp1d(P_ak135, target_ak135, fill_value="extrapolate")
+        interp_stw105 = interp1d(P_stw105, target_stw105, fill_value="extrapolate")
+
+        # New x values for interpolation
+        x_new = np.linspace(P_min, P_max, len(P_model))
 
         # Interpolate profiles
-        x_new = np.linspace(target_min, target_max, len(target_model))
-        P_prem, target_prem = np.interp(x_new, target_prem, P_prem), x_new
-        P_ak135, target_ak135 = np.interp(x_new, target_ak135, P_ak135), x_new
-        P_stw105, target_stw105 = np.interp(x_new, target_stw105, P_stw105), x_new
+        P_prem, target_prem = x_new, interp_prem(x_new)
+        P_ak135, target_ak135 = x_new, interp_ak135(x_new)
+        P_stw105, target_stw105 = x_new, interp_stw105(x_new)
+
+        # Create nan mask
+        nan_mask = np.isnan(target_model)
 
         # Remove nans
-        nan_mask = np.isnan(target_model)
         P_model, target_model = P_model[~nan_mask], target_model[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         P_ak135, target_ak135 = P_ak135[~nan_mask], target_ak135[~nan_mask]
@@ -299,12 +318,9 @@ def analyze_gfem_model(gfem_model, filename):
 
     # Save results
     results = {"SAMPLEID": [sample_id] * len(targets), "PROGRAM": [program] * len(targets),
-               "TARGET": targets, "RMSE_PREM_PROFILE": rmse_prem_profile,
-               "R2_PREM_PROFILE": r2_prem_profile,
-               "RMSE_AK135_PROFILE": rmse_ak135_profile,
-               "R2_AK135_PROFILE": r2_ak135_profile,
-               "RMSE_STW105_PROFILE": rmse_stw105_profile,
-               "R2_STW105_PROFILE": r2_stw105_profile}
+               "TARGET": targets, "RMSE_PREM": rmse_prem_profile, "R2_PREM": r2_prem_profile,
+               "RMSE_AK135": rmse_ak135_profile, "R2_AK135": r2_ak135_profile,
+               "RMSE_STW105": rmse_stw105_profile, "R2_STW105": r2_stw105_profile}
 
     # Create dataframe
     df = pd.DataFrame(results)

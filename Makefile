@@ -31,9 +31,10 @@ DATAPURGE = \
 						log \
 						python/__pycache__ \
 						$(DATADIR)/synthetic*.csv \
+						$(DATADIR)/gfem-analysis.csv \
+						$(DATADIR)/lut-efficiency.txt \
 						$(DATADIR)/earthchem-counts.csv \
 						$(DATADIR)/earthchem-samples-pca.csv \
-						$(DATADIR)/earthchem-imputed-counts.csv \
 						$(DATADIR)/benchmark-samples-pca.csv
 DATACLEAN = \
 						assets \
@@ -61,6 +62,10 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 
 rocmlms: initialize
 	@$(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
+	@echo "=============================================" $(LOG)
+
+test: initialize
+	@$(CONDAPYTHON) -u python/test.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 gfems: initialize

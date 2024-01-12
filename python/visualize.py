@@ -1079,12 +1079,16 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
 
     # Read data
     data = pd.read_csv(f"{data_dir}/gfem-efficiency.csv")
+    data_lut = pd.read_csv(f"{data_dir}/lut-efficiency.csv")
+
+    # Combine data
+    data = pd.concat([data, data_lut], axis=0, ignore_index=True)
 
     # Filter out validation dataset
     data = data[data["dataset"] == "train"]
 
     # Filter out non-benchmark samples
-    data = data[data["sample"].isin(["DMM", "PUM"])]
+    data = data[data["sample"].isin(["DMM", "PUM", "SMA128", "SMA64"])]
 
     # Arrange data by resolution and sample
     data.sort_values(by=["size", "sample", "program"], inplace=True)
@@ -1101,9 +1105,8 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
 
     # Create a dictionary to map samples to colors using a colormap
     colormap = plt.cm.get_cmap("tab10")
-    #sample_colors = {"DMM": colormap(0), "PUM": colormap(1)}
-    sample_colors = {"DMM": "black", "PUM": "black"}
-    sample_linetypes = {"DMM": ":", "PUM": "-"}
+    sample_colors = {"DMM": "black", "PUM": "black", "SMA128": "black", "SMA64": "black"}
+    sample_linetypes = {"DMM": ":", "PUM": "-", "SMA128": "--", "SMA64": "-."}
 
     # Group the data by sample
     grouped_data = data.groupby(["sample"])
@@ -1118,34 +1121,49 @@ def visualize_gfem_efficiency(fig_dir="figs/other", filename="gfem-efficiency.pn
         color_val = sample_colors[sample_id]
         line_val = sample_linetypes[sample_id]
 
-        # Filter out rows with missing time values for mgm column
+        # mgm data
         mgm_data = group_data[group_data["program"] == "magemin"]
         mgm_x = mgm_data["size"]
-        mgm_y = mgm_data["time"]
+        mgm_y = mgm_data["time"] / mgm_x * 1000
 
-        # Filter out rows with missing time values for ppx column
+        # ppx data
         ppx_data = group_data[group_data["program"] == "perplex"]
         ppx_x = ppx_data["size"]
-        ppx_y = ppx_data["time"]
+        ppx_y = ppx_data["time"] / ppx_x * 1000
+
+        # lut data
+        lut_data = group_data[group_data["program"] == "LUT"]
+        lut_x = lut_data["size"]
+        lut_y = lut_data["time"] * 1000
 
         # Plot mgm data points and connect them with lines
         line_mgm, = plt.plot(mgm_x, mgm_y, marker="o", color=color_val,
-                             linestyle=line_val, label=f"{sample_id} MAGEMin")
+                             linestyle=line_val, label=f"[{sample_id}] MAGEMin")
 
-        legend_handles.append(line_mgm)
-        legend_labels.append(f"{sample_id} MAGEMin")
+        if sample_id in ["DMM", "PUM"]:
+            legend_handles.append(line_mgm)
+            legend_labels.append(f"[{sample_id}] MAGEMin")
 
         # Plot ppx data points and connect them with lines
         line_ppx, = plt.plot(ppx_x, ppx_y, marker="s", color=color_val,
-                             linestyle=line_val, label=f"{sample_id} Perple_X")
+                             linestyle=line_val, label=f"[{sample_id}] Perple_X")
 
-        legend_handles.append(line_ppx)
-        legend_labels.append(f"{sample_id} Perple_X")
+        if sample_id in ["DMM", "PUM"]:
+            legend_handles.append(line_ppx)
+            legend_labels.append(f"[{sample_id}] Perple_X")
+
+        # Plot lut data points and connect them with lines
+        line_lut, = plt.plot(lut_x, lut_y, marker="^", color=color_val,
+                             linestyle=line_val, label=f"[{sample_id}] LUT")
+
+        if sample_id in ["SMA128", "SMA64"]:
+            legend_handles.append(line_lut)
+            legend_labels.append(f"[{sample_id}] LUT")
 
     # Set labels and title
     plt.xlabel("Number of PT Points")
-    plt.ylabel("Elapsed Time (s)")
-    plt.title("GFEM Efficiency")
+    plt.ylabel("Elapsed Time (ms)")
+    plt.title("GFEM & Lookup Table Efficiency")
     plt.xscale("log")
     plt.yscale("log")
 
@@ -3149,7 +3167,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
                 xytext=(5, 10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                           edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
-                fontsize=fontsize * 0.579, zorder=8
+                fontsize=fontsize * 0.694, zorder=8
             )
 
         if j == 0:
@@ -3163,7 +3181,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
                 legend.get_texts()[i].set_text(label)
 
         ax.set_title(f"{target_label} vs. PREM")
-        ax.set_xlabel("Depletion")
+        ax.set_xlabel("Fertility Index")
         ax.set_ylabel(f"RMSE ({units})")
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
