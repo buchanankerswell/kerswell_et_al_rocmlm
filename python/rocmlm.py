@@ -63,9 +63,13 @@ def get_unique_value(input_list):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # evaluate lut efficiency !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def evaluate_lut_efficiency(gfem_models):
+def evaluate_lut_efficiency(name, gfem_models):
     """
     """
+    # Check benchmark models
+    if name == "benchmark":
+        return None
+
     # Check for models
     if not gfem_models:
         raise Exception("No GFEM models to compile!")
@@ -87,16 +91,14 @@ def evaluate_lut_efficiency(gfem_models):
     target_train = np.stack([m.target_array for m in gfem_models if m.dataset == "train"])
 
     # Initialize df columns
-    sample, program, dataset, size, eval_time = [], [], [], [], []
+    sample, program, dataset, size, eval_time, model_size_mb = [], [], [], [], [], []
 
     # Iterate through X resolutions (8, 16, 32, 64, 128)
     for X_step in [1, 2, 4, 8, 16]:
-        # Subset grid
-        X_sub = X[::X_step]
-
         # Iterate through PT grid resolutions (8, 16, 32, 64, 128)
         for step in [1, 2, 4, 8, 16]:
             # Subset grid
+            X_sub = X[::X_step]
             P_sub = P[::step]
             T_sub = T[::step]
 
@@ -130,15 +132,29 @@ def evaluate_lut_efficiency(gfem_models):
                 eval_times.append(elapsed_time)
 
             # Store df info
-            sample.append(f"SMA{X_sub.shape[0] - 1}")
-            program.append("LUT")
+            if name == "top":
+                sample.append(f"SMAT{X_sub.shape[0] - 1}")
+            elif name == "bottom":
+                sample.append(f"SMAB{X_sub.shape[0] - 1}")
+            elif name == "random":
+                sample.append(f"SMAR{X_sub.shape[0] - 1}")
+            program.append("lut")
             dataset.append("train")
-            size.append((P_sub.shape[0] - 1)**2)
+            size.append((P_sub.shape[0] - 1) ** 2)
             eval_time.append(round(sum(eval_times), 5))
+
+            # Save ml model only
+            lut_path = f"rocmlms/lut-S{X_sub.shape[0] - 1}-W{P_sub.shape[0] - 1}.pkl"
+            with open(lut_path, "wb") as file:
+                joblib.dump(I, file)
+
+            # Add lut model size (Mb)
+            model_size = os.path.getsize(lut_path) * (target_train.shape[-1] - 1)
+            model_size_mb.append(round(model_size / (1024 ** 2), 5))
 
     # Create df
     evals = {"sample": sample, "program": program, "dataset": dataset, "size": size,
-             "time": eval_time}
+             "time": eval_time, "model_size_mb": model_size_mb}
     evals_df = pd.DataFrame(evals)
 
     # Write CSV
@@ -248,7 +264,7 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"]
 
     # Define array shapes
     M = int(len(gfem_models) / 2)
-    W = int((res+1)**2)
+    W = int((res + 1) ** 2)
     w = int(np.sqrt(W))
     F = int(len(training_features) + 2)
     T = int(len(targets))
@@ -257,37 +273,103 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"]
     shape_target = (M, W, T)
     shape_target_square = (M, w, w, T)
 
-    # Train rocmlm models
-    rocmlms = []
+    # Define PTX resolution steps
+    PT_steps = [16, 8, 4, 2, 1]
 
-    for model in ml_models:
-        rocmlm = RocMLM(program, sample_ids, res, targets, mask_geotherm, feature_train,
-                        feature_train_unmasked, target_train, target_train_unmasked,
-                        feature_valid, feature_valid_unmasked, target_valid,
-                        target_valid_unmasked, shape_feature, shape_feature_square,
-                        shape_target, shape_target_square, geotherm_mask_train,
-                        geotherm_mask_valid, model, tune, epochs, batchprop, kfolds,
-                        parallel, nprocs, seed, palette, verbose)
+    if any(sample in sample_ids for sample in ["PUM", "DMM"]):
+        X_steps = [1]
+    else:
+        X_steps = [16, 8, 4, 2, 1]
 
-        # Check for pretrained model
-        rocmlm._check_pretrained_model()
+    # Iterate through X resolutions (8, 16, 32, 64, 128)
+    for X_step in X_steps:
+        # Iterate through PT grid resolutions (8, 16, 32, 64, 128)
+        for step in PT_steps:
+            # Reshape arrays
+            new_feature_train = feature_train.reshape((shape_feature_square))
+            new_feature_train_unmasked = \
+                feature_train_unmasked.reshape((shape_feature_square))
+            new_target_train = target_train.reshape((shape_target_square))
+            new_target_train_unmasked = target_train_unmasked.reshape((shape_target_square))
+            new_feature_valid = feature_valid.reshape((shape_feature_square))
+            new_feature_valid_unmasked = \
+                feature_valid_unmasked.reshape((shape_feature_square))
+            new_target_valid = target_valid.reshape((shape_target_square))
+            new_target_valid_unmasked = target_valid_unmasked.reshape((shape_target_square))
+            new_geotherm_mask_train = geotherm_mask_train.reshape((M, w, w))
+            new_geotherm_mask_valid = geotherm_mask_valid.reshape((M, w, w))
 
-        if rocmlm.ml_model_trained:
-            pretrained_rocmlm = joblib.load(rocmlm.rocmlm_path)
-            rocmlms.append(pretrained_rocmlm)
+            # Subset arrays
+            new_feature_train = new_feature_train[::X_step, ::step, ::step, :]
+            new_feature_train_unmasked = \
+                new_feature_train_unmasked[::X_step, ::step, ::step, :]
+            new_target_train = new_target_train[::X_step, ::step, ::step, :]
+            new_target_train_unmasked = \
+                new_target_train_unmasked[::X_step, ::step, ::step, :]
+            new_feature_valid = new_feature_valid[::X_step, ::step, ::step, :]
+            new_feature_valid_unmasked = \
+                new_feature_valid_unmasked[::X_step, ::step, ::step, :]
+            new_target_valid = new_target_valid[::X_step, ::step, ::step, :]
+            new_target_valid_unmasked = \
+                new_target_valid_unmasked[::X_step, ::step, ::step, :]
+            new_geotherm_mask_train = new_geotherm_mask_train[::X_step, ::step, ::step]
+            new_geotherm_mask_valid = new_geotherm_mask_valid[::X_step, ::step, ::step]
 
-        else:
-            # Train rocmlm
-            rocmlm.train()
-            rocmlms.append(rocmlm)
+            # Redefine array shapes
+            new_M = np.ceil((len(gfem_models) / 2 / X_step)).astype(int)
+            new_W = int(((res / step) + 1) ** 2)
+            new_w = int(np.sqrt(new_W))
+            new_shape_feature = (new_M, new_W, F)
+            new_shape_feature_square = (new_M, new_w, new_w, F)
+            new_shape_target = (new_M, new_W, T)
+            new_shape_target_square = (new_M, new_w, new_w, T)
 
-            # Save rocmlm
-            with open(rocmlm.rocmlm_path, "wb") as file:
-                joblib.dump(rocmlm, file)
+            # Flatten arrays
+            new_feature_train = new_feature_train.reshape(-1, new_feature_train.shape[-1])
+            new_feature_train_unmasked = \
+                new_feature_train_unmasked.reshape(-1, new_feature_train_unmasked.shape[-1])
+            new_target_train = new_target_train.reshape(-1, new_target_train.shape[-1])
+            new_target_train_unmasked = \
+                new_target_train_unmasked.reshape(-1, new_target_train_unmasked.shape[-1])
+            new_feature_valid = new_feature_valid.reshape(-1, new_feature_valid.shape[-1])
+            new_feature_valid_unmasked = \
+                new_feature_valid_unmasked.reshape(-1, new_feature_valid_unmasked.shape[-1])
+            new_target_valid = new_target_valid.reshape(-1, new_target_valid.shape[-1])
+            new_target_valid_unmasked = \
+                new_target_valid_unmasked.reshape(-1, new_target_valid_unmasked.shape[-1])
+            new_geotherm_mask_train = new_geotherm_mask_train.flatten()
+            new_geotherm_mask_valid = new_geotherm_mask_valid.flatten()
 
-            # Save ml model only
-            with open(rocmlm.ml_model_only_path, "wb") as file:
-                joblib.dump(rocmlm.ml_model_only, file)
+            # Train rocmlm models
+            rocmlms = []
+
+            for model in ml_models:
+                rocmlm = RocMLM(program, sample_ids, res, targets, mask_geotherm,
+                                new_feature_train, new_feature_train_unmasked,
+                                new_target_train, new_target_train_unmasked,
+                                new_feature_valid, new_feature_valid_unmasked,
+                                new_target_valid, new_target_valid_unmasked,
+                                new_shape_feature, new_shape_feature_square,
+                                new_shape_target, new_shape_target_square,
+                                new_geotherm_mask_train, new_geotherm_mask_valid,
+                                model, tune, epochs, batchprop, kfolds, parallel, nprocs,
+                                seed, palette, verbose)
+
+                # Check for pretrained model
+                rocmlm._check_pretrained_model()
+
+                if rocmlm.ml_model_trained:
+                    pretrained_rocmlm = joblib.load(rocmlm.rocmlm_path)
+                    rocmlms.append(pretrained_rocmlm)
+
+                else:
+                    # Train rocmlm
+                    rocmlm.train()
+                    rocmlms.append(rocmlm)
+
+                    # Save rocmlm
+                    with open(rocmlm.rocmlm_path, "wb") as file:
+                        joblib.dump(rocmlm, file)
 
     return rocmlms
 
@@ -350,11 +432,14 @@ class RocMLM:
         self.verbose = verbose
         self.model_out_dir = f"rocmlms"
         if any(sample in sample_ids for sample in ["PUM", "DMM"]):
-            self.model_prefix = f"{self.program[:4]}-benchmark-{self.ml_model_label}"
+            self.model_prefix = (f"{self.program[:4]}-benchmark-{self.ml_model_label}-"
+                                 f"W{self.shape_feature_square[1] - 1}")
             self.fig_dir = f"figs/rocmlm/{self.program[:4]}_benchmark_{self.ml_model_label}"
         else:
             self.model_prefix = (f"{self.program[:4]}-{self.sample_ids[0][:2]}-"
-                                 f"{self.ml_model_label}")
+                                 f"{self.ml_model_label}-"
+                                 f"S{self.shape_feature_square[0] - 1}-"
+                                 f"W{self.shape_feature_square[1] - 1}")
             self.fig_dir = (f"figs/rocmlm/{self.program[:4]}_{self.sample_ids[0][:2]}_"
                             f"{self.ml_model_label}")
         self.rocmlm_path = f"{self.model_out_dir}/{self.model_prefix}.pkl"
@@ -479,9 +564,10 @@ class RocMLM:
             self._scale_arrays(feature_train, target_train)
 
         # Define NN layer sizes
-        nn_L1 = int(max(y_scaled_train.shape[0] * 0.01, 8))
-        nn_L2 = int(max(y_scaled_train.shape[0] * 0.02, 16))
-        nn_L3 = int(max(y_scaled_train.shape[0] * 0.05, 32))
+#        nn_L1 = int(max(y_scaled_train.shape[0] * 1e-3, 8))
+#        nn_L2 = int(max(y_scaled_train.shape[0] * 2e-3, 16))
+#        nn_L3 = int(max(y_scaled_train.shape[0] * 3e-3, 32))
+        nn_L1, nn_L2, nn_L3 = int(8), int(16), int(32)
 
         print(f"Configuring model {model_prefix} ...")
 
@@ -521,18 +607,18 @@ class RocMLM:
                 model = MLPRegressor(random_state=seed, max_iter=epochs,
                                      batch_size=max(int(len(y_scaled_train) * batchprop), 8))
 
-                param_grid = dict(hidden_layer_sizes=[(nn_L1, nn_L2),
-                                                      (nn_L2, nn_L2),
-                                                      (nn_L3, nn_L2)],
+                param_grid = dict(hidden_layer_sizes=[(nn_L2, nn_L2),
+                                                      (nn_L3, nn_L2),
+                                                      (nn_L3, nn_L3)],
                                   learning_rate_init=[0.0001, 0.0005, 0.001])
 
             elif model_label == "NN3":
                 model = MLPRegressor(random_state=seed, max_iter=epochs,
                                      batch_size=max(int(len(y_scaled_train) * batchprop), 8))
 
-                param_grid = dict(hidden_layer_sizes=[(nn_L1, nn_L2, nn_L1),
-                                                      (nn_L2, nn_L2, nn_L1),
-                                                      (nn_L3, nn_L2, nn_L1)],
+                param_grid = dict(hidden_layer_sizes=[(nn_L3, nn_L2, nn_L2),
+                                                      (nn_L3, nn_L3, nn_L2),
+                                                      (nn_L3, nn_L3, nn_L3)],
                                   learning_rate_init=[0.0001, 0.0005, 0.001])
 
             # K-fold cross validation
@@ -542,7 +628,6 @@ class RocMLM:
             grid_search = GridSearchCV(model, param_grid=param_grid, cv=kf,
                                        scoring="neg_root_mean_squared_error",
                                        n_jobs=nprocs, verbose=verbose)
-
             grid_search.fit(X_scaled_train, y_scaled_train)
 
             print("Tuning successful!")
@@ -599,17 +684,17 @@ class RocMLM:
             elif model_label == "NN1":
                 model = MLPRegressor(random_state=seed, max_iter=epochs,
                                      learning_rate_init=0.001,
-                                     hidden_layer_sizes=(nn_L1))
+                                     hidden_layer_sizes=(nn_L3))
 
             elif model_label == "NN2":
                 model = MLPRegressor(random_state=seed, max_iter=epochs,
                                      learning_rate_init=0.0001,
-                                     hidden_layer_sizes=(nn_L3, nn_L2))
+                                     hidden_layer_sizes=(nn_L3, nn_L3))
 
             elif model_label == "NN3":
                 model = MLPRegressor(random_state=seed, max_iter=epochs,
                                      learning_rate_init=0.0001,
-                                     hidden_layer_sizes=(nn_L3, nn_L2, nn_L1))
+                                     hidden_layer_sizes=(nn_L3, nn_L3, nn_L3))
 
         # Get trained model
         self.ml_model = model
@@ -739,7 +824,7 @@ class RocMLM:
             loss_curve = None
 
         # Calculate training time
-        training_time = (training_end_time - training_start_time) * 1000
+        training_time = training_end_time - training_start_time
 
         # Make predictions on the test dataset
         y_pred_scaled = model.predict(X_test)
@@ -752,7 +837,7 @@ class RocMLM:
         single_PT_pred = model.predict(rand_PT_point)
         inference_end_time = time.time()
 
-        inference_time = (inference_end_time - inference_start_time) * 1000
+        inference_time = inference_end_time - inference_start_time
 
         # Inverse transform predictions
         y_pred_original = scaler_y_train.inverse_transform(y_pred_scaled)
@@ -783,6 +868,7 @@ class RocMLM:
         """
         """
         # Get self attributes
+        sample_ids = self.sample_ids
         model_label = self.ml_model_label
         model_label_full = self.ml_model_label_full
         program = self.program
@@ -790,7 +876,8 @@ class RocMLM:
         kfolds = self.kfolds
         fig_dir = self.fig_dir
         verbose = self.verbose
-        W = self.feature_train.shape[0]
+        M = self.shape_feature_square[0]
+        w = self.shape_feature_square[1]
 
         # Initialize empty lists for storing performance metrics
         loss_curves = []
@@ -889,17 +976,28 @@ class RocMLM:
         inference_time_mean = np.mean(inference_times)
         inference_time_std = np.std(inference_times)
 
+        # Get sample label
+        if any(sample in sample_ids for sample in ["PUM", "DMM"]):
+            sample_label = "benchmark"
+        elif any("st" in sample for sample in sample_ids):
+            sample_label = f"SMAT{M - 1}"
+        elif any("sb" in sample for sample in sample_ids):
+            sample_label = f"SMAB{M - 1}"
+        elif any("sr" in sample for sample in sample_ids):
+            sample_label = f"SMAR{M - 1}"
+
         # Config and performance info
         cv_info = {
             "model": model_label,
             "program": program,
-            "size": W,
+            "sample": sample_label,
+            "size": (w - 1) ** 2,
             "n_targets": len(targets),
             "k_folds": kfolds,
-            "training_time_mean": round(training_time_mean, 3),
-            "training_time_std": round(training_time_std, 3),
-            "inference_time_mean": round(inference_time_mean, 3),
-            "inference_time_std": round(inference_time_std, 3)
+            "training_time_mean": round(training_time_mean, 5),
+            "training_time_std": round(training_time_std, 5),
+            "inference_time_mean": round(inference_time_mean, 5),
+            "inference_time_std": round(inference_time_std, 5)
         }
 
         # Add performance metrics for each parameter to the dictionary
@@ -917,9 +1015,9 @@ class RocMLM:
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             # Print performance
             print(f"{model_label_full} performance:")
-            print(f"    training time: {training_time_mean:.3f} ± {training_time_std:.3f}")
-            print(f"    inference time: {inference_time_mean:.3f} ± "
-                  f"{inference_time_std:.3f}")
+            print(f"    training time: {training_time_mean:.5f} ± {training_time_std:.5f}")
+            print(f"    inference time: {inference_time_mean:.5f} ± "
+                  f"{inference_time_std:.5f}")
             print(f"    rmse test:")
             for r, e, p in zip(rmse_test_mean, rmse_test_std, targets):
                 print(f"        {p}: {r:.3f} ± {e:.3f}")
@@ -1138,7 +1236,7 @@ class RocMLM:
             df = pd.concat([df, new_data], ignore_index=True)
 
         # Sort df
-        df = df.sort_values(by=["model", "program", "size"])
+        df = df.sort_values(by=["model", "program", "sample", "size"])
 
         # Save the updated DataFrame back to the CSV file
         df.to_csv(filepath, index=False)
@@ -1181,6 +1279,15 @@ class RocMLM:
 
             # Retrain ml model on unmasked training dataset
             self._retrain()
+
+            # Save ml model only
+            with open(self.ml_model_only_path, "wb") as file:
+                joblib.dump(self.ml_model_only, file)
+
+            # Add pre-trained model size (Mb) to cv_info
+            model_size = os.path.getsize(self.ml_model_only_path)
+            model_size_mb = round(model_size / (1024 ** 2), 5)
+            self.cv_info["model_size_mb"] = model_size_mb
 
             # Save ML model performance info to csv
             self._append_to_csv()

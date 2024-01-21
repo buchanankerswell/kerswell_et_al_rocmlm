@@ -32,18 +32,13 @@ DATAPURGE = \
 						python/__pycache__ \
 						$(DATADIR)/synthetic*.csv \
 						$(DATADIR)/gfem-analysis.csv \
-						$(DATADIR)/lut-efficiency.txt \
+						$(DATADIR)/gfem-analysis.csv \
+						$(DATADIR)/lut-efficiency.csv \
 						$(DATADIR)/earthchem-counts.csv \
+						$(DATADIR)/rocmlm-performance.csv \
 						$(DATADIR)/earthchem-samples-pca.csv \
 						$(DATADIR)/benchmark-samples-pca.csv
-DATACLEAN = \
-						assets \
-						MAGEMin \
-						Perple_X \
-						gfems \
-						rocmlms \
-						$(DATADIR)/gfem-analysis.csv \
-						$(DATADIR)/rocmlm-performance.csv
+DATACLEAN = assets MAGEMin Perple_X gfems rocmlms
 FIGSPURGE =
 FIGSCLEAN = figs
 
@@ -61,7 +56,7 @@ initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
 
 rocmlms: initialize
-	@$(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
+	@PYTHONWARNINGS="ignore" $(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 test: initialize

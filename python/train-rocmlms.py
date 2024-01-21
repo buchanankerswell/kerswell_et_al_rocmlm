@@ -2,7 +2,8 @@ import glob
 from scripting import parse_arguments, check_arguments
 from gfem import get_sampleids, build_gfem_models
 from rocmlm import train_rocmlms, evaluate_lut_efficiency
-from visualize import visualize_rocmlm_performance, visualize_rocmlm, compose_rocmlm_plots
+from visualize import (visualize_prediction_efficiencies, visualize_rocmlm_performance,
+                       visualize_rocmlm, compose_rocmlm_plots)
 
 # Parse arguments and check
 args = parse_arguments()
@@ -27,17 +28,14 @@ for name, source in sources.items():
 
 # Train RocMLMs
 for name, models in gfems.items():
-    if name == "benchmark":
-        mlms = ["KN", "DT", "RF", "NN1", "NN2", "NN3"]
-    else:
-        mlms = ["KN", "DT"]
-
-    # Train RocMLMs
-    rocmlms[name] = train_rocmlms(models, mlms)
+    rocmlms[name] = train_rocmlms(models, ["KN", "DT", "NN1", "NN2", "NN3"])
 
     # Clock LUT efficiency
     if name == "top":
-        evaluate_lut_efficiency(models)
+        evaluate_lut_efficiency(name, models)
+
+# Visualize model prediction efficiencies
+visualize_prediction_efficiencies()
 
 # Visualize rocmlm performance
 targets, res  = ["rho", "Vp", "Vs"], 128
