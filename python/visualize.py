@@ -1066,10 +1066,10 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize prediction efficiency !!
+# visualize rocmlm tradeoffs !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_prediction_efficiencies(fig_dir="figs/other", filename="gfem-efficiency.png",
-                                      figwidth=6.3, figheight=4.725, fontsize=12):
+def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.png",
+                               figwidth=6.3, figheight=3.54, fontsize=12):
     """
     """
     # Data assets dir
@@ -1084,7 +1084,7 @@ def visualize_prediction_efficiencies(fig_dir="figs/other", filename="gfem-effic
     data_gfem["time"] = data_gfem["time"] / data_gfem["size"]
 
     # Get Perple_X program size
-    def get_directory_size(path='.'):
+    def get_directory_size(path="."):
         total_size = 0
         with os.scandir(path) as it:
             for entry in it:
@@ -1097,14 +1097,18 @@ def visualize_prediction_efficiencies(fig_dir="figs/other", filename="gfem-effic
 
     # Calculate efficiency in milliseconds/Megabyte
     data_gfem["model_size_mb"] = round(perplex_size / (1024 ** 2), 5)
-    data_gfem["model_efficiency"] = 1 / (data_gfem["time"] * 1e3 *
-                                         data_gfem["model_size_mb"])
+    data_gfem["model_efficiency"] = data_gfem["time"] * 1e3 * data_gfem["model_size_mb"]
 
     # Read lookup table efficiency data
     data_lut = pd.read_csv(f"{data_dir}/lut-efficiency.csv")
 
+    # Add RMSE
+    data_lut["rmse_val_mean_rho"] = 0
+    data_lut["rmse_val_mean_Vp"] = 0
+    data_lut["rmse_val_mean_Vs"] = 0
+
     # Calculate efficiency in milliseconds/Megabyte
-    data_lut["model_efficiency"] = 1 / (data_lut["time"] * 1e3 * data_lut["model_size_mb"])
+    data_lut["model_efficiency"] = data_lut["time"] * 1e3 * data_lut["model_size_mb"]
 
     # Read rocmlm efficiency data
     data_rocmlm = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
@@ -1112,7 +1116,9 @@ def visualize_prediction_efficiencies(fig_dir="figs/other", filename="gfem-effic
     # Process rocmlm df for merging
     data_rocmlm.drop([col for col in data_rocmlm.columns if "training" in col],
                      axis=1, inplace=True)
-    data_rocmlm.drop([col for col in data_rocmlm.columns if "rmse" in col],
+    data_rocmlm.drop([col for col in data_rocmlm.columns if "rmse_test" in col],
+                     axis=1, inplace=True)
+    data_rocmlm.drop([col for col in data_rocmlm.columns if "rmse_val_std" in col],
                      axis=1, inplace=True)
     data_rocmlm.drop([col for col in data_rocmlm.columns if "r2" in col],
                      axis=1, inplace=True)
@@ -1125,12 +1131,15 @@ def visualize_prediction_efficiencies(fig_dir="figs/other", filename="gfem-effic
     data_rocmlm.drop(["n_targets", "k_folds", "inference_time_std"], axis=1, inplace=True)
     data_rocmlm.rename(columns={"inference_time_mean": "time"}, inplace=True)
     data_rocmlm["dataset"] = "train"
-    data_rocmlm = data_rocmlm[["sample", "program", "dataset", "size", "time",
-                               "model_size_mb"]]
 
     # Calculate efficiency in milliseconds/Megabyte
-    data_rocmlm["model_efficiency"] = 1 / (data_rocmlm["time"] * 1e3 *
-                                           data_rocmlm["model_size_mb"])
+    data_rocmlm["model_efficiency"] = (data_rocmlm["time"] * 1e3 *
+                                       data_rocmlm["model_size_mb"])
+
+    # Select columns
+    data_rocmlm = data_rocmlm[["sample", "program", "dataset", "size", "time",
+                               "model_size_mb", "model_efficiency", "rmse_val_mean_rho",
+                               "rmse_val_mean_Vp", "rmse_val_mean_Vs"]]
 
     # Combine data
     data = pd.concat([data_lut, data_rocmlm], axis=0, ignore_index=True)
@@ -1154,16 +1163,17 @@ def visualize_prediction_efficiencies(fig_dir="figs/other", filename="gfem-effic
     # Filter samples and programs
     data = data[data["sample"].isin(["SMAT128", "SMAT64", "SMAT32"])]
     data = data[data["program"].isin(["Lookup Table", "RocMLM (DT)", "RocMLM (KN)",
-                                      "RocMLM (NN1)", "RocMLM (NN2)", "RocMLM (NN3)"])]
+                                      "RocMLM (NN1)", "RocMLM (NN3)"])]
 
-    # Get number of samples
-    def calculate_n_samples(row):
+    # Get X resolution
+    def get_x_res(row):
         if row["sample"].startswith("SMA") and row["sample"][4:].isdigit():
             return int(row["sample"][4:])
         else:
             return None
 
-    data["n_samples"] = data.apply(calculate_n_samples, axis=1)
+    data["x_res"] = data.apply(get_x_res, axis=1)
+    data["size"] = np.log2(data["size"] * data["x_res"]).astype(int)
 
     # Arrange data by resolution and sample
     data.sort_values(by=["size", "sample", "program"], inplace=True)
@@ -1179,62 +1189,80 @@ def visualize_prediction_efficiencies(fig_dir="figs/other", filename="gfem-effic
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Define marker types for each program
-    marker_dict = {"Lookup Table": "o", "RocMLM (DT)": "d", "RocMLM (KN)": "P",
-                   "RocMLM (NN1)": "X", "RocMLM (NN2)": "s", "RocMLM (NN3)": "^"}
+    marker_dict = {"Lookup Table": "o", "RocMLM (DT)": "d", "RocMLM (KN)": "s",
+                   "RocMLM (NN1)": "X", "RocMLM (NN3)": "^"}
 
     # Create a colormap
-    palette = sns.color_palette("Greys", data["n_samples"].nunique())
+    palette = sns.color_palette("Greys", data["rmse_val_mean_rho"].nunique())
     cmap = cm.get_cmap("Greys")
 
-    # Create a ScalarMappable to map n_samples to colors
-    norm = SymLogNorm(linthresh=0.001, base=2)
+    # Create a ScalarMappable to map rmse to colors
+    norm = Normalize(data["rmse_val_mean_rho"].min(), data["rmse_val_mean_rho"].max())
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
 
     # Map X resolution to colors
-    color_dict = dict(zip(sorted(data["n_samples"].unique()),
-                          cmap(norm(sorted(data["n_samples"].unique())))))
+    color_dict = dict(zip(sorted(data["rmse_val_mean_rho"].unique()),
+                          cmap(norm(sorted(data["rmse_val_mean_rho"].unique())))))
+
+    fig = plt.figure(figsize=(figwidth * 2, figheight))
+    ax = fig.add_subplot(121)
 
     # Plot gfem efficiency
-    plt.fill_between(np.sqrt(data_gfem["size"]), data_gfem["model_efficiency"].min(),
-                     data_gfem["model_efficiency"].max(), color="gray", alpha=0.3)
+    ax.fill_between(data["size"], data_gfem["time"].min() * 1e3,
+                    data_gfem["time"].max() * 1e3, color="white", edgecolor="black")
 
     # Plot lut and rocmlm efficiency
     for program, group in data.groupby("program"):
-        for n_samples, sub_group in group.groupby("n_samples"):
-            plt.scatter(x=np.sqrt(sub_group["size"]), y=sub_group["model_efficiency"],
+        for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
+            ax.scatter(x=sub_group["size"], y=(sub_group["time"] * 1e3),
+                       marker=marker_dict.get(program, "o"),
+                       color=color_dict[rmse], edgecolor="black", zorder=2)
+
+    # Set labels and title
+    plt.xlabel("Log2 Training Dataset Size")
+    plt.ylabel("Elapsed Time (ms)")
+    plt.title("Prediction Lag")
+    plt.yscale("log")
+    plt.xticks(np.arange(11, 22, 2))
+
+    ax2 = fig.add_subplot(122)
+
+    # Plot gfem efficiency
+    ax2.fill_between(data["size"], data_gfem["model_efficiency"].min(),
+                     data_gfem["model_efficiency"].max(), color="white", edgecolor="black")
+
+    # Plot lut and rocmlm efficiency
+    for program, group in data.groupby("program"):
+        for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
+            ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
                         marker=marker_dict.get(program, "o"),
-                        label=f"[{n_samples}] {program}",
-                        color=color_dict[n_samples], edgecolor="black", zorder=2)
-            plt.plot(np.sqrt(sub_group["size"]), sub_group["model_efficiency"],
-                     color=color_dict[n_samples], zorder=1)
+                        color=color_dict[rmse], edgecolor="black", zorder=2)
 
     # Create the legend
     legend_elements = []
     for program, marker in marker_dict.items():
-        legend_elements.append(mlines.Line2D([0], [0], marker=marker, color="w",
+        legend_elements.append(mlines.Line2D([0], [0], marker=marker, color="none",
                                              label=program, markerfacecolor="black",
                                              markersize=10))
 
-    legend_elements.append(mlines.Line2D([0], [0], color="gray", alpha=0.3,
-                                         label="GFEM Programs", linewidth=10))
+    legend_elements.append(mlines.Line2D([0], [0], color="white", marker="s",
+                                         markerfacecolor="white", markeredgecolor="black",
+                                         markeredgewidth=1.2, markersize=10,
+                                         label="GFEM Programs", linewidth=0))
 
-    plt.legend(handles=legend_elements, title="Method", loc="center left",
-               bbox_to_anchor=(1.02, 0.5))
+    fig.legend(handles=legend_elements, loc="lower center", ncol=3,
+               bbox_to_anchor=(0.5, -0.15))
 
-    # Create a colorbar for X resolution
-    cbar = plt.colorbar(sm, label="X Resolution", ax=plt.gca(), orientation="horizontal",
-                        pad=0.15)
-    cbar.ax.xaxis.set_label_position("bottom")
-    cbar.set_ticks([32, 64, 128])
-    cbar.set_ticklabels([f"{n_samples}" for n_samples in [32, 64, 128]])
+    # Create a colorbar
+    cbar = plt.colorbar(sm, label="RMSE w.r.t. Training Dataset (g/cm$^3$)", ax=(ax, ax2),
+                        orientation="horizontal", pad=-0.45, shrink=0.8)
 
     # Set labels and title
-    plt.xlabel("PT Grid Resolution")
-    plt.ylabel("Efficiency (ms$^{-1}$$\\cdot$Mb$^{-1}$)")
-    plt.title("Single-Point Prediction Efficiency")
+    plt.xlabel("Log2 Training Dataset Size")
+    plt.ylabel("Inefficiency (ms$\\cdot$Mb)")
+    plt.title("Model Inefficiency")
     plt.yscale("log")
-    plt.xscale("log", base=2)
-    plt.xticks([8, 16, 32, 64, 128], [8, 16, 32, 64, 128])
+    plt.xticks(np.arange(11, 22, 2))
 
     # Adjust the figure size
     fig = plt.gcf()
@@ -1737,42 +1765,31 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
         if palette == "viridis":
             if color_reverse:
                 cmap = "viridis_r"
-
             else:
                 cmap = "viridis"
-
         elif palette == "bone":
             if color_reverse:
                 cmap = "bone_r"
-
             else:
                 cmap = "bone"
-
         elif palette == "pink":
             if color_reverse:
                 cmap = "pink_r"
-
             else:
                 cmap = "pink"
-
         elif palette == "seismic":
             if color_reverse:
                 cmap = "seismic_r"
-
             else:
                 cmap = "seismic"
-
         elif palette == "grey":
             if color_reverse:
                 cmap = "Greys_r"
-
             else:
                 cmap = "Greys"
-
         elif palette not in ["viridis", "grey", "bone", "pink", "seismic"]:
             if color_reverse:
                 cmap="Blues_r"
-
             else:
                 cmap="Blues"
 
@@ -2428,297 +2445,6 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
                                results_mgm, results_ppx, results_rocmlm, model_label,
                                geotherm_threshold, title=model_label_full, fig_dir=fig_dir,
                                filename=f"{filename}-prem.png")
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize rocmlm performance !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocmlm_performance(targets, res, fig_dir="figs/rocmlm", filename="rocmlm",
-                                 fontsize=22, figwidth=6.3, figheight=5):
-    """
-    """
-    # Data assets dir
-    data_dir = "assets/data"
-
-    # Check for figs directory
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir, exist_ok=True)
-
-    # Read regression data
-    data = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
-
-    # Summarize data
-    data = data[data["size"] == data["size"].max()]
-    data = data[data["sample"] == "benchmark"]
-
-    # Calculate efficiency in milliseconds/Megabyte
-    data["model_efficiency"] = 1 / (data["inference_time_mean"] * 1e3 *
-                                    data["model_size_mb"])
-
-    # Summarize data
-    numeric_columns = data.select_dtypes(include=[float, int]).columns
-    summary_df = data.groupby("model")[numeric_columns].mean().reset_index()
-
-    # Get MAGEMin and Perple_X benchmark times
-    benchmark_times = pd.read_csv(f"{data_dir}/gfem-efficiency.csv")
-
-    # Get Perple_X program size
-    def get_directory_size(path='.'):
-        total_size = 0
-        with os.scandir(path) as it:
-            for entry in it:
-                if entry.is_file():
-                    total_size += entry.stat().st_size
-                elif entry.is_dir():
-                    total_size += get_directory_size(entry.path)
-        return total_size
-    perplex_size = get_directory_size("Perple_X")
-
-    # Calculate efficiency in milliseconds * Megabyte
-    benchmark_times["model_size_mb"] = round(perplex_size / (1024 ** 2), 5)
-
-
-    filtered_times = benchmark_times[(benchmark_times["sample"] == "PUM") &
-                                     (benchmark_times["size"] == res ** 2)]
-
-    time_mgm = np.mean(
-        filtered_times[filtered_times["program"] == "magemin"]["time"].values /
-        filtered_times[filtered_times["program"] == "magemin"]["size"].values * 1e3
-    )
-    model_size_mgm = np.mean(
-        filtered_times[filtered_times["program"] == "magemin"]["model_size_mb"].values
-    )
-
-    efficiency_mgm = 1 / (time_mgm * model_size_mgm)
-    time_ppx = np.mean(
-        filtered_times[filtered_times["program"] == "perplex"]["time"].values /
-        filtered_times[filtered_times["program"] == "perplex"]["size"].values * 1e3
-    )
-    model_size_ppx = np.mean(
-        filtered_times[filtered_times["program"] == "perplex"]["model_size_mb"].values
-    )
-    efficiency_ppx = 1 / (time_ppx * model_size_ppx)
-
-    # Get LUT time
-    data_lut = pd.read_csv(f"{data_dir}/lut-efficiency.csv")
-    time_lut = data_lut[(data_lut["sample"] == "SMAT128") &
-                        (data_lut["size"] == res ** 2)]["time"].values * 1e3
-    model_size_lut = data_lut[(data_lut["sample"] == "SMAT128") &
-                              (data_lut["size"] == res ** 2)]["model_size_mb"].values
-    efficiency_lut = 1 / (time_lut * model_size_lut)
-
-    # Define the metrics to plot
-    metrics = ["training_time_mean", "model_efficiency", "rmse_test_mean",
-               "rmse_val_mean"]
-    metric_names = ["Training Time", "Prediction Efficiency", "Training Error",
-                    "Validation Error"]
-
-    # Set plot style and settings
-    plt.rcParams["legend.facecolor"] = "0.9"
-    plt.rcParams["legend.fontsize"] = "small"
-    plt.rcParams["legend.frameon"] = False
-    plt.rcParams["axes.facecolor"] = "0.9"
-    plt.rcParams["font.size"] = fontsize
-    plt.rcParams["figure.autolayout"] = True
-    plt.rcParams["figure.dpi"] = 330
-    plt.rcParams["savefig.bbox"] = "tight"
-
-    # Define the colors for the programs
-    colormap = plt.cm.get_cmap("tab10")
-    models = ["KN", "DT", "NN1", "NN2", "NN3"]
-
-    # Create a dictionary to map each model to a specific color
-    color_mapping = {"DT": colormap(1), "KN": colormap(0), "NN1": colormap(2),
-                     "NN2": colormap(3), "NN3": colormap(4)}
-
-    for i, metric in enumerate(metrics):
-        plt.figure(figsize=(figwidth, figheight))
-
-        # Define the offset for side-by-side bars
-        bar_width = 0.1
-
-        if metric == "training_time_mean":
-            order = summary_df[metric].sort_values().index
-            models_order = summary_df.loc[order]["model"].tolist()
-            x_pos = np.arange(len(summary_df[metric]))
-
-            bars = plt.bar(x_pos * bar_width, summary_df.loc[order][metric] * 1e3,
-                           edgecolor="black", width=bar_width / 1.5,
-                           color=[color_mapping[model] for model in models_order],
-                           label=models_order if i in [0, 1] else "")
-
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel("Elapsed Time (ms)")
-            plt.yscale("log")
-            legend = plt.legend(fontsize="x-small", loc="upper left")
-            plt.gca().set_xticks([])
-            plt.gca().set_xticklabels([])
-
-        elif metric == "model_efficiency":
-            lut_line = plt.axhline(efficiency_lut, color="black", linestyle=":",
-                                   label="Lookup Table", alpha=0.5)
-            ppx_line = plt.axhline(efficiency_ppx, color="black", linestyle="-",
-                                   label="Perple_X", alpha=0.5)
-            mgm_line = plt.axhline(efficiency_mgm, color="black", linestyle="--",
-                                   label="MAGEMin", alpha=0.5)
-
-            order = summary_df[metric].sort_values().index
-            models_order = summary_df.loc[order]["model"].tolist()
-            x_pos = np.arange(len(summary_df[metric]))
-
-            bars = plt.bar(x_pos * bar_width, summary_df.loc[order][metric],
-                           edgecolor="black", width=bar_width / 1.5,
-                           color=[color_mapping[model] for model in models_order],
-                           label=models_order if i in [0, 1] else "")
-
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel("Efficiency (ms$^{-1}$$\\cdot$Mb$^{-1}$)")
-            plt.yscale("log")
-            handles = [lut_line, ppx_line, mgm_line, bars]
-            labels = [handle.get_label() for handle in handles]
-            legend = plt.legend(handles=handles, labels=labels, fontsize="x-small",
-                                loc="upper left")
-            plt.gca().set_xticks([])
-            plt.gca().set_xticklabels([])
-
-        elif metric == "rmse_test_mean":
-            mult = 0
-            y_label_pos = []
-            for j, target in enumerate(targets):
-                var = f"rmse_test_mean_{target}"
-
-                order = summary_df[var].sort_values().index
-                models_order = summary_df.loc[order]["model"].tolist()
-
-                x_pos = np.arange(len(models_order)) + (len(models_order) * j) + mult
-
-                # Calculate limits
-                max_error = np.max(np.concatenate([
-                    summary_df.loc[order][f"rmse_test_std_{target}"].values * 2,
-                    summary_df.loc[order][f"rmse_val_std_{target}"].values * 2
-                ]))
-
-                max_mean = np.max(np.concatenate([
-                    summary_df.loc[order][f"rmse_test_mean_{target}"].values,
-                    summary_df.loc[order][f"rmse_val_mean_{target}"].values
-                ]))
-
-                vmax = max_mean + max_error
-                y_label_pos.append(max_mean)
-
-                bars = plt.bar(x_pos * bar_width,
-                               summary_df.loc[order][f"rmse_test_mean_{target}"],
-                               edgecolor="black", width=bar_width,
-                               color=[color_mapping[model] for model in models_order],
-                               label=models_order)
-
-                mult += 1
-
-            x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
-                          (len(models_order) / 2 * bar_width) - (bar_width / 2) for p, o in
-                          zip(np.arange(len(targets)), np.arange(len(targets)))]
-
-            for x_pos, y_pos, label in zip(x_tick_pos, y_label_pos, targets):
-                if label == "rho":
-                    unit = "g/cm$^3$"
-                elif label in ["Vp", "Vs"]:
-                    unit = "km/s"
-
-                plt.text(x_pos, y_pos + (y_pos * 0.05), f"{label}\n({unit})", ha="center",
-                         va="bottom")
-
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel("RMSE")
-            plt.yscale("log")
-            plt.gca().set_xticks([])
-
-        elif metric == "rmse_val_mean":
-            mult = 0
-            y_label_pos = []
-            for j, target in enumerate(targets):
-                var = f"rmse_test_mean_{target}"
-
-                order = summary_df[var].sort_values().index
-                models_order = summary_df.loc[order]["model"].tolist()
-
-                x_pos = np.arange(len(models_order)) + (len(models_order) * j) + mult
-
-                # Calculate limits
-                max_error = np.max(np.concatenate([
-                    summary_df.loc[order][f"rmse_test_std_{target}"].values * 2,
-                    summary_df.loc[order][f"rmse_val_std_{target}"].values * 2
-                ]))
-
-                max_mean = np.max(np.concatenate([
-                    summary_df.loc[order][f"rmse_test_mean_{target}"].values,
-                    summary_df.loc[order][f"rmse_val_mean_{target}"].values
-                ]))
-
-                vmax = max_mean + max_error + ((max_mean + max_error) * 1)
-                y_label_pos.append(max_mean)
-
-                bars = plt.bar(x_pos * bar_width,
-                               summary_df.loc[order][f"rmse_val_mean_{target}"],
-                               edgecolor="black", width=bar_width,
-                               color=[color_mapping[model] for model in models_order],
-                               label=models_order if i == 1 else "")
-
-                mult += 1
-
-            x_tick_pos = [(p * bar_width) + (len(models_order) * o * bar_width) +
-                          (len(models_order) / 2 * bar_width) - (bar_width / 2) for p, o in
-                          zip(np.arange(len(targets)), np.arange(len(targets)))]
-
-            for x_pos, y_pos, label in zip(x_tick_pos, y_label_pos, targets):
-                if label == "rho":
-                    unit = "g/cm$^3$"
-                elif label in ["Vp", "Vs"]:
-                    unit = "km/s"
-
-                plt.text(x_pos, y_pos + (y_pos * 0.05), f"{label}\n({unit})", ha="center",
-                         va="bottom")
-
-            plt.title(f"{metric_names[i]}")
-            plt.ylabel("RMSE")
-            plt.yscale("log")
-            plt.ylim(5e-3, vmax)
-            plt.gca().set_xticks([])
-
-        # Save the plot to a file if a filename is provided
-        if filename:
-            plt.savefig(f"{fig_dir}/{filename}-{metric.replace('_', '-')}.png")
-
-        else:
-            # Print plot
-            plt.show()
-
-        # Close device
-        plt.close()
-
-    # Compose plots
-    combine_plots_horizontally(
-        f"{fig_dir}/rocmlm-model-efficiency.png",
-        f"{fig_dir}/rocmlm-training-time-mean.png",
-        f"{fig_dir}/temp1.png",
-        caption1="a)",
-        caption2="b)"
-    )
-
-    os.remove(f"{fig_dir}/rocmlm-model-efficiency.png")
-    os.remove(f"{fig_dir}/rocmlm-training-time-mean.png")
-
-    combine_plots_horizontally(
-        f"{fig_dir}/temp1.png",
-        f"{fig_dir}/rocmlm-rmse-val-mean.png",
-        f"{fig_dir}/rocmlm-performance.png",
-        caption1="",
-        caption2="c)"
-    )
-
-    os.remove(f"{fig_dir}/rocmlm-rmse-test-mean.png")
-    os.remove(f"{fig_dir}/rocmlm-rmse-val-mean.png")
-    os.remove(f"{fig_dir}/temp1.png")
-
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -185,9 +185,9 @@ def write_markdown_tables():
                                           "F_MELT_FRAC", "D_BATCH"])
 
         # Get synth samples
-        df_synth = df_synth[df_synth["SAMPLEID"].isin(["sm12000", "sm23127"])]
+        df_synth = df_synth[df_synth["SAMPLEID"].isin(["sm12000", "sm12127"])]
         df_synth.loc[df_synth["SAMPLEID"] == "sm12000", "SAMPLEID"] = "DSUM"
-        df_synth.loc[df_synth["SAMPLEID"] == "sm23127", "SAMPLEID"] = "PSUM"
+        df_synth.loc[df_synth["SAMPLEID"] == "sm12127", "SAMPLEID"] = "PSUM"
 
         # Combine data
         df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
@@ -262,9 +262,8 @@ def write_markdown_tables():
 
         # Table caption
         caption = (": RocMLM configuration. Hyperparameter values in parentheses are chosen "
-                   "by a cross-validation grid search algorithm. Percentages refer to the "
-                   "total number of training examples. All other hyperparameters use "
-                   "defaults values (see regression model documentation on "
+                   "by a cross-validation grid search algorithm. All other hyperparameters "
+                   "use defaults values (see regression model documentation on "
                    "[scikit-learn.org](htpps://scikit-learn.org)). {#tbl:rocmlm-config}")
 
         # Write markdown table
@@ -280,6 +279,36 @@ def write_markdown_tables():
 
         # RocMLM performance metrics
         df = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
+
+        # Filter models
+        df = df[df["sample"].isin(["SMAT128", "SMAT64", "SMAT32"])]
+
+        # Transform units
+        df["training_time_mean"] = df["training_time_mean"] * 1000
+        df["inference_time_mean"] = df["inference_time_mean"] * 1000
+        df["size"] = np.sqrt(df["size"])
+
+        # Round Mb size
+        df["model_size_mb"] = round(df["model_size_mb"], 3)
+        df["model_size_mb"] = df["model_size_mb"].apply(lambda x: f"{x:.3g}")
+
+        # Get X resolution
+        def get_x_res(row):
+            if row["sample"].startswith("SMA") and row["sample"][4:].isdigit():
+                return int(row["sample"][4:])
+            else:
+                return 2
+
+        df["x_res"] = df.apply(get_x_res, axis=1)
+
+        # Rename sample
+        def rename_sample(row):
+            if row["sample"].startswith("SMA") and row["sample"][4:].isdigit():
+                return row["sample"][:4]
+            else:
+                return "Bench"
+
+        df["sample"] = df.apply(rename_sample, axis=1)
 
         # Drop columns
         df.drop(["n_targets", "k_folds"], axis=1, inplace=True)
@@ -304,25 +333,25 @@ def write_markdown_tables():
         # Drop program column
         df.drop(["program"], axis=1, inplace=True)
 
-        # Select two smallset model sizes (benchmark and random mixing models)
-        two_smallest_sizes = np.sort(np.unique(df["size"]))[:2]
-        df = df[df["size"].isin(two_smallest_sizes)]
+        # Order df
+        df = df[["model", "size", "x_res", "training_time_mean", "inference_time_mean",
+                 "rmse_val_mean_rho", "rmse_val_mean_Vp", "rmse_val_mean_Vs",
+                 "model_size_mb"]]
 
         # Sort df
-        df = df.sort_values(by=["size", "model"])
+        df = df.sort_values(by=["model", "size", "x_res"])
 
         # Rename columns
-        df.columns = ["Model", "$n_\\text{train}$", "t$_\\text{train}$ (ms)",
-                      "t$_\\text{pred}$ (ms)", "$\\varepsilon_{\\rho}$ (g/cm$^3$)",
-                      "$\\varepsilon_{\\text{Vp}}$ (km/s)",
-                      "$\\varepsilon_{\\text{Vs}}$ (km/s)"]
+        df.columns = ["Model", "PT Res (pts)", "X Res (pts)", "Train (ms)", "Predict (ms)",
+                      "RMSE rho (g/cm$^3$)", "RMSE Vp (km/s)", "RMSE Vs (km/s)",
+                      "Filesize (Mb)"]
 
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
         caption = (": RocMLM performance measured on an (unseen) validation dataset. "
-                   "t = elapsed time, $\\varepsilon$ = RMSE. {#tbl:rocmlm-performance}")
+                   "{#tbl:rocmlm-performance}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/rocmlm-performance.md", "w") as file:

@@ -19,7 +19,6 @@ sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
            "bottom": "assets/data/synthetic-samples-mixing-bottoms.csv",
            "random": "assets/data/synthetic-samples-mixing-random.csv"}
 
-
 # Build GFEM models
 for name, source in sources.items():
     sids = get_sampleids(source, "all")

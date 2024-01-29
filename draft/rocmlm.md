@@ -136,11 +136,11 @@ RocMLM accuracy can be assessed quantitatively by comparing Perple_X and RocMLM 
 
 ![PT diagrams and depth profiles showing an unprocessed endmember training example [PUM, @sun1989]. Density is shown in (a, b, c), Vp in (d, e, f), and Vs in (g, h, i). The bold white line in is the geotherm used to define the depth profiles. PREM is the Preliminary Reference Earth Model from @dziewonski1981.](assets/figs/image9-PUM-train.png){#fig:image9-PUM-train}
 
-## RocMLM Efficiency and Performance
+## RocMLM Performance and Efficiency Tradeoffs
 
-{{ rocmlm-performance.md }}
+PUM and DMM mantle compositions were used for benchmarking MAGEMin and Perple_X efficiency (@tbl:benchmark-samples). [@fig:rocmlm-tradeoffs] shows the computation times with respect to various PT grid resolutions (8x8, 16x16, 32x32, 64x64, 128x128). All computations were made on a Macbook Pro (2022; M2 chip) with macOS 13.4 and Python 3.11.4.
 
-![caption](assets/figs/rocmlm-performance.png)
+![caption](assets/figs/rocmlm-tradeoffs.png){#fig:rocmlm-tradeoffs}
 
 # Discussion
 
@@ -160,19 +160,13 @@ All data, code, and relevant information for reproducing this work can be found 
 
 # Appendix
 
-## GFEM Benchmarking
+## RocMLM Performance and Efficiency Tradeoffs
 
-PUM and DMM mantle compositions were used for benchmarking MAGEMin and Perple_X efficiency (@tbl:benchmark-samples). [@fig:gfem-efficiency] shows the computation times with respect to various PT grid resolutions (8x8, 16x16, 32x32, 64x64, 128x128). All computations were made on a Macbook Pro (2022; M2 chip) with macOS 13.4 and Python 3.11.4.
-
-![caption](assets/figs/gfem-efficiency.png){#fig:gfem-efficiency}
-
-\clearpage
+{{ rocmlm-performance.md }}
 
 ## RocMLM Comparisons
 
 ![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Decision Tree models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-DT-rho.png)
-
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Random Forest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-RF-rho.png)
 
 ![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by K Nearest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-KN-rho.png)
 
@@ -183,8 +177,6 @@ PUM and DMM mantle compositions were used for benchmarking MAGEMin and Perple_X 
 ![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Neural Network 3L models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/surf-PUM-NN3-rho.png)
 
 ![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Decision Tree models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image-PUM-DT-rho.png)
-
-![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by Random Forest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image-PUM-RF-rho.png)
 
 ![PT-density diagrams (in g/cm$^3$) calculated by (a) MAGEMin and (b) Perple_X for a PUM bulk composition (@tbl:benchmark-samples) and (c, d) inferred by K Nearest models trained on (a, b), respectively. (e, f) PT-error diagrams (in percent) showing the normalized difference between (a, b) and (c, d), respectively.](assets/figs/image-PUM-KN-rho.png)
 
