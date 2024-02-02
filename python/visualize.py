@@ -1365,7 +1365,7 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     # Set labels and title
     plt.xlabel("Log2 Training Dataset Size")
     plt.ylabel("Elapsed Time (ms)")
-    plt.title("Prediction Time")
+    plt.title("Prediction Lag Time")
     plt.yscale("log")
     plt.xticks(np.arange(11, 22, 2))
 
@@ -2481,8 +2481,8 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             diff = target_array[: ,: , i] - pred_array[: , :, i]
 
             # Get relevant metrics for target array plot
-            rmse = cv_info[f"rmse_val_mean_{target}"]
-            r2 = cv_info[f"r2_val_mean_{target}"]
+            rmse = cv_info[f"rmse_val_mean_{target}"][0]
+            r2 = cv_info[f"r2_val_mean_{target}"][0]
 
             # Make nans consistent
             diff[mask] = np.nan

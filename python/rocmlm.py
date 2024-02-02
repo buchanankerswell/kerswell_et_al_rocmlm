@@ -1030,14 +1030,14 @@ class RocMLM:
 
         # Add performance metrics for each parameter to the dictionary
         for i, target in enumerate(targets):
-            cv_info[f"rmse_test_mean_{target}"] = round(rmse_test_mean[i], 3)
-            cv_info[f"rmse_test_std_{target}"] = round(rmse_test_std[i], 3)
-            cv_info[f"r2_test_mean_{target}"] = round(r2_test_mean[i], 3),
-            cv_info[f"r2_test_std_{target}"] = round(r2_test_std[i], 3),
-            cv_info[f"rmse_val_mean_{target}"] = round(rmse_val_mean[i], 3),
-            cv_info[f"rmse_val_std_{target}"] = round(rmse_val_std[i], 3),
-            cv_info[f"r2_val_mean_{target}"] = round(r2_val_mean[i], 3),
-            cv_info[f"r2_val_std_{target}"] = round(r2_val_std[i], 3)
+            cv_info[f"rmse_test_mean_{target}"] = round(rmse_test_mean[i], 5)
+            cv_info[f"rmse_test_std_{target}"] = round(rmse_test_std[i], 5)
+            cv_info[f"r2_test_mean_{target}"] = round(r2_test_mean[i], 5),
+            cv_info[f"r2_test_std_{target}"] = round(r2_test_std[i], 5),
+            cv_info[f"rmse_val_mean_{target}"] = round(rmse_val_mean[i], 5),
+            cv_info[f"rmse_val_std_{target}"] = round(rmse_val_std[i], 5),
+            cv_info[f"r2_val_mean_{target}"] = round(r2_val_mean[i], 5),
+            cv_info[f"r2_val_std_{target}"] = round(r2_val_std[i], 5)
 
         if verbose >= 1:
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -1048,16 +1048,16 @@ class RocMLM:
                   f"{inference_time_std:.5f}")
             print(f"    rmse test:")
             for r, e, p in zip(rmse_test_mean, rmse_test_std, targets):
-                print(f"        {p}: {r:.3f} ± {e:.3f}")
+                print(f"        {p}: {r:.5f} ± {e:.5f}")
             print(f"    r2 test:")
             for r, e, p in zip(r2_test_mean, r2_test_std, targets):
-                print(f"        {p}: {r:.3f} ± {e:.3f}")
+                print(f"        {p}: {r:.5f} ± {e:.5f}")
             print(f"    rmse valid:")
             for r, e, p in zip(rmse_val_mean, rmse_val_std, targets):
-                print(f"        {p}: {r:.3f} ± {e:.3f}")
+                print(f"        {p}: {r:.5f} ± {e:.5f}")
             print(f"    r2 valid:")
             for r, e, p in zip(r2_val_mean, r2_val_std, targets):
-                print(f"        {p}: {r:.3f} ± {e:.3f}")
+                print(f"        {p}: {r:.5f} ± {e:.5f}")
             print("+++++++++++++++++++++++++++++++++++++++++++++")
 
         self.cv_info = cv_info

@@ -281,7 +281,7 @@ def write_markdown_tables():
         df = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
 
         # Filter models
-        df = df[df["sample"].isin(["SMAT128", "SMAT64", "SMAT32"])]
+        df = df[df["sample"].isin(["SMAT128", "SMAT64", "SMAT32", "benchmark"])]
 
         # Transform units
         df["training_time_mean"] = df["training_time_mean"] * 1000
@@ -350,8 +350,8 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": RocMLM performance measured on an (unseen) validation dataset. "
-                   "{#tbl:rocmlm-performance}")
+        caption = (": RocMLM, size, efficiency, and performance measured on an (unseen) "
+                   "validation dataset. {#tbl:rocmlm-performance}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/rocmlm-performance.md", "w") as file:
