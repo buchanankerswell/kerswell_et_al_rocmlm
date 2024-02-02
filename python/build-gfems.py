@@ -1,6 +1,6 @@
 from scripting import parse_arguments, check_arguments
 from gfem import get_sampleids, build_gfem_models
-from visualize import (visualize_gfem_design, visualize_gfem, visualize_gfem_diff,
+from visualize import (visualize_gfem_pt_range, visualize_gfem, visualize_gfem_diff,
                        visualize_gfem_analysis, compose_dataset_plots, create_dataset_movies)
 
 # Parse arguments and check
@@ -31,7 +31,9 @@ for name, models in gfems.items():
     compose_dataset_plots(models)
     create_dataset_movies(models)
 
+    if name == "benchmark":
+        visualize_gfem_pt_range(models[0])
+
 visualize_gfem_analysis()
-visualize_gfem_design()
 
 print("GFEM models visualized!")

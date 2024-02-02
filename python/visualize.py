@@ -54,8 +54,8 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, crust_thickness=35,
-                 litho_thickness=150):
+def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, A1=1e-6, A2=2.2e-8, k1=2.3,
+                 k2=3.0, crust_thickness=35, litho_thickness=150):
     """
     """
     # Get PT and target values and transform units
@@ -70,13 +70,13 @@ def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, crust_thickness=3
     T_geotherm = np.zeros(len(P))
 
     # Layer1 (crust)
-    A1 = 1e-6 # Radiogenic heat production (W/m^3)
-    k1 = 2.3 # Thermal conductivity (W/mK)
+    # A1 Radiogenic heat production (W/m^3)
+    # k1 Thermal conductivity (W/mK)
     D1 = crust_thickness * 1e3 # Thickness (m)
 
     # Layer2 (lithospheric mantle)
-    A2 = 2.2e-8
-    k2 = 3.0
+    # A2 Radiogenic heat production (W/m^3)
+    # k2 Thermal conductivity (W/mK)
     D2 = litho_thickness * 1e3
 
     # Calculate heat flow at the top of each layer
@@ -104,7 +104,7 @@ def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, crust_thickness=3
     df["geotherm_T"] = T_geotherm
 
     # Subset df along geotherm
-    df = df[abs(df["T"] - df["geotherm_T"]) < 10]
+    df = df[abs(df["T"] - df["geotherm_T"]) < threshold]
 
     # Extract the three vectors
     P_values = df["P"].values
@@ -127,16 +127,14 @@ def get_1d_reference_models():
         raise Exception(f"Data not found at {data_dir}!")
 
     # Reference model paths
-    ref_paths = {"prem": f"{data_dir}/PREM_1s.csv", "ak135": f"{data_dir}/AK135F_AVG.csv",
-                 "stw105": f"{data_dir}/STW105.csv"}
+    ref_paths = {"prem": f"{data_dir}/PREM_1s.csv", "stw105": f"{data_dir}/STW105.csv"}
 
     # Define column headers
     prem_cols = ["radius", "depth", "rho", "Vp", "Vph", "Vs", "Vsh", "eta", "Q_mu",
                  "Q_kappa"]
-    ak135_cols = ["depth", "rho", "Vp", "Vs", "Q_kappa", "Q_mu"]
     stw105_cols = ["radius", "rho", "Vp", "Vs", "unk1", "unk2", "Vph", "Vsh", "eta"]
 
-    ref_cols = {"prem": prem_cols, "ak135": ak135_cols, "stw105": stw105_cols}
+    ref_cols = {"prem": prem_cols, "stw105": stw105_cols}
     columns_to_keep = ["depth", "P", "rho", "Vp", "Vs"]
 
     # Initialize reference models
@@ -156,6 +154,7 @@ def get_1d_reference_models():
             model["rho"] = model["rho"] / 1000
             model["Vp"] = model["Vp"] / 1000
             model["Vs"] = model["Vs"] / 1000
+            model.sort_values(by=["depth"], inplace=True)
 
         model["P"] = model["depth"] / 30
 
@@ -333,20 +332,6 @@ def compose_dataset_plots(gfem_models):
             model_prefix = perplex_model.model_prefix
             verbose = perplex_model.verbose
 
-        # Set geotherm threshold for extracting depth profiles
-        if res <= 8:
-            geotherm_threshold = 80
-        elif res <= 16:
-            geotherm_threshold = 40
-        elif res <= 32:
-            geotherm_threshold = 20
-        elif res <= 64:
-            geotherm_threshold = 10
-        elif res <= 128:
-            geotherm_threshold = 5
-        else:
-            geotherm_threshold = 2.5
-
         # Rename targets
         targets_rename = [target.replace("_", "-") for target in targets]
 
@@ -476,7 +461,7 @@ def compose_dataset_plots(gfem_models):
                         )
 
             if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-                captions = [("a", "b", "c"), ("d", "e", "f"), ("g", "h", "i")]
+                captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
                 targets = ["rho", "Vp", "Vs"]
 
                 for i, target in enumerate(targets):
@@ -709,7 +694,7 @@ def create_dataset_movies(gfem_models):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose rocmlm plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_rocmlm_plots(rocmlm):
+def compose_rocmlm_plots(rocmlm, skip=1):
     """
     """
     # Get ml model attributes
@@ -729,16 +714,22 @@ def compose_rocmlm_plots(rocmlm):
     # Check for existing plots
     existing_figs = []
     for target in targets_rename:
-        for sample_id in rocmlm.sample_ids:
+        for sample_id in rocmlm.sample_ids[::skip]:
             fig_1 = f"{fig_dir}/prem-{sample_id}-{ml_model_label}-{target}.png"
             fig_2 = f"{fig_dir}/surf-{sample_id}-{ml_model_label}-{target}.png"
-            fig_3 = f"{fig_dir}/image-{sample_id}-{ml_model_label}-{target}.png"
-            fig_4 = f"{fig_dir}/image9-{sample_id}-{ml_model_label}-{target}.png"
+            fig_3 = f"{fig_dir}/surf9-{sample_id}-{ml_model_label}.png"
+            fig_4 = f"{fig_dir}/image-{sample_id}-{ml_model_label}-{target}.png"
+            fig_5 = f"{fig_dir}/image9-{sample_id}-{ml_model_label}-profile.png"
+            fig_6 = f"{fig_dir}/image9-{sample_id}-{ml_model_label}-diff.png"
+            fig_7 = f"{fig_dir}/image12-{sample_id}-{ml_model_label}.png"
 
             check = ((os.path.exists(fig_1) and os.path.exists(fig_2) and
-                      os.path.exists(fig_3) and os.path.exists(fig_4)) |
+                      os.path.exists(fig_3) and os.path.exists(fig_4) and
+                      os.path.exists(fig_5) and os.path.exists(fig_6) and
+                      os.path.exists(fig_7)) |
                      (os.path.exists(fig_2) and os.path.exists(fig_3) and
-                      os.path.exists(fig_4)))
+                      os.path.exists(fig_4) and os.path.exists(fig_5) and
+                      os.path.exists(fig_6) and os.path.exists(fig_7)))
 
             if check:
                 existing_figs.append(check)
@@ -747,7 +738,7 @@ def compose_rocmlm_plots(rocmlm):
         return None
 
     for target in targets_rename:
-        for sample_id in rocmlm.sample_ids:
+        for sample_id in rocmlm.sample_ids[::skip]:
             if verbose >= 1:
                 print(f"Composing {model_prefix}-{sample_id}-{target} [{program}] ...")
 
@@ -801,7 +792,7 @@ def compose_rocmlm_plots(rocmlm):
             )
 
         if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-            captions = [("a", "b", "c"), ("d", "e", "f"), ("g", "h", "i")]
+            captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
             targets = ["rho", "Vp", "Vs"]
 
             for i, target in enumerate(targets):
@@ -832,7 +823,127 @@ def compose_rocmlm_plots(rocmlm):
             combine_plots_vertically(
                 f"{fig_dir}/temp1.png",
                 f"{fig_dir}/temp-Vs.png",
-                f"{fig_dir}/image9-{sample_id}-{ml_model_label}-{target}.png",
+                f"{fig_dir}/image9-{sample_id}-{ml_model_label}-profile.png",
+                caption1="",
+                caption2=""
+            )
+
+        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+            captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
+            targets = ["rho", "Vp", "Vs"]
+
+            for i, target in enumerate(targets):
+                combine_plots_horizontally(
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1=captions[i][0],
+                    caption2=captions[i][1]
+                )
+
+                combine_plots_horizontally(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff.png",
+                    f"{fig_dir}/temp-{target}.png",
+                    caption1="",
+                    caption2=captions[i][2]
+                )
+
+            combine_plots_vertically(
+                f"{fig_dir}/temp-rho.png",
+                f"{fig_dir}/temp-Vp.png",
+                f"{fig_dir}/temp1.png",
+                caption1="",
+                caption2=""
+            )
+
+            combine_plots_vertically(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp-Vs.png",
+                f"{fig_dir}/image9-{sample_id}-{ml_model_label}-diff.png",
+                caption1="",
+                caption2=""
+            )
+
+        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+            captions = [("a)", "b)", "c)", "d)"), ("e)", "f)", "g)", "h)"),
+                        ("i)", "j)", "k)", "l)")]
+            targets = ["rho", "Vp", "Vs"]
+
+            for i, target in enumerate(targets):
+                combine_plots_vertically(
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1=captions[i][0],
+                    caption2=captions[i][1]
+                )
+
+                combine_plots_vertically(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff.png",
+                    f"{fig_dir}/temp2.png",
+                    caption1="",
+                    caption2=captions[i][2]
+                )
+
+                combine_plots_vertically(
+                    f"{fig_dir}/temp2.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
+                    f"{fig_dir}/temp-{target}.png",
+                    caption1="",
+                    caption2=captions[i][3]
+                )
+
+            combine_plots_horizontally(
+                f"{fig_dir}/temp-rho.png",
+                f"{fig_dir}/temp-Vp.png",
+                f"{fig_dir}/temp1.png",
+                caption1="",
+                caption2=""
+            )
+
+            combine_plots_horizontally(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp-Vs.png",
+                f"{fig_dir}/image12-{sample_id}-{ml_model_label}.png",
+                caption1="",
+                caption2=""
+            )
+
+        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+            captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
+            targets = ["rho", "Vp", "Vs"]
+
+            for i, target in enumerate(targets):
+                combine_plots_horizontally(
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets-surf.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-surf.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1=captions[i][0],
+                    caption2=captions[i][1]
+                )
+
+                combine_plots_horizontally(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff-surf.png",
+                    f"{fig_dir}/temp-{target}.png",
+                    caption1="",
+                    caption2=captions[i][2]
+                )
+
+            combine_plots_vertically(
+                f"{fig_dir}/temp-rho.png",
+                f"{fig_dir}/temp-Vp.png",
+                f"{fig_dir}/temp1.png",
+                caption1="",
+                caption2=""
+            )
+
+            combine_plots_vertically(
+                f"{fig_dir}/temp1.png",
+                f"{fig_dir}/temp-Vs.png",
+                f"{fig_dir}/surf9-{sample_id}-{ml_model_label}.png",
                 caption1="",
                 caption2=""
             )
@@ -852,31 +963,40 @@ def compose_rocmlm_plots(rocmlm):
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize gfem design !!
+# visualize gfem pt range !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="figs/other",
-                          T_mantle1=273, T_mantle2=1773, grad_mantle1=1, grad_mantle2=0.5,
-                          fontsize=12, figwidth=6.3, figheight=3.54):
+def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_mantle2=1773,
+                            grad_mantle1=0.5, grad_mantle2=0.5, fontsize=12, figwidth=6.3,
+                            figheight=3.54):
     """
     """
     # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
 
+    # Get gfem model data
+    res = gfem_model.res
+    targets = gfem_model.targets
+    results = gfem_model.results
+    P_gt, T_gt, rho_gt = results["P"], results["T"], results["rho"]
+
+    # Get min/max PT
+    P_min, P_max, T_min, T_max = np.min(P_gt), np.max(P_gt), np.min(T_gt), np.max(T_gt)
+
     # T range
     T = np.arange(0, T_max + 728)
 
     # Olivine --> Ringwoodite Clapeyron slopes
-    references_410 = {"[410 km] Akaogi89": [0.001, 0.002],
-                      "[410 km] Katsura89": [0.0025],
-                      "[410 km] Morishima94": [0.0034, 0.0038]}
+    references_410 = {"410 km (Akaogi89)": [0.001, 0.002],
+                      "410 km (Katsura89)": [0.0025],
+                      "410 km (Morishima94)": [0.0034, 0.0038]}
 
     # Ringwoodite --> Bridgmanite + Ferropericlase Clapeyron slopes
-    references_660 = {"[660 km] Ito82": [-0.002],
-                      "[660 km] Ito89 & Hirose02": [-0.0028],
-                      "[660 km] Ito90": [-0.002, -0.006],
-                      "[660 km] Katsura03": [-0.0004, -0.002],
-                      "[660 km] Akaogi07": [-0.0024, -0.0028]}
+    references_660 = {"660 km (Ito82)": [-0.002],
+                      "660 km (Ito89 & Hirose02)": [-0.0028],
+                      "660 km (Ito90)": [-0.002, -0.006],
+                      "660 km (Katsura03)": [-0.0004, -0.002],
+                      "660 km (Akaogi07)": [-0.0024, -0.0028]}
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -940,7 +1060,7 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
 
-            plt.plot(T[(T >= 1200) & (T <= 2000)], line[(T >= 1200) & (T <= 2000)],
+            plt.plot(T[(T >= 1050) & (T <= 2000)], line[(T >= 1050) & (T <= 2000)],
                      color=color, label=label)
 
             if label not in label_color_mapping:
@@ -953,7 +1073,7 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
 
-            plt.plot(T[(T >= 1200) & (T <= 2000)], line[(T >= 1200) & (T <= 2000)],
+            plt.plot(T[(T >= 1250) & (T <= 2100)], line[(T >= 1250) & (T <= 2100)],
                      color=color, label=label)
 
             if label not in label_color_mapping:
@@ -985,9 +1105,30 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
     T_cropped_geotherm2= T[T >= T2_Pmin]
     T_cropped_geotherm2 = T_cropped_geotherm2[T_cropped_geotherm2 <= T2_Pmax]
 
+    if res <= 8:
+        geotherm_threshold = 40
+    elif res <= 16:
+        geotherm_threshold = 20
+    elif res <= 32:
+        geotherm_threshold = 10
+    elif res <= 64:
+        geotherm_threshold = 5
+    elif res <= 128:
+        geotherm_threshold = 2.5
+    else:
+        geotherm_threshold = 1.25
+
+    # Get geotherm (non-adiabatic)
+    results = pd.DataFrame({"P": P_gt, "T": T_gt, "rho": rho_gt})
+    P_geotherm, T_geotherm, _ = get_geotherm(results, "rho", geotherm_threshold)
+    P_geotherm2, T_geotherm2, _ = get_geotherm(results, "rho", geotherm_threshold, Qs=42e-3,
+                                               litho_thickness=200)
+
     # Plot mantle geotherms
-    plt.plot(T_cropped_geotherm1, geotherm1_cropped, "-", color="black")
-    plt.plot(T_cropped_geotherm2, geotherm2_cropped, "--", color="black")
+    plt.plot(T_cropped_geotherm1, geotherm1_cropped, ":", color="black")
+    plt.plot(T_cropped_geotherm2, geotherm2_cropped, ":", color="black")
+    plt.plot(T_geotherm, P_geotherm, linestyle="-", color="black")
+    plt.plot(T_geotherm2, P_geotherm2, linestyle="--", color="black")
 
     # Interpolate the geotherms to have the same length as temperature vectors
     geotherm1_interp = np.interp(T_cropped_geotherm1, T, geotherm1)
@@ -1008,10 +1149,12 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
     plt.fill(vertices[:, 0], vertices[:, 1], facecolor="blue", edgecolor="black", alpha=0.1)
 
     # Geotherm legend handles
-    geotherm1_handle = mlines.Line2D([], [], linestyle="-", color="black",
-                                     label="Geotherm 1")
-    geotherm2_handle = mlines.Line2D([], [], linestyle="--", color="black",
-                                     label="Geotherm 2")
+    geotherm1_handle = mlines.Line2D([], [], linestyle=":", color="black",
+                                     label="Arbitrary Mantle Adiabat")
+    geotherm2_handle = mlines.Line2D([], [], linestyle="-", color="black",
+                                     label="Avg. Proterozoic Continent")
+    geotherm3_handle = mlines.Line2D([], [], linestyle="--", color="black",
+                                     label="Avg. Archean Continent")
 
     # Phase boundaries legend handles
     ref_line_handles = [
@@ -1020,24 +1163,25 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
     ]
 
     # Add geotherms to legend handles
-    ref_line_handles.extend([geotherm1_handle, geotherm2_handle])
+    ref_line_handles.extend([geotherm1_handle, geotherm2_handle, geotherm3_handle])
 
-    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Dataset PT Range")
+    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Training Data Range")
 
-    labels_660.add("Dataset PT Range")
-    label_color_mapping["Dataset PT Range"] = "gray"
+    labels_660.add("Training Data Range")
+    label_color_mapping["Training Data Range"] = "gray"
 
     training_data_handle = mpatches.Patch(facecolor="blue", edgecolor="black", alpha=0.1,
-                                          label="Mantle Conditions")
+                                          label="Possible Mantle Conditions")
 
-    labels_660.add("Mantle Conditions")
-    label_color_mapping["Mantle Conditions"] = "gray"
+    labels_660.add("Possible Mantle Conditions")
+    label_color_mapping["Possible Mantle Conditions"] = "gray"
 
     # Define the desired order of the legend items
-    desired_order = ["Dataset PT Range", "Mantle Conditions", "[410 km] Akaogi89",
-                     "[410 km] Katsura89", "[410 km] Morishima94", "[660 km] Ito82",
-                     "[660 km] Ito89 & Hirose02", "[660 km] Ito90", "[660 km] Katsura03",
-                     "[660 km] Akaogi07", "Geotherm 1", "Geotherm 2"]
+    desired_order = ["Training Data Range", "Possible Mantle Conditions",
+                     "410 km (Akaogi89)", "410 km (Katsura89)", "410 km (Morishima94)",
+                     "660 km (Ito82)", "660 km (Ito89 & Hirose02)", "660 km (Ito90)",
+                     "660 km (Katsura03)", "660 km (Akaogi07)", "Arbitrary Mantle Adiabat",
+                     "Avg. Proterozoic Continent", "Avg. Archean Continent"]
 
     # Sort the legend handles based on the desired order
     legend_handles = sorted(ref_line_handles + [db_data_handle, training_data_handle],
@@ -1069,7 +1213,7 @@ def visualize_gfem_design(P_min=1, P_max=28, T_min=773, T_max=2273, fig_dir="fig
 # visualize rocmlm tradeoffs !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.png",
-                               figwidth=6.3, figheight=3.54, fontsize=12):
+                               figwidth=6.3, figheight=2.5, fontsize=12):
     """
     """
     # Data assets dir
@@ -1221,7 +1365,7 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     # Set labels and title
     plt.xlabel("Log2 Training Dataset Size")
     plt.ylabel("Elapsed Time (ms)")
-    plt.title("Prediction Lag")
+    plt.title("Prediction Time")
     plt.yscale("log")
     plt.xticks(np.arange(11, 22, 2))
 
@@ -1250,12 +1394,14 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
                                          markeredgewidth=1.2, markersize=10,
                                          label="GFEM Programs", linewidth=0))
 
-    fig.legend(handles=legend_elements, loc="lower center", ncol=3,
-               bbox_to_anchor=(0.5, -0.15))
+    fig.legend(handles=legend_elements, title="Method", loc="center right", ncol=1,
+               bbox_to_anchor=(1.22, 0.6), columnspacing=0.1, handletextpad=-0.1,
+               fontsize=fontsize * 0.833)
 
     # Create a colorbar
-    cbar = plt.colorbar(sm, label="RMSE w.r.t. Training Dataset (g/cm$^3$)", ax=(ax, ax2),
-                        orientation="horizontal", pad=-0.45, shrink=0.8)
+    cbar = plt.colorbar(sm, label="RMSE (g/cm$^3$)", ax=(ax, ax2), format="%0.1g",
+                        orientation="horizontal", anchor=(1.50, 0.5), shrink=0.25, aspect=10)
+    cbar.ax.xaxis.set_label_position("top")
 
     # Set labels and title
     plt.xlabel("Log2 Training Dataset Size")
@@ -1263,6 +1409,10 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     plt.title("Model Inefficiency")
     plt.yscale("log")
     plt.xticks(np.arange(11, 22, 2))
+
+    # Add captions
+    fig.text(0.025, 0.92, "a)", fontsize=fontsize * 1.3)
+    fig.text(0.525, 0.92, "b)", fontsize=fontsize * 1.3)
 
     # Adjust the figure size
     fig = plt.gcf()
@@ -1285,8 +1435,8 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
 # visualize prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_prem(program, sample_id, dataset, res, target, target_unit, results_mgm=None,
-                   results_ppx=None, results_ml=None, model=None, geotherm_threshold=0.1,
-                   title=None, fig_dir="figs", filename=None, figwidth=6.3, figheight=4.725,
+                   results_ppx=None, results_ml=None, model=None, title=None,
+                   fig_dir="figs", filename=None, figwidth=6.3, figheight=4.725,
                    fontsize=22):
     """
     """
@@ -1306,7 +1456,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Get 1D refernce model profiles
     P_prem, target_prem = ref_models["prem"]["P"], ref_models["prem"][target]
-    P_ak135, target_ak135 = ref_models["ak135"]["P"], ref_models["ak135"][target]
     P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
 
     # Initialize geotherms
@@ -1325,6 +1474,20 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     else:
         results_pum = None
 
+    # Set geotherm threshold for extracting depth profiles
+    if res <= 8:
+        geotherm_threshold = 40
+    elif res <= 16:
+        geotherm_threshold = 20
+    elif res <= 32:
+        geotherm_threshold = 10
+    elif res <= 64:
+        geotherm_threshold = 5
+    elif res <= 128:
+        geotherm_threshold = 2.5
+    else:
+        geotherm_threshold = 1.25
+
     # Extract target values along a geotherm
     if results_mgm:
         P_mgm, _, target_mgm = get_geotherm(results_mgm, target, geotherm_threshold)
@@ -1341,12 +1504,10 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Create cropping mask
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
-    mask_ak135 = (P_ak135 >= P_min) & (P_ak135 <= P_max)
     mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
 
     # Crop profiles
     P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
-    P_ak135, target_ak135 = P_ak135[mask_ak135], target_ak135[mask_ak135]
     P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
 
     # Crop results
@@ -1365,7 +1526,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Initialize interpolators
     interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
-    interp_ak135 = interp1d(P_ak135, target_ak135, fill_value="extrapolate")
     interp_stw105 = interp1d(P_stw105, target_stw105, fill_value="extrapolate")
 
     # New x values for interpolation
@@ -1376,7 +1536,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Interpolate profiles
     P_prem, target_prem = x_new, interp_prem(x_new)
-    P_ak135, target_ak135 = x_new, interp_ak135(x_new)
     P_stw105, target_stw105 = x_new, interp_stw105(x_new)
 
     # Set plot style and settings
@@ -1403,7 +1562,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Plot reference models
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
-    ax1.plot(target_ak135, P_ak135, "--", linewidth=2, color="black", label="")
     ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black", label="")
 
     if target == "rho":
@@ -1482,8 +1640,8 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 # visualize target array  !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_target_array(P, T, target_array, target, title, palette, color_discrete,
-                           color_reverse, vmin, vmax, fig_dir, filename, figwidth=6.3,
-                           figheight=4.725, fontsize=22):
+                           color_reverse, vmin, vmax, rmse, r2, fig_dir, filename,
+                           figwidth=6.3, figheight=4.725, fontsize=22):
     """
     """
     # Check for figs directory
@@ -1504,17 +1662,17 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
     # Set geotherm threshold for extracting depth profiles
     res = target_array.shape[0]
     if res <= 8:
-        geotherm_threshold = 80
-    elif res <= 16:
         geotherm_threshold = 40
-    elif res <= 32:
+    elif res <= 16:
         geotherm_threshold = 20
-    elif res <= 64:
+    elif res <= 32:
         geotherm_threshold = 10
-    elif res <= 128:
+    elif res <= 64:
         geotherm_threshold = 5
-    else:
+    elif res <= 128:
         geotherm_threshold = 2.5
+    else:
+        geotherm_threshold = 1.25
 
     # Get geotherm
     results = pd.DataFrame({"P": P, "T": T, target: target_array.flatten()})
@@ -1660,6 +1818,23 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
     # Add title
     if title:
         plt.title(title)
+
+    # Vertical text spacing
+    text_margin_x = 0.04
+    text_margin_y = 0.15
+    text_spacing_y = 0.1
+
+    # Add rmse and r2
+    if rmse is not None and r2 is not None:
+        bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="white", lw=1.5,
+                          alpha=0.3)
+        plt.text(text_margin_x, text_margin_y - (text_spacing_y * 0), f"R$^2$: {r2:.3f}",
+                 transform=plt.gca().transAxes, fontsize=fontsize * 0.833,
+                 horizontalalignment="left", verticalalignment="bottom", bbox=bbox_props)
+        plt.text(text_margin_x, text_margin_y - (text_spacing_y * 1),
+                 f"RMSE: {rmse:.3f}", transform=plt.gca().transAxes,
+                 fontsize=fontsize * 0.833, horizontalalignment="left",
+                 verticalalignment="bottom", bbox=bbox_props)
 
     # Save the plot to a file if a filename is provided
     if filename:
@@ -1896,7 +2071,6 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
 
         if program == "magemin":
             program_title = "MAGEMin"
-
         elif program == "perplex":
             program_title = "Perple_X"
 
@@ -1960,8 +2134,8 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
 
             # Plot targets
             visualize_target_array(P, T, square_target, target, program_title, palette,
-                                   color_discrete, color_reverse, vmin, vmax, fig_dir,
-                                   filename)
+                                   color_discrete, color_reverse, vmin, vmax, None, None,
+                                   fig_dir, filename)
             if edges:
                 original_image = square_target.copy()
 
@@ -1982,21 +2156,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
 
                 visualize_target_array(P, T, magnitude, target, "Gradient", palette,
                                        color_discrete, color_reverse, vmin_mag, vmax_mag,
-                                       fig_dir, f"grad-{filename}")
-
-            # Set geotherm threshold for extracting depth profiles
-            if res <= 8:
-                geotherm_threshold = 80
-            elif res <= 16:
-                geotherm_threshold = 40
-            elif res <= 32:
-                geotherm_threshold = 20
-            elif res <= 64:
-                geotherm_threshold = 10
-            elif res <= 128:
-                geotherm_threshold = 5
-            else:
-                geotherm_threshold = 2.5
+                                       None, None, fig_dir, f"grad-{filename}")
 
             filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
 
@@ -2010,19 +2170,15 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                     results_mgm = results
                     results_ppx = None
                     visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
-                                   results_mgm, results_ppx,
-                                   geotherm_threshold=geotherm_threshold,
-                                   title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=filename)
+                                   results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename)
 
                 elif program == "perplex":
                     results_mgm = None
                     results_ppx = results
                     visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
-                                   results_mgm, results_ppx,
-                                   geotherm_threshold=geotherm_threshold,
-                                   title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=filename)
+                                   results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename)
 
             if target in ["Vp", "Vs"]:
                 # Print filepath
@@ -2033,19 +2189,15 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                     results_mgm = results
                     results_ppx = None
                     visualize_prem(program, sample_id, dataset, res, target, "km/s",
-                                   results_mgm, results_ppx,
-                                   geotherm_threshold=geotherm_threshold,
-                                   title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=filename)
+                                   results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename)
 
                 elif program == "perplex":
                     results_mgm = None
                     results_ppx = results
                     visualize_prem(program, sample_id, dataset, res, target, "km/s",
-                                   results_mgm, results_ppx,
-                                   geotherm_threshold=geotherm_threshold,
-                                   title="PREM Comparison", fig_dir=fig_dir,
-                                   filename=filename)
+                                   results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename)
 
     return None
 
@@ -2123,7 +2275,6 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                 # Use discrete colorscale
                 if target in ["assemblage", "variance"]:
                     color_discrete = True
-
                 else:
                     color_discrete = False
 
@@ -2131,14 +2282,11 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                 if palette in ["grey"]:
                     if target in ["variance"]:
                         color_reverse = True
-
                     else:
                         color_reverse = False
-
                 else:
                     if target in ["variance"]:
                         color_reverse = False
-
                     else:
                         color_reverse = True
 
@@ -2155,7 +2303,6 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
 
                     vmin = min(vmin_mgm, vmin_ppx)
                     vmax = max(vmax_mgm, vmax_ppx)
-
                 else:
                     num_colors_mgm = len(np.unique(square_array_mgm))
                     num_colors_ppx = len(np.unique(square_array_ppx))
@@ -2174,6 +2321,12 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                     # Compute normalized diff
                     diff = square_array_mgm - square_array_ppx
 
+                    # Calculate RMSE
+                    rmse = np.sqrt(mean_squared_error(square_array_mgm, square_array_ppx))
+
+                    # Calculate R2
+                    r2 = r2_score(square_array_mgm, square_array_ppx)
+
                     # Add nans to match original target arrays
                     diff[~mask] = np.nan
 
@@ -2188,21 +2341,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                     # Plot target array normalized diff mgm-ppx
                     visualize_target_array(P_ppx, T_ppx, diff, target, "Residuals",
                                            "seismic", color_discrete, False, vmin, vmax,
-                                           fig_dir, filename)
-
-                    # Set geotherm threshold for extracting depth profiles
-                    if res <= 8:
-                        geotherm_threshold = 80
-                    elif res <= 16:
-                        geotherm_threshold = 40
-                    elif res <= 32:
-                        geotherm_threshold = 20
-                    elif res <= 64:
-                        geotherm_threshold = 10
-                    elif res <= 128:
-                        geotherm_threshold = 5
-                    else:
-                        geotherm_threshold = 2.5
+                                           rmse, r2, fig_dir, filename)
 
                     filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
 
@@ -2214,8 +2353,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
 
                         visualize_prem("perplex", sample_id, dataset, res, target,
                                        "g/cm$^3$", results_mgm, results_ppx,
-                                       geotherm_threshold=geotherm_threshold,
-                                       title="PREM Comparison", fig_dir=fig_dir,
+                                       title="Depth Profile", fig_dir=fig_dir,
                                        filename=filename)
 
                     if target in ["Vp", "Vs"]:
@@ -2224,17 +2362,15 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                             print(f"Saving figure: {filename}")
 
                         visualize_prem("perplex", sample_id, dataset, res, target, "km/s",
-                                       results_mgm, results_ppx,
-                                       geotherm_threshold=geotherm_threshold,
-                                       title="PREM Comparison", fig_dir=fig_dir,
-                                       filename=filename)
+                                       results_mgm, results_ppx, title="Depth Profile",
+                                       fig_dir=fig_dir, filename=filename)
 
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize rocmlm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
+def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22):
     """
     """
     # Get ml model attributes
@@ -2277,7 +2413,7 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
     # Check for existing plots
     existing_figs = []
     for target in targets_rename:
-        for s in sample_ids:
+        for s in sample_ids[::skip]:
             fig_1 = f"{fig_dir}/prem-{s}-{model_label}-{target}.png"
             fig_2 = f"{fig_dir}/surf-{s}-{model_label}-{target}.png"
             fig_3 = f"{fig_dir}/image-{s}-{model_label}-{target}.png"
@@ -2291,7 +2427,7 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
     if existing_figs:
         return None
 
-    for s, sample_id in enumerate(sample_ids):
+    for s, sample_id in enumerate(sample_ids[::skip]):
         if verbose >= 1:
             print(f"Visualizing {model_prefix}-{sample_id} [{program}] ...")
 
@@ -2344,6 +2480,12 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
             # Compute normalized diff
             diff = target_array[: ,: , i] - pred_array[: , :, i]
 
+            # Calculate RMSE
+            rmse = np.sqrt(mean_squared_error(target_array[:, :, i], pred_array[:, :, i]))
+
+            # Calculate R2
+            r2 = r2_score(target_array[:, :, i], pred_array[:, :, i])
+
             # Make nans consistent
             diff[mask] = np.nan
 
@@ -2367,8 +2509,8 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
             p = pred_array[:, :, i]
 
             visualize_target_array(P.flatten(), T.flatten(), t, target, program_label,
-                                   palette, False, color_reverse, vmin[i], vmax[i], fig_dir,
-                                   f"{filename}-targets.png")
+                                   palette, False, color_reverse, vmin[i], vmax[i], None,
+                                   None, fig_dir, f"{filename}-targets.png")
             # Plot target array 3d
             visualize_target_surf(P, T, t, target, program_label, palette, False,
                                   color_reverse, vmin[i], vmax[i], fig_dir,
@@ -2376,8 +2518,8 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
 
             # Plot ML model predictions array 2d
             visualize_target_array(P.flatten(), T.flatten(), p, target, model_label_full,
-                                   palette, False, color_reverse, vmin[i], vmax[i], fig_dir,
-                                   f"{filename}-predictions.png")
+                                   palette, False, color_reverse, vmin[i], vmax[i], None,
+                                   None, fig_dir, f"{filename}-predictions.png")
 
             # Plot ML model predictions array 3d
             visualize_target_surf(P, T, p, target, model_label_full, palette, False,
@@ -2386,8 +2528,8 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
 
             # Plot PT normalized diff targets vs. ML model predictions 2d
             visualize_target_array(P.flatten(), T.flatten(), diff, target, "Residuals",
-                                   "seismic", False, False, vmin[i], vmax[i], fig_dir,
-                                   f"{filename}-diff.png")
+                                   "seismic", False, False, vmin[i], vmax[i], rmse, r2,
+                                   fig_dir, f"{filename}-diff.png")
 
             # Plot PT normalized diff targets vs. ML model predictions 3d
             visualize_target_surf(P, T, diff, target, "Residuals", "seismic", False, False,
@@ -2420,30 +2562,17 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
             # Set geotherm threshold for extracting depth profiles
             res = w - 1
 
-            if res <= 8:
-                geotherm_threshold = 80
-            elif res <= 16:
-                geotherm_threshold = 40
-            elif res <= 32:
-                geotherm_threshold = 20
-            elif res <= 64:
-                geotherm_threshold = 10
-            elif res <= 128:
-                geotherm_threshold = 5
-            else:
-                geotherm_threshold = 2.5
-
             # Plot PREM comparisons
             if target == "rho":
                 visualize_prem(program, sample_id, "train", res, target, "g/cm$^3$",
                                results_mgm, results_ppx, results_rocmlm, model_label,
-                               geotherm_threshold, title=model_label_full, fig_dir=fig_dir,
+                               title="Depth Profile", fig_dir=fig_dir,
                                filename=f"{filename}-prem.png")
 
             if target in ["Vp", "Vs"]:
                 visualize_prem(program, sample_id, "train", res, target, "km/s",
                                results_mgm, results_ppx, results_rocmlm, model_label,
-                               geotherm_threshold, title=model_label_full, fig_dir=fig_dir,
+                               title="Depth Profile", fig_dir=fig_dir,
                                filename=f"{filename}-prem.png")
     return None
 
@@ -2451,7 +2580,7 @@ def visualize_rocmlm(rocmlm, figwidth=6.3, figheight=4.725, fontsize=22):
 # visualize pca loadings !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="earthchem",
-                           batch=False, figwidth=6.3, figheight=5, fontsize=22):
+                           batch=False, figwidth=6.3, figheight=5, fontsize=24):
     """
     """
     # Get mixing array attributes
@@ -2582,7 +2711,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
         )
 
     legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
-                       bbox_to_anchor=(0.5, 0.12), ncol=4, columnspacing=0,
+                       bbox_to_anchor=(0.5, 0.13), ncol=4, columnspacing=0,
                        handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.833)
     # Legend order
     for i, label in enumerate(legend_order):
@@ -2682,11 +2811,14 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
                             orientation="horizontal")
     colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
 
-    ax2.set_xlabel("PC1")
-    ax2.set_ylabel("")
-    ax2.set_yticks([])
-    ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-    ax2.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+    ax.set_xlabel("PC1")
+    ax.set_ylabel("PC2")
+    ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+
+    # Add captions
+    fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.2)
+    fig.text(0.5, 0.92, "b)", fontsize=fontsize * 1.2)
 
     # Save the plot to a file if a filename is provided
     if filename:
@@ -2706,8 +2838,9 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize harker diagrams !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array", filename="earthchem",
-                              figwidth=6.3, figheight=6.3, fontsize=22):
+def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
+                              filename="earthchem", figwidth=6.3, figheight=6.3,
+                              fontsize=22):
     """
     """
     # Get mixing array attributes

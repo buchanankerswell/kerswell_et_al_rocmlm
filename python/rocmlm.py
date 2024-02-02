@@ -61,6 +61,35 @@ def get_unique_value(input_list):
     return unique_value
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# append to lut csv !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def append_to_lut_csv(data_dict):
+    """
+    """
+    # CSV filepath
+    filepath = f"assets/data/lut-efficiency.csv"
+
+    # Check if the CSV file already exists
+    if not pd.io.common.file_exists(filepath):
+        df = pd.DataFrame(data_dict)
+
+    else:
+        df = pd.read_csv(filepath)
+
+        # Append the new data dictionary to the DataFrame
+        new_data = pd.DataFrame(data_dict)
+
+        df = pd.concat([df, new_data], ignore_index=True)
+
+    # Sort df
+    df = df.sort_values(by=["sample", "size"])
+
+    # Save the updated DataFrame back to the CSV file
+    df.to_csv(filepath, index=False)
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # evaluate lut efficiency !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def evaluate_lut_efficiency(name, gfem_models):
@@ -155,10 +184,9 @@ def evaluate_lut_efficiency(name, gfem_models):
     # Create df
     evals = {"sample": sample, "program": program, "dataset": dataset, "size": size,
              "time": eval_time, "model_size_mb": model_size_mb}
-    evals_df = pd.DataFrame(evals)
 
-    # Write CSV
-    evals_df.to_csv("assets/data/lut-efficiency.csv", index=False)
+    # Write csv
+    append_to_lut_csv(evals)
 
     return None
 

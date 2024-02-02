@@ -87,13 +87,13 @@ def get_sampleids(filepath, batch, n_batches=8):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def get_geotherm(results, target, threshold, Qs=60e-3, Ts=273, crust_thickness=35,
-                 litho_thickness=100):
+def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, A1=1e-6, A2=2.2e-8, k1=2.3,
+                 k2=3.0, crust_thickness=35, litho_thickness=150):
     """
     """
     # Get PT and target values and transform units
     df = pd.DataFrame({"P": results["P"], "T": results["T"],
-                       target: results[target]}).sort_values(by="P", ignore_index=True)
+                       target: results[target]}).sort_values(by="P")
 
     # Geotherm Parameters
     P = results["P"]
@@ -103,13 +103,13 @@ def get_geotherm(results, target, threshold, Qs=60e-3, Ts=273, crust_thickness=3
     T_geotherm = np.zeros(len(P))
 
     # Layer1 (crust)
-    A1 = 1e-6 # Radiogenic heat production (W/m^3)
-    k1 = 2.3 # Thermal conductivity (W/mK)
+    # A1 Radiogenic heat production (W/m^3)
+    # k1 Thermal conductivity (W/mK)
     D1 = crust_thickness * 1e3 # Thickness (m)
 
     # Layer2 (lithospheric mantle)
-    A2 = 2.2e-8
-    k2 = 3.0
+    # A2 Radiogenic heat production (W/m^3)
+    # k2 Thermal conductivity (W/mK)
     D2 = litho_thickness * 1e3
 
     # Calculate heat flow at the top of each layer
@@ -137,7 +137,7 @@ def get_geotherm(results, target, threshold, Qs=60e-3, Ts=273, crust_thickness=3
     df["geotherm_T"] = T_geotherm
 
     # Subset df along geotherm
-    df = df[abs(df["T"] - df["geotherm_T"]) < 10]
+    df = df[abs(df["T"] - df["geotherm_T"]) < threshold]
 
     # Extract the three vectors
     P_values = df["P"].values
@@ -160,16 +160,14 @@ def get_1d_reference_models():
         raise Exception(f"Data not found at {data_dir}!")
 
     # Reference model paths
-    ref_paths = {"prem": f"{data_dir}/PREM_1s.csv", "ak135": f"{data_dir}/AK135F_AVG.csv",
-                 "stw105": f"{data_dir}/STW105.csv"}
+    ref_paths = {"prem": f"{data_dir}/PREM_1s.csv", "stw105": f"{data_dir}/STW105.csv"}
 
     # Define column headers
     prem_cols = ["radius", "depth", "rho", "Vp", "Vph", "Vs", "Vsh", "eta", "Q_mu",
                  "Q_kappa"]
-    ak135_cols = ["depth", "rho", "Vp", "Vs", "Q_kappa", "Q_mu"]
     stw105_cols = ["radius", "rho", "Vp", "Vs", "unk1", "unk2", "Vph", "Vsh", "eta"]
 
-    ref_cols = {"prem": prem_cols, "ak135": ak135_cols, "stw105": stw105_cols}
+    ref_cols = {"prem": prem_cols, "stw105": stw105_cols}
     columns_to_keep = ["depth", "P", "rho", "Vp", "Vs"]
 
     # Initialize reference models
@@ -189,6 +187,7 @@ def get_1d_reference_models():
             model["rho"] = model["rho"] / 1000
             model["Vp"] = model["Vp"] / 1000
             model["Vs"] = model["Vs"] / 1000
+            model.sort_values(by=["depth"], inplace=True)
 
         model["P"] = model["depth"] / 30
 
@@ -245,13 +244,11 @@ def analyze_gfem_model(gfem_model, filename):
 
     # Initialize metrics lists
     rmse_prem_profile, r2_prem_profile = [], []
-    rmse_ak135_profile, r2_ak135_profile = [], []
     rmse_stw105_profile, r2_stw105_profile = [], []
 
     for target in targets:
         # Get 1D refernce model profiles
         P_prem, target_prem = ref_models["prem"]["P"], ref_models["prem"][target]
-        P_ak135, target_ak135 = ref_models["ak135"]["P"], ref_models["ak135"][target]
         P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
 
         # Get model profile
@@ -263,19 +260,16 @@ def analyze_gfem_model(gfem_model, filename):
 
         # Create cropping mask
         mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
-        mask_ak135 = (P_ak135 >= P_min) & (P_ak135 <= P_max)
         mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
         mask_model = (P_model >= P_min) & (P_model <= P_max)
 
         # Crop profiles
         P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
-        P_ak135, target_ak135 = P_ak135[mask_ak135], target_ak135[mask_ak135]
         P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
         P_model, target_model = P_model[mask_model], target_model[mask_model]
 
         # Initialize interpolators
         interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
-        interp_ak135 = interp1d(P_ak135, target_ak135, fill_value="extrapolate")
         interp_stw105 = interp1d(P_stw105, target_stw105, fill_value="extrapolate")
 
         # New x values for interpolation
@@ -283,7 +277,6 @@ def analyze_gfem_model(gfem_model, filename):
 
         # Interpolate profiles
         P_prem, target_prem = x_new, interp_prem(x_new)
-        P_ak135, target_ak135 = x_new, interp_ak135(x_new)
         P_stw105, target_stw105 = x_new, interp_stw105(x_new)
 
         # Create nan mask
@@ -292,16 +285,12 @@ def analyze_gfem_model(gfem_model, filename):
         # Remove nans
         P_model, target_model = P_model[~nan_mask], target_model[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
-        P_ak135, target_ak135 = P_ak135[~nan_mask], target_ak135[~nan_mask]
         P_stw105, target_stw105 = P_stw105[~nan_mask], target_stw105[~nan_mask]
 
         # Calculate rmse and r2 along profiles
         rmse_prem = np.sqrt(mean_squared_error(target_prem, target_model))
         rmse_prem_profile.append(np.round(rmse_prem, 3))
         r2_prem_profile.append(np.round(r2_score(target_prem, target_model), 3))
-        rmse_ak135 = np.sqrt(mean_squared_error(target_ak135, target_model))
-        rmse_ak135_profile.append(np.round(rmse_ak135, 3))
-        r2_ak135_profile.append(np.round(r2_score(target_ak135, target_model), 3))
         rmse_stw105 = np.sqrt(mean_squared_error(target_stw105, target_model))
         rmse_stw105_profile.append(np.round(rmse_stw105, 3))
         r2_stw105_profile.append(np.round(r2_score(target_stw105, target_model), 3))
@@ -309,7 +298,6 @@ def analyze_gfem_model(gfem_model, filename):
     # Save results
     results = {"SAMPLEID": [sample_id] * len(targets), "PROGRAM": [program] * len(targets),
                "TARGET": targets, "RMSE_PREM": rmse_prem_profile, "R2_PREM": r2_prem_profile,
-               "RMSE_AK135": rmse_ak135_profile, "R2_AK135": r2_ak135_profile,
                "RMSE_STW105": rmse_stw105_profile, "R2_STW105": r2_stw105_profile}
 
     # Create dataframe
@@ -420,8 +408,7 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"],
     # Write blank CSV
     if not os.path.exists(filename):
         columns = ["SAMPLEID", "PROGRAM", "TARGET", "RMSE_PREM_PROFILE", "R2_PREM_PROFILE",
-                   "RMSE_AK135_PROFILE", "R2_AK135_PROFILE", "RMSE_STW105_PROFILE",
-                   "R2_STW105_PROFILE"]
+                   "RMSE_STW105_PROFILE", "R2_STW105_PROFILE"]
         df = pd.DataFrame(columns=columns)
         df.to_csv(filename, index=False, header=True)
 
@@ -1748,7 +1735,7 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # create geotherm mask !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def _create_geotherm_mask(self, T_mantle1=273, T_mantle2=1773, grad_mantle1=1,
+    def _create_geotherm_mask(self, T_mantle1=673, T_mantle2=1773, grad_mantle1=0.5,
                               grad_mantle2=0.5):
         """
         """

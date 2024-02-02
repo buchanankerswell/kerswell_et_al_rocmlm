@@ -59,10 +59,6 @@ rocmlms: initialize
 	@PYTHONWARNINGS="ignore" $(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
 	@echo "=============================================" $(LOG)
 
-test: initialize
-	@$(CONDAPYTHON) -u python/test.py $(LOG)
-	@echo "=============================================" $(LOG)
-
 gfems: initialize
 	@$(CONDAPYTHON) -u python/build-gfems.py $(LOG)
 	@echo "=============================================" $(LOG)
