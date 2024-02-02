@@ -866,8 +866,8 @@ def compose_rocmlm_plots(rocmlm, skip=1):
             )
 
         if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-            captions = [("a)", "b)", "c)", "d)"), ("e)", "f)", "g)", "h)"),
-                        ("i)", "j)", "k)", "l)")]
+            captions = [("a)", "d)", "g)", "j)"), ("b)", "e)", "h)", "k)"),
+                        ("c)", "f)", "i)", "l)")]
             targets = ["rho", "Vp", "Vs"]
 
             for i, target in enumerate(targets):
@@ -1562,7 +1562,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Plot reference models
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
-    ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black", label="")
+    ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black", label="STW105")
 
     if target == "rho":
         target_label = "Density"
@@ -2480,11 +2480,9 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             # Compute normalized diff
             diff = target_array[: ,: , i] - pred_array[: , :, i]
 
-            # Calculate RMSE
-            rmse = np.sqrt(mean_squared_error(target_array[:, :, i], pred_array[:, :, i]))
-
-            # Calculate R2
-            r2 = r2_score(target_array[:, :, i], pred_array[:, :, i])
+            # Get relevant metrics for target array plot
+            rmse = cv_info[f"rmse_val_mean_{target}"]
+            r2 = cv_info[f"r2_val_mean_{target}"]
 
             # Make nans consistent
             diff[mask] = np.nan
@@ -2552,12 +2550,6 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             # Reshape results and transform units for ML model
             results_rocmlm = {"P": P.flatten().tolist(), "T": T.flatten().tolist(),
                               target: p.flatten().tolist()}
-
-            # Get relevant metrics for PREM plot
-            rmse = cv_info[f"rmse_val_mean_{target}"]
-            r2 = cv_info[f"r2_val_mean_{target}"]
-
-            metrics = [rmse[0], r2[0]]
 
             # Set geotherm threshold for extracting depth profiles
             res = w - 1
