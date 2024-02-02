@@ -247,7 +247,8 @@ def compile_perplex(commit_hash="5743553", verbose=1):
 
         if os_system == "macos":
             download_and_unzip(("https://www.perplex.ethz.ch/perplex/ibm_and_mac_archives/"
-                                "OSX/Perple_X_7.0.9_OSX_ARM_SP_Apr_16_2023.zip"),
+                                "OSX/previous_version/Perple_X_7.0.9_OSX_ARM_SP_Apr_16_2023"
+                                ".zip"),
                                "dynamic.zip", "Perple_X")
         if os_system == "linux":
             download_github_submodule("https://github.com/ondrolexa/Perple_X.git",
