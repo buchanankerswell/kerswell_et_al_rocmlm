@@ -1365,7 +1365,7 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     # Set labels and title
     plt.xlabel("Log2 Training Dataset Size")
     plt.ylabel("Elapsed Time (ms)")
-    plt.title("Prediction Lag Time")
+    plt.title("Prediction Time")
     plt.yscale("log")
     plt.xticks(np.arange(11, 22, 2))
 
@@ -1394,7 +1394,7 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
                                          markeredgewidth=1.2, markersize=10,
                                          label="GFEM Programs", linewidth=0))
 
-    fig.legend(handles=legend_elements, title="Method", loc="center right", ncol=1,
+    fig.legend(handles=legend_elements, title="Program", loc="center right", ncol=1,
                bbox_to_anchor=(1.22, 0.6), columnspacing=0.1, handletextpad=-0.1,
                fontsize=fontsize * 0.833)
 
@@ -1561,8 +1561,8 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         ax1.plot(target_ml, P_ml, "-.", linewidth=3, color=colormap(1), label=model)
 
     # Plot reference models
-    ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
-    ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black", label="STW105")
+    ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black")
+    ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black")
 
     if target == "rho":
         target_label = "Density"
