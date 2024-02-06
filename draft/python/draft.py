@@ -350,7 +350,7 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": RocMLM, size, efficiency, and performance measured on an (unseen) "
+        caption = (": RocMLM size, accuracy, and performance measured on a "
                    "validation dataset. {#tbl:rocmlm-performance}")
 
         # Write markdown table

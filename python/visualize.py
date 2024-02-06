@@ -1363,15 +1363,18 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
                        color=color_dict[rmse], edgecolor="black", zorder=2)
 
     # Set labels and title
-    plt.xlabel("Log2 Training Dataset Size")
+    plt.xlabel("Log2 Dataset Size")
     plt.ylabel("Elapsed Time (ms)")
-    plt.title("Prediction Time")
+    plt.title("Execution Speed")
     plt.yscale("log")
+    plt.gca().invert_yaxis()
     plt.xticks(np.arange(11, 22, 2))
 
     ax2 = fig.add_subplot(122)
 
     # Plot gfem efficiency
+    print(data_gfem["time"].min() * 1e3, data_gfem["time"].max() * 1e3)
+    print(data_gfem["model_efficiency"].min(), data_gfem["model_efficiency"].max())
     ax2.fill_between(data["size"], data_gfem["model_efficiency"].min(),
                      data_gfem["model_efficiency"].max(), color="white", edgecolor="black")
 
@@ -1406,8 +1409,9 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     # Set labels and title
     plt.xlabel("Log2 Training Dataset Size")
     plt.ylabel("Inefficiency (ms$\\cdot$Mb)")
-    plt.title("Model Inefficiency")
+    plt.title("Model Efficiency")
     plt.yscale("log")
+    plt.gca().invert_yaxis()
     plt.xticks(np.arange(11, 22, 2))
 
     # Add captions
