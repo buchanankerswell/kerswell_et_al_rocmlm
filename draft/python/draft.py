@@ -201,7 +201,7 @@ def write_markdown_tables():
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = (": Hypothetical upper mantle endmember compositions (in wt.%). "
+        caption = (": Hypothetical upper mantle end-member compositions (in wt.%). "
                    "Fertility Index (FI) was calculated with a modal fractional melting "
                    "model based on TIO2 content (@eq:melt-fraction). "
                    "{#tbl:benchmark-samples}")
@@ -263,7 +263,7 @@ def write_markdown_tables():
         # Table caption
         caption = (": RocMLM configuration. Hyperparameter values in parentheses are chosen "
                    "by a cross-validation grid search algorithm. All other hyperparameters "
-                   "use defaults values (see regression model documentation on "
+                   "use default values (see regression model documentation on "
                    "[scikit-learn.org](htpps://scikit-learn.org)). {#tbl:rocmlm-config}")
 
         # Write markdown table
