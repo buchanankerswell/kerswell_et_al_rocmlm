@@ -131,4 +131,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: clean purge find_conda_env create_conda_env remove_conda_env get_assets mixing_arrays gfems rocmlms init all
+.PHONY: clean purge find_conda_env create_conda_env remove_conda_env get_assets mixing_arrays gfems rocmlms initialize all

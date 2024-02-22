@@ -14,25 +14,25 @@ locals().update(valid_args)
 gfems = {}
 
 # Sample sources
-#sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
-#           "top": "assets/data/synthetic-samples-mixing-tops.csv",
-#           "bottom": "assets/data/synthetic-samples-mixing-bottoms.csv",
-#           "random": "assets/data/synthetic-samples-mixing-random.csv"}
-#
-## Build GFEM models
-#for name, source in sources.items():
-#    sids = get_sampleids(source, "all")
-#    gfems[name] = build_gfem_models(source, sids)
-#
-## Visualize GFEM models
-#for name, models in gfems.items():
-#    visualize_gfem(models)
-#    visualize_gfem_diff(models)
-#    compose_dataset_plots(models)
-#    create_dataset_movies(models)
-#
-#    if name == "benchmark":
-#        visualize_gfem_pt_range(models[0])
+sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
+           "top": "assets/data/synthetic-samples-mixing-tops.csv",
+           "bottom": "assets/data/synthetic-samples-mixing-bottoms.csv",
+           "random": "assets/data/synthetic-samples-mixing-random.csv"}
+
+# Build GFEM models
+for name, source in sources.items():
+    sids = get_sampleids(source, "all")
+    gfems[name] = build_gfem_models(source, sids)
+
+# Visualize GFEM models
+for name, models in gfems.items():
+    visualize_gfem(models)
+    visualize_gfem_diff(models)
+    compose_dataset_plots(models)
+    create_dataset_movies(models)
+
+    if name == "benchmark":
+        visualize_gfem_pt_range(models[0])
 
 visualize_gfem_analysis()
 
