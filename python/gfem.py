@@ -183,10 +183,10 @@ def get_1d_reference_models():
 
         # Transform units
         if name == "stw105":
-            model["depth"] = (model["radius"].max() - model["radius"]) / 1000
-            model["rho"] = model["rho"] / 1000
-            model["Vp"] = model["Vp"] / 1000
-            model["Vs"] = model["Vs"] / 1000
+            model["depth"] = (model["radius"].max() - model["radius"]) / 1e3
+            model["rho"] = model["rho"] / 1e3
+            model["Vp"] = model["Vp"] / 1e3
+            model["Vs"] = model["Vs"] / 1e3
             model.sort_values(by=["depth"], inplace=True)
 
         model["P"] = model["depth"] / 30
@@ -355,12 +355,12 @@ def gfem_iteration(args):
     """
 
     # Unpack arguments
-    program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, oxides_exclude, \
-        targets, maskgeotherm, verbose, debug = args
+    program, perplex_db, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, \
+        oxides_exclude, targets, maskgeotherm, verbose, debug = args
 
     # Initiate GFEM model
-    iteration = GFEMModel(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
-                          oxides_exclude, targets, maskgeotherm, verbose, debug)
+    iteration = GFEMModel(program, perplex_db, dataset, sampleid, source, res, Pmin, Pmax,
+                          Tmin, Tmax, oxides_exclude, targets, maskgeotherm, verbose, debug)
 
     if iteration.model_built:
         return iteration
@@ -382,7 +382,7 @@ def gfem_iteration(args):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def build_gfem_models(source, sampleids=None, programs=["perplex"],
+def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="stx21",
                       datasets=["train", "valid"], batch="all", nbatches=8, res=128, Pmin=1,
                       Pmax=28, Tmin=773, Tmax=2273, oxides_exclude=["H2O", "FE2O3"],
                       targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, parallel=True,
@@ -434,7 +434,7 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"],
         nprocs = len(combinations)
 
     # Create list of args for mp pooling
-    run_args = [(program, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
+    run_args = [(program, perplex_db, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
                  oxides_exclude, targets, maskgeotherm, verbose, debug) for
                 program, dataset, sampleid in combinations]
 
@@ -478,8 +478,8 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, program, dataset, sample_id, source, res, P_min=1, P_max=28,
-                 T_min=773, T_max=2273, oxides_exclude=["H2O", "FE2O3"],
+    def __init__(self, program, perplex_db, dataset, sample_id, source, res, P_min=1,
+                 P_max=28, T_min=773, T_max=2273, oxides_exclude=["H2O", "FE2O3"],
                  targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, seed=42, verbose=1,
                  debug=True):
         """
@@ -504,6 +504,20 @@ class GFEMModel:
         # Decimals
         self.digits = 3
 
+        # Check perplex db
+        if perplex_db not in ["hp02", "hp633", "stx21"]:
+            self.perplex_db = "hp633"
+        else:
+            self.perplex_db = perplex_db
+
+        # Adjust oxides for HP02 dataset
+        if perplex_db == "hp02":
+            self.oxides_exclude.extend(["CR2O3"])
+
+        # Adjust oxides for STX21 dataset
+        if perplex_db == "stx21":
+            self.oxides_exclude.extend(["K2O", "TIO2", "CR2O3"])
+
         # System oxide components
         self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
                               "FE2O3", "CR2O3", "H2O"]
@@ -524,8 +538,8 @@ class GFEMModel:
             # Perplex dirs and filepaths
             cwd = os.getcwd()
             self.perplex_dir = f"{cwd}/Perple_X"
-            self.model_out_dir = (f"{cwd}/gfems/{self.program[:4]}_{self.sample_id}_"
-                                  f"{self.dataset[0]}{self.res}")
+            self.model_out_dir = (f"{cwd}/gfems/{self.program[:4]}_{self.perplex_db}_"
+                                  f"{self.sample_id}_{self.dataset[0]}{self.res}")
             self.perplex_targets = f"{self.model_out_dir}/target-array.tab"
             self.perplex_assemblages = f"{self.model_out_dir}/assemblages.txt"
 
@@ -790,7 +804,7 @@ class GFEMModel:
 
                     if match:
                         time_ms = float(match.group(1))
-                        time_s = time_ms / 1000
+                        time_s = time_ms / 1e3
 
                         time_values_mgm.append(time_s)
 
@@ -1197,7 +1211,7 @@ class GFEMModel:
 
                 elif key == "rho":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = np.round(np.array(value) / 1000, 3)
+                    results[key] = np.round(np.array(value) / 1e3, 3)
 
                 elif key == "melt":
                     # Convert from fraction to percent
@@ -1205,24 +1219,6 @@ class GFEMModel:
 
                 else:
                     results[key] = np.array(value)
-
-        # Print results
-        if verbose >= 2:
-            units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
-                     "melt": "%", "assemblage": "", "variance": ""}
-
-            print("+++++++++++++++++++++++++++++++++++++++++++++")
-            for key, value in results.items():
-                if isinstance(value, list):
-                    print(f"    ({len(value)},) list:      : {key}")
-
-                elif isinstance(value, np.ndarray):
-                    min, max = np.nanmin(value), np.nanmax(value)
-
-                    print(f"    {value.shape} np array: {key} "
-                          f"({min:.1f}, {max:.1f}) {units[key]}")
-
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         # Save as pandas df
         df = pd.DataFrame.from_dict(results)
@@ -1259,6 +1255,7 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        perplex_db = self.perplex_db
         dataset = self.dataset
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
@@ -1282,6 +1279,9 @@ class GFEMModel:
             T_min += T_step
             T_max -= T_step
 
+        # Config dir
+        config_dir = f"assets/config_{perplex_db}"
+
         # Configuration files
         build = "perplex-build-config"
         thermodb = "perplex-thermodynamic-data"
@@ -1294,15 +1294,15 @@ class GFEMModel:
         plot = "perplex-plot-options"
 
         # Copy original configuration files to the perplex directory
-        shutil.copy(f"assets/config/{build}", f"{model_out_dir}/{build}")
-        shutil.copy(f"assets/config/{thermodb}", f"{model_out_dir}/{thermodb}")
-        shutil.copy(f"assets/config/{solutions}", f"{model_out_dir}/{solutions}")
-        shutil.copy(f"assets/config/{minimize}", f"{model_out_dir}/{minimize}")
-        shutil.copy(f"assets/config/{targets}", f"{model_out_dir}/{targets}")
-        shutil.copy(f"assets/config/{phase}", f"{model_out_dir}/{phase}")
-        shutil.copy(f"assets/config/{options}", f"{model_out_dir}/{options}")
-        shutil.copy(f"assets/config/{draw}", f"{model_out_dir}/{draw}")
-        shutil.copy(f"assets/config/{plot}", f"{model_out_dir}/perplex_plot_option.dat")
+        shutil.copy(f"{config_dir}/{build}", f"{model_out_dir}/{build}")
+        shutil.copy(f"{config_dir}/{thermodb}", f"{model_out_dir}/{thermodb}")
+        shutil.copy(f"{config_dir}/{solutions}", f"{model_out_dir}/{solutions}")
+        shutil.copy(f"{config_dir}/{minimize}", f"{model_out_dir}/{minimize}")
+        shutil.copy(f"{config_dir}/{targets}", f"{model_out_dir}/{targets}")
+        shutil.copy(f"{config_dir}/{phase}", f"{model_out_dir}/{phase}")
+        shutil.copy(f"{config_dir}/{options}", f"{model_out_dir}/{options}")
+        shutil.copy(f"{config_dir}/{draw}", f"{model_out_dir}/{draw}")
+        shutil.copy(f"{config_dir}/{plot}", f"{model_out_dir}/perplex_plot_option.dat")
 
         # Modify the copied configuration files within the perplex directory
         self._replace_in_file(f"{model_out_dir}/{build}",
@@ -1459,11 +1459,16 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        perplex_db = self.perplex_db
         perplex_targets = self.perplex_targets
 
         # Initialize results
-        results = {"T": [], "P": [], "rho": [], "Vp": [], "Vs": [], "entropy": [],
-                   "assemblage_index": [], "melt": [], "assemblage": [], "variance": []}
+        if perplex_db == "stx21":
+            results = {"T": [], "P": [], "rho": [], "Vp": [], "Vs": [], "entropy": [],
+                       "assemblage_index": [], "assemblage": [], "variance": []}
+        else:
+            results = {"T": [], "P": [], "rho": [], "Vp": [], "Vs": [], "entropy": [],
+                       "assemblage_index": [], "melt": [], "assemblage": [], "variance": []}
 
         # Open file
         with open(perplex_targets, "r") as file:
@@ -1478,7 +1483,29 @@ class GFEMModel:
                 values = line.split()
 
                 # Read the table of P, T, rho etc.
-                if len(values) >= 8:
+                if len(values) == 7:
+                    try:
+                        for i in range(7):
+                            # Make values floats or assign nan
+                            value = (float(values[i])
+                                     if not np.isnan(float(values[i]))
+                                     else np.nan)
+
+                            # Convert from bar to GPa
+                            if i == 1: # P column
+                                value /= 1e4
+
+                            # Convert assemblage index to an integer
+                            if i == 6: # assemblage index column
+                                value = int(value) if not np.isnan(value) else np.nan
+
+                            # Append results
+                            results[list(results.keys())[i]].append(value)
+
+                    except ValueError:
+                        continue
+
+                elif len(values) >= 8:
                     try:
                         for i in range(8):
                             # Make values floats or assign nan
@@ -1536,6 +1563,7 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        perplex_db = self.perplex_db
         perplex_targets = self.perplex_targets
         perplex_assemblages = self.perplex_assemblages
         model_out_dir = self.model_out_dir
@@ -1593,14 +1621,17 @@ class GFEMModel:
         results["assemblage"] = encoded_assemblages
 
         # Point results that can be converted to numpy arrays
-        point_params = ["T", "P", "rho", "Vp", "Vs", "melt", "assemblage", "variance"]
+        if perplex_db == "stx21":
+            point_params = ["T", "P", "rho", "Vp", "Vs", "assemblage", "variance"]
+        else:
+            point_params = ["T", "P", "rho", "Vp", "Vs", "melt", "assemblage", "variance"]
 
         # Convert numeric point results into numpy arrays
         for key, value in results.items():
             if key in point_params:
                 if key == "rho":
                     # Convert from kg/m3 to g/cm3
-                    results[key] = np.round(np.array(value) / 1000, 3)
+                    results[key] = np.round(np.array(value) / 1e3, 3)
 
                 elif key == "melt":
                     # Convert from kg/m3 to g/cm3
@@ -1608,24 +1639,6 @@ class GFEMModel:
 
                 else:
                     results[key] = np.array(value)
-
-        # Print results
-        if verbose >= 2:
-            units = {"T": "K", "P": "GPa", "rho": "g/cm3", "Vp": "km/s", "Vs": "km/s",
-                     "melt": "%", "assemblage": "", "variance": ""}
-
-            print("+++++++++++++++++++++++++++++++++++++++++++++")
-            for key, value in results.items():
-                if isinstance(value, list):
-                    print(f"    ({len(value)},) list       : {key}")
-
-                elif isinstance(value, np.ndarray):
-                    min, max = np.nanmin(value), np.nanmax(value)
-
-                    print(f"    {value.shape} np array: {key} "
-                          f"({min:.1f}, {max:.1f}) {units[key]}")
-
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         # Save as pandas df
         df = pd.DataFrame.from_dict(results)
@@ -1888,6 +1901,7 @@ class GFEMModel:
         """
         """
         # Get self attributes
+        perplex_db = self.perplex_db
         results = self.results
         targets = self.targets
         res = self.res
@@ -1906,18 +1920,18 @@ class GFEMModel:
         # Set n_neighbors for KNN imputer
         if res <= 8:
             n_neighbors = 1
-
         elif res <= 16:
             n_neighbors = 2
-
         elif res <= 32:
             n_neighbors = 3
-
         elif res <= 64:
             n_neighbors = 4
-
         elif res <= 128:
             n_neighbors = 5
+
+        # Remove melt if perplex uses stx21 dataset
+        if perplex_db == "stx21":
+            targets.remove("melt")
 
         # Initialize empty list for target arrays
         target_array_list = []

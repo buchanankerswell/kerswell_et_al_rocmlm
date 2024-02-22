@@ -8,13 +8,8 @@ HASCONDA := $(shell command -v conda > /dev/null && echo true || echo false)
 CONDASPECSFILE = python/conda-environment.yaml
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
 CONDAPYTHON = $$(conda run -n $(CONDAENVNAME) which python)
-# Magemin programs
-MAGEMIN = MAGEMin
-# Perplex programs
-PERPLEX = Perple_X
-# Directories with data and scripts
+# Directories with data and perplex configs
 DATADIR = assets/data
-CONFIGDIR = assets/config
 # Python scripts
 PYTHON = \
 				 python/build-gfems.py \
@@ -49,11 +44,6 @@ all: $(LOGFILE) $(PYTHON) initialize
 
 initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 	@echo "=============================================" $(LOG)
-	@echo "Run the following in order:" $(LOG)
-	@echo "    make mixing_arrays" $(LOG)
-	@echo "    make gfems" $(LOG)
-	@echo "    make rocmlms" $(LOG)
-	@echo "=============================================" $(LOG)
 
 rocmlms: initialize
 	@PYTHONWARNINGS="ignore" $(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
@@ -67,34 +57,13 @@ mixing_arrays: initialize
 	@$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG)
 	@echo "=============================================" $(LOG)
 
-get_assets: $(DATADIR) $(CONFIGDIR) $(MAGEMIN) $(PERPLEX)
-
-$(PERPLEX): $(LOGFILE) $(PYTHON)
-	@if [ ! -d "$(DATADIR)" ]; then \
-		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
-	else \
-		echo "Perplex programs found!" $(LOG); \
-	fi
-
-$(MAGEMIN): $(LOGFILE) $(PYTHON)
-	@if [ ! -e "$(MAGEMIN)" ]; then \
-		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
-	else \
-		echo "MAGEMin programs found!" $(LOG); \
-	fi
-
-$(CONFIGDIR): $(LOGFILE) $(PYTHON)
-	@if [ ! -e "$(CONFIGDIR)" ]; then \
-		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
-	else \
-		echo "Config files found!" $(LOG); \
-	fi
+get_assets: $(DATADIR)
 
 $(DATADIR): $(LOGFILE) $(PYTHON)
 	@if [ ! -d "$(DATADIR)" ]; then \
 		$(CONDAPYTHON) -u python/initialize.py $(LOG); \
 	else \
-		echo "Data files found!" $(LOG); \
+		echo "GFEM programs and data files found!" $(LOG); \
 	fi
 
 $(LOGFILE):

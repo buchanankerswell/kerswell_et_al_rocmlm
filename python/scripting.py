@@ -104,7 +104,6 @@ def get_conda_packages(condafile):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def download_and_unzip(url, filename, destination):
     try:
-        print(f"Downloading assets ...")
         # Download the file
         response = urllib.request.urlopen(url)
 
@@ -179,7 +178,7 @@ def download_github_submodule(repository_url, submodule_dir, commit_hash):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compile magemin !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compile_magemin(commit_hash="69017cb", verbose=1):
+def compile_magemin(commit_hash="7293cbc", verbose=1):
     """
     """
     # Config directory
@@ -189,23 +188,9 @@ def compile_magemin(commit_hash="69017cb", verbose=1):
     download_github_submodule("https://github.com/ComputationalThermodynamics/MAGEMin.git",
                               "tmp", commit_hash)
 
-    # Get operating system
-    os_system = check_os()
-
     try:
-        # Check OS
-        if os_system is None or (os_system != "macos" and os_system != "linux"):
-            raise ValueError("Unrecognized operating system!")
-
         # Configure
-        print(f"Compiling MAGEMin for {os_system} ...")
-
-        if os_system == "linux":
-            config = f"{config_dir}/magemin-linux-makefile"
-            old_config = "tmp/Makefile"
-
-            if os.path.exists(config):
-                shutil.copy(config, old_config)
+        print(f"Compiling MAGEMin ...")
 
         # Compile
         if verbose >= 2:
@@ -220,7 +205,7 @@ def compile_magemin(commit_hash="69017cb", verbose=1):
         shutil.move("tmp/MAGEMin", "MAGEMin")
         shutil.rmtree("tmp")
 
-        print("Compilation successful!")
+        print("MAGEMin installation successful!")
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     except Exception as e:
@@ -231,62 +216,21 @@ def compile_magemin(commit_hash="69017cb", verbose=1):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compile perplex !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compile_perplex(commit_hash="5743553", verbose=1):
+def compile_perplex():
     """
     """
     # Config directory
     config_dir = "assets/config"
 
-    # Get operating system
-    os_system = check_os()
-
     try:
-        # Check OS
-        if os_system is None or (os_system != "macos" and os_system != "linux"):
-            raise ValueError("Unrecognized operating system!")
+        url = ("https://www.perplex.ethz.ch/perplex/ibm_and_mac_archives/OSX/"
+               "previous_version/Perple_X_7.0.9_OSX_ARM_SP_Apr_16_2023.zip")
 
-        if os_system == "macos":
-            download_and_unzip(("https://www.perplex.ethz.ch/perplex/ibm_and_mac_archives/"
-                                "OSX/previous_version/Perple_X_7.0.9_OSX_ARM_SP_Apr_16_2023"
-                                ".zip"),
-                               "dynamic.zip", "Perple_X")
-        if os_system == "linux":
-            download_github_submodule("https://github.com/ondrolexa/Perple_X.git",
-                                      "tmp", commit_hash)
+        print(f"Installing Perple_X from {url} ...")
 
-            config = f"{config_dir}/perplex-linux-makefile"
-            old_config = "tmp/src/LINUX_makefile"
+        download_and_unzip(url, "dynamic.zip", "Perple_X")
 
-            if os.path.exists(config):
-                shutil.copy(config, old_config)
-
-            print(f"Compiling Perple_X for {os_system} ...")
-
-            # Compile Perple_X
-            if verbose >= 2:
-                subprocess.run("(cd tmp/src && make -f LINUX_makefile)", shell=True,
-                               text=True)
-
-            else:
-                with open(os.devnull, "w") as null:
-                    subprocess.run("(cd tmp/src && make -f LINUX_makefile)", shell=True,
-                                   stdout=null, stderr=null)
-
-            # Move perplex programs into directory
-            os.makedirs("Perple_X")
-            perplex_programs = ["actcor", "build", "fluids", "ctransf", "frendly", "meemum",
-                                "convex", "pstable", "pspts", "psvdraw", "pssect", "pt2curv",
-                                "vertex", "werami"]
-
-            for program in perplex_programs:
-                source_file = f"tmp/src/{program}"
-                destination_file = f"Perple_X/{program}"
-                shutil.move(source_file, destination_file)
-
-            shutil.rmtree("tmp")
-
-            print("Compilation successful!")
-
+        print("Perple_X install successful!")
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     except Exception as e:
