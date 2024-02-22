@@ -156,7 +156,7 @@ def get_1d_reference_models():
             model["Vs"] = model["Vs"] / 1000
             model.sort_values(by=["depth"], inplace=True)
 
-        model["P"] = model["depth"] / 30
+        model["P"] = model["depth"] / 35
 
         # Clean up df
         model = model[columns_to_keep]
@@ -171,7 +171,7 @@ def get_1d_reference_models():
 # combine plots horizontally !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def combine_plots_horizontally(image1_path, image2_path, output_path, caption1, caption2,
-                               font_size=150, caption_margin=25, dpi=330):
+                               font_size=150, caption_margin=25, dpi=300):
     """
     """
     # Open the images
@@ -215,7 +215,7 @@ def combine_plots_horizontally(image1_path, image2_path, output_path, caption1, 
 # combine plots vertically !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def combine_plots_vertically(image1_path, image2_path, output_path, caption1, caption2,
-                             font_size=150, caption_margin=25, dpi=330):
+                             font_size=150, caption_margin=25, dpi=300):
     """
     """
     # Open the images
@@ -596,16 +596,16 @@ def create_dataset_movies(gfem_models):
         # Check for existing movies
         if sample_id not in ["PUM", "DMM"]:
             if "sb" in sample_id:
-                pattern = "sb?????"
+                pattern = "sb???"
                 prefix = "sb"
             if "sm" in sample_id:
-                pattern = "sm?????"
+                pattern = "sm???"
                 prefix = "sm"
             if "st" in sample_id:
-                pattern = "st?????"
+                pattern = "st???"
                 prefix = "st"
             if "sr" in sample_id:
-                pattern = "sr?????"
+                pattern = "sr???"
                 prefix = "sr"
 
             existing_movs = []
@@ -1005,7 +1005,7 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Legend colors
@@ -1329,7 +1329,7 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = True
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Define marker types for each program
@@ -1567,7 +1567,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Colormap
@@ -1642,7 +1642,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
              horizontalalignment="left", verticalalignment="top")
 
     # Convert the primary y-axis data (pressure) to depth
-    depth_conversion = lambda P: P * 30
+    depth_conversion = lambda P: P * 35
     depth_values = depth_conversion(P_prem)
 
     # Create the secondary y-axis and plot depth on it
@@ -1689,7 +1689,7 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Set geotherm threshold for extracting depth profiles
@@ -1906,7 +1906,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     if color_discrete:
@@ -2441,7 +2441,7 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
     plt.rcParams["figure.constrained_layout.use"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Rename targets
@@ -2679,7 +2679,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     loadings = pd.DataFrame((pca.components_.T * np.sqrt(pca.explained_variance_)).T,
@@ -2807,23 +2807,23 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
                     ax2.plot(x_vals_bottoms, y_vals_bottoms, color="black",
                              linestyle="-", linewidth=4)
 
-    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12000"],
+    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm000"],
                     x="PC1", y="PC2", facecolor="white", edgecolor="black",
                     linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
-    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12127"],
+    sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm128"],
                     x="PC1", y="PC2", facecolor="black", edgecolor="white",
                     linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
-    ax2.annotate("DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+    ax2.annotate("DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000",
                                "PC1"].iloc[0],
-                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000",
                                "PC2"].iloc[0]),
                 xytext=(-45, 15), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
                           linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.833, zorder=8)
-    ax2.annotate("PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
+    ax2.annotate("PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
                                "PC1"].iloc[0],
-                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
                                "PC2"].iloc[0]),
                 xytext=(-45, 15), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="white",
@@ -2901,7 +2901,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
@@ -2962,10 +2962,10 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
                                 edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
                                 ax=ax, zorder=7)
 
-            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12000"],
+            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm000"],
                             x="SIO2", y=y, facecolor="white", edgecolor="black",
                             linewidth=2, s=75, legend=False, ax=ax, zorder=6)
-            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm12127"],
+            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm128"],
                             x="SIO2", y=y, facecolor="black", edgecolor="white",
                             linewidth=2, s=75, legend=False, ax=ax, zorder=6)
 
@@ -2980,18 +2980,18 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
                     fontsize=fontsize * 0.579, zorder=6
                 )
             ax.annotate(
-                "DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+                "DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000",
                                                "SIO2"].iloc[0],
-                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12000",
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000",
                                                y].iloc[0]),
                 xytext=(5, -10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
                           linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.579, zorder=8)
             ax.annotate(
-                "PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
+                "PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
                                                "SIO2"].iloc[0],
-                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm12127",
+                            df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
                                                y].iloc[0]),
                 xytext=(5, -10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="white",
@@ -3090,7 +3090,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
     plt.rcParams["axes.facecolor"] = "0.9"
     plt.rcParams["font.size"] = fontsize
     plt.rcParams["figure.autolayout"] = "True"
-    plt.rcParams["figure.dpi"] = 330
+    plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
     # Colormap

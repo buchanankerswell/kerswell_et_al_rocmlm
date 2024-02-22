@@ -385,7 +385,7 @@ def gfem_iteration(args):
 def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="stx21",
                       datasets=["train", "valid"], batch="all", nbatches=8, res=128, Pmin=1,
                       Pmax=28, Tmin=773, Tmax=2273, oxides_exclude=["H2O", "FE2O3"],
-                      targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, parallel=True,
+                      targets=["rho", "Vp", "Vs"], maskgeotherm=False, parallel=True,
                       nprocs=os.cpu_count(), verbose=1, debug=True):
     """
     """
@@ -480,7 +480,7 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, program, perplex_db, dataset, sample_id, source, res, P_min=1,
                  P_max=28, T_min=773, T_max=2273, oxides_exclude=["H2O", "FE2O3"],
-                 targets=["rho", "Vp", "Vs", "melt"], maskgeotherm=False, seed=42, verbose=1,
+                 targets=["rho", "Vp", "Vs"], maskgeotherm=False, seed=42, verbose=1,
                  debug=True):
         """
         """
@@ -1283,15 +1283,15 @@ class GFEMModel:
         config_dir = f"assets/config_{perplex_db}"
 
         # Configuration files
-        build = "perplex-build-config"
-        thermodb = "perplex-thermodynamic-data"
-        solutions = "perplex-solution-models"
-        minimize = "perplex-vertex-minimize"
-        targets = "perplex-werami-targets"
-        phase = "perplex-werami-phase"
-        options = "perplex-build-options"
-        draw = "perplex-pssect-draw"
-        plot = "perplex-plot-options"
+        build = "build-config"
+        thermodb = "td-data"
+        solutions = "solution-models"
+        minimize = "vertex-minimize"
+        targets = "werami-targets"
+        phase = "werami-phase"
+        options = "build-options"
+        draw = "pssect-draw"
+        plot = "plot-options"
 
         # Copy original configuration files to the perplex directory
         shutil.copy(f"{config_dir}/{build}", f"{model_out_dir}/{build}")
@@ -1344,7 +1344,7 @@ class GFEMModel:
         verbose = self.verbose
 
         # Check for input MAGEMin input files
-        if not os.path.exists(f"{model_out_dir}/perplex-build-config"):
+        if not os.path.exists(f"{model_out_dir}/build-config"):
             raise Exception("No Perple_X input! Call _configure_perplex_model() first ...")
 
         if verbose >= 1:
@@ -1361,21 +1361,21 @@ class GFEMModel:
             config_files = []
 
             if program == "build":
-                config_files.append(f"{model_out_dir}/perplex-build-config")
+                config_files.append(f"{model_out_dir}/build-config")
 
             elif program == "vertex":
-                config_files.append(f"{model_out_dir}/perplex-vertex-minimize")
+                config_files.append(f"{model_out_dir}/vertex-minimize")
 
             elif program == "werami":
-                config_files.append(f"{model_out_dir}/perplex-werami-targets")
-                config_files.append(f"{model_out_dir}/perplex-werami-phase")
+                config_files.append(f"{model_out_dir}/werami-targets")
+                config_files.append(f"{model_out_dir}/werami-phase")
 
-                self._replace_in_file(f"{model_out_dir}/perplex-build-options",
+                self._replace_in_file(f"{model_out_dir}/build-options",
                                     {"Anderson-Gruneisen     F":
                                      "Anderson-Gruneisen     T"})
 
             elif program == "pssect":
-                config_files.append(f"{model_out_dir}/perplex-pssect-draw")
+                config_files.append(f"{model_out_dir}/pssect-draw")
 
             # Get program path
             program_path = f"{perplex_dir}/{program}"
@@ -1930,8 +1930,9 @@ class GFEMModel:
             n_neighbors = 5
 
         # Remove melt if perplex uses stx21 dataset
-        if perplex_db == "stx21":
-            targets.remove("melt")
+        if "melt" in targets:
+            if perplex_db == "stx21":
+                targets.remove("melt")
 
         # Initialize empty list for target arrays
         target_array_list = []

@@ -792,13 +792,13 @@ class MixingArray:
 
                         # Add sample id column
                         mixing_synthetic.insert(
-                            0, "SAMPLEID", [f"sm{i + 1}{j + 1}{str(n).zfill(3)}" for
+                            0, "SAMPLEID", [f"sm{str(n).zfill(3)}" for
                                             n in range(len(mixing_synthetic))])
                         tops_synthetic.insert(
-                            0, "SAMPLEID", [f"st{i + 1}{j + 1}{str(n).zfill(3)}" for
+                            0, "SAMPLEID", [f"st{str(n).zfill(3)}" for
                                             n in range(len(tops_synthetic))])
                         bottoms_synthetic.insert(
-                            0, "SAMPLEID", [f"sb{i + 1}{j + 1}{str(n).zfill(3)}" for
+                            0, "SAMPLEID", [f"sb{str(n).zfill(3)}" for
                                             n in range(len(bottoms_synthetic))])
 
                         # Append to list

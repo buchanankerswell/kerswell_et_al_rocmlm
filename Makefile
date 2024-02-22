@@ -43,18 +43,21 @@ all: $(LOGFILE) $(PYTHON) initialize
 	@$(MAKE) rocmlms
 
 initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
-	@echo "=============================================" $(LOG)
 
 rocmlms: initialize
 	@PYTHONWARNINGS="ignore" $(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
 	@echo "=============================================" $(LOG)
 
-gfems: initialize
+gfems: initialize mixing_arrays
 	@$(CONDAPYTHON) -u python/build-gfems.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 mixing_arrays: initialize
-	@$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG)
+	@if [ ! -e "$(DATADIR)/earthchem-samples-pca.csv" ]; then \
+		$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG); \
+	else \
+		echo "Mixing arrays found!" $(LOG); \
+	fi
 	@echo "=============================================" $(LOG)
 
 get_assets: $(DATADIR)
