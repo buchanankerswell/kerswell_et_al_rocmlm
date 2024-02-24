@@ -18,7 +18,6 @@ sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
            "top": "assets/data/synthetic-samples-mixing-tops.csv",
            "bottom": "assets/data/synthetic-samples-mixing-bottoms.csv",
            "random": "assets/data/synthetic-samples-mixing-random.csv"}
-sources = {"benchmark": "assets/data/benchmark-samples-pca.csv"}
 
 # Build GFEM models
 for name, source in sources.items():

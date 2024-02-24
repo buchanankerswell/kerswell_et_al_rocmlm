@@ -156,7 +156,7 @@ def get_1d_reference_models():
             model["Vs"] = model["Vs"] / 1000
             model.sort_values(by=["depth"], inplace=True)
 
-        model["P"] = model["depth"] / 35
+        model["P"] = model["depth"] / 30
 
         # Clean up df
         model = model[columns_to_keep]
@@ -1642,7 +1642,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
              horizontalalignment="left", verticalalignment="top")
 
     # Convert the primary y-axis data (pressure) to depth
-    depth_conversion = lambda P: P * 35
+    depth_conversion = lambda P: P * 30
     depth_values = depth_conversion(P_prem)
 
     # Create the secondary y-axis and plot depth on it

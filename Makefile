@@ -37,18 +37,13 @@ DATACLEAN = assets MAGEMin Perple_X gfems rocmlms
 FIGSPURGE =
 FIGSCLEAN = figs
 
-all: $(LOGFILE) $(PYTHON) initialize
-	@$(MAKE) mixing_arrays
-	@$(MAKE) gfems
-	@$(MAKE) rocmlms
+all: $(LOGFILE) $(PYTHON) mixing_arrays rocmlms
 
-initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
-
-rocmlms: initialize
+rocmlms:
 	@PYTHONWARNINGS="ignore" $(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
 	@echo "=============================================" $(LOG)
 
-gfems: initialize mixing_arrays
+gfems: mixing_arrays
 	@$(CONDAPYTHON) -u python/build-gfems.py $(LOG)
 	@echo "=============================================" $(LOG)
 
@@ -59,6 +54,8 @@ mixing_arrays: initialize
 		echo "Mixing arrays found!" $(LOG); \
 	fi
 	@echo "=============================================" $(LOG)
+
+initialize: $(LOGFILE) $(PYTHON) create_conda_env get_assets
 
 get_assets: $(DATADIR)
 
