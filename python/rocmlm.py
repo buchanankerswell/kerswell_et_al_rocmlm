@@ -430,7 +430,7 @@ class RocMLM:
         self.geotherm_mask_train = geotherm_mask_train
         self.geotherm_mask_valid = geotherm_mask_valid
         if ml_model == "KN":
-            ml_model_label = "K Nearest"
+            ml_model_label = "K Neighbors"
         elif ml_model == "RF":
             ml_model_label = "Random Forest"
         elif ml_model == "DT":
