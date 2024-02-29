@@ -193,7 +193,7 @@ def write_markdown_tables():
         df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
 
         # Rename columns
-        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "FI"}
+        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "$\xi$"}
 
         df_combined.rename(columns=col_headers, inplace=True)
 
@@ -201,9 +201,12 @@ def write_markdown_tables():
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = (": Hypothetical upper mantle end-member compositions (in wt.%). "
-                   "Fertility Index (FI) was calculated with a modal fractional melting "
-                   "model based on TIO2 content (@eq:melt-fraction). "
+        caption = ("Hypothetical upper mantle end-member compositions (in wt.%). Fertility "
+                   "Index ($\xi$) was calculated with a modal fractional melting model based "
+                   "on TIO2 content (@eq:melt-fraction). Depleted MORB Mantle (DMM) is from "
+                   "@workman2005 and Primitive Upper Mantle (PUM) is from @sun1989. "
+                   "Primitive Synthetic Upper Mantle (PSUM) and Depleted Synthetic Upper "
+                   "Mantle (DSUM), are end-member compositions derived in this study. "
                    "{#tbl:benchmark-samples}")
 
         # Write markdown table
@@ -235,8 +238,9 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = (": Summary (in wt.%) of the filtered and standardized peridotite dataset "
-                   "from Earthchem.org. {#tbl:earthchem-counts}")
+        caption = (": Summary of the filtered and standardized peridotite dataset "
+                   "from Earthchem.org. Columns with $^{*}$ are in wt.%. Std = standard "
+                   "deviation, IQR = interquartile range. {#tbl:earthchem-counts}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/earthchem-counts.md", "w") as file:

@@ -472,7 +472,8 @@ class MixingArray:
                 "mean": data[column].mean().round(3),
                 "median": data[column].median().round(3),
                 "std": data[column].std().round(3),
-                "iqr": round(data[column].quantile(0.75) - data[column].quantile(0.25), 3)
+                "iqr": round(data[column].quantile(0.75) -
+                             data[column].quantile(0.25), digits)
             })
         info_df = pd.DataFrame(numeric_info)
         info_df.to_csv("assets/data/earthchem-counts.csv", index=False)
@@ -563,11 +564,11 @@ class MixingArray:
             print(f"    PCA components: {n_pca_components}")
             print("    explained variance:")
             for i, value in enumerate(pca.explained_variance_ratio_):
-                print(f"        PC{i+1}: {round(value, 3)}")
+                print(f"        PC{i+1}: {round(value, digits)}")
             print("    cumulative explained variance:")
             cumulative_variance = pca.explained_variance_ratio_.cumsum()
             for i, value in enumerate(cumulative_variance):
-                print(f"        PC{i+1}: {round(value, 3)}")
+                print(f"        PC{i+1}: {round(value, digits)}")
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         # Transform the data to obtain the principal components
@@ -616,6 +617,7 @@ class MixingArray:
         k = self.k
         D_tio2 = self.D_tio2
         seed = self.seed
+        digits = self.digits
         verbose = self.verbose
 
         try:
@@ -823,41 +825,41 @@ class MixingArray:
 
             # Calculate F melt
             ti_init = 0.199
-            data["R_TIO2"] = round(data["TIO2"] / ti_init, 3)
+            data["R_TIO2"] = round(data["TIO2"] / ti_init, digits)
             data["F_MELT_BATCH"] = round(
-                ((D_tio2 / data["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
-            data["D_BATCH"] = round(1 - data["F_MELT_BATCH"], 3)
-            data["F_MELT_FRAC"] = round(1 - data["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
-            data["D_FRAC"] = round(1 - data["F_MELT_FRAC"], 3)
+                ((D_tio2 / data["R_TIO2"]) - D_tio2) / (1 - D_tio2), digits)
+            data["D_BATCH"] = round(1 - data["F_MELT_BATCH"], digits)
+            data["F_MELT_FRAC"] = round(1 - data["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), digits)
+            data["D_FRAC"] = round(1 - data["F_MELT_FRAC"], digits)
 
             self.earthchem_pca = data.copy()
 
             # Write csv file
             data.to_csv(f"assets/data/earthchem-samples-pca.csv", index=False)
 
-            all_mixing["R_TIO2"] = round(all_mixing["TIO2"] / ti_init, 3)
+            all_mixing["R_TIO2"] = round(all_mixing["TIO2"] / ti_init, digits)
             all_mixing["F_MELT_BATCH"] = round(
-                ((D_tio2 / all_mixing["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
-            all_mixing["D_BATCH"] = round(1 - all_mixing["F_MELT_BATCH"], 3)
+                ((D_tio2 / all_mixing["R_TIO2"]) - D_tio2) / (1 - D_tio2), digits)
+            all_mixing["D_BATCH"] = round(1 - all_mixing["F_MELT_BATCH"], digits)
             all_mixing["F_MELT_FRAC"] = round(
-                1 - all_mixing["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
-            all_mixing["D_FRAC"] = round(1 - all_mixing["F_MELT_FRAC"], 3)
+                1 - all_mixing["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), digits)
+            all_mixing["D_FRAC"] = round(1 - all_mixing["F_MELT_FRAC"], digits)
 
-            all_tops["R_TIO2"] = round(all_tops["TIO2"] / ti_init, 3)
+            all_tops["R_TIO2"] = round(all_tops["TIO2"] / ti_init, digits)
             all_tops["F_MELT_BATCH"] = round(
-                ((D_tio2 / all_tops["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
-            all_tops["D_BATCH"] = round(1 - all_tops["F_MELT_BATCH"], 3)
+                ((D_tio2 / all_tops["R_TIO2"]) - D_tio2) / (1 - D_tio2), digits)
+            all_tops["D_BATCH"] = round(1 - all_tops["F_MELT_BATCH"], digits)
             all_tops["F_MELT_FRAC"] = round(
-                1 - all_tops["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
-            all_tops["D_FRAC"] = round(1 - all_tops["F_MELT_FRAC"], 3)
+                1 - all_tops["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), digits)
+            all_tops["D_FRAC"] = round(1 - all_tops["F_MELT_FRAC"], digits)
 
-            all_bottoms["R_TIO2"] = round(all_bottoms["TIO2"] / ti_init, 3)
+            all_bottoms["R_TIO2"] = round(all_bottoms["TIO2"] / ti_init, digits)
             all_bottoms["F_MELT_BATCH"] = round(
-                ((D_tio2 / all_bottoms["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
-            all_bottoms["D_BATCH"] = round(1 - all_bottoms["F_MELT_BATCH"], 3)
+                ((D_tio2 / all_bottoms["R_TIO2"]) - D_tio2) / (1 - D_tio2), digits)
+            all_bottoms["D_BATCH"] = round(1 - all_bottoms["F_MELT_BATCH"], digits)
             all_bottoms["F_MELT_FRAC"] = round(
-                1 - all_bottoms["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
-            all_bottoms["D_FRAC"] = round(1 - all_bottoms["F_MELT_FRAC"], 3)
+                1 - all_bottoms["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), digits)
+            all_bottoms["D_FRAC"] = round(1 - all_bottoms["F_MELT_FRAC"], digits)
 
             # Write to csv
             fname = (f"assets/data/synthetic-samples-mixing-middle.csv")
@@ -943,13 +945,13 @@ class MixingArray:
                 lambda x: x.apply(lambda y: max(0.001, y)))
 
             # Calculate F melt
-            random_synthetic["R_TIO2"] = round(random_synthetic["TIO2"] / ti_init, 3)
+            random_synthetic["R_TIO2"] = round(random_synthetic["TIO2"] / ti_init, digits)
             random_synthetic["F_MELT_BATCH"] = round(
-                ((D_tio2 / random_synthetic["R_TIO2"]) - D_tio2) / (1 - D_tio2), 3)
-            random_synthetic["D_BATCH"] = round(1 - random_synthetic["F_MELT_BATCH"], 3)
+                ((D_tio2 / random_synthetic["R_TIO2"]) - D_tio2) / (1 - D_tio2), digits)
+            random_synthetic["D_BATCH"] = round(1 - random_synthetic["F_MELT_BATCH"], digits)
             random_synthetic["F_MELT_FRAC"] = round(
-                1 - random_synthetic["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), 3)
-            random_synthetic["D_FRAC"] = round(1 - random_synthetic["F_MELT_FRAC"], 3)
+                1 - random_synthetic["R_TIO2"]**(1 / ((1 / D_tio2) - 1)), digits)
+            random_synthetic["D_FRAC"] = round(1 - random_synthetic["F_MELT_FRAC"], digits)
 
             # Write to csv
             fname = (f"assets/data/synthetic-samples-mixing-random.csv")

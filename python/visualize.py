@@ -987,16 +987,16 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     T = np.arange(0, T_max + 728)
 
     # Olivine --> Ringwoodite Clapeyron slopes
-    references_410 = {"410 km (Akaogi89)": [0.001, 0.002],
-                      "410 km (Katsura89)": [0.0025],
-                      "410 km (Morishima94)": [0.0034, 0.0038]}
+    references_410 = {"ol-wds (Akaogi89)": [0.001, 0.002],
+                      "ol-wds (Katsura89)": [0.0025],
+                      "ol-wds (Morishima94)": [0.0034, 0.0038]}
 
     # Ringwoodite --> Bridgmanite + Ferropericlase Clapeyron slopes
-    references_660 = {"660 km (Ito82)": [-0.002],
-                      "660 km (Ito89 & Hirose02)": [-0.0028],
-                      "660 km (Ito90)": [-0.002, -0.006],
-                      "660 km (Katsura03)": [-0.0004, -0.002],
-                      "660 km (Akaogi07)": [-0.0024, -0.0028]}
+    references_660 = {"rwd-brg (Ito82)": [-0.002],
+                      "rwd-brg (Ito89 & Hirose02)": [-0.0028],
+                      "rwd-brg (Ito90)": [-0.002, -0.006],
+                      "rwd-brg (Katsura03)": [-0.0004, -0.002],
+                      "rwd-brg (Akaogi07)": [-0.0024, -0.0028]}
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1165,12 +1165,12 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     # Add geotherms to legend handles
     ref_line_handles.extend([geotherm1_handle, geotherm2_handle, geotherm3_handle])
 
-    db_data_handle = mpatches.Patch(color="gray", alpha=0.2, label="Training Data Range")
+    db_data_handle = mpatches.Patch(color="black", alpha=0.2, label="Training Data Range")
 
     labels_660.add("Training Data Range")
-    label_color_mapping["Training Data Range"] = "gray"
+    label_color_mapping["Training Data Range"] = "black"
 
-    training_data_handle = mpatches.Patch(facecolor="blue", edgecolor="black", alpha=0.1,
+    training_data_handle = mpatches.Patch(facecolor="blue", edgecolor="black", alpha=0.2,
                                           label="Possible Mantle Conditions")
 
     labels_660.add("Possible Mantle Conditions")
@@ -1178,9 +1178,9 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
 
     # Define the desired order of the legend items
     desired_order = ["Training Data Range", "Possible Mantle Conditions",
-                     "410 km (Akaogi89)", "410 km (Katsura89)", "410 km (Morishima94)",
-                     "660 km (Ito82)", "660 km (Ito89 & Hirose02)", "660 km (Ito90)",
-                     "660 km (Katsura03)", "660 km (Akaogi07)", "Arbitrary Mantle Adiabat",
+                     "ol-wds (Akaogi89)", "ol-wds (Katsura89)", "ol-wds (Morishima94)",
+                     "rwd-brg (Ito82)", "rwd-brg (Ito89 & Hirose02)", "rwd-brg (Ito90)",
+                     "rwd-brg (Katsura03)", "rwd-brg (Akaogi07)", "Arbitrary Mantle Adiabat",
                      "Avg. Proterozoic Continent", "Avg. Archean Continent"]
 
     # Sort the legend handles based on the desired order
@@ -2708,18 +2708,23 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
 
         scatter = ax.scatter(data.loc[indices, "PC1"],
                              data.loc[indices, "PC2"], edgecolors="none",
-                             color=colormap(i), marker=".", s=55, label=comp, alpha=0.1)
+                             color=colormap(i), marker=".", s=55, label=comp, alpha=0.5)
 
     sns.kdeplot(data=data, x="PC1", y="PC2", hue="ROCKNAME",
                 hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
-    x_offset, y_offset, text_fac, arrow_fac = 3.0, 6.0, 3.5, 1.8
-    for oxide in ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]:
-        ax.arrow(x_offset, y_offset, loadings.at[0, oxide] * arrow_fac,
+    oxs = ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]
+    x_offset_text = [3.5, 3.0, 3.0, 3.3, 2.6, 3.1]
+    y_offset_text = [5.8, 6.0, 6.0, 5.7, 5.2, 6.4]
+    text_fac, arrow_fac = 3.5, 1.8
+    x_offset_arrow, y_offset_arrow= 3.0, 6.0
+
+    for oxide, x_off, y_off in zip(oxs, x_offset_text, y_offset_text):
+        ax.arrow(x_offset_arrow, y_offset_arrow, loadings.at[0, oxide] * arrow_fac,
                  loadings.at[1, oxide] * 1.8, width=0.1, head_width=0.4,
                  color="black")
-        ax.text(x_offset + (loadings.at[0, oxide] * text_fac),
-                y_offset + (loadings.at[1, oxide] * text_fac), oxide,
+        ax.text(x_off + (loadings.at[0, oxide] * text_fac),
+                y_off + (loadings.at[1, oxide] * text_fac), oxide,
                 bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
                 fontsize=fontsize * 0.833, color="black", ha="center", va="center")
 
@@ -2838,16 +2843,17 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     cbaxes = inset_axes(ax2, width="50%", height="3%", loc=1)
     colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility Index",
                             orientation="horizontal")
-    colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1g"))
+    colorbar.ax.set_xticks([sm.get_clim()[0], sm.get_clim()[1]])
+    colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2g"))
 
-    ax.set_xlabel("PC1")
-    ax.set_ylabel("PC2")
-    ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-    ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+    ax2.set_xlabel("PC1")
+    ax2.set_ylabel("")
+    ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+    ax2.set_yticks([])
 
     # Add captions
-    fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.2)
-    fig.text(0.5, 0.92, "b)", fontsize=fontsize * 1.2)
+    fig.text(0.02, 0.92, "a)", fontsize=fontsize * 1.2)
+    fig.text(0.52, 0.92, "b)", fontsize=fontsize * 1.2)
 
     # Save the plot to a file if a filename is provided
     if filename:
@@ -3097,7 +3103,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
     colormap = plt.cm.get_cmap("tab10")
 
     # Legend order
-    legend_order = df_names[1:3]
+    legend_order = df_names[1::]
 
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(figwidth * 3, figheight))
     for j, target in enumerate(["rho", "Vp", "Vs"]):
