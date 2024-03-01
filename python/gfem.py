@@ -670,8 +670,8 @@ class GFEMModel:
             return sample_composition
 
         # Check input
-        if len(sample_composition) != subset_oxides:
-            error_message = (f"The input sample list must have exactly {len(subset_oxides)} "
+        if len(sample_composition) != len(oxides):
+            error_message = (f"The input sample list must have exactly {len(oxides)} "
                              f"components!\n{oxides}")
 
             raise ValueError(error_message)
