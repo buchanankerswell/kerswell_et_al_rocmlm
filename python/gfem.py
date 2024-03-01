@@ -512,11 +512,11 @@ class GFEMModel:
 
         # Adjust oxides for HP02 dataset
         if perplex_db == "hp02":
-            self.oxides_exclude.extend(["CR2O3"])
+            self.oxides_exclude = ["CR2O3", "H2O", "FE2O3"]
 
         # Adjust oxides for STX21 dataset
         if perplex_db == "stx21":
-            self.oxides_exclude.extend(["K2O", "TIO2", "CR2O3"])
+            self.oxides_exclude = ["K2O", "TIO2", "CR2O3", "H2O", "FE2O3"]
 
         # System oxide components
         self.oxides_system = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2",
