@@ -265,9 +265,10 @@ class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, res=128, mc_sample=1, weighted_random=True, k=1.5, D_tio2=5e-2,
-                 seed=42, verbose=1):
+    def __init__(self, oxides_exclude=["H2O", "K2O", "CR2O3", "FE2O3"], res=128, mc_sample=1,
+                 weighted_random=True, k=1.5, D_tio2=5e-2, seed=42, verbose=1):
         # Input
+        self.oxides_exclude = oxides_exclude
         self.res = res + 1
         self.mc_sample = mc_sample
         self.weighted_random = weighted_random
@@ -504,6 +505,54 @@ class MixingArray:
         return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # normalize sample composition !!
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def _normalize_sample_composition(self, row):
+        """
+        """
+        # Get self attributes
+        oxides_exclude = self.oxides_exclude
+        oxides = self.oxides_system
+        oxide_zero = float(0)
+        subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
+        digits = self.digits
+
+        # Get sample composition
+        sample_composition = row[oxides].values
+
+        # No normalizing for all components
+        if not oxides_exclude:
+            return sample_composition
+
+        # Check input
+        if len(sample_composition) != len(oxides):
+            error_message = (f"The input sample list must have exactly {len(oxides)} "
+                             f"components!\n{oxides}")
+
+            raise ValueError(error_message)
+
+        # Filter components
+        subset_sample = [comp for comp, oxide in zip(sample_composition, oxides) if
+                        oxide in subset_oxides]
+
+        # Set negative compositions to zero
+        subset_sample = [comp if comp >= oxide_zero else oxide_zero for comp in
+                         subset_sample]
+
+        # Get total oxides
+        total_subset_concentration = sum([comp for comp in subset_sample if
+                                          comp != oxide_zero])
+
+        # Normalize
+        normalized_concentrations = [
+            round(((comp / total_subset_concentration) * 100 if comp != oxide_zero else
+                   oxide_zero), digits) for comp, oxide in
+            zip(subset_sample, subset_oxides)
+        ]
+
+        return normalized_concentrations
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # run pca !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def _run_pca(self):
@@ -511,6 +560,8 @@ class MixingArray:
         """
         # Get self attributes
         oxides = self.oxides_system
+        oxides_exclude = self.oxides_exclude
+        subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
         n_pca_components = self.n_pca_components
         data = self.earthchem_filtered.copy()
         digits = self.digits
@@ -524,10 +575,10 @@ class MixingArray:
         data = data.sort_values(by=["SIO2", "MGO"], ascending=[True, False],
                                 ignore_index=True)
 
+        print("Imputing missing oxides ...")
+
         # Initialize KNN imputer
         imputer = KNNImputer(weights="distance")
-
-        print("Imputing missing oxides ...")
 
         # Impute missing values for each oxide
         for col in oxides:
@@ -535,6 +586,11 @@ class MixingArray:
             imputer.fit(column_to_impute)
             imputed_values = imputer.transform(column_to_impute).round(digits)
             data[col] = imputed_values
+
+        # Normalize compositions
+        normalized_values = data.apply(self._normalize_sample_composition, axis=1)
+        data[subset_oxides] = normalized_values.apply(pd.Series)
+        data[oxides_exclude] = float(0)
 
         # Initialize scaler
         scaler = StandardScaler()

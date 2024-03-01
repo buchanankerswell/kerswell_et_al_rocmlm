@@ -55,15 +55,17 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, A1=1e-6, A2=2.2e-8, k1=2.3,
-                 k2=3.0, crust_thickness=35, litho_thickness=150):
+                 k2=3.0, crust_thickness=35, litho_thickness=150, mantle_potential=1573):
     """
     """
+    # Get P results
+    P = results["P"]
+
     # Get PT and target values and transform units
     df = pd.DataFrame({"P": results["P"], "T": results["T"],
                        target: results[target]}).sort_values(by="P")
 
     # Geotherm Parameters
-    P = results["P"]
     Z_min = np.min(P) * 35e3
     Z_max = np.max(P) * 35e3
     z = np.linspace(Z_min, Z_max, len(P))
@@ -90,12 +92,20 @@ def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, A1=1e-6, A2=2.2e-
 
     # Calculate T within each layer
     for j in range(len(P)):
+        potential_temp = mantle_potential + 0.5e-3 * z[j]
         if z[j] <= D1:
             T_geotherm[j] = Tt1 + (Qt1 / k1 * z[j]) - (A1 / (2 * k1) * z[j]**2)
+            if T_geotherm[j] >= potential_temp:
+                T_geotherm[j] = potential_temp
         elif D1 < z[j] <= D2 + D1:
-            T_geotherm[j] = Tt2 + (Qt2 / k2 * (z[j] - D1)) - (A2 / (2 * k2) * (z[j] - D1)**2)
+            T_geotherm[j] = Tt2 + (Qt2 / k2 * (z[j] - D1)) - (A2 / (2 * k2) *
+                                                              (z[j] - D1)**2)
+            if T_geotherm[j] >= potential_temp:
+                T_geotherm[j] = potential_temp
         elif z[j] > D2 + D1:
             T_geotherm[j] = Tt3 + 0.5e-3 * (z[j] - D1 - D2)
+            if T_geotherm[j] >= potential_temp:
+                T_geotherm[j] = potential_temp
 
     P_geotherm = np.round(z / 35e3, 1)
     T_geotherm = np.round(T_geotherm, 2)
@@ -150,10 +160,10 @@ def get_1d_reference_models():
 
         # Transform units
         if name == "stw105":
-            model["depth"] = (model["radius"].max() - model["radius"]) / 1000
-            model["rho"] = model["rho"] / 1000
-            model["Vp"] = model["Vp"] / 1000
-            model["Vs"] = model["Vs"] / 1000
+            model["depth"] = (model["radius"].max() - model["radius"]) / 1e3
+            model["rho"] = model["rho"] / 1e3
+            model["Vp"] = model["Vp"] / 1e3
+            model["Vs"] = model["Vs"] / 1e3
             model.sort_values(by=["depth"], inplace=True)
 
         model["P"] = model["depth"] / 30
@@ -987,16 +997,16 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     T = np.arange(0, T_max + 728)
 
     # Olivine --> Ringwoodite Clapeyron slopes
-    references_410 = {"ol-wds (Akaogi89)": [0.001, 0.002],
-                      "ol-wds (Katsura89)": [0.0025],
-                      "ol-wds (Morishima94)": [0.0034, 0.0038]}
+    references_410 = {"ol$\\rightarrow$wad (Akaogi89)": [0.001, 0.002],
+                      "ol$\\rightarrow$wad (Katsura89)": [0.0025],
+                      "ol$\\rightarrow$wad (Morishima94)": [0.0034, 0.0038]}
 
     # Ringwoodite --> Bridgmanite + Ferropericlase Clapeyron slopes
-    references_660 = {"rwd-brg (Ito82)": [-0.002],
-                      "rwd-brg (Ito89 & Hirose02)": [-0.0028],
-                      "rwd-brg (Ito90)": [-0.002, -0.006],
-                      "rwd-brg (Katsura03)": [-0.0004, -0.002],
-                      "rwd-brg (Akaogi07)": [-0.0024, -0.0028]}
+    references_660 = {"ring$\\rightarrow$brg (Ito82)": [-0.002],
+                      "ring$\\rightarrow$brg (Ito89 & Hirose02)": [-0.0028],
+                      "ring$\\rightarrow$brg (Ito90)": [-0.002, -0.006],
+                      "ring$\\rightarrow$brg (Katsura03)": [-0.0004, -0.002],
+                      "ring$\\rightarrow$brg (Akaogi07)": [-0.0024, -0.0028]}
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1060,7 +1070,7 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
         for j, line in enumerate(ref_lines):
             label = f"{ref}" if j == 0 else None
 
-            plt.plot(T[(T >= 1050) & (T <= 2000)], line[(T >= 1050) & (T <= 2000)],
+            plt.plot(T[(T >= 1200) & (T <= 2000)], line[(T >= 1200) & (T <= 2000)],
                      color=color, label=label)
 
             if label not in label_color_mapping:
@@ -1080,8 +1090,10 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
                 label_color_mapping[label] = color
 
     # Plot shaded rectangle for PT range of training dataset
+#    fill = plt.fill_between(T, P_min, P_max, where=(T >= T_min) & (T <= T_max),
+#                            color="dimgray", alpha=0.8)
     fill = plt.fill_between(T, P_min, P_max, where=(T >= T_min) & (T <= T_max),
-                            color="gray", alpha=0.2)
+                            hatch="xx", facecolor="none", alpha=0.1)
 
     # Calculate mantle geotherms
     geotherm1 = (T - T_mantle1) / (grad_mantle1 * 35)
@@ -1121,8 +1133,8 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     # Get geotherm (non-adiabatic)
     results = pd.DataFrame({"P": P_gt, "T": T_gt, "rho": rho_gt})
     P_geotherm, T_geotherm, _ = get_geotherm(results, "rho", geotherm_threshold)
-    P_geotherm2, T_geotherm2, _ = get_geotherm(results, "rho", geotherm_threshold, Qs=42e-3,
-                                               litho_thickness=200)
+    P_geotherm2, T_geotherm2, _ = get_geotherm(
+        results, "rho", geotherm_threshold, Qs=250e-3, A1=2.2e-8, k1=3.0, litho_thickness=1)
 
     # Plot mantle geotherms
     plt.plot(T_cropped_geotherm1, geotherm1_cropped, ":", color="black")
@@ -1146,15 +1158,20 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     )
 
     # Fill the area within the polygon
-    plt.fill(vertices[:, 0], vertices[:, 1], facecolor="blue", edgecolor="black", alpha=0.1)
+    plt.fill(vertices[:, 0], vertices[:, 1], facecolor="white", edgecolor=None, alpha=1)
+    plt.fill(vertices[:, 0], vertices[:, 1], facecolor="none", edgecolor="whitesmoke",
+             alpha=1, hatch="xx")
+    plt.fill(vertices[:, 0], vertices[:, 1], facecolor="white", edgecolor=None, alpha=0.2)
+    plt.fill_between(T, P_min, P_max, where=(T >= T_min) & (T <= T_max),
+                     facecolor="none", edgecolor="black", linewidth=1.5, alpha=1)
 
     # Geotherm legend handles
     geotherm1_handle = mlines.Line2D([], [], linestyle=":", color="black",
-                                     label="Arbitrary Mantle Adiabat")
+                                     label="Arbitrary Mantle Geotherm")
     geotherm2_handle = mlines.Line2D([], [], linestyle="-", color="black",
                                      label="Avg. Proterozoic Continent")
     geotherm3_handle = mlines.Line2D([], [], linestyle="--", color="black",
-                                     label="Avg. Archean Continent")
+                                     label="Avg. Mid-Ocean Ridge")
 
     # Phase boundaries legend handles
     ref_line_handles = [
@@ -1165,23 +1182,26 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     # Add geotherms to legend handles
     ref_line_handles.extend([geotherm1_handle, geotherm2_handle, geotherm3_handle])
 
-    db_data_handle = mpatches.Patch(color="black", alpha=0.2, label="Training Data Range")
+    db_data_handle = mpatches.Patch(facecolor="white", edgecolor="black", alpha=0.8,
+                                    hatch="xx", label="Training Data PT Range")
 
-    labels_660.add("Training Data Range")
-    label_color_mapping["Training Data Range"] = "black"
+    labels_660.add("Training Data PT Range")
+    label_color_mapping["Training Data PT Range"] = "black"
 
-    training_data_handle = mpatches.Patch(facecolor="blue", edgecolor="black", alpha=0.2,
-                                          label="Possible Mantle Conditions")
+    training_data_handle = mpatches.Patch(facecolor="white", edgecolor="black", alpha=1,
+                                          linestyle=":", label="Possible Mantle Conditions")
 
     labels_660.add("Possible Mantle Conditions")
     label_color_mapping["Possible Mantle Conditions"] = "gray"
 
     # Define the desired order of the legend items
-    desired_order = ["Training Data Range", "Possible Mantle Conditions",
-                     "ol-wds (Akaogi89)", "ol-wds (Katsura89)", "ol-wds (Morishima94)",
-                     "rwd-brg (Ito82)", "rwd-brg (Ito89 & Hirose02)", "rwd-brg (Ito90)",
-                     "rwd-brg (Katsura03)", "rwd-brg (Akaogi07)", "Arbitrary Mantle Adiabat",
-                     "Avg. Proterozoic Continent", "Avg. Archean Continent"]
+    desired_order = ["Training Data PT Range", "Possible Mantle Conditions",
+                     "ol$\\rightarrow$wad (Akaogi89)", "ol$\\rightarrow$wad (Katsura89)",
+                     "ol$\\rightarrow$wad (Morishima94)", "ring$\\rightarrow$brg (Ito82)",
+                     "ring$\\rightarrow$brg (Ito89 & Hirose02)",
+                     "ring$\\rightarrow$brg (Ito90)", "ring$\\rightarrow$brg (Katsura03)",
+                     "ring$\\rightarrow$brg (Akaogi07)", "Arbitrary Mantle Geotherm",
+                     "Avg. Proterozoic Continent", "Avg. Mid-Ocean Ridge"]
 
     # Sort the legend handles based on the desired order
     legend_handles = sorted(ref_line_handles + [db_data_handle, training_data_handle],
@@ -1579,9 +1599,9 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Plot GFEM and RocMLM profiles
     if results_ppx:
         ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(0),
-                 label=f"{sample_id}a")
+                 label=f"{sample_id}-MOR")
         ax1.plot(target_ppx2, P_ppx2, "-", linewidth=3, color=colormap(2),
-                 label=f"{sample_id}p")
+                 label=f"{sample_id}-CONT")
         ax1.fill_betweenx(P_ppx, target_ppx * (1 - 0.03), target_ppx * (1 + 0.03),
                           color=colormap(0), alpha=0.2)
         ax1.fill_betweenx(P_ppx2, target_ppx2 * (1 - 0.03), target_ppx2 * (1 + 0.03),
@@ -1592,8 +1612,6 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Plot reference models
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black")
-    ax1.fill_betweenx(P_prem, target_prem * (1 - 0.06), target_prem * (1 + 0.06),
-                      color="black", alpha=0.2)
     ax1.plot(target_stw105, P_stw105, ":", linewidth=2, color="black")
 
     if target == "rho":
@@ -2713,9 +2731,9 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     sns.kdeplot(data=data, x="PC1", y="PC2", hue="ROCKNAME",
                 hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
-    oxs = ["SIO2", "MGO", "FEO", "AL2O3", "CR2O3", "TIO2"]
-    x_offset_text = [3.5, 3.0, 3.0, 3.3, 2.6, 3.1]
-    y_offset_text = [5.8, 6.0, 6.0, 5.7, 5.2, 6.4]
+    oxs = ["SIO2", "MGO", "FEO", "AL2O3", "TIO2"]
+    x_offset_text = [3.5, 3.0, 3.0, 3.3, 3.1]
+    y_offset_text = [5.8, 6.0, 6.0, 5.7, 6.7]
     text_fac, arrow_fac = 3.5, 1.8
     x_offset_arrow, y_offset_arrow= 3.0, 6.0
 

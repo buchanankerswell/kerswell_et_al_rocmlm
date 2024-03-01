@@ -185,15 +185,15 @@ def write_markdown_tables():
                                           "F_MELT_FRAC", "D_BATCH"])
 
         # Get synth samples
-        df_synth = df_synth[df_synth["SAMPLEID"].isin(["sm12000", "sm12127"])]
-        df_synth.loc[df_synth["SAMPLEID"] == "sm12000", "SAMPLEID"] = "DSUM"
-        df_synth.loc[df_synth["SAMPLEID"] == "sm12127", "SAMPLEID"] = "PSUM"
+        df_synth = df_synth[df_synth["SAMPLEID"].isin(["sm000", "sm128"])]
+        df_synth.loc[df_synth["SAMPLEID"] == "sm000", "SAMPLEID"] = "DSUM"
+        df_synth.loc[df_synth["SAMPLEID"] == "sm128", "SAMPLEID"] = "PSUM"
 
         # Combine data
         df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
 
         # Rename columns
-        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "$\xi$"}
+        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "$\\xi$"}
 
         df_combined.rename(columns=col_headers, inplace=True)
 
@@ -201,13 +201,13 @@ def write_markdown_tables():
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
         # Table caption
-        caption = ("Hypothetical upper mantle end-member compositions (in wt.%). Fertility "
-                   "Index ($\xi$) was calculated with a modal fractional melting model based "
-                   "on TIO2 content (@eq:melt-fraction). Depleted MORB Mantle (DMM) is from "
-                   "@workman2005 and Primitive Upper Mantle (PUM) is from @sun1989. "
-                   "Primitive Synthetic Upper Mantle (PSUM) and Depleted Synthetic Upper "
-                   "Mantle (DSUM), are end-member compositions derived in this study. "
-                   "{#tbl:benchmark-samples}")
+        caption = (": Hypothetical upper mantle end-member compositions (in wt.%). Fertility "
+                   "Index ($\\xi$) was calculated with a modal fractional melting model "
+                   "based on TiO$_2$ content (@eq:melt-fraction). Depleted MORB Mantle "
+                   "(DMM) is from @workman2005 and Primitive Upper Mantle (PUM) is from "
+                   "@sun1989. Primitive Synthetic Upper Mantle (PSUM) and Depleted "
+                   "Synthetic Upper Mantle (DSUM), are end-member compositions derived in "
+                   "this study. {#tbl:benchmark-samples}")
 
         # Write markdown table
         with open(f"{pandoc_dir}/benchmark-samples.md", "w") as file:
@@ -229,9 +229,10 @@ def write_markdown_tables():
 
         # Rename columns
         df.loc[df["column"] == "FEO", "column"] = "FEOT"
-        col_headers = {"column": "Oxide", "min": "Min", "max": "Max", "mean": "Mean",
-                       "std": "Std", "median": "Median", "iqr": "IQR",
-                       "measured": "Measured", "missing": "Missing", "imputed": "Imputed"}
+        col_headers = {"column": "Oxide", "min": "Min$^{*}$", "max": "Max$^{*}$",
+                       "mean": "Mean$^{*}$", "std": "Std$^{*}$", "median": "Median$^{*}$",
+                       "iqr": "IQR$^{*}$", "measured": "Measured", "missing": "Missing",
+                       "imputed": "Imputed"}
         df.rename(columns=col_headers, inplace=True)
 
         # Generate markdown table
@@ -239,7 +240,7 @@ def write_markdown_tables():
 
         # Table caption
         caption = (": Summary of the filtered and standardized peridotite dataset "
-                   "from Earthchem.org. Columns with $^{*}$ are in wt.%. Std = standard "
+                   "from Earthchem.org. Columns with an asterisk are in wt.%. Std = standard "
                    "deviation, IQR = interquartile range. {#tbl:earthchem-counts}")
 
         # Write markdown table
@@ -253,8 +254,9 @@ def write_markdown_tables():
     if os.path.exists(f"{data_dir}/rocmlm-config.csv"):
         print("Writing rocmlm-config.md")
 
-        # MLM pro con
+        # RocMLM config
         df = pd.read_csv(f"{data_dir}/rocmlm-config.csv")
+        df.fillna("", inplace=True)
 
         # Rename columns
         col_headers = {"model": "Model", "hyperparam": "Hyperparameter",
@@ -265,9 +267,10 @@ def write_markdown_tables():
         markdown_table = df.to_markdown(index=False)
 
         # Table caption
-        caption = (": RocMLM configuration. Hyperparameter values in parentheses are chosen "
-                   "by a cross-validation grid search algorithm. All other hyperparameters "
-                   "use default values (see regression model documentation on "
+        caption = (": RocMLM configuration. Hyperparameter values in parentheses are tested "
+                   "individually and the best is chosen by a cross-validation grid search "
+                   "algorithm. Hyperparameters that are not shown use default values (see "
+                   "regression model documentation on "
                    "[scikit-learn.org](htpps://scikit-learn.org)). {#tbl:rocmlm-config}")
 
         # Write markdown table

@@ -670,9 +670,9 @@ class GFEMModel:
             return sample_composition
 
         # Check input
-        if len(sample_composition) != 11:
-            error_message = ("The input sample list must have exactly 11 components!\n"
-                             f"{oxides}")
+        if len(sample_composition) != oxides:
+            error_message = (f"The input sample list must have exactly {len(oxides)} "
+                             f"components!\n{oxides}")
 
             raise ValueError(error_message)
 
