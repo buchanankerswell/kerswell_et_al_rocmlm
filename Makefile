@@ -37,9 +37,9 @@ DATACLEAN = assets MAGEMin Perple_X gfems rocmlms
 FIGSPURGE =
 FIGSCLEAN = figs
 
-all: $(LOGFILE) $(PYTHON) mixing_arrays rocmlms
+all: $(LOGFILE) $(PYTHON) gfems rocmlms
 
-rocmlms:
+rocmlms: $(LOGFILE) $(PYTHON)
 	@PYTHONWARNINGS="ignore" $(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
 	@echo "=============================================" $(LOG)
 
