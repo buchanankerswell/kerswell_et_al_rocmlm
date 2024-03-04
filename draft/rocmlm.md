@@ -57,11 +57,7 @@ Training RocMLMs on FI instead of nine oxide components is beneficial for two re
 
 Three implicit assumptions in @eq:shaw-melting are important to note, however, because they impact FI, and thus ultimately impact RocMLM predictions: 1) melt is instantaneously removed from the source region, 2) $D_0$ is constant, and 3) minerals melt in the same proportions that they exist in the source rock. While these assumptions strongly depend on the progression of melting reactions and mantle conditions [@langmuir1992; @niu1997b; @brown2016], @eq:melt-fraction predicts that DMM is produced by 2.2% melt extraction from PUM (@tbl:benchmark-samples), which is consistent with the degree of depletion indicated by trace element patterns and mass balance constraints [2-3% melt removal from PUM, @workman2005]. We therefore consider FI an adequate first-order proxy for bulk mantle composition.
 
-\clearpage
-
 {{ benchmark-samples.md }}
-
-\clearpage
 
 ## Generating RocMLM Training Data {#sec:generate-training-data}
 

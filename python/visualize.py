@@ -1093,7 +1093,7 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
 #    fill = plt.fill_between(T, P_min, P_max, where=(T >= T_min) & (T <= T_max),
 #                            color="dimgray", alpha=0.8)
     fill = plt.fill_between(T, P_min, P_max, where=(T >= T_min) & (T <= T_max),
-                            hatch="xx", facecolor="none", alpha=0.1)
+                            hatch="++", facecolor="none", alpha=0.1)
 
     # Calculate mantle geotherms
     geotherm1 = (T - T_mantle1) / (grad_mantle1 * 35)
@@ -1132,15 +1132,14 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
 
     # Get geotherm (non-adiabatic)
     results = pd.DataFrame({"P": P_gt, "T": T_gt, "rho": rho_gt})
-    P_geotherm, T_geotherm, _ = get_geotherm(results, "rho", geotherm_threshold)
-    P_geotherm2, T_geotherm2, _ = get_geotherm(
-        results, "rho", geotherm_threshold, Qs=250e-3, A1=2.2e-8, k1=3.0, litho_thickness=1)
+    P_geotherm, T_geotherm, _ = get_geotherm(results, "rho", geotherm_threshold,
+                                             Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                             litho_thickness=1, mantle_potential=1573)
 
     # Plot mantle geotherms
     plt.plot(T_cropped_geotherm1, geotherm1_cropped, ":", color="black")
     plt.plot(T_cropped_geotherm2, geotherm2_cropped, ":", color="black")
-    plt.plot(T_geotherm, P_geotherm, linestyle="-", color="black")
-    plt.plot(T_geotherm2, P_geotherm2, linestyle="--", color="black")
+    plt.plot(T_geotherm, P_geotherm, linestyle="--", color="black")
 
     # Interpolate the geotherms to have the same length as temperature vectors
     geotherm1_interp = np.interp(T_cropped_geotherm1, T, geotherm1)
@@ -1160,18 +1159,14 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     # Fill the area within the polygon
     plt.fill(vertices[:, 0], vertices[:, 1], facecolor="white", edgecolor=None, alpha=1)
     plt.fill(vertices[:, 0], vertices[:, 1], facecolor="none", edgecolor="whitesmoke",
-             alpha=1, hatch="xx")
+             alpha=1, hatch="++")
     plt.fill(vertices[:, 0], vertices[:, 1], facecolor="white", edgecolor=None, alpha=0.2)
     plt.fill_between(T, P_min, P_max, where=(T >= T_min) & (T <= T_max),
                      facecolor="none", edgecolor="black", linewidth=1.5, alpha=1)
 
     # Geotherm legend handles
-    geotherm1_handle = mlines.Line2D([], [], linestyle=":", color="black",
-                                     label="Arbitrary Mantle Geotherm")
-    geotherm2_handle = mlines.Line2D([], [], linestyle="-", color="black",
-                                     label="Avg. Proterozoic Continent")
-    geotherm3_handle = mlines.Line2D([], [], linestyle="--", color="black",
-                                     label="Avg. Mid-Ocean Ridge")
+    geotherm_handle = mlines.Line2D([], [], linestyle="--", color="black",
+                                    label="Avg. Mid-Ocean Ridge")
 
     # Phase boundaries legend handles
     ref_line_handles = [
@@ -1180,28 +1175,27 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     ]
 
     # Add geotherms to legend handles
-    ref_line_handles.extend([geotherm1_handle, geotherm2_handle, geotherm3_handle])
+    ref_line_handles.extend([geotherm_handle])
 
     db_data_handle = mpatches.Patch(facecolor="white", edgecolor="black", alpha=0.8,
-                                    hatch="xx", label="Training Data PT Range")
+                                    hatch="++", label="RocMLM Training Data")
 
-    labels_660.add("Training Data PT Range")
-    label_color_mapping["Training Data PT Range"] = "black"
+    labels_660.add("RocMLM Training Data")
+    label_color_mapping["RocMLM Training Data"] = "black"
 
     training_data_handle = mpatches.Patch(facecolor="white", edgecolor="black", alpha=1,
-                                          linestyle=":", label="Possible Mantle Conditions")
+                                          linestyle=":", label="Hypothetical Mantle PTs")
 
-    labels_660.add("Possible Mantle Conditions")
-    label_color_mapping["Possible Mantle Conditions"] = "gray"
+    labels_660.add("Hypothetical Mantle PTs")
+    label_color_mapping["Hypothetical Mantle PTs"] = "gray"
 
     # Define the desired order of the legend items
-    desired_order = ["Training Data PT Range", "Possible Mantle Conditions",
+    desired_order = ["RocMLM Training Data", "Hypothetical Mantle PTs",
                      "ol$\\rightarrow$wad (Akaogi89)", "ol$\\rightarrow$wad (Katsura89)",
                      "ol$\\rightarrow$wad (Morishima94)", "ring$\\rightarrow$brg (Ito82)",
                      "ring$\\rightarrow$brg (Ito89 & Hirose02)",
                      "ring$\\rightarrow$brg (Ito90)", "ring$\\rightarrow$brg (Katsura03)",
-                     "ring$\\rightarrow$brg (Akaogi07)", "Arbitrary Mantle Geotherm",
-                     "Avg. Proterozoic Continent", "Avg. Mid-Ocean Ridge"]
+                     "ring$\\rightarrow$brg (Akaogi07)", "Avg. Mid-Ocean Ridge"]
 
     # Sort the legend handles based on the desired order
     legend_handles = sorted(ref_line_handles + [db_data_handle, training_data_handle],
@@ -1214,7 +1208,7 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     plt.ylim(P_min - 1, P_max + 1)
 
     # Move the legend outside the plot to the right
-    plt.legend(title="", handles=legend_handles, loc="center left",
+    plt.legend(title="", handles=legend_handles, loc="center left", handleheight=1.2,
                bbox_to_anchor=(1.02, 0.5))
 
     # Adjust the figure size
@@ -1262,6 +1256,7 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     # Calculate efficiency in milliseconds/Megabyte
     data_gfem["model_size_mb"] = round(perplex_size / (1024 ** 2), 5)
     data_gfem["model_efficiency"] = data_gfem["time"] * 1e3 * data_gfem["model_size_mb"]
+    data_gfem = data_gfem[data_gfem["program"] == "perplex"]
 
     # Read lookup table efficiency data
     data_lut = pd.read_csv(f"{data_dir}/lut-efficiency.csv")
@@ -1342,6 +1337,12 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     # Arrange data by resolution and sample
     data.sort_values(by=["size", "sample", "program"], inplace=True)
 
+    # Group by size and select min time
+    grouped_data = data.groupby(["program", "size"])
+    min_time_indices = grouped_data["time"].idxmin()
+    data = data.loc[min_time_indices]
+    data.reset_index(drop=True, inplace=True)
+
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
     plt.rcParams["legend.fontsize"] = "small"
@@ -1357,8 +1358,8 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
                    "RocMLM (NN1)": "X", "RocMLM (NN3)": "^"}
 
     # Create a colormap
-    palette = sns.color_palette("Greys", data["rmse_val_mean_rho"].nunique())
-    cmap = cm.get_cmap("Greys")
+    palette = sns.color_palette("mako_r", data["rmse_val_mean_rho"].nunique())
+    cmap = cm.get_cmap("mako_r")
 
     # Create a ScalarMappable to map rmse to colors
     norm = Normalize(data["rmse_val_mean_rho"].min(), data["rmse_val_mean_rho"].max())
@@ -1373,17 +1374,32 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
 
     # Plot gfem efficiency
     ax.fill_between(data["size"], data_gfem["time"].min() * 1e3,
-                    data_gfem["time"].max() * 1e3, color="white", edgecolor="black")
+                    data_gfem["time"].max() * 1e3, facecolor="white", edgecolor="black")
 
-    # Plot lut and rocmlm efficiency
+    plt.text(data["size"].min(), data_gfem["time"].min() * 1e3, "Perple_X",
+             fontsize=fontsize * 0.833, horizontalalignment="left",
+             verticalalignment="bottom")
+    plt.text(data["size"].min(), data_gfem["time"].min() * 1e3 * 1.2,
+             " [stx21, FMACNS, 15]", fontsize=fontsize * 0.833,
+             horizontalalignment="left", verticalalignment="top")
+    plt.text(data["size"].min(), data_gfem["time"].max() * 1e3 * 0.80,
+             " [hp633, FMACNKSTiCr, 21]", fontsize=fontsize * 0.833,
+             horizontalalignment="left", verticalalignment="bottom")
+
+    # Plot rocmlm efficiency
     for program, group in data.groupby("program"):
         for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
-            ax.scatter(x=sub_group["size"], y=(sub_group["time"] * 1e3),
-                       marker=marker_dict.get(program, "o"),
-                       color=color_dict[rmse], edgecolor="black", zorder=2)
+            if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
+                ax.scatter(x=sub_group["size"], y=(sub_group["time"] * 1e3),
+                           marker=marker_dict.get(program, "o"),
+                           color=color_dict[rmse], edgecolor="black", zorder=2)
+            else:
+                ax.scatter(x=sub_group["size"], y=(sub_group["time"] * 1e3),
+                           marker=marker_dict.get(program, "o"),
+                           color="pink", edgecolor="black", zorder=2)
 
     # Set labels and title
-    plt.xlabel("Log2 Dataset Size")
+    plt.xlabel("Log2 Size")
     plt.ylabel("Elapsed Time (ms)")
     plt.title("Execution Speed")
     plt.yscale("log")
@@ -1394,38 +1410,49 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
 
     # Plot gfem efficiency
     ax2.fill_between(data["size"], data_gfem["model_efficiency"].min(),
-                     data_gfem["model_efficiency"].max(), color="white", edgecolor="black")
+                     data_gfem["model_efficiency"].max(), facecolor="white",
+                     edgecolor="black")
 
     # Plot lut and rocmlm efficiency
     for program, group in data.groupby("program"):
         for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
-            ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
-                        marker=marker_dict.get(program, "o"),
-                        color=color_dict[rmse], edgecolor="black", zorder=2)
+            if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
+                ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
+                            marker=marker_dict.get(program, "o"),
+                            color=color_dict[rmse], edgecolor="black", zorder=2)
+            else:
+                ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
+                            marker=marker_dict.get(program, "o"),
+                            color="pink", edgecolor="black", zorder=2)
 
     # Create the legend
     legend_elements = []
     for program, marker in marker_dict.items():
-        legend_elements.append(mlines.Line2D([0], [0], marker=marker, color="none",
-                                             label=program, markerfacecolor="black",
-                                             markersize=10))
+        if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
+            legend_elements.append(
+                mlines.Line2D(
+                    [0], [0], marker=marker, color="none", label=program,
+                    markerfacecolor="black", markersize=10)
+            )
+        else:
+            legend_elements.append(
+                mlines.Line2D(
+                    [0], [0], marker=marker, color="none", markeredgecolor="black",
+                    label=program, markerfacecolor="pink", markersize=10)
+            )
 
-    legend_elements.append(mlines.Line2D([0], [0], color="white", marker="s",
-                                         markerfacecolor="white", markeredgecolor="black",
-                                         markeredgewidth=1.2, markersize=10,
-                                         label="GFEM Programs", linewidth=0))
-
-    fig.legend(handles=legend_elements, title="Program", loc="center right", ncol=1,
-               bbox_to_anchor=(1.22, 0.6), columnspacing=0.1, handletextpad=-0.1,
+    fig.legend(handles=legend_elements, title="Method", loc="center right", ncol=1,
+               bbox_to_anchor=(1.22, 0.6), columnspacing=0.2, handletextpad=-0.1,
                fontsize=fontsize * 0.833)
 
     # Create a colorbar
     cbar = plt.colorbar(sm, label="RMSE (g/cm$^3$)", ax=(ax, ax2), format="%0.1g",
                         orientation="horizontal", anchor=(1.50, 0.5), shrink=0.25, aspect=10)
     cbar.ax.xaxis.set_label_position("top")
+    cbar.set_ticks([sm.get_clim()[0], sm.get_clim()[1]])
 
     # Set labels and title
-    plt.xlabel("Log2 Training Dataset Size")
+    plt.xlabel("Log2 Size")
     plt.ylabel("Inefficiency (ms$\\cdot$Mb)")
     plt.title("Model Efficiency")
     plt.yscale("log")
@@ -1483,8 +1510,10 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Initialize geotherms
     P_mgm, P_ppx, P_ml, P_pum = None, None, None, None
     P_mgm2, P_ppx2, P_ml2, P_pum2 = None, None, None, None
+    P_mgm3, P_ppx3, P_ml3, P_pum3 = None, None, None, None
     target_mgm, target_ppx, target_ml, target_pum = None, None, None, None
     target_mgm2, target_ppx2, target_ml2, target_pum2 = None, None, None, None
+    target_mgm3, target_ppx3, target_ml3, target_pum3 = None, None, None, None
 
     # Get benchmark models
     pum_path = f"gfems/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
@@ -1514,27 +1543,52 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Extract target values along a geotherm
     if results_mgm:
-        P_mgm, _, target_mgm = get_geotherm(results_mgm, target, geotherm_threshold)
+        P_mgm, _, target_mgm = get_geotherm(results_mgm, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1173)
         P_mgm2, _, target_mgm2 = get_geotherm(results_mgm, target, geotherm_threshold,
-                                              Qs=42e-3, litho_thickness=200)
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1573)
+        P_mgm3, _, target_mgm3 = get_geotherm(results_mgm, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1773)
+        print(P_mgm3)
     if results_ppx:
-        P_ppx, _, target_ppx = get_geotherm(results_ppx, target, geotherm_threshold)
+        P_ppx, _, target_ppx = get_geotherm(results_ppx, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1173)
         P_ppx2, _, target_ppx2 = get_geotherm(results_ppx, target, geotherm_threshold,
-                                              Qs=42e-3, litho_thickness=200)
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1573)
+        P_ppx3, _, target_ppx3 = get_geotherm(results_ppx, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1773)
     if results_ml:
-        P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold)
+        P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1173)
         P_ml2, _, target_ml2 = get_geotherm(results_ml, target, geotherm_threshold,
-                                              Qs=42e-3, litho_thickness=200)
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1573)
+        P_ml3, _, target_ml3 = get_geotherm(results_ml, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1773)
     if results_pum:
-        P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold)
+        P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1173)
         P_pum2, _, target_pum2 = get_geotherm(results_pum, target, geotherm_threshold,
-                                              Qs=42e-3, litho_thickness=200)
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1573)
+        P_pum3, _, target_pum3 = get_geotherm(results_pum, target, geotherm_threshold,
+                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                              litho_thickness=1, mantle_potential=1773)
 
     # Get min and max P
-    P_min = min(np.nanmin(P) for P in [P_mgm, P_mgm2, P_ppx, P_ppx2, P_ml, P_ml2, P_pum,
-                                       P_pum2] if P is not None)
-    P_max = max(np.nanmax(P) for P in [P_mgm, P_mgm2, P_ppx, P_ppx2, P_ml, P_ml2, P_pum,
-                                       P_pum2] if P is not None)
+    P_min = min(np.nanmin(P) for P in [P_mgm, P_mgm2, P_mgm3, P_ppx, P_ppx2, P_ppx3, P_ml,
+                                       P_ml2, P_ml3, P_pum, P_pum2, P_pum3] if P is not None)
+    P_max = max(np.nanmax(P) for P in [P_mgm, P_mgm2, P_mgm3, P_ppx, P_ppx2, P_ppx3, P_ml,
+                                       P_ml2, P_ml3, P_pum, P_pum2, P_pum3] if P is not None)
 
     # Create cropping mask
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
@@ -1548,23 +1602,31 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if results_mgm:
         mask_mgm = (P_mgm >= P_min) & (P_mgm <= P_max)
         mask_mgm2 = (P_mgm2 >= P_min) & (P_mgm2 <= P_max)
+        mask_mgm3 = (P_mgm3 >= P_min) & (P_mgm3 <= P_max)
         P_mgm, target_mgm = P_mgm[mask_mgm], target_mgm[mask_mgm]
         P_mgm2, target_mgm2 = P_mgm2[mask_mgm2], target_mgm2[mask_mgm2]
+        P_mgm3, target_mgm3 = P_mgm3[mask_mgm3], target_mgm3[mask_mgm3]
     if results_ppx:
         mask_ppx = (P_ppx >= P_min) & (P_ppx <= P_max)
         mask_ppx2 = (P_ppx2 >= P_min) & (P_ppx2 <= P_max)
+        mask_ppx3 = (P_ppx3 >= P_min) & (P_ppx3 <= P_max)
         P_ppx, target_ppx = P_ppx[mask_ppx], target_ppx[mask_ppx]
         P_ppx2, target_ppx2 = P_ppx2[mask_ppx2], target_ppx2[mask_ppx2]
+        P_ppx3, target_ppx3 = P_ppx3[mask_ppx3], target_ppx3[mask_ppx3]
     if results_ml:
         mask_ml = (P_ml >= P_min) & (P_ml <= P_max)
         mask_ml2 = (P_ml2 >= P_min) & (P_ml2 <= P_max)
+        mask_ml3 = (P_ml3 >= P_min) & (P_ml3 <= P_max)
         P_ml, target_ml = P_ml[mask_ml], target_ml[mask_ml]
         P_ml2, target_ml2 = P_ml2[mask_ml2], target_ml2[mask_ml2]
+        P_ml3, target_ml3 = P_ml3[mask_ml3], target_ml3[mask_ml3]
     if results_pum:
         mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
         mask_pum2 = (P_pum2 >= P_min) & (P_pum2 <= P_max)
+        mask_pum3 = (P_pum3 >= P_min) & (P_pum3 <= P_max)
         P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
         P_pum2, target_pum2 = P_pum2[mask_pum2], target_pum2[mask_pum2]
+        P_pum3, target_pum3 = P_pum3[mask_pum3], target_pum3[mask_pum3]
 
     # Initialize interpolators
     interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
@@ -1572,9 +1634,9 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # New x values for interpolation
     if results_ppx:
-        x_new = np.linspace(P_min, P_max, len(P_ppx))
+        x_new = np.linspace(P_min, P_max, len(P_ppx2))
     if results_ml:
-        x_new = np.linspace(P_min, P_max, len(P_ml))
+        x_new = np.linspace(P_min, P_max, len(P_ml2))
 
     # Interpolate profiles
     P_prem, target_prem = x_new, interp_prem(x_new)
@@ -1597,18 +1659,32 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     fig, ax1 = plt.subplots(figsize=(figwidth, figheight))
 
     # Plot GFEM and RocMLM profiles
-    if results_ppx:
+    if results_ppx and not results_ml:
         ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(0),
-                 label=f"{sample_id}-MOR")
+                 label=f"{sample_id}-1173")
         ax1.plot(target_ppx2, P_ppx2, "-", linewidth=3, color=colormap(2),
-                 label=f"{sample_id}-CONT")
+                 label=f"{sample_id}-1573")
+        ax1.plot(target_ppx3, P_ppx3, "-", linewidth=3, color=colormap(3),
+                 label=f"{sample_id}-1773")
         ax1.fill_betweenx(P_ppx, target_ppx * (1 - 0.03), target_ppx * (1 + 0.03),
                           color=colormap(0), alpha=0.2)
         ax1.fill_betweenx(P_ppx2, target_ppx2 * (1 - 0.03), target_ppx2 * (1 + 0.03),
-                          color=colormap(2), alpha=0.2)
+                          color=colormap(1), alpha=0.2)
+        ax1.fill_betweenx(P_ppx3, target_ppx3 * (1 - 0.03), target_ppx3 * (1 + 0.03),
+                          color=colormap(2), alpha=0.3)
     if results_ml:
-        ax1.plot(target_ml, P_ml, "-.", linewidth=3, color=colormap(1), label=f"{model}a")
-        ax1.plot(target_ml2, P_ml2, "-.", linewidth=3, color=colormap(3), label=f"{model}p")
+        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(0),
+                 label=f"{model}-1173")
+        ax1.plot(target_ml2, P_ml2, "-", linewidth=3, color=colormap(1),
+                 label=f"{model}-1573")
+        ax1.plot(target_ml3, P_ml3, "-", linewidth=3, color=colormap(2),
+                 label=f"{model}-1773")
+        ax1.fill_betweenx(P_ml, target_ml * (1 - 0.03), target_ml * (1 + 0.03),
+                          color=colormap(0), alpha=0.2)
+        ax1.fill_betweenx(P_ml2, target_ml2 * (1 - 0.03), target_ml2 * (1 + 0.03),
+                          color=colormap(1), alpha=0.2)
+        ax1.fill_betweenx(P_ml3, target_ml3 * (1 - 0.03), target_ml3 * (1 + 0.03),
+                          color=colormap(2), alpha=0.3)
 
     # Plot reference models
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black")
@@ -1633,23 +1709,23 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Compute metrics
     if results_mgm:
-        nan_mask = np.isnan(target_mgm)
-        P_mgm, target_mgm = P_mgm[~nan_mask], target_mgm[~nan_mask]
+        nan_mask = np.isnan(target_mgm2)
+        P_mgm2, target_mgm2 = P_mgm2[~nan_mask], target_mgm2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
-        rmse = np.sqrt(mean_squared_error(target_prem, target_mgm))
-        r2 = r2_score(target_prem, target_mgm)
+        rmse = np.sqrt(mean_squared_error(target_prem, target_mgm2))
+        r2 = r2_score(target_prem, target_mgm2)
     if results_ppx:
-        nan_mask = np.isnan(target_ppx)
-        P_ppx, target_ppx = P_ppx[~nan_mask], target_ppx[~nan_mask]
+        nan_mask = np.isnan(target_ppx2)
+        P_ppx2, target_ppx2 = P_ppx2[~nan_mask], target_ppx2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
-        rmse = np.sqrt(mean_squared_error(target_prem, target_ppx))
-        r2 = r2_score(target_prem, target_ppx)
+        rmse = np.sqrt(mean_squared_error(target_prem, target_ppx2))
+        r2 = r2_score(target_prem, target_ppx2)
     if results_ml:
-        nan_mask = np.isnan(target_ml)
-        P_ml, target_ml = P_ml[~nan_mask], target_ml[~nan_mask]
+        nan_mask = np.isnan(target_ml2)
+        P_ml2, target_ml2 = P_ml2[~nan_mask], target_ml2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
-        rmse = np.sqrt(mean_squared_error(target_prem, target_ml))
-        r2 = r2_score(target_prem, target_ml)
+        rmse = np.sqrt(mean_squared_error(target_prem, target_ml2))
+        r2 = r2_score(target_prem, target_ml2)
 
     # Add R-squared and RMSE values as text annotations in the plot
     plt.text(text_margin_x, 1 - (text_margin_y - (text_spacing_y * 0)), f"R$^2$: {r2:.3f}",
@@ -1692,7 +1768,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_target_array(P, T, target_array, target, title, palette, color_discrete,
                            color_reverse, vmin, vmax, rmse, r2, fig_dir, filename,
-                           figwidth=6.3, figheight=4.725, fontsize=22):
+                           plot_geotherms=True, figwidth=6.3, figheight=4.725, fontsize=22):
     """
     """
     # Check for figs directory
@@ -1727,9 +1803,15 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
 
     # Get geotherm
     results = pd.DataFrame({"P": P, "T": T, target: target_array.flatten()})
-    P_geotherm, T_geotherm, _ = get_geotherm(results, target, geotherm_threshold)
+    P_geotherm, T_geotherm, _ = get_geotherm(results, target, geotherm_threshold,
+                                             Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                             litho_thickness=1, mantle_potential=1173)
     P_geotherm2, T_geotherm2, _ = get_geotherm(results, target, geotherm_threshold,
-                                               Qs=42e-3, litho_thickness=200)
+                                               Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                               litho_thickness=1, mantle_potential=1573)
+    P_geotherm3, T_geotherm3, _ = get_geotherm(results, target, geotherm_threshold,
+                                               Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                               litho_thickness=1, mantle_potential=1773)
 
     if color_discrete:
         # Discrete color palette
@@ -1779,8 +1861,21 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
                                              np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
-        ax.plot(T_geotherm, P_geotherm, linestyle="-", color="white", linewidth=3)
-        ax.plot(T_geotherm2, P_geotherm2, linestyle="--", color="white", linewidth=3)
+        if plot_geotherms:
+            ax.plot(T_geotherm, P_geotherm, linestyle="-", color="white", linewidth=3)
+            ax.plot(T_geotherm2, P_geotherm2, linestyle="--", color="white", linewidth=3)
+            ax.plot(T_geotherm3, P_geotherm3, linestyle="-.", color="white", linewidth=3)
+            plt.text(1173 + (14 * 0.5 * 35), 14, "1173", fontsize=fontsize * 0.833,
+                     horizontalalignment="left", verticalalignment="bottom")
+            plt.text(1163 + (6 * 0.5 * 35), 6, "1173", fontsize=fontsize * 0.833,
+                     horizontalalignment="center", verticalalignment="bottom", rotation=67,
+                     color="white")
+            plt.text(1563 + (6 * 0.5 * 35), 6, "1573", fontsize=fontsize * 0.833,
+                     horizontalalignment="center", verticalalignment="bottom", rotation=67,
+                     color="white")
+            plt.text(1763 + (6 * 0.5 * 35), 6, "1773", fontsize=fontsize * 0.833,
+                     horizontalalignment="center", verticalalignment="bottom", rotation=67,
+                     color="white")
         ax.set_xlabel("T (K)")
         ax.set_ylabel("P (GPa)")
         plt.colorbar(im, ax=ax, ticks=np.arange(vmin, vmax, num_colors // 4), label="")
@@ -1843,8 +1938,19 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
         im = ax.imshow(target_array, extent=[np.nanmin(T), np.nanmax(T), np.nanmin(P),
                                              np.nanmax(P)],
                        aspect="auto", cmap=cmap, origin="lower", vmin=vmin, vmax=vmax)
-        ax.plot(T_geotherm, P_geotherm, linestyle="-", color="white", linewidth=3)
-        ax.plot(T_geotherm2, P_geotherm2, linestyle="--", color="white", linewidth=3)
+        if plot_geotherms:
+            ax.plot(T_geotherm, P_geotherm, linestyle="-", color="white", linewidth=3)
+            ax.plot(T_geotherm2, P_geotherm2, linestyle="--", color="white", linewidth=3)
+            ax.plot(T_geotherm3, P_geotherm3, linestyle="-.", color="white", linewidth=3)
+            plt.text(1163 + (6 * 0.5 * 35), 6, "1173", fontsize=fontsize * 0.833,
+                     horizontalalignment="center", verticalalignment="bottom", rotation=67,
+                     color="white")
+            plt.text(1563 + (6 * 0.5 * 35), 6, "1573", fontsize=fontsize * 0.833,
+                     horizontalalignment="center", verticalalignment="bottom", rotation=67,
+                     color="white")
+            plt.text(1763 + (6 * 0.5 * 35), 6, "1773", fontsize=fontsize * 0.833,
+                     horizontalalignment="center", verticalalignment="bottom", rotation=67,
+                     color="white")
         ax.set_xlabel("T (K)")
         ax.set_ylabel("P (GPa)")
 
@@ -2211,7 +2317,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
 
                 visualize_target_array(P, T, magnitude, target, "Gradient", palette,
                                        color_discrete, color_reverse, vmin_mag, vmax_mag,
-                                       None, None, fig_dir, f"grad-{filename}")
+                                       None, None, fig_dir, f"grad-{filename}", False)
 
             filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
 
@@ -2572,7 +2678,7 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             # Plot ML model predictions array 2d
             visualize_target_array(P.flatten(), T.flatten(), p, target, model_label_full,
                                    palette, False, color_reverse, vmin[i], vmax[i], None,
-                                   None, fig_dir, f"{filename}-predictions.png")
+                                   None, fig_dir, f"{filename}-predictions.png", False)
 
             # Plot ML model predictions array 3d
             visualize_target_surf(P, T, p, target, model_label_full, palette, False,
@@ -2582,7 +2688,7 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             # Plot PT normalized diff targets vs. ML model predictions 2d
             visualize_target_array(P.flatten(), T.flatten(), diff, target, "Residuals",
                                    "seismic", False, False, vmin[i], vmax[i], rmse, r2,
-                                   fig_dir, f"{filename}-diff.png")
+                                   fig_dir, f"{filename}-diff.png", False)
 
             # Plot PT normalized diff targets vs. ML model predictions 3d
             visualize_target_surf(P, T, diff, target, "Residuals", "seismic", False, False,
@@ -2897,7 +3003,8 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
     """
     """
     # Get mixing array attributes
-    oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "FE2O3", "H2O"]]
+    oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "CR2O3", "K2O",
+                                                                    "TIO2", "FE2O3", "H2O"]]
     n_pca_components = mixing_array.n_pca_components
     mixing_array_endpoints = mixing_array.mixing_array_endpoints
     mixing_array_tops = mixing_array.mixing_array_tops
@@ -2993,7 +3100,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
                             x="SIO2", y=y, facecolor="black", edgecolor="white",
                             linewidth=2, s=75, legend=False, ax=ax, zorder=6)
 
-        if k == 5:
+        if k == 4:
             for l, name in enumerate(["PUM", "DMM"]):
                 ax.annotate(
                     name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "SIO2"].iloc[0],
@@ -3138,6 +3245,7 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
         for i, comp in enumerate(legend_order):
             data = dfs[comp]
             data = data[data["TARGET"] == target]
+            data = data[data[D_col] > data[D_col].min()]
 
             marker = mlines.Line2D([0], [0], marker="o", color="w", label=comp, markersize=4,
                                    markerfacecolor=colormap(i), markeredgewidth=0,

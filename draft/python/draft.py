@@ -192,8 +192,12 @@ def write_markdown_tables():
         # Combine data
         df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
 
+        # Subset columns
+        cols = ["SAMPLEID", "SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2", "D_FRAC"]
+        df_combined = df_combined[cols]
+
         # Rename columns
-        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "$\\xi$"}
+        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "$\\xi$", "FEO": "FEOT"}
 
         df_combined.rename(columns=col_headers, inplace=True)
 
@@ -224,7 +228,7 @@ def write_markdown_tables():
         df = pd.read_csv(f"{data_dir}/earthchem-counts.csv")
 
         # Subset oxides
-        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "K2O", "NA2O", "TIO2", "CR2O3", "H2O"]
+        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2"]
         df = df[df["column"].isin(oxides)]
 
         # Rename columns

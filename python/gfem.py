@@ -88,15 +88,17 @@ def get_sampleids(filepath, batch, n_batches=8):
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, A1=1e-6, A2=2.2e-8, k1=2.3,
-                 k2=3.0, crust_thickness=35, litho_thickness=150):
+                 k2=3.0, crust_thickness=35, litho_thickness=150, mantle_potential=1573):
     """
     """
+    # Get P results
+    P = results["P"]
+
     # Get PT and target values and transform units
     df = pd.DataFrame({"P": results["P"], "T": results["T"],
                        target: results[target]}).sort_values(by="P")
 
     # Geotherm Parameters
-    P = results["P"]
     Z_min = np.min(P) * 35e3
     Z_max = np.max(P) * 35e3
     z = np.linspace(Z_min, Z_max, len(P))
@@ -123,12 +125,20 @@ def get_geotherm(results, target, threshold, Qs=55e-3, Ts=273, A1=1e-6, A2=2.2e-
 
     # Calculate T within each layer
     for j in range(len(P)):
+        potential_temp = mantle_potential + 0.5e-3 * z[j]
         if z[j] <= D1:
             T_geotherm[j] = Tt1 + (Qt1 / k1 * z[j]) - (A1 / (2 * k1) * z[j]**2)
+            if T_geotherm[j] >= potential_temp:
+                T_geotherm[j] = potential_temp
         elif D1 < z[j] <= D2 + D1:
-            T_geotherm[j] = Tt2 + (Qt2 / k2 * (z[j] - D1)) - (A2 / (2 * k2) * (z[j] - D1)**2)
+            T_geotherm[j] = Tt2 + (Qt2 / k2 * (z[j] - D1)) - (A2 / (2 * k2) *
+                                                              (z[j] - D1)**2)
+            if T_geotherm[j] >= potential_temp:
+                T_geotherm[j] = potential_temp
         elif z[j] > D2 + D1:
             T_geotherm[j] = Tt3 + 0.5e-3 * (z[j] - D1 - D2)
+            if T_geotherm[j] >= potential_temp:
+                T_geotherm[j] = potential_temp
 
     P_geotherm = np.round(z / 35e3, 1)
     T_geotherm = np.round(T_geotherm, 2)
