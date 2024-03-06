@@ -197,7 +197,9 @@ def write_markdown_tables():
         df_combined = df_combined[cols]
 
         # Rename columns
-        col_headers = {"SAMPLEID": "Sample", "D_FRAC": "$\\xi$", "FEO": "FEOT"}
+        col_headers = {"SAMPLEID": "Sample", "SIO2": "SIO2$^{*}$", "AL2O3": "AL2O3$^{*}$",
+                       "CAO": "CAO$^{*}$", "MGO": "MGO$^{*}$", "FEO": "FEOT$^{*}$",
+                       "NA2O": "NA2O$^{*}$", "TIO2": "TIO2$^{*}$", "D_FRAC": "$\\xi$"}
 
         df_combined.rename(columns=col_headers, inplace=True)
 

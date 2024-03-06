@@ -981,7 +981,7 @@ class MixingArray:
                 randomly_sampled_points.append([sampled_points[i] for i in sample_idx])
 
                 # Save random points
-                sample_ids.extend([f"sr{j}{str(n).zfill(4)}" for n in range(len(sample_idx))])
+                sample_ids.extend([f"sr{str(n).zfill(3)}" for n in range(len(sample_idx))])
 
             # Combine randomly sampled points
             randomly_sampled_points = np.vstack(randomly_sampled_points)

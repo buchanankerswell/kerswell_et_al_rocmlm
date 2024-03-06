@@ -1190,12 +1190,17 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     label_color_mapping["Hypothetical Mantle PTs"] = "gray"
 
     # Define the desired order of the legend items
-    desired_order = ["RocMLM Training Data", "Hypothetical Mantle PTs",
-                     "ol$\\rightarrow$wad (Akaogi89)", "ol$\\rightarrow$wad (Katsura89)",
-                     "ol$\\rightarrow$wad (Morishima94)", "ring$\\rightarrow$brg (Ito82)",
+    desired_order = ["RocMLM Training Data",
+                     "Hypothetical Mantle PTs",
+                     "Avg. Mid-Ocean Ridge",
+                     "ol$\\rightarrow$wad (Akaogi89)",
+                     "ol$\\rightarrow$wad (Katsura89)",
+                     "ol$\\rightarrow$wad (Morishima94)",
+                     "ring$\\rightarrow$brg (Ito82)",
                      "ring$\\rightarrow$brg (Ito89 & Hirose02)",
-                     "ring$\\rightarrow$brg (Ito90)", "ring$\\rightarrow$brg (Katsura03)",
-                     "ring$\\rightarrow$brg (Akaogi07)", "Avg. Mid-Ocean Ridge"]
+                     "ring$\\rightarrow$brg (Ito90)",
+                     "ring$\\rightarrow$brg (Katsura03)",
+                     "ring$\\rightarrow$brg (Akaogi07)"]
 
     # Sort the legend handles based on the desired order
     legend_handles = sorted(ref_line_handles + [db_data_handle, training_data_handle],
@@ -1666,11 +1671,11 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
                  label=f"{sample_id}-1573")
         ax1.plot(target_ppx3, P_ppx3, "-", linewidth=3, color=colormap(3),
                  label=f"{sample_id}-1773")
-        ax1.fill_betweenx(P_ppx, target_ppx * (1 - 0.03), target_ppx * (1 + 0.03),
+        ax1.fill_betweenx(P_ppx, target_ppx * (1 - 0.05), target_ppx * (1 + 0.05),
                           color=colormap(0), alpha=0.2)
-        ax1.fill_betweenx(P_ppx2, target_ppx2 * (1 - 0.03), target_ppx2 * (1 + 0.03),
+        ax1.fill_betweenx(P_ppx2, target_ppx2 * (1 - 0.05), target_ppx2 * (1 + 0.05),
                           color=colormap(1), alpha=0.2)
-        ax1.fill_betweenx(P_ppx3, target_ppx3 * (1 - 0.03), target_ppx3 * (1 + 0.03),
+        ax1.fill_betweenx(P_ppx3, target_ppx3 * (1 - 0.05), target_ppx3 * (1 + 0.05),
                           color=colormap(2), alpha=0.3)
     if results_ml:
         ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(0),
@@ -1679,11 +1684,11 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
                  label=f"{model}-1573")
         ax1.plot(target_ml3, P_ml3, "-", linewidth=3, color=colormap(2),
                  label=f"{model}-1773")
-        ax1.fill_betweenx(P_ml, target_ml * (1 - 0.03), target_ml * (1 + 0.03),
+        ax1.fill_betweenx(P_ml, target_ml * (1 - 0.05), target_ml * (1 + 0.05),
                           color=colormap(0), alpha=0.2)
-        ax1.fill_betweenx(P_ml2, target_ml2 * (1 - 0.03), target_ml2 * (1 + 0.03),
+        ax1.fill_betweenx(P_ml2, target_ml2 * (1 - 0.05), target_ml2 * (1 + 0.05),
                           color=colormap(1), alpha=0.2)
-        ax1.fill_betweenx(P_ml3, target_ml3 * (1 - 0.03), target_ml3 * (1 + 0.03),
+        ax1.fill_betweenx(P_ml3, target_ml3 * (1 - 0.05), target_ml3 * (1 + 0.05),
                           color=colormap(2), alpha=0.3)
 
     # Plot reference models
@@ -2965,7 +2970,7 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
 
     # Add colorbar
     cbaxes = inset_axes(ax2, width="50%", height="3%", loc=1)
-    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility Index",
+    colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility Index, $\\xi$",
                             orientation="horizontal")
     colorbar.ax.set_xticks([sm.get_clim()[0], sm.get_clim()[1]])
     colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2g"))
@@ -3242,6 +3247,9 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
 
         ax = axes[j]
         legend_handles = []
+
+        ax.axvline(x=0.966, color="black", alpha=0.5)
+
         for i, comp in enumerate(legend_order):
             data = dfs[comp]
             data = data[data["TARGET"] == target]
@@ -3261,6 +3269,11 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
         df_bench = dfs["benchmark"]
         df_bench = df_bench[df_bench["TARGET"] == target]
         for l, name in enumerate(["PUM", "DMM"]):
+            if name == "PUM":
+                offst = (5, 10)
+            else:
+                offst = (-50, 10)
+
             sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=D_col,
                             y="RMSE_PREM", facecolor=face_colors[l],
                             edgecolor=edge_colors[l], linewidth=2, s=75, legend=False,
@@ -3269,27 +3282,27 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
                 name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, D_col].iloc[0],
                           df_bench.loc[df_bench["SAMPLEID"] == name,
                                        "RMSE_PREM"].iloc[0]),
-                xytext=(5, 10), textcoords="offset points",
+                xytext=offst, textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                           edgecolor=edge_colors[l], linewidth=1.5, alpha=0.8),
                 fontsize=fontsize * 0.833, zorder=8
             )
 
         if j == 0:
-            legend = ax.legend(handles=legend_handles, loc="lower right", frameon=False,
+            legend = ax.legend(handles=legend_handles, loc="lower left", frameon=False,
                                title="Mixing Array", ncol=2, columnspacing=0,
-                               handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.833)
+                               handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.833,
+                               bbox_to_anchor=(-0.06, 0))
 
             # Legend order
             for i, label in enumerate(legend_order):
                 legend.get_texts()[i].set_text(label)
 
         ax.set_title(f"{target_label} vs. PREM")
-        ax.set_xlabel("Fertility Index")
+        ax.set_xlabel("Fertility Index, $\\xi$")
         ax.set_ylabel(f"RMSE ({units})")
-        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
-        ax.invert_xaxis()
 
     fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.2)
     fig.text(0.33, 0.92, "b)", fontsize=fontsize * 1.2)
