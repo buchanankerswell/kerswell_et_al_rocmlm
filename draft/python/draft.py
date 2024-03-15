@@ -193,15 +193,16 @@ def write_markdown_tables():
         df_combined = pd.concat([df, df_synth], ignore_index=True).sort_values(by="SAMPLEID")
 
         # Subset columns
-        cols = ["SAMPLEID", "SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2", "D_FRAC"]
+        cols = ["SAMPLEID", "SIO2", "TIO2", "AL2O3", "FEO", "MGO", "CAO", "NA2O", "D_FRAC"]
         df_combined = df_combined[cols]
 
         # Rename columns
-        col_headers = {"SAMPLEID": "Sample", "SIO2": "SIO2$^{*}$", "AL2O3": "AL2O3$^{*}$",
-                       "CAO": "CAO$^{*}$", "MGO": "MGO$^{*}$", "FEO": "FEOT$^{*}$",
-                       "NA2O": "NA2O$^{*}$", "TIO2": "TIO2$^{*}$", "D_FRAC": "$\\xi$"}
+        col_headers = {"SAMPLEID": "Sample", "SIO2": "SiO$_2^{*}$", "TIO2": "TiO$_2^{*}$",
+                       "AL2O3": "Al$_2$O$_3^{*}$", "FEO": "FeOT$^{*}$", "MGO": "MgO$^{*}$",
+                       "CAO": "CaO$^{*}$", "NA2O": "Na$_2$O$^{*}$", "D_FRAC": "$\\xi$"}
 
         df_combined.rename(columns=col_headers, inplace=True)
+        df_combined.sort_values(by="$\\xi$", inplace=True)
 
         # Generate markdown table
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
@@ -230,8 +231,12 @@ def write_markdown_tables():
         df = pd.read_csv(f"{data_dir}/earthchem-counts.csv")
 
         # Subset oxides
-        oxides = ["SIO2", "AL2O3", "CAO", "MGO", "FEO", "NA2O", "TIO2"]
-        df = df[df["column"].isin(oxides)]
+        oxides = {"SIO2": "SiO$_2$", "TIO2": "TiO$_2$", "AL2O3": "Al$_2$O$_3$", "FEO": "FeO",
+                  "MGO": "MgO", "CAO": "CaO", "NA2O": "Na$_2$O"}
+        oxide_order = ["SiO$_2$", "TiO$_2$", "Al$_2$O$_3$", "FeO", "MgO", "CaO", "Na$_2$O"]
+        df["column"] = df["column"].map(oxides)
+        df = df.dropna(subset=["column"])
+        df = df.set_index("column").reindex(oxide_order).reset_index()
 
         # Rename columns
         df.loc[df["column"] == "FEO", "column"] = "FEOT"

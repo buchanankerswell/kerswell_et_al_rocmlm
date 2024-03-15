@@ -879,8 +879,13 @@ class MixingArray:
             all_bottoms[oxs] = all_bottoms[
                 oxs].apply(lambda x: x.apply(lambda y: max(0.001, y)))
 
+            # Increase TIO2 by 20% for mixing arrays so that F melt is consistent with PUM
+            all_mixing["TIO2"] = all_mixing["TIO2"] + (all_mixing["TIO2"] * 0.2)
+            all_tops["TIO2"] = all_mixing["TIO2"] + (all_mixing["TIO2"] * 0.2)
+            all_bottoms["TIO2"] = all_mixing["TIO2"] + (all_mixing["TIO2"] * 0.2)
+
             # Calculate F melt
-            ti_init = 0.199
+            ti_init = all_mixing["TIO2"].max()
             data["R_TIO2"] = round(data["TIO2"] / ti_init, digits)
             data["F_MELT_BATCH"] = round(
                 ((D_tio2 / data["R_TIO2"]) - D_tio2) / (1 - D_tio2), digits)
@@ -918,12 +923,10 @@ class MixingArray:
             all_bottoms["D_FRAC"] = round(1 - all_bottoms["F_MELT_FRAC"], digits)
 
             # Write to csv
-            fname = (f"assets/data/synthetic-samples-mixing-middle.csv")
-            all_mixing.to_csv(fname, index=False)
-            fname = (f"assets/data/synthetic-samples-mixing-tops.csv")
-            all_tops.to_csv(fname, index=False)
-            fname = (f"assets/data/synthetic-samples-mixing-bottoms.csv")
-            all_bottoms.to_csv(fname, index=False)
+            all_mixing.to_csv("assets/data/synthetic-samples-mixing-middle.csv", index=False)
+            all_tops.to_csv("assets/data/synthetic-samples-mixing-tops.csv", index=False)
+            all_bottoms.to_csv("assets/data/synthetic-samples-mixing-bottoms.csv",
+                               index=False)
 
             # Define bounding box around top and bottom mixing arrays
             min_x = min(mixing_array_tops[:, 0].min(), mixing_array_bottoms[:, 0].min())
@@ -1000,6 +1003,10 @@ class MixingArray:
             random_synthetic[oxs] = random_synthetic[oxs].apply(
                 lambda x: x.apply(lambda y: max(0.001, y)))
 
+            # Increase TIO2 by 20% for mixing arrays so that F melt is consistent with PUM
+            random_synthetic["TIO2"] = (random_synthetic["TIO2"] +
+                                        (random_synthetic["TIO2"] * 0.2))
+
             # Calculate F melt
             random_synthetic["R_TIO2"] = round(random_synthetic["TIO2"] / ti_init, digits)
             random_synthetic["F_MELT_BATCH"] = round(
@@ -1010,8 +1017,8 @@ class MixingArray:
             random_synthetic["D_FRAC"] = round(1 - random_synthetic["F_MELT_FRAC"], digits)
 
             # Write to csv
-            fname = (f"assets/data/synthetic-samples-mixing-random.csv")
-            random_synthetic.to_csv(fname, index=False)
+            random_synthetic.to_csv("assets/data/synthetic-samples-mixing-random.csv",
+                                    index=False)
 
             # Update attribute
             self.synthetic_data_written = True
