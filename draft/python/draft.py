@@ -299,7 +299,7 @@ def write_markdown_tables():
         df = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
 
         # Filter models
-        df = df[df["sample"].isin(["SMAT128", "SMAT64", "SMAT32", "benchmark"])]
+        df = df[df["sample"].isin(["SMAM128", "SMAM64", "SMAM32", "benchmark"])]
 
         # Transform units
         df["training_time_mean"] = df["training_time_mean"] * 1000

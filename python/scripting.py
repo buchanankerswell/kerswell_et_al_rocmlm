@@ -226,7 +226,8 @@ def compile_perplex():
         url = ("https://www.perplex.ethz.ch/perplex/ibm_and_mac_archives/OSX/"
                "previous_version/Perple_X_7.0.9_OSX_ARM_SP_Apr_16_2023.zip")
 
-        print(f"Installing Perple_X from {url} ...")
+        print("Installing Perple_X from:")
+        print(f"{url}")
 
         download_and_unzip(url, "dynamic.zip", "Perple_X")
 

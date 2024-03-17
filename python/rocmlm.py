@@ -162,18 +162,23 @@ def evaluate_lut_efficiency(name, gfem_models):
 
             # Store df info
             if name == "top":
-                sample.append(f"SMAT{X_sub.shape[0] - 1}")
+                sample.append(f"SMAT{X_sub.shape[0]}")
+            elif name == "middle":
+                sample.append(f"SMAM{X_sub.shape[0]}")
             elif name == "bottom":
-                sample.append(f"SMAB{X_sub.shape[0] - 1}")
+                sample.append(f"SMAB{X_sub.shape[0]}")
             elif name == "random":
-                sample.append(f"SMAR{X_sub.shape[0] - 1}")
+                sample.append(f"SMAR{X_sub.shape[0]}")
+            elif name == "synthetic":
+                sample.append(f"SYNTH{X_sub.shape[0]}")
+
             program.append("lut")
             dataset.append("train")
             size.append((P_sub.shape[0] - 1) ** 2)
             eval_time.append(round(sum(eval_times), 5))
 
             # Save ml model only
-            lut_path = f"rocmlms/lut-S{X_sub.shape[0] - 1}-W{P_sub.shape[0] - 1}.pkl"
+            lut_path = f"rocmlms/lut-S{X_sub.shape[0]}-W{P_sub.shape[0]}.pkl"
             with open(lut_path, "wb") as file:
                 joblib.dump(I, file)
 
@@ -304,7 +309,7 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"]
     # Define PTX resolution steps
     PT_steps = [16, 8, 4, 2, 1]
 
-    if any(sample in sample_ids for sample in ["PUM", "DMM"]):
+    if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
         X_steps = [1]
     else:
         X_steps = [16, 8, 4, 2, 1]
@@ -459,16 +464,16 @@ class RocMLM:
         self.palette = palette
         self.verbose = verbose
         self.model_out_dir = f"rocmlms"
-        if any(sample in sample_ids for sample in ["PUM", "DMM"]):
+        if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
             self.model_prefix = (f"{self.program[:4]}-benchmark-{self.ml_model_label}-"
-                                 f"W{self.shape_feature_square[1] - 1}")
+                                 f"S{self.shape_feature_square[0]}-"
+                                 f"W{self.shape_feature_square[1]}")
             self.fig_dir = f"figs/rocmlm/{self.program[:4]}_benchmark_{self.ml_model_label}"
-        else:
-            self.model_prefix = (f"{self.program[:4]}-{self.sample_ids[0][:2]}-"
-                                 f"{self.ml_model_label}-"
-                                 f"S{self.shape_feature_square[0] - 1}-"
-                                 f"W{self.shape_feature_square[1] - 1}")
-            self.fig_dir = (f"figs/rocmlm/{self.program[:4]}_{self.sample_ids[0][:2]}_"
+        elif any("sm" in sample or "sr" in sample for sample in sample_ids):
+            self.model_prefix = (f"{self.program[:4]}-synthetic-{self.ml_model_label}-"
+                                 f"S{self.shape_feature_square[0]}-"
+                                 f"W{self.shape_feature_square[1]}")
+            self.fig_dir = (f"figs/rocmlm/{self.program[:4]}_synthetic_"
                             f"{self.ml_model_label}")
         self.rocmlm_path = f"{self.model_out_dir}/{self.model_prefix}.pkl"
         self.ml_model_only_path = f"{self.model_out_dir}/{self.model_prefix}-model-only.pkl"
@@ -1005,14 +1010,18 @@ class RocMLM:
         inference_time_std = np.std(inference_times)
 
         # Get sample label
-        if any(sample in sample_ids for sample in ["PUM", "DMM"]):
+        if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
             sample_label = "benchmark"
+        elif any("sm" in sample or "sr" in sample for sample in sample_ids):
+            sample_label = f"SYNTH{M}"
         elif any("st" in sample for sample in sample_ids):
-            sample_label = f"SMAT{M - 1}"
+            sample_label = f"SMAT{M}"
+        elif any("sm" in sample for sample in sample_ids):
+            sample_label = f"SMAM{M}"
         elif any("sb" in sample for sample in sample_ids):
-            sample_label = f"SMAB{M - 1}"
+            sample_label = f"SMAB{M}"
         elif any("sr" in sample for sample in sample_ids):
-            sample_label = f"SMAR{M - 1}"
+            sample_label = f"SMAR{M}"
 
         # Config and performance info
         cv_info = {

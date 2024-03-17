@@ -263,6 +263,63 @@ def combine_plots_vertically(image1_path, image2_path, output_path, caption1, ca
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# compose prem plots !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def compose_prem_plots(gfem_models):
+    """
+    """
+    # Parse and sort models
+    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+                      None for m in gfem_models]
+
+    if len(perplex_models) > 3:
+        raise ValueError("Can only compose three GFEM models!")
+
+    # Get model data
+    program = "perplex"
+    sample_ids = [m.sample_id for m in perplex_models]
+    dataset = [m.dataset for m in perplex_models][0]
+    targets = [m.targets for m in perplex_models][0]
+    fig_dirs = [m.fig_dir for m in perplex_models]
+
+    # Rename targets
+    targets_rename = [target.replace("_", "-") for target in targets]
+
+    # Check for existing plots
+    existing_figs = []
+    for target in targets_rename:
+        fig_1 = f"figs/other/prem-comparison-{target}.png"
+        check = os.path.exists(fig_1)
+
+        if check:
+            existing_figs.append(check)
+
+    if existing_figs:
+        return None
+
+    for target in targets_rename:
+        if target in ["rho", "Vp", "Vs"]:
+            combine_plots_horizontally(
+                f"{fig_dirs[0]}/prem-{sample_ids[0]}-{dataset}-{target}.png",
+                f"{fig_dirs[1]}/prem-{sample_ids[1]}-{dataset}-{target}.png",
+                "figs/other/temp1.png",
+                caption1="a)",
+                caption2="b)"
+            )
+
+            combine_plots_horizontally(
+                "figs/other/temp1.png",
+                f"{fig_dirs[2]}/prem-{sample_ids[2]}-{dataset}-{target}.png",
+                f"figs/other/prem-comparison-{target}.png",
+                caption1="",
+                caption2="c)"
+            )
+
+        os.remove("figs/other/temp1.png")
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose dataset plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def compose_dataset_plots(gfem_models):
@@ -1226,10 +1283,10 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize rocmlm tradeoffs !!
+# visualize rocmlm performance !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.png",
-                               figwidth=6.3, figheight=2.5, fontsize=12):
+def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performance.png",
+                                 figwidth=6.3, figheight=2.5, fontsize=12):
     """
     """
     # Data assets dir
@@ -1322,14 +1379,18 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     data = data[data["dataset"] == "train"]
 
     # Filter samples and programs
-    data = data[data["sample"].isin(["SMAT128", "SMAT64", "SMAT32"])]
+    data = data[data["sample"].isin(["SYNTH258", "SYNTH129", "SYNTH65", "SYNTH33"])]
     data = data[data["program"].isin(["Lookup Table", "RocMLM (DT)", "RocMLM (KN)",
                                       "RocMLM (NN1)", "RocMLM (NN3)"])]
 
     # Get X resolution
     def get_x_res(row):
-        if row["sample"].startswith("SMA") and row["sample"][4:].isdigit():
-            return int(row["sample"][4:])
+        if row["sample"].startswith("SYNTH") and row["sample"][5:].isdigit():
+            x_res = int(row["sample"][5:])
+            if x_res < 257:
+                return int(x_res - 1)
+            else:
+                return int(x_res - 2)
         else:
             return None
 
@@ -1469,13 +1530,8 @@ def visualize_rocmlm_tradeoffs(fig_dir="figs/other", filename="rocmlm-tradeoffs.
     fig = plt.gcf()
     fig.set_size_inches(figwidth, figheight)
 
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
-
-    else:
-        # Print plot
-        plt.show()
+    # Save the plot to a file
+    plt.savefig(f"{fig_dir}/{filename}")
 
     # Close device
     plt.close()
@@ -1510,24 +1566,24 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
 
     # Initialize geotherms
-    P_mgm, P_ppx, P_ml, P_pum = None, None, None, None
-    P_mgm2, P_ppx2, P_ml2, P_pum2 = None, None, None, None
-    P_mgm3, P_ppx3, P_ml3, P_pum3 = None, None, None, None
-    target_mgm, target_ppx, target_ml, target_pum = None, None, None, None
-    target_mgm2, target_ppx2, target_ml2, target_pum2 = None, None, None, None
-    target_mgm3, target_ppx3, target_ml3, target_pum3 = None, None, None, None
+    P_mgm, P_ppx, P_ml, P_pyr = None, None, None, None
+    P_mgm2, P_ppx2, P_ml2, P_pyr2 = None, None, None, None
+    P_mgm3, P_ppx3, P_ml3, P_pyr3 = None, None, None, None
+    target_mgm, target_ppx, target_ml, target_pyr = None, None, None, None
+    target_mgm2, target_ppx2, target_ml2, target_pyr2 = None, None, None, None
+    target_mgm3, target_ppx3, target_ml3, target_pyr3 = None, None, None, None
 
     # Get benchmark models
-    pum_path = f"gfems/{program[:4]}_PUM_{dataset[0]}{res}/results.csv"
+    pyr_path = f"gfems/{program[:4]}_PYR_{dataset[0]}{res}/results.csv"
     source = "assets/data/benchmark-samples-pca.csv"
     targets = ["rho", "Vp", "Vs"]
 
-    if os.path.exists(pum_path) and sample_id != "PUM":
-        pum_model = GFEMModel(program, dataset, "PUM", source, res, 1, 28, 773, 2273, "all",
+    if os.path.exists(pyr_path) and sample_id != "PYR":
+        pyr_model = GFEMModel(program, dataset, "PYR", source, res, 1, 28, 773, 2273, "all",
                               targets, False, 0, False)
-        results_pum = pum_model.results
+        results_pyr = pyr_model.results
     else:
-        results_pum = None
+        results_pyr = None
 
     # Set geotherm threshold for extracting depth profiles
     if res <= 8:
@@ -1575,22 +1631,22 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         P_ml3, _, target_ml3 = get_geotherm(results_ml, target, geotherm_threshold,
                                               Qs=250e-3, A1=2.2e-8, k1=3.0,
                                               litho_thickness=1, mantle_potential=1773)
-    if results_pum:
-        P_pum, _, target_pum = get_geotherm(results_pum, target, geotherm_threshold,
+    if results_pyr:
+        P_pyr, _, target_pyr = get_geotherm(results_pyr, target, geotherm_threshold,
                                               Qs=250e-3, A1=2.2e-8, k1=3.0,
                                               litho_thickness=1, mantle_potential=1173)
-        P_pum2, _, target_pum2 = get_geotherm(results_pum, target, geotherm_threshold,
+        P_pyr2, _, target_pyr2 = get_geotherm(results_pyr, target, geotherm_threshold,
                                               Qs=250e-3, A1=2.2e-8, k1=3.0,
                                               litho_thickness=1, mantle_potential=1573)
-        P_pum3, _, target_pum3 = get_geotherm(results_pum, target, geotherm_threshold,
+        P_pyr3, _, target_pyr3 = get_geotherm(results_pyr, target, geotherm_threshold,
                                               Qs=250e-3, A1=2.2e-8, k1=3.0,
                                               litho_thickness=1, mantle_potential=1773)
 
     # Get min and max P
     P_min = min(np.nanmin(P) for P in [P_mgm, P_mgm2, P_mgm3, P_ppx, P_ppx2, P_ppx3, P_ml,
-                                       P_ml2, P_ml3, P_pum, P_pum2, P_pum3] if P is not None)
+                                       P_ml2, P_ml3, P_pyr, P_pyr2, P_pyr3] if P is not None)
     P_max = max(np.nanmax(P) for P in [P_mgm, P_mgm2, P_mgm3, P_ppx, P_ppx2, P_ppx3, P_ml,
-                                       P_ml2, P_ml3, P_pum, P_pum2, P_pum3] if P is not None)
+                                       P_ml2, P_ml3, P_pyr, P_pyr2, P_pyr3] if P is not None)
 
     # Create cropping mask
     mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
@@ -1622,13 +1678,13 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
         P_ml, target_ml = P_ml[mask_ml], target_ml[mask_ml]
         P_ml2, target_ml2 = P_ml2[mask_ml2], target_ml2[mask_ml2]
         P_ml3, target_ml3 = P_ml3[mask_ml3], target_ml3[mask_ml3]
-    if results_pum:
-        mask_pum = (P_pum >= P_min) & (P_pum <= P_max)
-        mask_pum2 = (P_pum2 >= P_min) & (P_pum2 <= P_max)
-        mask_pum3 = (P_pum3 >= P_min) & (P_pum3 <= P_max)
-        P_pum, target_pum = P_pum[mask_pum], target_pum[mask_pum]
-        P_pum2, target_pum2 = P_pum2[mask_pum2], target_pum2[mask_pum2]
-        P_pum3, target_pum3 = P_pum3[mask_pum3], target_pum3[mask_pum3]
+    if results_pyr:
+        mask_pyr = (P_pyr >= P_min) & (P_pyr <= P_max)
+        mask_pyr2 = (P_pyr2 >= P_min) & (P_pyr2 <= P_max)
+        mask_pyr3 = (P_pyr3 >= P_min) & (P_pyr3 <= P_max)
+        P_pyr, target_pyr = P_pyr[mask_pyr], target_pyr[mask_pyr]
+        P_pyr2, target_pyr2 = P_pyr2[mask_pyr2], target_pyr2[mask_pyr2]
+        P_pyr3, target_pyr3 = P_pyr3[mask_pyr3], target_pyr3[mask_pyr3]
 
     # Initialize interpolators
     interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
@@ -1643,6 +1699,12 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Interpolate profiles
     P_prem, target_prem = x_new, interp_prem(x_new)
     P_stw105, target_stw105 = x_new, interp_stw105(x_new)
+
+    # Change endmember sampleids
+    if sample_id == "sm000":
+        sample_id = "DSUM"
+    elif sample_id == "sm128":
+        sample_id = "PSUM"
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1752,13 +1814,8 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     if title:
         plt.title(title)
 
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
-
-    else:
-        # Print plot
-        plt.show()
+    # Save the plot to a file
+    plt.savefig(f"{fig_dir}/{filename}")
 
     # Close device
     plt.close()
@@ -1999,13 +2056,8 @@ def visualize_target_array(P, T, target_array, target, title, palette, color_dis
                  fontsize=fontsize * 0.833, horizontalalignment="left",
                  verticalalignment="bottom", bbox=bbox_props)
 
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}")
-
-    else:
-        # Print plot
-        plt.show()
+    # Save the plot to a file
+    plt.savefig(f"{fig_dir}/{filename}")
 
     # Close device
     plt.close()
@@ -2199,7 +2251,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
 
         cbar.ax.set_ylim(vmin, vmax)
 
-    # Save fig
+    # Save the plot to a file
     plt.savefig(f"{fig_dir}/{filename}")
 
     # Close fig
@@ -2988,15 +3040,10 @@ def visualize_pca_loadings(mixing_array, fig_dir="figs/mixing_array", filename="
     fig.text(0.71, 0.97, "b)", fontsize=fontsize * 1.2)
     fig.text(0.661, 0.765, "c)", fontsize=fontsize * 1.2)
 
-    # Save the plot to a file if a filename is provided
-    if filename:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            plt.savefig(f"{fig_dir}/{filename}-mixing-arrays.png")
-
-    else:
-        # Print plot
-        plt.show()
+    # Save the plot to a file
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        plt.savefig(f"{fig_dir}/{filename}-mixing-arrays.png")
 
     # Close device
     plt.close()
@@ -3015,9 +3062,6 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
     oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "CR2O3", "K2O",
                                                                     "TIO2", "FE2O3", "H2O"]]
     n_pca_components = mixing_array.n_pca_components
-    mixing_array_endpoints = mixing_array.mixing_array_endpoints
-    mixing_array_tops = mixing_array.mixing_array_tops
-    mixing_array_bottoms = mixing_array.mixing_array_bottoms
     data = mixing_array.earthchem_filtered
 
     # Check for benchmark samples
@@ -3028,6 +3072,13 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
         # Read benchmark samples
         df_bench = pd.read_csv(df_bench_path)
         df_synth_bench = pd.read_csv(df_synth_bench_path)
+
+    # Check for synthetic data
+    if not mixing_array.synthetic_data_written:
+        raise Exception("No synthetic data found! Call create_mixing_arrays() first ...")
+
+    # Initialize synthetic datasets
+    synthetic_samples = pd.read_csv(f"assets/data/synthetic-samples-mixing-random.csv")
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -3045,13 +3096,6 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
     plt.rcParams["savefig.bbox"] = "tight"
 
     warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
-
-    # Check for synthetic data
-    if not mixing_array.synthetic_data_written:
-        raise Exception("No synthetic data found! Call create_mixing_arrays() first ...")
-
-    # Initialize synthetic datasets
-    synthetic_samples = pd.read_csv(f"assets/data/synthetic-samples-mixing-random.csv")
 
     # Create a grid of subplots
     num_plots = len(oxides) + 1
@@ -3173,13 +3217,8 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
         for i in range(num_plots, len(axes)):
             fig.delaxes(axes[i])
 
-    # Save the plot to a file if a filename is provided
-    if filename:
-        plt.savefig(f"{fig_dir}/{filename}-harker-diagram.png")
-
-    else:
-        # Print plot
-        plt.show()
+    # Save the plot to a file
+    plt.savefig(f"{fig_dir}/{filename}-harker-diagram.png")
 
     # Close device
     plt.close()
@@ -3187,14 +3226,14 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# visualize gfem analysis !!
+# visualize gfem accuracy vs prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="fmelt",
-                            figwidth=6.3, figheight=5.2, fontsize=22):
+def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=6.3,
+                                    figheight=5.2, fontsize=22):
     """
     """
     # Check for analysis data
-    analysis_path = "assets/data/gfem-analysis.csv"
+    analysis_path = "assets/data/gfem-accuracy-vs-prem.csv"
 
     if os.path.exists(analysis_path):
         df_analysis = pd.read_csv(analysis_path)
@@ -3209,10 +3248,9 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
 
     # Samples data paths
     df_paths = ["assets/data/benchmark-samples-pca.csv",
-                "assets/data/synthetic-samples-mixing-tops.csv",
-                "assets/data/synthetic-samples-mixing-bottoms.csv",
+                "assets/data/synthetic-samples-mixing-middle.csv",
                 "assets/data/synthetic-samples-mixing-random.csv"]
-    df_names = ["benchmark", "upper", "lower", "random"]
+    df_names = ["benchmark", "middle", "random"]
     dfs = {}
 
     # Read data
@@ -3223,6 +3261,10 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
             dfs[name] = df.merge(df_analysis, on="SAMPLEID", how="inner")
         else:
             raise Exception(f"Missing sample data: {path}!")
+
+    # Combine dfs
+    dfs = {"benchmark": dfs["benchmark"],
+           "synthetic": pd.concat([dfs["middle"], dfs["random"]], ignore_index=True)}
 
     # Check for figs directory
     if not os.path.exists(fig_dir):
@@ -3239,11 +3281,11 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
     plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
-    # Colormap
-    colormap = plt.cm.get_cmap("tab10")
-
-    # Legend order
-    legend_order = df_names[1::]
+    # Create colorbar
+    pal = sns.color_palette("magma", as_cmap=True).reversed()
+    norm = plt.Normalize(dfs["synthetic"][D_col].min(), dfs["synthetic"][D_col].max())
+    sm = plt.cm.ScalarMappable(cmap="magma_r", norm=norm)
+    sm.set_array([])
 
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(figwidth * 3, figheight))
     for j, target in enumerate(["rho", "Vp", "Vs"]):
@@ -3256,34 +3298,32 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
             target_label = target
 
         ax = axes[j]
-        legend_handles = []
 
-        ax.axvline(x=0.966, color="black", alpha=0.5)
+        data = dfs["synthetic"]
+        data = data[data["TARGET"] == target]
+        data = data[data[D_col] > data[D_col].min()]
 
-        for i, comp in enumerate(legend_order):
-            data = dfs[comp]
-            data = data[data["TARGET"] == target]
-            data = data[data[D_col] > data[D_col].min()]
-
-            marker = mlines.Line2D([0], [0], marker="o", color="w", label=comp, markersize=4,
-                                   markerfacecolor=colormap(i), markeredgewidth=0,
-                                   linestyle="None", alpha=1)
-            legend_handles.append(marker)
-
-            scatter = ax.scatter(data[D_col], data["RMSE_PREM"],
-                                 edgecolors="none", color=colormap(i), marker=".", s=150,
-                                 label=comp)
+        scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"], hue=data[D_col],
+                                  palette=pal, legend=False, edgecolor="none", s=72, ax=ax)
 
         df_bench = dfs["benchmark"]
         df_bench = df_bench[df_bench["TARGET"] == target]
         mrkr = ["s", "^", "P"]
         for l, name in enumerate(["PUM", "DMM", "PYR"]):
-            if name == "PUM":
-                offst = (10, -25)
-            elif name == "DMM":
-                offst = (-55, 15)
+            if j == 0:
+                if name == "PUM":
+                    offst = (10, -25)
+                elif name == "DMM":
+                    offst = (-55, -25)
+                else:
+                    offst = (-45, -20)
             else:
-                offst = (8, -23)
+                if name == "PUM":
+                    offst = (10, -25)
+                elif name == "DMM":
+                    offst = (-55, -25)
+                else:
+                    offst = (-45, 10)
 
             sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=D_col,
                             y="RMSE_PREM", marker=mrkr[l], facecolor="white",
@@ -3296,35 +3336,30 @@ def visualize_gfem_analysis(batch=False, fig_dir="figs/mixing_array", filename="
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
                           linewidth=1.5, alpha=0.8), fontsize=fontsize * 0.833, zorder=8)
 
-        if j == 0:
-            legend = ax.legend(handles=legend_handles, loc="lower left", frameon=False,
-                               title="Mixing Array", ncol=2, columnspacing=0,
-                               handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.833,
-                               bbox_to_anchor=(-0.06, 0))
-
-            # Legend order
-            for i, label in enumerate(legend_order):
-                legend.get_texts()[i].set_text(label)
-
         ax.set_title(f"{target_label} vs. PREM")
         ax.set_xlabel("Fertility Index, $\\xi$")
         ax.set_ylabel(f"RMSE ({units})")
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
 
+        # Add colorbar
+        if j == 0:
+            cbaxes = inset_axes(ax, width="40%", height="3%", loc=2,
+                                bbox_to_anchor=(0.08, 0, 1, 1),
+                                bbox_transform=ax.transAxes)
+            colorbar = plt.colorbar(sm, ax=ax, cax=cbaxes, label="Fertility, $\\xi$",
+                                    orientation="horizontal")
+            colorbar.ax.set_xticks([sm.get_clim()[0], sm.get_clim()[1]])
+            colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2g"))
+
     fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.2)
     fig.text(0.33, 0.92, "b)", fontsize=fontsize * 1.2)
     fig.text(0.66, 0.92, "c)", fontsize=fontsize * 1.2)
 
-    # Save the plot to a file if a filename is provided
-    if filename:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            plt.savefig(f"{fig_dir}/{filename}-gfem-analysis.png")
-
-    else:
-        # Print plot
-        plt.show()
+    # Save the plot to a file
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        plt.savefig(f"{fig_dir}/gfem-accuracy-vs-prem.png")
 
     # Close device
     plt.close()

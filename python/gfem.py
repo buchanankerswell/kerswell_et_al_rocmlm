@@ -214,9 +214,9 @@ def get_1d_reference_models():
     return ref_models
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# analyze gfem models !!
+# measure gfem model accuracy vs prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def analyze_gfem_model(gfem_model, filename):
+def measure_gfem_model_accuracy_vs_prem(gfem_model, filename):
     """
     """
     # Get model attributes
@@ -320,7 +320,7 @@ def analyze_gfem_model(gfem_model, filename):
 
             if df_existing.empty:
                 if verbose >= 1:
-                    print(f"Saving {sample_id} analysis to {filename}!")
+                    print(f"Saving {sample_id} RMSE vs. PREM to {filename}!")
 
                 df.to_csv(filename, index=False)
 
@@ -336,7 +336,7 @@ def analyze_gfem_model(gfem_model, filename):
 
                 else:
                     if verbose >= 1:
-                        print(f"Saving {sample_id} analysis to {filename}!")
+                        print(f"Saving {sample_id} RMSE vs. PREM to {filename}!")
 
                     df_existing = pd.concat([df_existing, df], ignore_index=True)
                     df_existing = df_existing.sort_values(by=["SAMPLEID", "TARGET"],
@@ -345,13 +345,13 @@ def analyze_gfem_model(gfem_model, filename):
 
         except pd.errors.EmptyDataError:
             if verbose >= 1:
-                print(f"Saving {sample_id} analysis to {filename}!")
+                print(f"Saving {sample_id} RMSE vs. PREM to {filename}!")
 
             df.to_csv(filename, index=False)
 
     else:
         if verbose >= 1:
-            print(f"Saving {sample_id} analysis to {filename}!")
+            print(f"Saving {sample_id} RMSE vs. PREM to {filename}!")
 
         df.to_csv(filename, index=False)
 
@@ -413,7 +413,7 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="
         raise Exception(f"Source {source} does not exist!")
 
     # CSV path
-    filename = "assets/data/gfem-analysis.csv"
+    filename = "assets/data/gfem-accuracy-vs-prem.csv"
 
     # Write blank CSV
     if not os.path.exists(filename):
@@ -459,10 +459,10 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="
     # Get successful models
     successful_models = [model for model in models if not model.model_build_error]
 
-    # Analyze GFEM models
+    # Measure GFEM model accuracy vs. PREM
     for model in successful_models:
         if model.dataset == "train":
-            analyze_gfem_model(model, filename)
+            measure_gfem_model_accuracy_vs_prem(model, filename)
 
     # Check for errors in the models
     error_count = 0
