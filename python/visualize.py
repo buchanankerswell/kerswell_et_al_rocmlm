@@ -761,7 +761,7 @@ def create_dataset_movies(gfem_models):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose rocmlm plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_rocmlm_plots(rocmlm, skip=64):
+def compose_rocmlm_plots(rocmlm, skip=1):
     """
     """
     # Get ml model attributes
@@ -2589,7 +2589,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize rocmlm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocmlm(rocmlm, skip=64, figwidth=6.3, figheight=4.725, fontsize=22):
+def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22):
     """
     """
     # Get ml model attributes

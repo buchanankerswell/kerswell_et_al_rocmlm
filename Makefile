@@ -26,11 +26,9 @@ DATAPURGE = \
 						log \
 						python/__pycache__ \
 						$(DATADIR)/synthetic*.csv \
-						$(DATADIR)/gfem-analysis.csv \
-						$(DATADIR)/gfem-analysis.csv \
 						$(DATADIR)/lut-efficiency.csv \
 						$(DATADIR)/earthchem-counts.csv \
-						$(DATADIR)/rocmlm-performance.csv \
+						$(DATADIR)/gfem-accuracy-vs-prem.csv \
 						$(DATADIR)/earthchem-samples-pca.csv \
 						$(DATADIR)/benchmark-samples-pca.csv
 DATACLEAN = assets MAGEMin Perple_X gfems rocmlms
