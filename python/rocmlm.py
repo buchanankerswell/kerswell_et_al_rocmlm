@@ -311,12 +311,14 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"]
 
     if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
         X_steps = [1]
+    elif len(sample_ids) > 128:
+        X_steps = [32, 16, 8, 4, 2]
     else:
         X_steps = [16, 8, 4, 2, 1]
 
-    # Iterate through X resolutions (8, 16, 32, 64, 128)
+    # Iterate through X resolutions
     for X_step in X_steps:
-        # Iterate through PT grid resolutions (8, 16, 32, 64, 128)
+        # Iterate through PT grid resolutions
         for step in PT_steps:
             # Reshape arrays
             new_feature_train = feature_train.reshape((shape_feature_square))
@@ -597,9 +599,6 @@ class RocMLM:
             self._scale_arrays(feature_train, target_train)
 
         # Define NN layer sizes
-#        nn_L1 = int(max(y_scaled_train.shape[0] * 1e-3, 8))
-#        nn_L2 = int(max(y_scaled_train.shape[0] * 2e-3, 16))
-#        nn_L3 = int(max(y_scaled_train.shape[0] * 3e-3, 32))
         nn_L1, nn_L2, nn_L3 = int(8), int(16), int(32)
 
         print(f"Configuring model {model_prefix} ...")
