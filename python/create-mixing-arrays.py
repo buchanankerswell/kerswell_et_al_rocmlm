@@ -1,6 +1,6 @@
 from scripting import parse_arguments, check_arguments
 from pca import MixingArray, samples_to_csv
-from visualize import visualize_pca_loadings, visualize_harker_diagrams
+from visualize import visualize_mixing_array, visualize_harker_diagrams
 
 # Parse arguments and check
 args = parse_arguments()
@@ -27,6 +27,8 @@ for source, sids in zip(sources, sampleids):
     samples_to_csv(sids, source, filename)
 
 # Visualize mixing array
-visualize_pca_loadings(mixing_array)
 visualize_harker_diagrams(mixing_array)
+visualize_mixing_array(mixing_array)
+visualize_mixing_array(mixing_array, movie=True)
+
 print("Mixing array visualized!")

@@ -991,7 +991,8 @@ class RocMLM:
             plt.title(f"{model_label_full} Loss Curve [{program_label}]")
             plt.legend()
 
-            # Save the plot to a file if a filename is provided
+            # Save the plot to a file
+            os.makedirs(f"{fig_dir}", exist_ok=True)
             plt.savefig(f"{fig_dir}/{program[:4]}-{model_label}-loss-curve.png")
 
             # Close plot
