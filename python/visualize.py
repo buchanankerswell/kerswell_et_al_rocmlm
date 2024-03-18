@@ -761,7 +761,7 @@ def create_dataset_movies(gfem_models):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # compose rocmlm plots !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def compose_rocmlm_plots(rocmlm, skip=1):
+def compose_rocmlm_plots(rocmlm, skip=16):
     """
     """
     # Get ml model attributes
@@ -777,6 +777,10 @@ def compose_rocmlm_plots(rocmlm, skip=1):
 
     # Rename targets
     targets_rename = [target.replace("_", "-") for target in targets]
+
+    # Don't skip benchmark samples
+    if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
+        skip = 1
 
     # Check for existing plots
     existing_figs = []
@@ -858,162 +862,162 @@ def compose_rocmlm_plots(rocmlm, skip=1):
                 caption2="c)"
             )
 
-        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-            captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
-            targets = ["rho", "Vp", "Vs"]
+            if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+                captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
+                targets = ["rho", "Vp", "Vs"]
 
-            for i, target in enumerate(targets):
-                combine_plots_horizontally(
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
-                    f"{fig_dir}/temp1.png",
-                    caption1=captions[i][0],
-                    caption2=captions[i][1]
-                )
+                for i, target in enumerate(targets):
+                    combine_plots_horizontally(
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
+                        f"{fig_dir}/temp1.png",
+                        caption1=captions[i][0],
+                        caption2=captions[i][1]
+                    )
 
-                combine_plots_horizontally(
-                    f"{fig_dir}/temp1.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
-                    f"{fig_dir}/temp-{target}.png",
-                    caption1="",
-                    caption2=captions[i][2]
-                )
+                    combine_plots_horizontally(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
+                        f"{fig_dir}/temp-{target}.png",
+                        caption1="",
+                        caption2=captions[i][2]
+                    )
 
-            combine_plots_vertically(
-                f"{fig_dir}/temp-rho.png",
-                f"{fig_dir}/temp-Vp.png",
-                f"{fig_dir}/temp1.png",
-                caption1="",
-                caption2=""
-            )
-
-            combine_plots_vertically(
-                f"{fig_dir}/temp1.png",
-                f"{fig_dir}/temp-Vs.png",
-                f"{fig_dir}/image9-{sample_id}-{ml_model_label}-profile.png",
-                caption1="",
-                caption2=""
-            )
-
-        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-            captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
-            targets = ["rho", "Vp", "Vs"]
-
-            for i, target in enumerate(targets):
-                combine_plots_horizontally(
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
-                    f"{fig_dir}/temp1.png",
-                    caption1=captions[i][0],
-                    caption2=captions[i][1]
-                )
-
-                combine_plots_horizontally(
-                    f"{fig_dir}/temp1.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff.png",
-                    f"{fig_dir}/temp-{target}.png",
-                    caption1="",
-                    caption2=captions[i][2]
-                )
-
-            combine_plots_vertically(
-                f"{fig_dir}/temp-rho.png",
-                f"{fig_dir}/temp-Vp.png",
-                f"{fig_dir}/temp1.png",
-                caption1="",
-                caption2=""
-            )
-
-            combine_plots_vertically(
-                f"{fig_dir}/temp1.png",
-                f"{fig_dir}/temp-Vs.png",
-                f"{fig_dir}/image9-{sample_id}-{ml_model_label}-diff.png",
-                caption1="",
-                caption2=""
-            )
-
-        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-            captions = [("a)", "d)", "g)", "j)"), ("b)", "e)", "h)", "k)"),
-                        ("c)", "f)", "i)", "l)")]
-            targets = ["rho", "Vp", "Vs"]
-
-            for i, target in enumerate(targets):
                 combine_plots_vertically(
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
+                    f"{fig_dir}/temp-rho.png",
+                    f"{fig_dir}/temp-Vp.png",
                     f"{fig_dir}/temp1.png",
-                    caption1=captions[i][0],
-                    caption2=captions[i][1]
+                    caption1="",
+                    caption2=""
                 )
 
                 combine_plots_vertically(
                     f"{fig_dir}/temp1.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff.png",
-                    f"{fig_dir}/temp2.png",
+                    f"{fig_dir}/temp-Vs.png",
+                    f"{fig_dir}/image9-{sample_id}-{ml_model_label}-profile.png",
                     caption1="",
-                    caption2=captions[i][2]
+                    caption2=""
+                )
+
+            if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+                captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
+                targets = ["rho", "Vp", "Vs"]
+
+                for i, target in enumerate(targets):
+                    combine_plots_horizontally(
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
+                        f"{fig_dir}/temp1.png",
+                        caption1=captions[i][0],
+                        caption2=captions[i][1]
+                    )
+
+                    combine_plots_horizontally(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff.png",
+                        f"{fig_dir}/temp-{target}.png",
+                        caption1="",
+                        caption2=captions[i][2]
+                    )
+
+                combine_plots_vertically(
+                    f"{fig_dir}/temp-rho.png",
+                    f"{fig_dir}/temp-Vp.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1="",
+                    caption2=""
                 )
 
                 combine_plots_vertically(
-                    f"{fig_dir}/temp2.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
-                    f"{fig_dir}/temp-{target}.png",
-                    caption1="",
-                    caption2=captions[i][3]
-                )
-
-            combine_plots_horizontally(
-                f"{fig_dir}/temp-rho.png",
-                f"{fig_dir}/temp-Vp.png",
-                f"{fig_dir}/temp1.png",
-                caption1="",
-                caption2=""
-            )
-
-            combine_plots_horizontally(
-                f"{fig_dir}/temp1.png",
-                f"{fig_dir}/temp-Vs.png",
-                f"{fig_dir}/image12-{sample_id}-{ml_model_label}.png",
-                caption1="",
-                caption2=""
-            )
-
-        if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
-            captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
-            targets = ["rho", "Vp", "Vs"]
-
-            for i, target in enumerate(targets):
-                combine_plots_horizontally(
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets-surf.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-surf.png",
                     f"{fig_dir}/temp1.png",
-                    caption1=captions[i][0],
-                    caption2=captions[i][1]
+                    f"{fig_dir}/temp-Vs.png",
+                    f"{fig_dir}/image9-{sample_id}-{ml_model_label}-diff.png",
+                    caption1="",
+                    caption2=""
+                )
+
+            if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+                captions = [("a)", "d)", "g)", "j)"), ("b)", "e)", "h)", "k)"),
+                            ("c)", "f)", "i)", "l)")]
+                targets = ["rho", "Vp", "Vs"]
+
+                for i, target in enumerate(targets):
+                    combine_plots_vertically(
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-predictions.png",
+                        f"{fig_dir}/temp1.png",
+                        caption1=captions[i][0],
+                        caption2=captions[i][1]
+                    )
+
+                    combine_plots_vertically(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff.png",
+                        f"{fig_dir}/temp2.png",
+                        caption1="",
+                        caption2=captions[i][2]
+                    )
+
+                    combine_plots_vertically(
+                        f"{fig_dir}/temp2.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-prem.png",
+                        f"{fig_dir}/temp-{target}.png",
+                        caption1="",
+                        caption2=captions[i][3]
+                    )
+
+                combine_plots_horizontally(
+                    f"{fig_dir}/temp-rho.png",
+                    f"{fig_dir}/temp-Vp.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1="",
+                    caption2=""
                 )
 
                 combine_plots_horizontally(
                     f"{fig_dir}/temp1.png",
-                    f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff-surf.png",
-                    f"{fig_dir}/temp-{target}.png",
+                    f"{fig_dir}/temp-Vs.png",
+                    f"{fig_dir}/image12-{sample_id}-{ml_model_label}.png",
                     caption1="",
-                    caption2=captions[i][2]
+                    caption2=""
                 )
 
-            combine_plots_vertically(
-                f"{fig_dir}/temp-rho.png",
-                f"{fig_dir}/temp-Vp.png",
-                f"{fig_dir}/temp1.png",
-                caption1="",
-                caption2=""
-            )
+            if all(item in targets_rename for item in ["rho", "Vp", "Vs"]):
+                captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
+                targets = ["rho", "Vp", "Vs"]
 
-            combine_plots_vertically(
-                f"{fig_dir}/temp1.png",
-                f"{fig_dir}/temp-Vs.png",
-                f"{fig_dir}/surf9-{sample_id}-{ml_model_label}.png",
-                caption1="",
-                caption2=""
-            )
+                for i, target in enumerate(targets):
+                    combine_plots_horizontally(
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-targets-surf.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-surf.png",
+                        f"{fig_dir}/temp1.png",
+                        caption1=captions[i][0],
+                        caption2=captions[i][1]
+                    )
+
+                    combine_plots_horizontally(
+                        f"{fig_dir}/temp1.png",
+                        f"{fig_dir}/{model_prefix}-{sample_id}-{target}-diff-surf.png",
+                        f"{fig_dir}/temp-{target}.png",
+                        caption1="",
+                        caption2=captions[i][2]
+                    )
+
+                combine_plots_vertically(
+                    f"{fig_dir}/temp-rho.png",
+                    f"{fig_dir}/temp-Vp.png",
+                    f"{fig_dir}/temp1.png",
+                    caption1="",
+                    caption2=""
+                )
+
+                combine_plots_vertically(
+                    f"{fig_dir}/temp1.png",
+                    f"{fig_dir}/temp-Vs.png",
+                    f"{fig_dir}/surf9-{sample_id}-{ml_model_label}.png",
+                    caption1="",
+                    caption2=""
+                )
 
     # Clean up directory
     rocmlm_files = glob.glob(f"{fig_dir}/rocmlm*.png")
@@ -2585,7 +2589,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize rocmlm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22):
+def visualize_rocmlm(rocmlm, skip=16, figwidth=6.3, figheight=4.725, fontsize=22):
     """
     """
     # Get ml model attributes
@@ -2609,6 +2613,10 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
     n_models = feature_arrays.shape[0]
     w = feature_arrays.shape[1]
     verbose = rocmlm.verbose
+
+    # Don't skip benchmark samples
+    if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
+        skip = 1
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"

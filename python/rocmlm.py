@@ -122,10 +122,19 @@ def evaluate_lut_efficiency(name, gfem_models):
     # Initialize df columns
     sample, program, dataset, size, eval_time, model_size_mb = [], [], [], [], [], []
 
+    # Define PTX resolution steps
+    PT_steps = [16, 8, 4, 2, 1]
+
+    # Define X resolution steps
+    if X.shape[0] > 128:
+        X_steps = [32, 16, 8, 4, 2]
+    else:
+        X_steps = [16, 8, 4, 2, 1]
+
     # Iterate through X resolutions (8, 16, 32, 64, 128)
-    for X_step in [1, 2, 4, 8, 16]:
+    for X_step in X_steps:
         # Iterate through PT grid resolutions (8, 16, 32, 64, 128)
-        for step in [1, 2, 4, 8, 16]:
+        for step in PT_steps:
             # Subset grid
             X_sub = X[::X_step]
             P_sub = P[::step]
