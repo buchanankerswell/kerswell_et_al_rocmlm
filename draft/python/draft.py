@@ -231,9 +231,9 @@ def write_markdown_tables():
         df = pd.read_csv(f"{data_dir}/earthchem-counts.csv")
 
         # Subset oxides
-        oxides = {"SIO2": "SiO$_2$", "TIO2": "TiO$_2$", "AL2O3": "Al$_2$O$_3$", "FEO": "FeO",
+        oxides = {"SIO2": "SiO$_2$", "TIO2": "TiO$_2$", "AL2O3": "Al$_2$O$_3$", "FEO": "FeOT",
                   "MGO": "MgO", "CAO": "CaO", "NA2O": "Na$_2$O"}
-        oxide_order = ["SiO$_2$", "TiO$_2$", "Al$_2$O$_3$", "FeO", "MgO", "CaO", "Na$_2$O"]
+        oxide_order = ["SiO$_2$", "TiO$_2$", "Al$_2$O$_3$", "FeOT", "MgO", "CaO", "Na$_2$O"]
         df["column"] = df["column"].map(oxides)
         df = df.dropna(subset=["column"])
         df = df.set_index("column").reindex(oxide_order).reset_index()

@@ -303,8 +303,8 @@ def compose_prem_plots(gfem_models):
                 f"{fig_dirs[0]}/prem-{sample_ids[0]}-{dataset}-{target}.png",
                 f"{fig_dirs[1]}/prem-{sample_ids[1]}-{dataset}-{target}.png",
                 "figs/other/temp1.png",
-                caption1="a)",
-                caption2="b)"
+                caption1="d)",
+                caption2="e)"
             )
 
             combine_plots_horizontally(
@@ -312,7 +312,7 @@ def compose_prem_plots(gfem_models):
                 f"{fig_dirs[2]}/prem-{sample_ids[2]}-{dataset}-{target}.png",
                 f"figs/other/prem-comparison-{target}.png",
                 caption1="",
-                caption2="c)"
+                caption2="f)"
             )
 
         os.remove("figs/other/temp1.png")
@@ -1426,6 +1426,42 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     data = data.loc[min_time_indices]
     data.reset_index(drop=True, inplace=True)
 
+    # Compute summary statistics
+    summary_stats = data.groupby(["program"]).agg({
+        "time": ["mean", "std", "min", "max"],
+        "rmse_val_mean_rho": ["mean", "std", "min", "max"],
+        "rmse_val_mean_Vp": ["mean", "std", "min", "max"],
+        "rmse_val_mean_Vs": ["mean", "std", "min", "max"],
+        "model_efficiency": ["mean", "std", "min", "max"]
+    })
+    summary_stats_gfem = data_gfem.agg({
+        "time": ["mean", "std", "min", "max"],
+        "model_efficiency": ["mean", "std", "min", "max"]
+    })
+
+    # Print summary statistics
+    print("Inference time:")
+    print(summary_stats["time"] * 1e3)
+    print("....................................")
+    print("Inference time GFEM:")
+    print(summary_stats_gfem["time"] * 1e3)
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("Model efficiency:")
+    print(summary_stats["model_efficiency"])
+    print("....................................")
+    print("Model efficiency GFEM:")
+    print(summary_stats_gfem["model_efficiency"])
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+#    print("RMSE rho:")
+#    print(summary_stats["rmse_val_mean_rho"])
+#    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+#    print("RMSE Vp:")
+#    print(summary_stats["rmse_val_mean_Vp"])
+#    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+#    print("RMSE Vs:")
+#    print(summary_stats["rmse_val_mean_Vs"])
+#    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
     plt.rcParams["legend.fontsize"] = "small"
@@ -1463,10 +1499,10 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
              fontsize=fontsize * 0.833, horizontalalignment="left",
              verticalalignment="bottom")
     plt.text(data["size"].min(), data_gfem["time"].min() * 1e3 * 1.2,
-             " [stx21, FMACNS, 15]", fontsize=fontsize * 0.833,
+             " [stx21, NCFMAS, 15]", fontsize=fontsize * 0.833,
              horizontalalignment="left", verticalalignment="top")
     plt.text(data["size"].min(), data_gfem["time"].max() * 1e3 * 0.80,
-             " [hp633, FMACNKSTiCr, 21]", fontsize=fontsize * 0.833,
+             " [hp633, KNCFMASTCr, 21]", fontsize=fontsize * 0.833,
              horizontalalignment="left", verticalalignment="bottom")
 
     # Plot rocmlm efficiency
@@ -3403,6 +3439,8 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
             target_label = target
 
         ax = axes[j]
+
+        ax.axvline(x=0.954, color="black", linestyle="-", alpha=0.5)
 
         data = dfs["synthetic"]
         data = data[data["TARGET"] == target]
