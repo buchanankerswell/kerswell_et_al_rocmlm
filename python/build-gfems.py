@@ -21,7 +21,7 @@ for name, source in sources.items():
 
 # Visualize GFEM models
 visualize_gfem_pt_range(gfems["benchmark"][0])
-isualize_gfem_accuracy_vs_prem()
+visualize_gfem_accuracy_vs_prem()
 
 for name, models in gfems.items():
     visualize_gfem(models)

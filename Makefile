@@ -46,7 +46,7 @@ gfems: mixing_arrays
 	@echo "=============================================" $(LOG)
 
 mixing_arrays: initialize
-	@if [ ! -e "$(DATADIR)/earthchem-samples-pca.csv" ]; then \
+	@if [ ! -e "$(DATADIR)/benchmark-samples-pca.csv" ]; then \
 		$(CONDAPYTHON) -u python/create-mixing-arrays.py $(LOG); \
 	else \
 		echo "Mixing arrays found!" $(LOG); \

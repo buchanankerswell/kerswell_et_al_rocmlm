@@ -730,9 +730,16 @@ def create_dataset_movies(gfem_models):
                                       f"{pattern}-{dataset}-{target}.png' -vf 'scale=5832:"
                                       f"1432' -c:v h264 -pix_fmt yuv420p 'figs/movies/"
                                       f"image3-{prefix}-{target}.mp4'")
+                            ffmpeg2 = (f"ffmpeg -i 'figs/movies/image3-"
+                                       f"{prefix}-{target}.mp4' -filter_complex "
+                                       f"'[0:v]reverse,fifo[r];[0:v][r] concat=n=2:v=1 [v]' "
+                                       f"-map '[v]' 'figs/movies/image3-{prefix}-{target}-"
+                                       f"bounce.mp4'")
 
                         try:
                             subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL, shell=True)
+                            subprocess.run(ffmpeg2, stdout=subprocess.DEVNULL,
                                            stderr=subprocess.DEVNULL, shell=True)
 
                         except subprocess.CalledProcessError as e:
@@ -748,9 +755,15 @@ def create_dataset_movies(gfem_models):
                                   f"'figs/gfem/{program[:4]}_{pattern}_{res}/image9-"
                                   f"{pattern}-{dataset}.png' -vf 'scale=5842:4296' -c:v "
                                   f"h264 -pix_fmt yuv420p 'figs/movies/image9-{prefix}.mp4'")
+                        ffmpeg2 = (f"ffmpeg -i 'figs/movies/image9-{prefix}.mp4' -"
+                                   f"filter_complex '[0:v]reverse,fifo[r];[0:v][r] "
+                                   f"concat=n=2:v=1 [v]' -map '[v]' 'figs/movies/image9-"
+                                   f"{prefix}-bounce.mp4'")
 
                     try:
                         subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL, shell=True)
+                        subprocess.run(ffmpeg2, stdout=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL, shell=True)
 
                     except subprocess.CalledProcessError as e:
@@ -781,6 +794,9 @@ def compose_rocmlm_plots(rocmlm, skip=1):
     # Don't skip benchmark samples
     if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
         skip = 1
+    else:
+        # Need to skip double for synthetic samples bc X_res training starts at 2 ...
+        skip = skip * 2
 
     # Check for existing plots
     existing_figs = []
@@ -2617,6 +2633,9 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
     # Don't skip benchmark samples
     if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
         skip = 1
+    else:
+        # Need to skip double for synthetic samples bc X_res training starts at 2 ...
+        skip = skip * 2
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -2896,211 +2915,243 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
     else:
         num_plots = 1
 
-    for n in range(num_plots):
-        if movie:
-            fname = f"{filename}-tmp{str(n).zfill(3)}"
-            print(f"Plotting mixing array movie frame {str(n).zfill(3)}")
-        else:
-            fname = f"{filename}-mixing-array"
-
-        fig = plt.figure(figsize=(figwidth * 2, figheight * 1.2))
-
-        ax = fig.add_subplot(121)
-        ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
-        ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
-
-        legend_handles = []
-        for i, comp in enumerate(legend_order):
-            marker = mlines.Line2D([0], [0], marker="o", color="w", label=comp, markersize=4,
-                                   markerfacecolor=colormap(i), markeredgewidth=0,
-                                   linestyle="None", alpha=1)
-            legend_handles.append(marker)
-
-            indices = data.loc[data["ROCKNAME"] == comp].index
-
-            scatter = ax.scatter(data.loc[indices, "PC1"],
-                                 data.loc[indices, "PC2"], edgecolors="none",
-                                 color=colormap(i), marker=".", s=55, label=comp, alpha=1)
-
-        sns.kdeplot(data=data, x="PC1", y="PC2", hue="ROCKNAME",
-                    hue_order=legend_order, ax=ax, levels=5, zorder=1)
-
-        oxs = ["SIO2", "MGO", "FEO", "AL2O3", "TIO2"]
-        x_offset_text = [1.7, 1.2, 1.2, 2.5, 2.3]
-        y_offset_text = [5.8, 6.0, 6.0, 5.7, 6.7]
-        text_fac, arrow_fac = 3.5, 1.8
-        x_offset_arrow, y_offset_arrow= 1.2, 6.0
-
-        for oxide, x_off, y_off in zip(oxs, x_offset_text, y_offset_text):
-            if oxide == "AL2O3":
-                oxide_label = "Al$_2$O$_3$ CaO"
-            elif oxide == "TIO2":
-                oxide_label = "TiO$_2$ Na$_2$O"
-            elif oxide == "SIO2":
-                oxide_label = "SiO$_2$"
-            elif oxide == "MGO":
-                oxide_label = "MgO"
-            elif oxide == "FEO":
-                oxide_label = "FeOT"
-
-            ax.arrow(x_offset_arrow, y_offset_arrow, loadings.at[0, oxide] * arrow_fac,
-                     loadings.at[1, oxide] * 1.8, width=0.1, head_width=0.4,
-                     color="black")
-            ax.text(x_off + (loadings.at[0, oxide] * text_fac),
-                    y_off + (loadings.at[1, oxide] * text_fac), oxide_label,
-                    bbox=dict(boxstyle="round", facecolor="white", alpha=0.8, pad=0.1),
-                    fontsize=fontsize * 0.833, color="black", ha="center", va="center")
-
-        if movie:
-            sns.scatterplot(data=df_synth_middle.iloc[n].to_frame().T, x="PC1", y="PC2",
-                            marker="v", facecolor="lime", edgecolor="black", linewidth=2, s=200)
-
-        legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
-                           bbox_to_anchor=(0.5, 0.13), ncol=4, columnspacing=0,
-                           handletextpad=-0.5, markerscale=3, fontsize=fontsize * 0.833)
-        # Legend order
-        for i, label in enumerate(legend_order):
-            legend.get_texts()[i].set_text(label)
-
-        ax.set_xlabel("PC1")
-        ax.set_ylabel("PC2")
-        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-
-        ax2 = fig.add_subplot(122)
-        ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
-        ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
-
-        sns.scatterplot(data=data, x="PC1", y="PC2", facecolor="0.6", edgecolor="None",
-                        linewidth=2, s=12, legend=False, ax=ax2, zorder=0)
-
-        # Create colorbar
-        pal = sns.color_palette("magma", as_cmap=True).reversed()
-        norm = plt.Normalize(df_synth_bench[D_col].min(), df_synth_bench[D_col].max())
-        sm = plt.cm.ScalarMappable(cmap="magma_r", norm=norm)
-        sm.set_array([])
-
-        sns.scatterplot(data=df_synth_middle, x="PC1", y="PC2", hue=D_col, palette=pal,
-                        edgecolor="None", linewidth=2, s=82, legend=False, ax=ax2, zorder=0)
-        sns.scatterplot(data=df_synth_random, x="PC1", y="PC2", hue=D_col, palette=pal,
-                        edgecolor="None", linewidth=2, s=52, legend=False, ax=ax2, zorder=0)
-        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm000"],
-                        x="PC1", y="PC2", facecolor="white", edgecolor="black",
-                        linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
-        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm128"],
-                        x="PC1", y="PC2", facecolor="white", edgecolor="black", marker="D",
-                        linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
-        ax2.annotate("DSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000",
-                                   "PC1"].iloc[0],
-                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000",
-                                   "PC2"].iloc[0]),
-                    xytext=(-65, -25), textcoords="offset points",
-                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
-                              linewidth=1.5, alpha=0.8),
-                    fontsize=fontsize * 0.833, zorder=8)
-        ax2.annotate("PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
-                                   "PC1"].iloc[0],
-                                df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
-                                   "PC2"].iloc[0]),
-                    xytext=(0, 17), textcoords="offset points",
-                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
-                              linewidth=1.5, alpha=0.8),
-                    fontsize=fontsize * 0.833, zorder=8)
-
-        mrkr = ["s", "^", "P"]
-        for l, name in enumerate(["PUM", "DMM", "PYR"]):
-            if name == "PUM":
-                offst = (0, -29)
-            elif name == "DMM":
-                offst = (-52, 15)
+    for dataset in ["middle", "random"]:
+        for rng in ["full", "skip"]:
+            if rng == "full":
+                frames = range(num_plots * 2 - 1, -1, -1)
             else:
-                offst = (-43, -25)
+                frames = range(num_plots * 2 - 1, -1, -2)
 
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
-                            y="PC2", marker=mrkr[l], facecolor="white", edgecolor="black",
-                            linewidth=2, s=150, legend=False, ax=ax2, zorder=7)
-            ax2.annotate(
-                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
-                          df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
-                xytext=offst, textcoords="offset points",
-                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
-                          linewidth=1.5, alpha=0.8), fontsize=fontsize * 0.833, zorder=8)
+            for n in frames:
+                if n < num_plots:
+                    print("Processing mixing array movie frame:", n)
+                    if dataset == "middle":
+                        row = df_synth_middle.iloc[n].to_frame().T
+                    else:
+                        row = df_synth_random.iloc[n].to_frame().T
+                else:
+                    print("Processing mixing array movie frame:", (num_plots * 2 - 1) - n)
+                    if dataset == "middle":
+                        row = df_synth_middle.iloc[(num_plots * 2 - 1) - n].to_frame().T
+                    else:
+                        row = df_synth_random.iloc[(num_plots * 2 - 1) - n].to_frame().T
 
-        if movie:
-            sns.scatterplot(data=df_synth_middle.iloc[n].to_frame().T, x="PC1", y="PC2",
-                            marker="v", facecolor="lime", edgecolor="black", linewidth=2, s=200)
+                if movie:
+                    fname = f"{filename}-tmp{str(n).zfill(3)}"
+                else:
+                    fname = f"{filename}-mixing-array"
 
-        plt.xlim(ax.get_xlim())
-        plt.ylim(ax.get_ylim())
+                fig = plt.figure(figsize=(figwidth * 2, figheight * 1.2))
 
-        # Add colorbar
-        cbaxes = inset_axes(ax2, width="40%", height="3%", loc=1)
-        colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility, $\\xi$",
-                                orientation="horizontal")
-        colorbar.ax.set_xticks([sm.get_clim()[0], sm.get_clim()[1]])
-        colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2g"))
+                ax = fig.add_subplot(121)
+                ax.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+                ax.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
 
-        ax2.set_xlabel("PC1")
-        ax2.set_ylabel("")
-        ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
-        ax2.set_yticks([])
+                legend_handles = []
+                for i, comp in enumerate(legend_order):
+                    marker = mlines.Line2D([0], [0], marker="o", color="w", label=comp,
+                                           markersize=4, markerfacecolor=colormap(i),
+                                           markeredgewidth=0, linestyle="None", alpha=1)
+                    legend_handles.append(marker)
 
-        # Create inset
-        left, bottom, width, height = [0.546, 0.745, 0.15, 0.25]
-        ax2 = fig.add_axes([left, bottom, width, height])
-        sns.scatterplot(data=data, x="PC1", y="D_FRAC", facecolor="0.6", edgecolor="None",
-                        linewidth=2, s=5, legend=False, ax=ax2, zorder=0)
-        sns.scatterplot(data=df_synth_middle, x="PC1", y="D_FRAC", hue=D_col,
-                        palette=pal, edgecolor="None", linewidth=2, s=22, legend=False, ax=ax2,
-                        zorder=0)
-        sns.scatterplot(data=df_synth_random, x="PC1", y="D_FRAC", hue=D_col,
-                        palette=pal, edgecolor="None", linewidth=2, s=12, legend=False, ax=ax2,
-                        zorder=0)
-        mrkr = ["s", "^", "P"]
-        for l, name in enumerate(["PUM", "DMM", "PYR"]):
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
-                            y="D_FRAC", marker=mrkr[l], facecolor="white", edgecolor="black",
-                            linewidth=2, s=100, legend=False, ax=ax2, zorder=7)
-        if movie:
-            sns.scatterplot(data=df_synth_middle.iloc[n].to_frame().T, x="PC1", y="D_FRAC",
-                            marker="v", facecolor="lime", edgecolor="black", linewidth=2, s=50)
+                    indices = data.loc[data["ROCKNAME"] == comp].index
 
-        ax2.set_ylabel("$\\xi$")
-        ax2.set_xticks([])
-        ax2.set_yticks([])
-        ax2.set_facecolor("0.8")
-        for spine in ax2.spines.values():
-            spine.set_linewidth(2)
+                    scatter = ax.scatter(data.loc[indices, "PC1"],
+                                         data.loc[indices, "PC2"], edgecolors="none",
+                                         color=colormap(i), marker=".", s=55, label=comp,
+                                         alpha=1)
 
-        # Add captions
-        fig.text(0.03, 0.97, "a)", fontsize=fontsize * 1.2)
-        fig.text(0.71, 0.97, "b)", fontsize=fontsize * 1.2)
-        fig.text(0.661, 0.765, "c)", fontsize=fontsize * 1.2)
+                sns.kdeplot(data=data, x="PC1", y="PC2", hue="ROCKNAME",
+                            hue_order=legend_order, ax=ax, levels=5, zorder=1)
 
-        # Save the plot to a file
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            plt.savefig(f"{fig_dir}/{fname}.png")
+                oxs = ["SIO2", "MGO", "FEO", "AL2O3", "TIO2"]
+                x_offset_text = [1.7, 1.2, 1.2, 2.5, 2.3]
+                y_offset_text = [5.8, 6.0, 6.0, 5.7, 6.7]
+                text_fac, arrow_fac = 3.5, 1.8
+                x_offset_arrow, y_offset_arrow= 1.2, 6.0
 
-        # Close device
-        plt.close()
+                for oxide, x_off, y_off in zip(oxs, x_offset_text, y_offset_text):
+                    if oxide == "AL2O3":
+                        oxide_label = "Al$_2$O$_3$ CaO"
+                    elif oxide == "TIO2":
+                        oxide_label = "TiO$_2$ Na$_2$O"
+                    elif oxide == "SIO2":
+                        oxide_label = "SiO$_2$"
+                    elif oxide == "MGO":
+                        oxide_label = "MgO"
+                    elif oxide == "FEO":
+                        oxide_label = "FeOT"
 
-    if movie:
-        ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                  f"'{fig_dir}/{filename}-tmp???.png' -vf 'scale=3604:1684' "
-                  f"-c:v h264 -pix_fmt yuv420p 'figs/movies/{filename}-mixing-array.mp4'")
+                    ax.arrow(x_offset_arrow, y_offset_arrow, loadings.at[0, oxide] *
+                             arrow_fac, loadings.at[1, oxide] * 1.8, width=0.1,
+                             head_width=0.4, color="black")
+                    ax.text(x_off + (loadings.at[0, oxide] * text_fac),
+                            y_off + (loadings.at[1, oxide] * text_fac), oxide_label,
+                            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8,
+                                      pad=0.1), fontsize=fontsize * 0.833, color="black",
+                            ha="center", va="center")
 
-        try:
-            subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, shell=True)
+                if movie:
+                    sns.scatterplot(data=row, x="PC1", y="PC2", marker="v", facecolor="lime",
+                                    edgecolor="black", linewidth=2, s=200)
 
-        except subprocess.CalledProcessError as e:
-            print(f"Error running FFmpeg command: {e}")
+                legend = ax.legend(handles=legend_handles, loc="upper center", frameon=False,
+                                   bbox_to_anchor=(0.5, 0.13), ncol=4, columnspacing=0,
+                                   handletextpad=-0.5, markerscale=3,
+                                   fontsize=fontsize * 0.833)
+                # Legend order
+                for i, label in enumerate(legend_order):
+                    legend.get_texts()[i].set_text(label)
 
-        # Clean up directory
-        tmp_files = glob.glob(f"{fig_dir}/*tmp*.png")
-        for file in tmp_files:
-            os.remove(file)
+                ax.set_xlabel("PC1")
+                ax.set_ylabel("PC2")
+                ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+                ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+
+                ax2 = fig.add_subplot(122)
+                ax2.axhline(y=0, color="black", linestyle="-", linewidth=0.5)
+                ax2.axvline(x=0, color="black", linestyle="-", linewidth=0.5)
+
+                sns.scatterplot(data=data, x="PC1", y="PC2", facecolor="0.6",
+                                edgecolor="None", linewidth=2, s=12, legend=False, ax=ax2,
+                                zorder=0)
+
+                # Create colorbar
+                pal = sns.color_palette("magma", as_cmap=True).reversed()
+                norm = plt.Normalize(df_synth_bench[D_col].min(),
+                                     df_synth_bench[D_col].max())
+                sm = plt.cm.ScalarMappable(cmap="magma_r", norm=norm)
+                sm.set_array([])
+
+                sns.scatterplot(data=df_synth_middle, x="PC1", y="PC2", hue=D_col,
+                                palette=pal, edgecolor="None", linewidth=2, s=82,
+                                legend=False, ax=ax2, zorder=0)
+                sns.scatterplot(data=df_synth_random, x="PC1", y="PC2", hue=D_col,
+                                palette=pal, edgecolor="None", linewidth=2, s=52,
+                                legend=False, ax=ax2, zorder=0)
+                sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm000"],
+                                x="PC1", y="PC2", facecolor="white", edgecolor="black",
+                                linewidth=2, s=150, legend=False, ax=ax2, zorder=6)
+                sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm128"],
+                                x="PC1", y="PC2", facecolor="white", edgecolor="black",
+                                marker="D", linewidth=2, s=150, legend=False, ax=ax2,
+                                zorder=6)
+                ax2.annotate("DSUM", xy=(
+                    df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000", "PC1"].iloc[0],
+                    df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm000",
+                                       "PC2"].iloc[0]), xytext=(-65, -25),
+                             textcoords="offset points",
+                             bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                                      edgecolor="black", linewidth=1.5, alpha=0.8),
+                            fontsize=fontsize * 0.833, zorder=8)
+                ax2.annotate("PSUM", xy=(
+                    df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128", "PC1"].iloc[0],
+                    df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
+                                       "PC2"].iloc[0]), xytext=(0, 17),
+                             textcoords="offset points",
+                            bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                                      edgecolor="black", linewidth=1.5, alpha=0.8),
+                            fontsize=fontsize * 0.833, zorder=8)
+
+                mrkr = ["s", "^", "P"]
+                for l, name in enumerate(["PUM", "DMM", "PYR"]):
+                    if name == "PUM":
+                        offst = (0, -29)
+                    elif name == "DMM":
+                        offst = (-52, 15)
+                    else:
+                        offst = (-43, -25)
+
+                    sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
+                                    y="PC2", marker=mrkr[l], facecolor="white",
+                                    edgecolor="black", linewidth=2, s=150, legend=False,
+                                    ax=ax2, zorder=7)
+                    ax2.annotate(
+                        name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, "PC1"].iloc[0],
+                                  df_bench.loc[df_bench["SAMPLEID"] == name, "PC2"].iloc[0]),
+                        xytext=offst, textcoords="offset points",
+                        bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
+                                  edgecolor="black", linewidth=1.5, alpha=0.8),
+                        fontsize=fontsize * 0.833, zorder=8)
+
+                if movie:
+                    sns.scatterplot(data=row, x="PC1", y="PC2", marker="v", facecolor="lime",
+                                    edgecolor="black", linewidth=2, s=200)
+
+                plt.xlim(ax.get_xlim())
+                plt.ylim(ax.get_ylim())
+
+                # Add colorbar
+                cbaxes = inset_axes(ax2, width="40%", height="3%", loc=1)
+                colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility, $\\xi$",
+                                        orientation="horizontal")
+                colorbar.ax.set_xticks([sm.get_clim()[0], sm.get_clim()[1]])
+                colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2g"))
+
+                ax2.set_xlabel("PC1")
+                ax2.set_ylabel("")
+                ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+                ax2.set_yticks([])
+
+                # Create inset
+                left, bottom, width, height = [0.546, 0.745, 0.15, 0.25]
+                ax2 = fig.add_axes([left, bottom, width, height])
+                sns.scatterplot(data=data, x="PC1", y="D_FRAC", facecolor="0.6",
+                                edgecolor="None", linewidth=2, s=5, legend=False, ax=ax2,
+                                zorder=0)
+                sns.scatterplot(data=df_synth_middle, x="PC1", y="D_FRAC", hue=D_col,
+                                palette=pal, edgecolor="None", linewidth=2, s=22,
+                                legend=False, ax=ax2, zorder=0)
+                sns.scatterplot(data=df_synth_random, x="PC1", y="D_FRAC", hue=D_col,
+                                palette=pal, edgecolor="None", linewidth=2, s=12,
+                                legend=False, ax=ax2, zorder=0)
+                mrkr = ["s", "^", "P"]
+                for l, name in enumerate(["PUM", "DMM", "PYR"]):
+                    sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="PC1",
+                                    y="D_FRAC", marker=mrkr[l], facecolor="white",
+                                    edgecolor="black", linewidth=2, s=100, legend=False,
+                                    ax=ax2, zorder=7)
+                if movie:
+                    sns.scatterplot(data=row, x="PC1", y="D_FRAC", marker="v",
+                                    facecolor="lime", edgecolor="black", linewidth=2, s=50)
+
+                ax2.set_ylabel("$\\xi$")
+                ax2.set_xticks([])
+                ax2.set_yticks([])
+                ax2.set_facecolor("0.8")
+                for spine in ax2.spines.values():
+                    spine.set_linewidth(2)
+
+                # Add captions
+                fig.text(0.03, 0.97, "a)", fontsize=fontsize * 1.2)
+                fig.text(0.71, 0.97, "b)", fontsize=fontsize * 1.2)
+                fig.text(0.661, 0.765, "c)", fontsize=fontsize * 1.2)
+
+                # Save the plot to a file
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=UserWarning)
+                    plt.savefig(f"{fig_dir}/{fname}.png")
+
+                # Close device
+                plt.close()
+
+            if movie:
+                ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
+                          f"'{fig_dir}/{filename}-tmp???.png' -vf 'scale=3604:1684' "
+                          f"-c:v h264 -pix_fmt yuv420p "
+                          f"'figs/movies/{filename}-mixing-array-{dataset}-{rng}.mp4'")
+
+                try:
+                    subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL, shell=True)
+
+                except subprocess.CalledProcessError as e:
+                    print(f"Error running FFmpeg command: {e}")
+
+                # Clean up directory
+                tmp_files = glob.glob(f"{fig_dir}/*tmp*.png")
+                for file in tmp_files:
+                    os.remove(file)
 
     return None
 
@@ -3220,7 +3271,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
                               df_bench.loc[df_bench["SAMPLEID"] == name, y].iloc[0]),
                     xytext=offst, textcoords="offset points",
                     bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
-                              edgecolor="black", linewidth=1.5, alpha=0.8),
+                              edgecolor="black", linewidth=1.5, alpha=1),
                     fontsize=fontsize * 0.579, zorder=6
                 )
             ax.annotate(
@@ -3230,7 +3281,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
                                                y].iloc[0]),
                 xytext=(8, -10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
-                          linewidth=1.5, alpha=0.8),
+                          linewidth=1.5, alpha=1),
                 fontsize=fontsize * 0.579, zorder=8)
             ax.annotate(
                 "PSUM", xy=(df_synth_bench.loc[df_synth_bench["SAMPLEID"] == "sm128",
@@ -3239,7 +3290,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
                                                y].iloc[0]),
                 xytext=(8, -10), textcoords="offset points",
                 bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
-                          linewidth=1.5, alpha=0.8),
+                          linewidth=1.5, alpha=1),
                 fontsize=fontsize * 0.579, zorder=8)
 
         if k < (num_plots - num_cols - 1):
