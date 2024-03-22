@@ -297,25 +297,44 @@ def compose_prem_plots(gfem_models):
     if existing_figs:
         return None
 
-    for target in targets_rename:
+    captions = [("a)", "b)", "c)"), ("d)", "e)", "f)"), ("g)", "h)", "i)")]
+    for i, target in enumerate(targets_rename):
         if target in ["rho", "Vp", "Vs"]:
             combine_plots_horizontally(
                 f"{fig_dirs[0]}/prem-{sample_ids[0]}-{dataset}-{target}.png",
-                f"{fig_dirs[1]}/prem-{sample_ids[1]}-{dataset}-{target}.png",
+                f"{fig_dirs[2]}/prem-{sample_ids[2]}-{dataset}-{target}.png",
                 "figs/other/temp1.png",
-                caption1="d)",
-                caption2="e)"
+                caption1=captions[i][0],
+                caption2=captions[i][1]
             )
 
             combine_plots_horizontally(
                 "figs/other/temp1.png",
-                f"{fig_dirs[2]}/prem-{sample_ids[2]}-{dataset}-{target}.png",
-                f"figs/other/prem-comparison-{target}.png",
+                f"{fig_dirs[1]}/prem-{sample_ids[1]}-{dataset}-{target}.png",
+                f"figs/other/tmp-{target}.png",
                 caption1="",
-                caption2="f)"
+                caption2=captions[i][2]
             )
 
-        os.remove("figs/other/temp1.png")
+    combine_plots_vertically(
+        f"figs/other/tmp-{targets_rename[0]}.png",
+        f"figs/other/tmp-{targets_rename[1]}.png",
+        "figs/other/temp1.png",
+        caption1="",
+        caption2=""
+    )
+
+    combine_plots_vertically(
+        "figs/other/temp1.png",
+        f"figs/other/tmp-{targets_rename[2]}.png",
+        "figs/other/prem-comparison.png",
+        caption1="",
+        caption2=""
+    )
+
+    tmp_files = glob.glob(f"figs/other/temp*.png")
+    for file in tmp_files:
+        os.remove(file)
 
     return None
 
@@ -3369,8 +3388,8 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize gfem accuracy vs prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=6.3,
-                                    figheight=5.2, fontsize=22):
+def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=5.88,
+                                    figheight=4.6, fontsize=22):
     """
     """
     # Check for analysis data
@@ -3495,9 +3514,9 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
             colorbar.ax.set_xticks([sm.get_clim()[0], sm.get_clim()[1]])
             colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2g"))
 
-    fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.2)
-    fig.text(0.33, 0.92, "b)", fontsize=fontsize * 1.2)
-    fig.text(0.66, 0.92, "c)", fontsize=fontsize * 1.2)
+    fig.text(0.0, 0.88, "a)", fontsize=fontsize * 1.5)
+    fig.text(0.33, 0.88, "b)", fontsize=fontsize * 1.5)
+    fig.text(0.66, 0.88, "c)", fontsize=fontsize * 1.5)
 
     # Save the plot to a file
     with warnings.catch_warnings():

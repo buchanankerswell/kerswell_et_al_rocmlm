@@ -299,7 +299,7 @@ def write_markdown_tables():
         df = pd.read_csv(f"{data_dir}/rocmlm-performance.csv")
 
         # Filter models
-        df = df[df["sample"].isin(["SMAM128", "SMAM64", "SMAM32", "benchmark"])]
+        df = df[df["sample"].isin(["SYNTH129", "SYNTH65", "SYNTH33", "benchmark"])]
 
         # Transform units
         df["training_time_mean"] = df["training_time_mean"] * 1000
@@ -312,8 +312,8 @@ def write_markdown_tables():
 
         # Get X resolution
         def get_x_res(row):
-            if row["sample"].startswith("SMA") and row["sample"][4:].isdigit():
-                return int(row["sample"][4:])
+            if row["sample"].startswith("SYNTH") and row["sample"][5:].isdigit():
+                return int(row["sample"][5:]) - 1
             else:
                 return 2
 
@@ -321,8 +321,8 @@ def write_markdown_tables():
 
         # Rename sample
         def rename_sample(row):
-            if row["sample"].startswith("SMA") and row["sample"][4:].isdigit():
-                return row["sample"][:4]
+            if row["sample"].startswith("SYNTH") and row["sample"][5:].isdigit():
+                return row["sample"][:5]
             else:
                 return "Bench"
 

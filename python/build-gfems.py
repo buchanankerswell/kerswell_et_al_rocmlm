@@ -27,7 +27,7 @@ for name, models in gfems.items():
     visualize_gfem(models)
     visualize_gfem_diff(models)
 
-compose_prem_plots([gfems["middle"][0], gfems["middle"][128], gfems["benchmark"][2]])
+compose_prem_plots([gfems["middle"][0], gfems["benchmark"][2], gfems["middle"][128]])
 
 for name, models in gfems.items():
     compose_dataset_plots(models)
