@@ -25,7 +25,7 @@ training_data = {"benchmark": gfems["benchmark"],
 # Train RocMLMs
 rocmlms = {}
 for name, models in training_data.items():
-    rocmlms[name] = train_rocmlms(models, ["KN", "DT", "NN1", "NN2", "NN3"])
+    rocmlms[name] = train_rocmlms(models)
     evaluate_lut_efficiency(name, models)
 
 # Visualize RocMLMs

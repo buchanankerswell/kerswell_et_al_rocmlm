@@ -92,7 +92,8 @@ def append_to_lut_csv(data_dict):
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # evaluate lut efficiency !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def evaluate_lut_efficiency(name, gfem_models):
+def evaluate_lut_efficiency(name, gfem_models, PT_steps=[16, 8, 4, 2, 1],
+                            X_steps=[16, 8, 4, 2, 1]):
     """
     """
     # Check benchmark models
@@ -122,18 +123,13 @@ def evaluate_lut_efficiency(name, gfem_models):
     # Initialize df columns
     sample, program, dataset, size, eval_time, model_size_mb = [], [], [], [], [], []
 
-    # Define PTX resolution steps
-    PT_steps = [16, 8, 4, 2, 1]
-
-    # Define X resolution steps
+    # Check number of compositions X
     if X.shape[0] > 128:
-        X_steps = [32, 16, 8, 4, 2]
-    else:
-        X_steps = [16, 8, 4, 2, 1]
+        X_steps = [step * 2 for step in X_steps]
 
-    # Iterate through X resolutions (8, 16, 32, 64, 128)
+    # Iterate through X resolutions
     for X_step in X_steps:
-        # Iterate through PT grid resolutions (8, 16, 32, 64, 128)
+        # Iterate through PT grid resolutions
         for step in PT_steps:
             # Subset grid
             X_sub = X[::X_step]
@@ -208,6 +204,7 @@ def evaluate_lut_efficiency(name, gfem_models):
 # train rocmlms !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"],
+                  PT_steps=[16, 8, 4, 2, 1], X_steps=[16, 8, 4, 2, 1],
                   training_features=["D_FRAC"], training_targets=["rho", "Vp", "Vs"],
                   tune=True, epochs=100, batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
                   nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
@@ -315,15 +312,11 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"]
     shape_target = (M, W, T)
     shape_target_square = (M, w, w, T)
 
-    # Define PTX resolution steps
-    PT_steps = [16, 8, 4, 2, 1]
-
+    # Check number of compositions X
     if any(sample in sample_ids for sample in ["PUM", "DMM", "PYR"]):
         X_steps = [1]
     elif len(sample_ids) > 128:
-        X_steps = [32, 16, 8, 4, 2]
-    else:
-        X_steps = [16, 8, 4, 2, 1]
+        X_steps = [step * 2 for step in X_steps]
 
     # Iterate through X resolutions
     for X_step in X_steps:
@@ -488,8 +481,10 @@ class RocMLM:
                             f"{self.ml_model_label}")
         self.rocmlm_path = f"{self.model_out_dir}/{self.model_prefix}.pkl"
         self.ml_model_only_path = f"{self.model_out_dir}/{self.model_prefix}-model-only.pkl"
-        self.ml_model_scaler_X_path = f"{self.model_out_dir}/{self.model_prefix}-scaler_X.pkl"
-        self.ml_model_scaler_y_path = f"{self.model_out_dir}/{self.model_prefix}-scaler_y.pkl"
+        self.ml_model_scaler_X_path = (f"{self.model_out_dir}/{self.model_prefix}-"
+                                       f"scaler_X.pkl")
+        self.ml_model_scaler_y_path = (f"{self.model_out_dir}/{self.model_prefix}-"
+                                       f"scaler_y.pkl")
 
         # Check for figs directory
         if not os.path.exists(self.fig_dir):
@@ -1226,22 +1221,15 @@ class RocMLM:
         print("Retraining successful!")
         self.ml_model_trained = True
         self.ml_model_only = model
+        self.ml_model_scaler_X = scaler_X
+        self.ml_model_scaler_y = scaler_y
 
         # Copy feature and target arrays
         X = feature_array.copy()
         y = target_array.copy()
 
-        # Initialize scalers
-        scaler_X, scaler_y = StandardScaler(), StandardScaler()
-
         # Scale features array
-        X_scaled = scaler_X.fit_transform(X)
-
-        # Scale the target array
-        y_scaled = scaler_y.fit_transform(y)
-
-        self.ml_model_scaler_X = scaler_X
-        self.ml_model_scaler_y = scaler_y
+        X_scaled = scaler_X.transform(X)
 
         # Make predictions on unmasked features
         pred_scaled = model.predict(X_scaled)
@@ -1350,9 +1338,9 @@ class RocMLM:
 
             # Save ml model scalers
             with open(self.ml_model_scaler_X_path, "wb") as file:
-                joblib.dump(self.ml_model_scaler_X_path, file)
+                joblib.dump(self.ml_model_scaler_X, file)
             with open(self.ml_model_scaler_y_path, "wb") as file:
-                joblib.dump(self.ml_model_scaler_y_path, file)
+                joblib.dump(self.ml_model_scaler_y, file)
 
             # Add pre-trained model size (Mb) to cv_info
             model_size = os.path.getsize(self.ml_model_only_path)
