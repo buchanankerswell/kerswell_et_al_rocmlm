@@ -488,6 +488,8 @@ class RocMLM:
                             f"{self.ml_model_label}")
         self.rocmlm_path = f"{self.model_out_dir}/{self.model_prefix}.pkl"
         self.ml_model_only_path = f"{self.model_out_dir}/{self.model_prefix}-model-only.pkl"
+        self.ml_model_scaler_X_path = f"{self.model_out_dir}/{self.model_prefix}-scaler_X.pkl"
+        self.ml_model_scaler_y_path = f"{self.model_out_dir}/{self.model_prefix}-scaler_y.pkl"
 
         # Check for figs directory
         if not os.path.exists(self.fig_dir):
@@ -515,8 +517,12 @@ class RocMLM:
         self.feature_square = np.array([])
         self.target_square = np.array([])
         self.prediction_square = np.array([])
+
+        # Trained model
         self.ml_model_trained = False
         self.ml_model_only = None
+        self.ml_model_scaler_X = None
+        self.ml_model_scaler_y = None
         self.ml_model_training_error = False
         self.ml_model_error = None
 
@@ -1225,8 +1231,20 @@ class RocMLM:
         X = feature_array.copy()
         y = target_array.copy()
 
+        # Initialize scalers
+        scaler_X, scaler_y = StandardScaler(), StandardScaler()
+
+        # Scale features array
+        X_scaled = scaler_X.fit_transform(X)
+
+        # Scale the target array
+        y_scaled = scaler_y.fit_transform(y)
+
+        self.ml_model_scaler_X = scaler_X
+        self.ml_model_scaler_y = scaler_y
+
         # Make predictions on unmasked features
-        pred_scaled = model.predict(scaler_X.fit_transform(X))
+        pred_scaled = model.predict(X_scaled)
 
         # Inverse transform predictions
         pred_original = scaler_y.inverse_transform(pred_scaled)
@@ -1329,6 +1347,12 @@ class RocMLM:
             # Save ml model only
             with open(self.ml_model_only_path, "wb") as file:
                 joblib.dump(self.ml_model_only, file)
+
+            # Save ml model scalers
+            with open(self.ml_model_scaler_X_path, "wb") as file:
+                joblib.dump(self.ml_model_scaler_X_path, file)
+            with open(self.ml_model_scaler_y_path, "wb") as file:
+                joblib.dump(self.ml_model_scaler_y_path, file)
 
             # Add pre-trained model size (Mb) to cv_info
             model_size = os.path.getsize(self.ml_model_only_path)
