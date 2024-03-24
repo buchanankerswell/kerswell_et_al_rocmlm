@@ -203,7 +203,7 @@ def evaluate_lut_efficiency(name, gfem_models, PT_steps=[16, 8, 4, 2, 1],
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # train rocmlms !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def train_rocmlms(gfem_models, ml_models=["DT", "KN", "RF", "NN1", "NN2", "NN3"],
+def train_rocmlms(gfem_models, ml_models=["DT", "KN", "NN1", "NN2", "NN3"],
                   PT_steps=[16, 8, 4, 2, 1], X_steps=[16, 8, 4, 2, 1],
                   training_features=["D_FRAC"], training_targets=["rho", "Vp", "Vs"],
                   tune=True, epochs=100, batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
