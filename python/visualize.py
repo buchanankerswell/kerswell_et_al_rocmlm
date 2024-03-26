@@ -269,7 +269,7 @@ def compose_prem_plots(gfem_models):
     """
     """
     # Parse and sort models
-    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+    perplex_models = [m if m.program == "perplex" and m.dataset == "valid" else
                       None for m in gfem_models]
 
     if len(perplex_models) > 3:
@@ -345,11 +345,11 @@ def compose_dataset_plots(gfem_models):
     """
     """
     # Parse and sort models
-    magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
+    magemin_models = [m if m.program == "magemin" and m.dataset == "valid" else
                       None for m in gfem_models]
     magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
 
-    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+    perplex_models = [m if m.program == "perplex" and m.dataset == "valid" else
                       None for m in gfem_models]
     perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
@@ -603,11 +603,11 @@ def create_dataset_movies(gfem_models):
     """
     """
     # Parse and sort models
-    magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
+    magemin_models = [m if m.program == "magemin" and m.dataset == "valid" else
                       None for m in gfem_models]
     magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
 
-    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+    perplex_models = [m if m.program == "perplex" and m.dataset == "valid" else
                       None for m in gfem_models]
     perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
@@ -2340,7 +2340,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
 def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
     """
     """
-    for model in [m if m.dataset == "train" else None for m in gfem_models]:
+    for model in [m if m.dataset == "valid" else None for m in gfem_models]:
         # Check for model
         if model is None:
             continue
@@ -2498,11 +2498,11 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
     """
     """
     # Parse models
-    magemin_models = [m if m.program == "magemin" and m.dataset == "train" else
+    magemin_models = [m if m.program == "magemin" and m.dataset == "valid" else
                       None for m in gfem_models]
     magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
 
-    perplex_models = [m if m.program == "perplex" and m.dataset == "train" else
+    perplex_models = [m if m.program == "perplex" and m.dataset == "valid" else
                       None for m in gfem_models]
     perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
@@ -2768,10 +2768,10 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             # Rename target
             target_rename = target.replace("_", "-")
 
-            # Create nan mask for validation set targets
+            # Create nan mask for targets
             mask = np.isnan(target_array[:, :, i])
 
-            # Match nans between validation set predictions and original targets
+            # Match nans between predictions and original targets
             pred_array[:, :, i][mask] = np.nan
 
             # Compute normalized diff
