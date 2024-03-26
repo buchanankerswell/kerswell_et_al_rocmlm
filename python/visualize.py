@@ -9,6 +9,8 @@ import glob
 import shutil
 import warnings
 import subprocess
+from scipy.interpolate import interp1d
+from sklearn.metrics import r2_score, mean_squared_error
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # dataframes and arrays !!
@@ -16,12 +18,6 @@ import subprocess
 import cv2
 import numpy as np
 import pandas as pd
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# machine learning !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-from scipy.interpolate import interp1d
-from sklearn.metrics import r2_score, mean_squared_error
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GFEM models !!
@@ -43,6 +39,7 @@ from matplotlib.colors import ListedColormap, Normalize, SymLogNorm
 from matplotlib.colorbar import ColorbarBase
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
+warnings.simplefilter("ignore", category=RuntimeWarning)
 #######################################################
 ## .1.              Visualizations               !!! ##
 #######################################################
@@ -166,7 +163,15 @@ def get_1d_reference_models():
             model["Vs"] = model["Vs"] / 1e3
             model.sort_values(by=["depth"], inplace=True)
 
-        model["P"] = model["depth"] / 30
+        def calculate_pressure(row):
+            z = row["depth"]
+            depths = model[model["depth"] <= z]["depth"] * 1e3
+            rhos = model[model["depth"] <= z]["rho"] * 1e3
+            rho_integral = np.trapz(rhos, x=depths)
+            pressure = 9.81 * rho_integral / 1e9
+            return pressure
+
+        model["P"] = model.apply(calculate_pressure, axis=1)
 
         # Clean up df
         model = model[columns_to_keep]
@@ -1774,6 +1779,10 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Interpolate profiles
     P_prem, target_prem = x_new, interp_prem(x_new)
     P_stw105, target_stw105 = x_new, interp_stw105(x_new)
+    nan_mask_prem = np.isnan(target_prem)
+    inf_mask_prem = np.isinf(target_prem)
+    nan_mask_stw105 = np.isnan(target_stw105)
+    inf_mask_stw105 = np.isinf(target_stw105)
 
     # Change endmember sampleids
     if sample_id == "sm000":
@@ -1848,19 +1857,22 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Compute metrics
     if results_mgm:
-        nan_mask = np.isnan(target_mgm2)
+        nan_mask_mgm2 = np.isnan(target_mgm2)
+        nan_mask = nan_mask_mgm2 | nan_mask_prem | inf_mask_prem
         P_mgm2, target_mgm2 = P_mgm2[~nan_mask], target_mgm2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_mgm2))
         r2 = r2_score(target_prem, target_mgm2)
     if results_ppx:
-        nan_mask = np.isnan(target_ppx2)
+        nan_mask_ppx2 = np.isnan(target_ppx2)
+        nan_mask = nan_mask_ppx2 | nan_mask_prem | inf_mask_prem
         P_ppx2, target_ppx2 = P_ppx2[~nan_mask], target_ppx2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_ppx2))
         r2 = r2_score(target_prem, target_ppx2)
     if results_ml:
-        nan_mask = np.isnan(target_ml2)
+        nan_mask_ml2 = np.isnan(target_ml2)
+        nan_mask = nan_mask_ml2 | nan_mask_prem | inf_mask_prem
         P_ml2, target_ml2 = P_ml2[~nan_mask], target_ml2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_ml2))
@@ -2979,13 +2991,15 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
 
             for n in frames:
                 if n < num_plots:
-                    print("Processing mixing array movie frame:", n)
+                    if movie:
+                        print("Processing mixing array movie frame:", n)
                     if dataset == "middle":
                         row = df_synth_middle.iloc[n].to_frame().T
                     else:
                         row = df_synth_random.iloc[n].to_frame().T
                 else:
-                    print("Processing mixing array movie frame:", (num_plots * 2 - 1) - n)
+                    if movie:
+                        print("Processing mixing array movie frame:", (num_plots * 2 - 1) - n)
                     if dataset == "middle":
                         row = df_synth_middle.iloc[(num_plots * 2 - 1) - n].to_frame().T
                     else:
@@ -3149,16 +3163,16 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
                 ax2.set_yticks([])
 
                 # Create inset
-                left, bottom, width, height = [0.546, 0.745, 0.15, 0.25]
+                left, bottom, width, height = [0.520, 0.705, 0.185, 0.32]
                 ax2 = fig.add_axes([left, bottom, width, height])
                 sns.scatterplot(data=data, x="PC1", y="D_FRAC", facecolor="0.6",
-                                edgecolor="None", linewidth=2, s=5, legend=False, ax=ax2,
+                                edgecolor="None", linewidth=2, s=8, legend=False, ax=ax2,
                                 zorder=0)
                 sns.scatterplot(data=df_synth_middle, x="PC1", y="D_FRAC", hue=D_col,
-                                palette=pal, edgecolor="None", linewidth=2, s=22,
+                                palette=pal, edgecolor="None", linewidth=2, s=31,
                                 legend=False, ax=ax2, zorder=0)
                 sns.scatterplot(data=df_synth_random, x="PC1", y="D_FRAC", hue=D_col,
-                                palette=pal, edgecolor="None", linewidth=2, s=12,
+                                palette=pal, edgecolor="None", linewidth=2, s=21,
                                 legend=False, ax=ax2, zorder=0)
                 mrkr = ["s", "^", "P"]
                 for l, name in enumerate(["PUM", "DMM", "PYR"]):
@@ -3171,6 +3185,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
                                     facecolor="lime", edgecolor="black", linewidth=2, s=50)
 
                 ax2.set_ylabel("$\\xi$")
+                ax2.yaxis.set_label_coords(-0.02, 0.85)
                 ax2.set_xticks([])
                 ax2.set_yticks([])
                 ax2.set_facecolor("0.8")
@@ -3179,8 +3194,8 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
 
                 # Add captions
                 fig.text(0.03, 0.97, "a)", fontsize=fontsize * 1.2)
-                fig.text(0.71, 0.97, "b)", fontsize=fontsize * 1.2)
-                fig.text(0.661, 0.765, "c)", fontsize=fontsize * 1.2)
+                fig.text(0.72, 0.97, "b)", fontsize=fontsize * 1.2)
+                fig.text(0.67, 0.74, "c)", fontsize=fontsize * 1.2)
 
                 # Save the plot to a file
                 with warnings.catch_warnings():
@@ -3220,7 +3235,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
     """
     # Get mixing array attributes
     oxides = [ox for ox in mixing_array.oxides_system if ox not in ["SIO2", "CR2O3", "K2O",
-                                                                    "TIO2", "FE2O3", "H2O"]]
+                                                                    "FE2O3", "H2O"]]
     n_pca_components = mixing_array.n_pca_components
     data = mixing_array.earthchem_filtered
 
@@ -3286,31 +3301,30 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
     # Legend order
     legend_order = ["lherzolite", "harzburgite"]
 
-    for k, y in enumerate(oxides + ["pie"]):
+    for k, y in enumerate(oxides):
         ax = axes[k]
 
-        if y != "pie":
-            sns.scatterplot(data=synthetic_samples, x="SIO2", y=y, linewidth=0, s=8,
-                            color="black", alpha=1, legend=False, ax=ax, zorder=3)
+        sns.scatterplot(data=synthetic_samples, x="SIO2", y=y, linewidth=0, s=8,
+                        color="black", alpha=1, legend=False, ax=ax, zorder=3)
 
-            sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
-                            linewidth=0, s=8, alpha=0.5, ax=ax, zorder=1, legend=False)
-            sns.kdeplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
-                        ax=ax, levels=5, zorder=1, legend=False)
+        sns.scatterplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
+                        linewidth=0, s=8, alpha=0.5, ax=ax, zorder=1, legend=False)
+        sns.kdeplot(data=data, x="SIO2", y=y, hue="ROCKNAME", hue_order=legend_order,
+                    ax=ax, levels=5, zorder=1, legend=False)
 
-            mrkr = ["s", "^", "P"]
-            for l, name in enumerate(["PUM", "DMM", "PYR"]):
-                sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="SIO2",
-                                y=y, marker=mrkr[l], facecolor="white",
-                                edgecolor="black", linewidth=2, s=150, legend=False, ax=ax,
-                                zorder=7)
+        mrkr = ["s", "^", "P"]
+        for l, name in enumerate(["PUM", "DMM", "PYR"]):
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x="SIO2",
+                            y=y, marker=mrkr[l], facecolor="white",
+                            edgecolor="black", linewidth=2, s=150, legend=False, ax=ax,
+                            zorder=7)
 
-            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm000"],
-                            x="SIO2", y=y, facecolor="white", edgecolor="black",
-                            linewidth=2, s=75, legend=False, ax=ax, zorder=6)
-            sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm128"],
-                            x="SIO2", y=y, facecolor="white", edgecolor="black", marker="D",
-                            linewidth=2, s=75, legend=False, ax=ax, zorder=6)
+        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm000"],
+                        x="SIO2", y=y, facecolor="white", edgecolor="black",
+                        linewidth=2, s=75, legend=False, ax=ax, zorder=6)
+        sns.scatterplot(data=df_synth_bench[df_synth_bench["SAMPLEID"] == "sm128"],
+                        x="SIO2", y=y, facecolor="white", edgecolor="black", marker="D",
+                        linewidth=2, s=75, legend=False, ax=ax, zorder=6)
 
         if k == 4:
             for l, name in enumerate(["PUM", "DMM", "PYR"]):
@@ -3360,18 +3374,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
         else:
             ax.yaxis.set_major_formatter(ticker.StrMethodFormatter("{x:.2g}"))
 
-        if y != "pie":
-            ax.set_title(f"{y}")
-
-        if y == "pie":
-            colormap = plt.cm.get_cmap("tab10")
-            colors = {"lherzolite": colormap(1), "harzburgite": colormap(0)}
-            legend_colors = [colors[label] for label in legend_order]
-            rock_counts = data["ROCKNAME"].value_counts()
-            labels, counts = zip(*rock_counts.items())
-            plt.pie(counts, labels=labels, autopct="%1.0f%%", startangle=0,
-                    pctdistance=0.3, labeldistance=0.6, radius=1.3, colors=legend_colors,
-                    textprops={"fontsize": fontsize * 0.694})
+        ax.set_title(f"{y}")
 
     if num_plots < len(axes):
         for i in range(num_plots, len(axes)):
@@ -3388,8 +3391,8 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize gfem accuracy vs prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=5.88,
-                                    figheight=4.6, fontsize=22):
+def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=6.3,
+                                    figheight=5.1, fontsize=22):
     """
     """
     # Check for analysis data
@@ -3441,12 +3444,6 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
     plt.rcParams["figure.dpi"] = 300
     plt.rcParams["savefig.bbox"] = "tight"
 
-    # Create colorbar
-    pal = sns.color_palette("magma", as_cmap=True).reversed()
-    norm = plt.Normalize(dfs["synthetic"][D_col].min(), dfs["synthetic"][D_col].max())
-    sm = plt.cm.ScalarMappable(cmap="magma_r", norm=norm)
-    sm.set_array([])
-
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(figwidth * 3, figheight))
     for j, target in enumerate(["rho", "Vp", "Vs"]):
         # Define units
@@ -3459,14 +3456,15 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
 
         ax = axes[j]
 
-        ax.axvline(x=0.954, color="black", linestyle="-", alpha=0.5)
-
         data = dfs["synthetic"]
         data = data[data["TARGET"] == target]
-        data = data[data[D_col] > data[D_col].min()]
 
-        scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"], hue=data[D_col],
-                                  palette=pal, legend=False, edgecolor="none", s=72, ax=ax)
+        if j == 1:
+            scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"], hue=data["SECTION"],
+                                      edgecolor="none", s=72, ax=ax)
+        else:
+            scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"], hue=data["SECTION"],
+                                      legend=False, edgecolor="none", s=72, ax=ax)
 
         df_bench = dfs["benchmark"]
         df_bench = df_bench[df_bench["TARGET"] == target]
@@ -3489,14 +3487,8 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
 
             sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=D_col,
                             y="RMSE_PREM", marker=mrkr[l], facecolor="white",
-                            edgecolor="black", linewidth=2, s=150, legend=False, ax=ax,
+                            edgecolor="black", linewidth=2, s=250, legend=False, ax=ax,
                             zorder=7)
-            ax.annotate(
-                name, xy=(df_bench.loc[df_bench["SAMPLEID"] == name, D_col].iloc[0],
-                          df_bench.loc[df_bench["SAMPLEID"] == name, "RMSE_PREM"].iloc[0]),
-                xytext=offst, textcoords="offset points",
-                bbox=dict(boxstyle="round,pad=0.1", facecolor="white", edgecolor="black",
-                          linewidth=1.5, alpha=0.8), fontsize=fontsize * 0.833, zorder=8)
 
         ax.set_title(f"{target_label} vs. PREM")
         ax.set_xlabel("Fertility Index, $\\xi$")
@@ -3504,15 +3496,10 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
 
-        # Add colorbar
-        if j == 0:
-            cbaxes = inset_axes(ax, width="40%", height="3%", loc=2,
-                                bbox_to_anchor=(0.08, 0, 1, 1),
-                                bbox_transform=ax.transAxes)
-            colorbar = plt.colorbar(sm, ax=ax, cax=cbaxes, label="Fertility, $\\xi$",
-                                    orientation="horizontal")
-            colorbar.ax.set_xticks([sm.get_clim()[0], sm.get_clim()[1]])
-            colorbar.ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2g"))
+        if j == 1:
+            ax.legend(title="Profile Section", columnspacing=0, handletextpad=0,
+                      fontsize=fontsize * 0.833)
+
 
     fig.text(0.0, 0.88, "a)", fontsize=fontsize * 1.5)
     fig.text(0.33, 0.88, "b)", fontsize=fontsize * 1.5)

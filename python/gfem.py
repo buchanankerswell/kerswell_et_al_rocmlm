@@ -199,7 +199,15 @@ def get_1d_reference_models():
             model["Vs"] = model["Vs"] / 1e3
             model.sort_values(by=["depth"], inplace=True)
 
-        model["P"] = model["depth"] / 30
+        def calculate_pressure(row):
+            z = row["depth"]
+            depths = model[model["depth"] <= z]["depth"] * 1e3
+            rhos = model[model["depth"] <= z]["rho"] * 1e3
+            rho_integral = np.trapz(rhos, x=depths)
+            pressure = 9.81 * rho_integral / 1e9
+            return pressure
+
+        model["P"] = model.apply(calculate_pressure, axis=1)
 
         # Clean up df
         model = model[columns_to_keep]
@@ -253,61 +261,74 @@ def measure_gfem_model_accuracy_vs_prem(gfem_model, filename):
         geotherm_threshold = 2.5
 
     # Initialize metrics lists
+    smpid, pgrm, trgt, profile_section = [], [], [], []
     rmse_prem_profile, r2_prem_profile = [], []
     rmse_stw105_profile, r2_stw105_profile = [], []
 
+    crop_profile = {"1–28 GPa": (1., 28.), "10–16 GPa": (10., 16.), "20–26 GPa": (20., 26.)}
+
     for target in targets:
-        # Get 1D refernce model profiles
-        P_prem, target_prem = ref_models["prem"]["P"], ref_models["prem"][target]
-        P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
+        for name, bounds in crop_profile.items():
+            # Get 1D refernce model profiles
+            P_prem, target_prem = ref_models["prem"]["P"], ref_models["prem"][target]
+            P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
 
-        # Get model profile
-        P_model, _, target_model = get_geotherm(results_model, target, geotherm_threshold)
+            # Get model profile
+            P_model, _, target_model = get_geotherm(results_model, target,
+                                                    geotherm_threshold)
 
-        # Get min and max P
-        P_min = np.nanmin(P_model)
-        P_max = np.nanmax(P_model)
+            # Create cropping mask
+            mask_prem = (P_prem >= bounds[0]) & (P_prem <= bounds[1])
+            mask_stw105 = (P_stw105 >= bounds[0]) & (P_stw105 <= bounds[1])
+            mask_model = (P_model >= bounds[0]) & (P_model <= bounds[1])
 
-        # Create cropping mask
-        mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
-        mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
-        mask_model = (P_model >= P_min) & (P_model <= P_max)
+            # Crop profiles
+            P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
+            P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
+            P_model, target_model = P_model[mask_model], target_model[mask_model]
 
-        # Crop profiles
-        P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
-        P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
-        P_model, target_model = P_model[mask_model], target_model[mask_model]
+            # Initialize interpolators
+            interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
+            interp_stw105 = interp1d(P_stw105, target_stw105, fill_value="extrapolate")
 
-        # Initialize interpolators
-        interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
-        interp_stw105 = interp1d(P_stw105, target_stw105, fill_value="extrapolate")
+            # New x values for interpolation
+            x_new = np.linspace(bounds[0], bounds[1], len(P_model))
 
-        # New x values for interpolation
-        x_new = np.linspace(P_min, P_max, len(P_model))
+            # Interpolate profiles
+            P_prem, target_prem = x_new, interp_prem(x_new)
+            P_stw105, target_stw105 = x_new, interp_stw105(x_new)
 
-        # Interpolate profiles
-        P_prem, target_prem = x_new, interp_prem(x_new)
-        P_stw105, target_stw105 = x_new, interp_stw105(x_new)
+            # Create nan mask
+            nan_mask_model = np.isnan(target_model)
+            nan_mask_prem = np.isnan(target_prem)
+            nan_mask_stw105 = np.isnan(target_stw105)
+            nan_mask = np.logical_or(nan_mask_model,
+                                     np.logical_or(nan_mask_prem, nan_mask_stw105))
 
-        # Create nan mask
-        nan_mask = np.isnan(target_model)
+            # Remove nans
+            P_model, target_model = P_model[~nan_mask], target_model[~nan_mask]
+            P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
+            P_stw105, target_stw105 = P_stw105[~nan_mask], target_stw105[~nan_mask]
 
-        # Remove nans
-        P_model, target_model = P_model[~nan_mask], target_model[~nan_mask]
-        P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
-        P_stw105, target_stw105 = P_stw105[~nan_mask], target_stw105[~nan_mask]
+            # Calculate rmse and r2 along profiles
+            rmse_prem = np.sqrt(mean_squared_error(target_prem, target_model))
+            rmse_prem_profile.append(np.round(rmse_prem, 3))
+            r2_prem_profile.append(np.round(r2_score(target_prem, target_model), 3))
 
-        # Calculate rmse and r2 along profiles
-        rmse_prem = np.sqrt(mean_squared_error(target_prem, target_model))
-        rmse_prem_profile.append(np.round(rmse_prem, 3))
-        r2_prem_profile.append(np.round(r2_score(target_prem, target_model), 3))
-        rmse_stw105 = np.sqrt(mean_squared_error(target_stw105, target_model))
-        rmse_stw105_profile.append(np.round(rmse_stw105, 3))
-        r2_stw105_profile.append(np.round(r2_score(target_stw105, target_model), 3))
+            rmse_stw105 = np.sqrt(mean_squared_error(target_stw105, target_model))
+            rmse_stw105_profile.append(np.round(rmse_stw105, 3))
+            r2_stw105_profile.append(np.round(r2_score(target_stw105, target_model), 3))
+
+            # Save other results info
+            smpid.append(sample_id)
+            pgrm.append(program)
+            trgt.append(target)
+            profile_section.append(name)
 
     # Save results
-    results = {"SAMPLEID": [sample_id] * len(targets), "PROGRAM": [program] * len(targets),
-               "TARGET": targets, "RMSE_PREM": rmse_prem_profile, "R2_PREM": r2_prem_profile,
+    results = {"SAMPLEID": smpid, "PROGRAM": pgrm, "TARGET": trgt,
+               "SECTION": profile_section,
+               "RMSE_PREM": rmse_prem_profile, "R2_PREM": r2_prem_profile,
                "RMSE_STW105": rmse_stw105_profile, "R2_STW105": r2_stw105_profile}
 
     # Create dataframe

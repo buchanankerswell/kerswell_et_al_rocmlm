@@ -32,9 +32,8 @@ for name, models in training_data.items():
 visualize_rocmlm_performance()
 
 for name, models in rocmlms.items():
-    if name == "synthetic":
-        for model in models:
-            visualize_rocmlm(model)
-            compose_rocmlm_plots(model)
+    for model in models:
+        visualize_rocmlm(model)
+        compose_rocmlm_plots(model)
 
 print("RocMLMs trained and visualized!")
