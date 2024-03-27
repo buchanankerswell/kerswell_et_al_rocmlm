@@ -1534,15 +1534,15 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
         for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
             if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
                 ax.scatter(x=sub_group["size"], y=(sub_group["time"] * 1e3),
-                           marker=marker_dict.get(program, "o"),
+                           marker=marker_dict.get(program, "o"), s=65,
                            color=color_dict[rmse], edgecolor="black", zorder=2)
             else:
                 ax.scatter(x=sub_group["size"], y=(sub_group["time"] * 1e3),
-                           marker=marker_dict.get(program, "o"),
+                           marker=marker_dict.get(program, "o"), s=65,
                            color="pink", edgecolor="black", zorder=2)
 
     # Set labels and title
-    plt.xlabel("Log2 Size")
+    plt.xlabel("Log2 Capacity")
     plt.ylabel("Elapsed Time (ms)")
     plt.title("Execution Speed")
     plt.yscale("log")
@@ -1561,11 +1561,11 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
         for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
             if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
                 ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
-                            marker=marker_dict.get(program, "o"),
+                            marker=marker_dict.get(program, "o"), s=65,
                             color=color_dict[rmse], edgecolor="black", zorder=2)
             else:
                 ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
-                            marker=marker_dict.get(program, "o"),
+                            marker=marker_dict.get(program, "o"), s=65,
                             color="pink", edgecolor="black", zorder=2)
 
     # Create the legend
@@ -1595,7 +1595,7 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     cbar.set_ticks([sm.get_clim()[0], sm.get_clim()[1]])
 
     # Set labels and title
-    plt.xlabel("Log2 Size")
+    plt.xlabel("Log2 Capacity")
     plt.ylabel("Inefficiency (ms$\\cdot$Mb)")
     plt.title("Model Efficiency")
     plt.yscale("log")
@@ -1779,6 +1779,8 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Interpolate profiles
     P_prem, target_prem = x_new, interp_prem(x_new)
     P_stw105, target_stw105 = x_new, interp_stw105(x_new)
+
+    # Create nan and inf masks for interpolated profiles
     nan_mask_prem = np.isnan(target_prem)
     inf_mask_prem = np.isinf(target_prem)
     nan_mask_stw105 = np.isnan(target_stw105)
@@ -1856,27 +1858,29 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     text_spacing_y = 0.1
 
     # Compute metrics
-    if results_mgm:
+    if results_mgm and not results_ml:
         nan_mask_mgm2 = np.isnan(target_mgm2)
         nan_mask = nan_mask_mgm2 | nan_mask_prem | inf_mask_prem
         P_mgm2, target_mgm2 = P_mgm2[~nan_mask], target_mgm2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_mgm2))
         r2 = r2_score(target_prem, target_mgm2)
-    if results_ppx:
+    elif results_ppx and not results_ml:
         nan_mask_ppx2 = np.isnan(target_ppx2)
         nan_mask = nan_mask_ppx2 | nan_mask_prem | inf_mask_prem
         P_ppx2, target_ppx2 = P_ppx2[~nan_mask], target_ppx2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_ppx2))
         r2 = r2_score(target_prem, target_ppx2)
-    if results_ml:
+    elif results_ml:
         nan_mask_ml2 = np.isnan(target_ml2)
         nan_mask = nan_mask_ml2 | nan_mask_prem | inf_mask_prem
         P_ml2, target_ml2 = P_ml2[~nan_mask], target_ml2[~nan_mask]
         P_prem, target_prem = P_prem[~nan_mask], target_prem[~nan_mask]
         rmse = np.sqrt(mean_squared_error(target_prem, target_ml2))
         r2 = r2_score(target_prem, target_ml2)
+    else:
+        rmse, r2 = None, None
 
     # Add R-squared and RMSE values as text annotations in the plot
     plt.text(text_margin_x, 1 - (text_margin_y - (text_spacing_y * 0)), f"R$^2$: {r2:.3f}",
@@ -2999,7 +3003,8 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
                         row = df_synth_random.iloc[n].to_frame().T
                 else:
                     if movie:
-                        print("Processing mixing array movie frame:", (num_plots * 2 - 1) - n)
+                        print("Processing mixing array movie frame:",
+                              (num_plots * 2 - 1) - n)
                     if dataset == "middle":
                         row = df_synth_middle.iloc[(num_plots * 2 - 1) - n].to_frame().T
                     else:
@@ -3392,7 +3397,7 @@ def visualize_harker_diagrams(mixing_array, fig_dir="figs/mixing_array",
 # visualize gfem accuracy vs prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=6.3,
-                                    figheight=5.1, fontsize=22):
+                                    figheight=5.3, fontsize=22):
     """
     """
     # Check for analysis data
@@ -3458,37 +3463,15 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
 
         data = dfs["synthetic"]
         data = data[data["TARGET"] == target]
+        data = data[data[D_col] > data[D_col].min()]
 
-        if j == 1:
-            scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"], hue=data["SECTION"],
-                                      edgecolor="none", s=72, ax=ax)
+        if j == 2:
+            scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"],
+                                      hue=data["SECTION"], edgecolor="none", s=72, ax=ax)
         else:
-            scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"], hue=data["SECTION"],
-                                      legend=False, edgecolor="none", s=72, ax=ax)
-
-        df_bench = dfs["benchmark"]
-        df_bench = df_bench[df_bench["TARGET"] == target]
-        mrkr = ["s", "^", "P"]
-        for l, name in enumerate(["PUM", "DMM", "PYR"]):
-            if j == 0:
-                if name == "PUM":
-                    offst = (10, -25)
-                elif name == "DMM":
-                    offst = (-55, -25)
-                else:
-                    offst = (-45, -20)
-            else:
-                if name == "PUM":
-                    offst = (10, -25)
-                elif name == "DMM":
-                    offst = (-55, -25)
-                else:
-                    offst = (-45, 10)
-
-            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=D_col,
-                            y="RMSE_PREM", marker=mrkr[l], facecolor="white",
-                            edgecolor="black", linewidth=2, s=250, legend=False, ax=ax,
-                            zorder=7)
+            scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"],
+                                      hue=data["SECTION"], legend=False, edgecolor="none",
+                                      s=72, ax=ax)
 
         ax.set_title(f"{target_label} vs. PREM")
         ax.set_xlabel("Fertility Index, $\\xi$")
@@ -3496,14 +3479,14 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
 
-        if j == 1:
-            ax.legend(title="Profile Section", columnspacing=0, handletextpad=0,
-                      fontsize=fontsize * 0.833)
+        if j == 2:
+            ax.legend(title="", columnspacing=0, handletextpad=-0.2,
+                      fontsize=fontsize * 0.833, ncol=2)
 
 
-    fig.text(0.0, 0.88, "a)", fontsize=fontsize * 1.5)
-    fig.text(0.33, 0.88, "b)", fontsize=fontsize * 1.5)
-    fig.text(0.66, 0.88, "c)", fontsize=fontsize * 1.5)
+    fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.5)
+    fig.text(0.33, 0.92, "b)", fontsize=fontsize * 1.5)
+    fig.text(0.66, 0.92, "c)", fontsize=fontsize * 1.5)
 
     # Save the plot to a file
     with warnings.catch_warnings():
