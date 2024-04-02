@@ -337,7 +337,7 @@ def compose_prem_plots(gfem_models):
         caption2=""
     )
 
-    tmp_files = glob.glob(f"figs/other/temp*.png")
+    tmp_files = glob.glob(f"figs/other/tmp*.png")
     for file in tmp_files:
         os.remove(file)
 
