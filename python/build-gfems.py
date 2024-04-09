@@ -1,8 +1,7 @@
 from scripting import parse_arguments, check_arguments
 from gfem import get_sampleids, build_gfem_models
 from visualize import (visualize_gfem_pt_range, visualize_gfem, visualize_gfem_diff,
-                       visualize_gfem_accuracy_vs_prem, visualize_prem_comps,
-                       compose_dataset_plots, compose_prem_plots, create_dataset_movies)
+                       visualize_prem_comps, compose_dataset_plots)
 
 # Parse and check arguments
 valid_args = check_arguments(parse_arguments(), "build-gfems.py")
@@ -21,17 +20,11 @@ for name, source in sources.items():
 
 # Visualize GFEM models
 visualize_gfem_pt_range(gfems["benchmark"][0])
-visualize_gfem_accuracy_vs_prem()
-visualize_prem_comps(gfems["middle"][::16])
+visualize_prem_comps(gfems["middle"][::32] + gfems["random"][::32])
 
 for name, models in gfems.items():
     visualize_gfem(models)
     visualize_gfem_diff(models)
-
-compose_prem_plots([gfems["middle"][129], gfems["benchmark"][5], gfems["middle"][257]])
-
-for name, models in gfems.items():
     compose_dataset_plots(models)
-    create_dataset_movies(models)
 
 print("GFEM models built and visualized!")
