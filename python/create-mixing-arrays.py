@@ -29,6 +29,5 @@ for source, sids in zip(sources, sampleids):
 # Visualize mixing array
 visualize_harker_diagrams(mixing_array)
 visualize_mixing_array(mixing_array)
-visualize_mixing_array(mixing_array, movie=True)
 
 print("Mixing array visualized!")

@@ -1402,8 +1402,8 @@ class GFEMModel:
                 config_files.append(f"{model_out_dir}/werami-phase")
 
                 self._replace_in_file(f"{model_out_dir}/build-options",
-                                    {"Anderson-Gruneisen     F":
-                                     "Anderson-Gruneisen     T"})
+                                      {"Anderson-Gruneisen     F":
+                                       "Anderson-Gruneisen     T"})
 
             elif program == "pssect":
                 config_files.append(f"{model_out_dir}/pssect-draw")

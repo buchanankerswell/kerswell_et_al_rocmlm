@@ -306,8 +306,8 @@ def compose_prem_plots(gfem_models):
     for i, target in enumerate(targets_rename):
         if target in ["rho", "Vp", "Vs"]:
             combine_plots_horizontally(
-                f"{fig_dirs[0]}/prem-{sample_ids[0]}-{dataset}-{target}.png",
-                f"{fig_dirs[2]}/prem-{sample_ids[2]}-{dataset}-{target}.png",
+                f"{fig_dirs[0]}/prem-{sample_ids[0]}-{dataset}-{target}-1557.png",
+                f"{fig_dirs[2]}/prem-{sample_ids[2]}-{dataset}-{target}-1557.png",
                 "figs/other/temp1.png",
                 caption1=captions[i][0],
                 caption2=captions[i][1]
@@ -315,7 +315,7 @@ def compose_prem_plots(gfem_models):
 
             combine_plots_horizontally(
                 "figs/other/temp1.png",
-                f"{fig_dirs[1]}/prem-{sample_ids[1]}-{dataset}-{target}.png",
+                f"{fig_dirs[1]}/prem-{sample_ids[1]}-{dataset}-{target}-1557.png",
                 f"figs/other/tmp-{target}.png",
                 caption1="",
                 caption2=captions[i][2]
@@ -1103,7 +1103,7 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
                       "ol$\\rightarrow$wad (Morishima94)": [0.0034, 0.0038]}
 
     # Ringwoodite --> Bridgmanite + Ferropericlase Clapeyron slopes
-    references_660 = {"ring$\\rightarrow$brg (Ito82)": [-0.002],
+    references_670 = {"ring$\\rightarrow$brg (Ito82)": [-0.002],
                       "ring$\\rightarrow$brg (Ito89 & Hirose02)": [-0.0028],
                       "ring$\\rightarrow$brg (Ito90)": [-0.002, -0.006],
                       "ring$\\rightarrow$brg (Katsura03)": [-0.0004, -0.002],
@@ -1142,10 +1142,10 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
         lines_410.append(ref_lines)
 
     # Ringwoodite --> Bridgmanite + Ferropericlase
-    lines_660 = []
-    labels_660 = set()
+    lines_670 = []
+    labels_670 = set()
 
-    for i, (ref, c_values) in enumerate(references_660.items()):
+    for i, (ref, c_values) in enumerate(references_670.items()):
         ref_lines = []
 
         for j, c in enumerate(c_values):
@@ -1154,9 +1154,9 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
             ref_lines.append(P)
 
             label = f"{ref}"
-            labels_660.add(label)
+            labels_670.add(label)
 
-        lines_660.append(ref_lines)
+        lines_670.append(ref_lines)
 
     # Plotting
     plt.figure()
@@ -1178,7 +1178,7 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
                 label_color_mapping[label] = color
 
     # Ringwoodite --> Bridgmanite + Ferropericlase
-    for j, (ref, ref_lines) in enumerate(zip(references_660.keys(), lines_660)):
+    for j, (ref, ref_lines) in enumerate(zip(references_670.keys(), lines_670)):
         color = colors[j + i + 1 % len(colors)]
 
         for j, line in enumerate(ref_lines):
@@ -1279,13 +1279,13 @@ def visualize_gfem_pt_range(gfem_model, fig_dir="figs/other", T_mantle1=673, T_m
     db_data_handle = mpatches.Patch(facecolor="white", edgecolor="black", alpha=0.8,
                                     hatch="++", label="RocMLM Training Data")
 
-    labels_660.add("RocMLM Training Data")
+    labels_670.add("RocMLM Training Data")
     label_color_mapping["RocMLM Training Data"] = "black"
 
     training_data_handle = mpatches.Patch(facecolor="white", edgecolor="black", alpha=1,
                                           linestyle=":", label="Hypothetical Mantle PTs")
 
-    labels_660.add("Hypothetical Mantle PTs")
+    labels_670.add("Hypothetical Mantle PTs")
     label_color_mapping["Hypothetical Mantle PTs"] = "gray"
 
     # Define the desired order of the legend items
@@ -1621,10 +1621,10 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_prem(program, sample_id, dataset, res, target, target_unit, results_mgm=None,
-                   results_ppx=None, results_ml=None, model=None, title=None,
-                   fig_dir="figs", filename=None, figwidth=6.3, figheight=4.725,
-                   fontsize=22):
+def visualize_prem(program, sample_id, dataset, res, target, target_unit,
+                   geotherms=["low", "mid", "high"], results_mgm=None, results_ppx=None,
+                   results_ml=None, model=None, title=None, fig_dir="figs", filename=None,
+                   figwidth=6.3, figheight=4.725, fontsize=22):
     """
     """
     # Data asset dir
@@ -1637,6 +1637,10 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
     # Check for figs directory
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
+
+    # Check for average geotherm
+    if "mid" not in geotherms:
+        geotherms = geotherms + ["mid"]
 
     # Get 1D reference models
     ref_models = get_1d_reference_models()
@@ -1681,46 +1685,57 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Extract target values along a geotherm
     if results_mgm:
-        P_mgm, _, target_mgm = get_geotherm(results_mgm, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1173)
-        P_mgm2, _, target_mgm2 = get_geotherm(results_mgm, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1573)
-        P_mgm3, _, target_mgm3 = get_geotherm(results_mgm, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1773)
-        print(P_mgm3)
+        if "low" in geotherms:
+            P_mgm, _, target_mgm = get_geotherm(results_mgm, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1173)
+        if "mid" in geotherms:
+            P_mgm2, _, target_mgm2 = get_geotherm(results_mgm, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1573)
+        if "high" in geotherms:
+            P_mgm3, _, target_mgm3 = get_geotherm(results_mgm, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1773)
     if results_ppx:
-        P_ppx, _, target_ppx = get_geotherm(results_ppx, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1173)
-        P_ppx2, _, target_ppx2 = get_geotherm(results_ppx, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1573)
-        P_ppx3, _, target_ppx3 = get_geotherm(results_ppx, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1773)
+        if "low" in geotherms:
+            P_ppx, _, target_ppx = get_geotherm(results_ppx, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1173)
+        if "mid" in geotherms:
+            P_ppx2, _, target_ppx2 = get_geotherm(results_ppx, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1573)
+        if "high" in geotherms:
+            P_ppx3, _, target_ppx3 = get_geotherm(results_ppx, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1773)
     if results_ml:
-        P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1173)
-        P_ml2, _, target_ml2 = get_geotherm(results_ml, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1573)
-        P_ml3, _, target_ml3 = get_geotherm(results_ml, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1773)
+        if "low" in geotherms:
+            P_ml, _, target_ml = get_geotherm(results_ml, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1173)
+        if "mid" in geotherms:
+            P_ml2, _, target_ml2 = get_geotherm(results_ml, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1573)
+        if "high" in geotherms:
+            P_ml3, _, target_ml3 = get_geotherm(results_ml, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1773)
     if results_pyr:
-        P_pyr, _, target_pyr = get_geotherm(results_pyr, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1173)
-        P_pyr2, _, target_pyr2 = get_geotherm(results_pyr, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1573)
-        P_pyr3, _, target_pyr3 = get_geotherm(results_pyr, target, geotherm_threshold,
-                                              Qs=250e-3, A1=2.2e-8, k1=3.0,
-                                              litho_thickness=1, mantle_potential=1773)
+        if "low" in geotherms:
+            P_pyr, _, target_pyr = get_geotherm(results_pyr, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1173)
+        if "mid" in geotherms:
+            P_pyr2, _, target_pyr2 = get_geotherm(results_pyr, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1573)
+        if "high" in geotherms:
+            P_pyr3, _, target_pyr3 = get_geotherm(results_pyr, target, geotherm_threshold,
+                                                  Qs=250e-3, A1=2.2e-8, k1=3.0,
+                                                  litho_thickness=1, mantle_potential=1773)
 
     # Get min and max P
     P_min = min(np.nanmin(P) for P in [P_mgm, P_mgm2, P_mgm3, P_ppx, P_ppx2, P_ppx3, P_ml,
@@ -1738,33 +1753,45 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Crop results
     if results_mgm:
-        mask_mgm = (P_mgm >= P_min) & (P_mgm <= P_max)
-        mask_mgm2 = (P_mgm2 >= P_min) & (P_mgm2 <= P_max)
-        mask_mgm3 = (P_mgm3 >= P_min) & (P_mgm3 <= P_max)
-        P_mgm, target_mgm = P_mgm[mask_mgm], target_mgm[mask_mgm]
-        P_mgm2, target_mgm2 = P_mgm2[mask_mgm2], target_mgm2[mask_mgm2]
-        P_mgm3, target_mgm3 = P_mgm3[mask_mgm3], target_mgm3[mask_mgm3]
+        if "low" in geotherms:
+            mask_mgm = (P_mgm >= P_min) & (P_mgm <= P_max)
+            P_mgm, target_mgm = P_mgm[mask_mgm], target_mgm[mask_mgm]
+        if "mid" in geotherms:
+            mask_mgm2 = (P_mgm2 >= P_min) & (P_mgm2 <= P_max)
+            P_mgm2, target_mgm2 = P_mgm2[mask_mgm2], target_mgm2[mask_mgm2]
+        if "high" in geotherms:
+            mask_mgm3 = (P_mgm3 >= P_min) & (P_mgm3 <= P_max)
+            P_mgm3, target_mgm3 = P_mgm3[mask_mgm3], target_mgm3[mask_mgm3]
     if results_ppx:
-        mask_ppx = (P_ppx >= P_min) & (P_ppx <= P_max)
-        mask_ppx2 = (P_ppx2 >= P_min) & (P_ppx2 <= P_max)
-        mask_ppx3 = (P_ppx3 >= P_min) & (P_ppx3 <= P_max)
-        P_ppx, target_ppx = P_ppx[mask_ppx], target_ppx[mask_ppx]
-        P_ppx2, target_ppx2 = P_ppx2[mask_ppx2], target_ppx2[mask_ppx2]
-        P_ppx3, target_ppx3 = P_ppx3[mask_ppx3], target_ppx3[mask_ppx3]
+        if "low" in geotherms:
+            mask_ppx = (P_ppx >= P_min) & (P_ppx <= P_max)
+            P_ppx, target_ppx = P_ppx[mask_ppx], target_ppx[mask_ppx]
+        if "mid" in geotherms:
+            mask_ppx2 = (P_ppx2 >= P_min) & (P_ppx2 <= P_max)
+            P_ppx2, target_ppx2 = P_ppx2[mask_ppx2], target_ppx2[mask_ppx2]
+        if "high" in geotherms:
+            mask_ppx3 = (P_ppx3 >= P_min) & (P_ppx3 <= P_max)
+            P_ppx3, target_ppx3 = P_ppx3[mask_ppx3], target_ppx3[mask_ppx3]
     if results_ml:
-        mask_ml = (P_ml >= P_min) & (P_ml <= P_max)
-        mask_ml2 = (P_ml2 >= P_min) & (P_ml2 <= P_max)
-        mask_ml3 = (P_ml3 >= P_min) & (P_ml3 <= P_max)
-        P_ml, target_ml = P_ml[mask_ml], target_ml[mask_ml]
-        P_ml2, target_ml2 = P_ml2[mask_ml2], target_ml2[mask_ml2]
-        P_ml3, target_ml3 = P_ml3[mask_ml3], target_ml3[mask_ml3]
+        if "low" in geotherms:
+            mask_ml = (P_ml >= P_min) & (P_ml <= P_max)
+            P_ml, target_ml = P_ml[mask_ml], target_ml[mask_ml]
+        if "mid" in geotherms:
+            mask_ml2 = (P_ml2 >= P_min) & (P_ml2 <= P_max)
+            P_ml2, target_ml2 = P_ml2[mask_ml2], target_ml2[mask_ml2]
+        if "high" in geotherms:
+            mask_ml3 = (P_ml3 >= P_min) & (P_ml3 <= P_max)
+            P_ml3, target_ml3 = P_ml3[mask_ml3], target_ml3[mask_ml3]
     if results_pyr:
-        mask_pyr = (P_pyr >= P_min) & (P_pyr <= P_max)
-        mask_pyr2 = (P_pyr2 >= P_min) & (P_pyr2 <= P_max)
-        mask_pyr3 = (P_pyr3 >= P_min) & (P_pyr3 <= P_max)
-        P_pyr, target_pyr = P_pyr[mask_pyr], target_pyr[mask_pyr]
-        P_pyr2, target_pyr2 = P_pyr2[mask_pyr2], target_pyr2[mask_pyr2]
-        P_pyr3, target_pyr3 = P_pyr3[mask_pyr3], target_pyr3[mask_pyr3]
+        if "low" in geotherms:
+            mask_pyr = (P_pyr >= P_min) & (P_pyr <= P_max)
+            P_pyr, target_pyr = P_pyr[mask_pyr], target_pyr[mask_pyr]
+        if "mid" in geotherms:
+            mask_pyr2 = (P_pyr2 >= P_min) & (P_pyr2 <= P_max)
+            P_pyr2, target_pyr2 = P_pyr2[mask_pyr2], target_pyr2[mask_pyr2]
+        if "high" in geotherms:
+            mask_pyr3 = (P_pyr3 >= P_min) & (P_pyr3 <= P_max)
+            P_pyr3, target_pyr3 = P_pyr3[mask_pyr3], target_pyr3[mask_pyr3]
 
     # Initialize interpolators
     interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
@@ -1810,31 +1837,37 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Plot GFEM and RocMLM profiles
     if results_ppx and not results_ml:
-        ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(0),
-                 label=f"{sample_id}-1173")
-        ax1.plot(target_ppx2, P_ppx2, "-", linewidth=3, color=colormap(2),
-                 label=f"{sample_id}-1573")
-        ax1.plot(target_ppx3, P_ppx3, "-", linewidth=3, color=colormap(3),
-                 label=f"{sample_id}-1773")
-        ax1.fill_betweenx(P_ppx, target_ppx * (1 - 0.05), target_ppx * (1 + 0.05),
-                          color=colormap(0), alpha=0.2)
-        ax1.fill_betweenx(P_ppx2, target_ppx2 * (1 - 0.05), target_ppx2 * (1 + 0.05),
-                          color=colormap(1), alpha=0.2)
-        ax1.fill_betweenx(P_ppx3, target_ppx3 * (1 - 0.05), target_ppx3 * (1 + 0.05),
-                          color=colormap(2), alpha=0.3)
+        if "low" in geotherms:
+            ax1.plot(target_ppx, P_ppx, "-", linewidth=3, color=colormap(0),
+                     label=f"{sample_id}-1173")
+            ax1.fill_betweenx(P_ppx, target_ppx * (1 - 0.05), target_ppx * (1 + 0.05),
+                              color=colormap(0), alpha=0.2)
+        if "mid" in geotherms:
+            ax1.plot(target_ppx2, P_ppx2, "-", linewidth=3, color=colormap(2),
+                     label=f"{sample_id}-1573")
+            ax1.fill_betweenx(P_ppx2, target_ppx2 * (1 - 0.05), target_ppx2 * (1 + 0.05),
+                              color=colormap(2), alpha=0.2)
+        if "high" in geotherms:
+            ax1.plot(target_ppx3, P_ppx3, "-", linewidth=3, color=colormap(1),
+                     label=f"{sample_id}-1773")
+            ax1.fill_betweenx(P_ppx3, target_ppx3 * (1 - 0.05), target_ppx3 * (1 + 0.05),
+                              color=colormap(1), alpha=0.3)
     if results_ml:
-        ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(0),
-                 label=f"{model}-1173")
-        ax1.plot(target_ml2, P_ml2, "-", linewidth=3, color=colormap(1),
-                 label=f"{model}-1573")
-        ax1.plot(target_ml3, P_ml3, "-", linewidth=3, color=colormap(2),
-                 label=f"{model}-1773")
-        ax1.fill_betweenx(P_ml, target_ml * (1 - 0.05), target_ml * (1 + 0.05),
-                          color=colormap(0), alpha=0.2)
-        ax1.fill_betweenx(P_ml2, target_ml2 * (1 - 0.05), target_ml2 * (1 + 0.05),
-                          color=colormap(1), alpha=0.2)
-        ax1.fill_betweenx(P_ml3, target_ml3 * (1 - 0.05), target_ml3 * (1 + 0.05),
-                          color=colormap(2), alpha=0.3)
+        if "low" in geotherms:
+            ax1.plot(target_ml, P_ml, "-", linewidth=3, color=colormap(0),
+                     label=f"{model}-1173")
+            ax1.fill_betweenx(P_ml, target_ml * (1 - 0.05), target_ml * (1 + 0.05),
+                              color=colormap(0), alpha=0.2)
+        if "mid" in geotherms:
+            ax1.plot(target_ml2, P_ml2, "-", linewidth=3, color=colormap(2),
+                     label=f"{model}-1573")
+            ax1.fill_betweenx(P_ml2, target_ml2 * (1 - 0.05), target_ml2 * (1 + 0.05),
+                              color=colormap(2), alpha=0.2)
+        if "high" in geotherms:
+            ax1.plot(target_ml3, P_ml3, "-", linewidth=3, color=colormap(1),
+                     label=f"{model}-1773")
+            ax1.fill_betweenx(P_ml3, target_ml3 * (1 - 0.05), target_ml3 * (1 + 0.05),
+                              color=colormap(1), alpha=0.3)
 
     # Plot reference models
     ax1.plot(target_prem, P_prem, "-", linewidth=2, color="black")
@@ -1896,7 +1929,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     # Create the secondary y-axis and plot depth on it
     ax2 = ax1.secondary_yaxis("right", functions=(depth_conversion, depth_conversion))
-    ax2.set_yticks([410, 660])
+    ax2.set_yticks([410, 670])
     ax2.set_ylabel("Depth (km)")
 
     plt.legend(loc="lower right", columnspacing=0, handletextpad=0.2,
@@ -1904,6 +1937,184 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit, result
 
     if title:
         plt.title(title)
+
+    # Save the plot to a file
+    plt.savefig(f"{fig_dir}/{filename}")
+
+    # Close device
+    plt.close()
+
+    return None
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# visualize prem comps !!
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def visualize_prem_comps(gfem_models, fig_dir="figs/other", filename="prem-comps.png",
+                         figwidth=6.3, figheight=5.5, fontsize=22):
+    """
+    """
+    # Data asset dir
+    data_dir = "assets/data"
+
+    # Check for data dir
+    if not os.path.exists(data_dir):
+        raise Exception(f"Data not found at {data_dir}!")
+
+    # Check for figs directory
+    if not os.path.exists(fig_dir):
+        os.makedirs(fig_dir, exist_ok=True)
+
+    # Get 1D reference models
+    ref_models = get_1d_reference_models()
+
+    # Get correct Depletion column
+    D_col = "D_FRAC"
+
+    # Check for benchmark samples
+    df_synth_bench_path = "assets/data/synthetic-samples-benchmarks.csv"
+
+    # Read benchmark samples
+    if os.path.exists(df_synth_bench_path):
+        df_synth_bench = pd.read_csv(df_synth_bench_path)
+
+    # Set plot style and settings
+    plt.rcParams["legend.facecolor"] = "0.9"
+    plt.rcParams["legend.fontsize"] = "small"
+    plt.rcParams["legend.frameon"] = "False"
+    plt.rcParams["axes.facecolor"] = "0.9"
+    plt.rcParams["font.size"] = fontsize
+    plt.rcParams["figure.autolayout"] = "True"
+    plt.rcParams["figure.dpi"] = 300
+    plt.rcParams["savefig.bbox"] = "tight"
+
+    # Colormap
+    colormap = plt.cm.get_cmap("tab10")
+
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(figwidth * 3, figheight))
+
+    for j, model in enumerate(gfem_models):
+        # Get gfem model data
+        res = model.res
+        xi = model.fertility_index
+        targets = model.targets
+        results = model.results
+        sample_id = model.sample_id
+
+        # Set geotherm threshold for extracting depth profiles
+        if res <= 8:
+            geotherm_threshold = 40
+        elif res <= 16:
+            geotherm_threshold = 20
+        elif res <= 32:
+            geotherm_threshold = 10
+        elif res <= 64:
+            geotherm_threshold = 5
+        elif res <= 128:
+            geotherm_threshold = 2.5
+        else:
+            geotherm_threshold = 1.25
+
+        # Change endmember sampleids
+        if sample_id == "sm000":
+            sample_id = "DSUM"
+        elif sample_id == "sm128":
+            sample_id = "PSUM"
+
+        for i, target in enumerate(targets):
+            if target == "rho":
+                target_unit = "g/cm$^3$"
+            else:
+                target_unit = "km/s"
+
+            # Get 1D refernce model profiles
+            P_prem, target_prem = ref_models["prem"]["P"], ref_models["prem"][target]
+            P_stw105, target_stw105 = ref_models["stw105"]["P"], ref_models["stw105"][target]
+
+            # Extract target values along a geotherm
+            P2, _, target2 = get_geotherm(
+                results, target, geotherm_threshold, Qs=250e-3, A1=2.2e-8,
+                k1=3.0, litho_thickness=1, mantle_potential=1573)
+
+            # Get min and max P
+            P_min = np.nanmin(P2)
+            P_max = np.nanmax(P2)
+
+            # Create cropping mask
+            mask_prem = (P_prem >= P_min) & (P_prem <= P_max)
+            mask_stw105 = (P_stw105 >= P_min) & (P_stw105 <= P_max)
+
+            # Crop profiles
+            P_prem, target_prem = P_prem[mask_prem], target_prem[mask_prem]
+            P_stw105, target_stw105 = P_stw105[mask_stw105], target_stw105[mask_stw105]
+
+            # Crop results
+            mask2 = (P2 >= P_min) & (P2 <= P_max)
+            P2, target2 = P2[mask2], target2[mask2]
+
+            # Initialize interpolators
+            interp_prem = interp1d(P_prem, target_prem, fill_value="extrapolate")
+            interp_stw105 = interp1d(P_stw105, target_stw105, fill_value="extrapolate")
+
+            # New x values for interpolation
+            x_new = np.linspace(P_min, P_max, len(P2))
+
+            # Interpolate profiles
+            P_prem, target_prem = x_new, interp_prem(x_new)
+            P_stw105, target_stw105 = x_new, interp_stw105(x_new)
+
+            # Create colorbar
+            pal = sns.color_palette("magma", as_cmap=True).reversed()
+            norm = plt.Normalize(df_synth_bench[D_col].min(),
+                                 df_synth_bench[D_col].max())
+            sm = plt.cm.ScalarMappable(cmap="magma_r", norm=norm)
+            sm.set_array([])
+
+            ax = axes[i]
+
+            # Plot GFEM and RocMLM profiles
+            ax.plot(target2, P2, "-", linewidth=2, color=sm.to_rgba(xi))
+
+            if j == 0:
+                # Plot reference models
+                ax.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
+                ax.plot(target_stw105, P_stw105, ":", linewidth=2, color="black",
+                        label="STW105")
+
+            if target == "rho":
+                target_label = "Density"
+            else:
+                target_label = target
+
+            ax.set_xlabel(f"{target_label} ({target_unit})")
+            ax.set_ylabel("P (GPa)")
+
+            if target in ["Vp", "Vs", "rho"]:
+                ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+                ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+
+            # Convert the primary y-axis data (pressure) to depth
+            depth_conversion = lambda P: P * 30
+            depth_values = depth_conversion(P_prem)
+
+            if i == 2:
+                # Create the secondary y-axis and plot depth on it
+                ax2 = ax.secondary_yaxis(
+                    "right", functions=(depth_conversion, depth_conversion))
+                ax2.set_yticks([410, 670])
+                ax2.set_ylabel("Depth (km)")
+
+                cbaxes = inset_axes(ax, width="40%", height="3%", loc=2)
+                colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility, $\\xi$",
+                                        orientation="horizontal")
+
+                ax.legend(loc="lower right", columnspacing=0, handletextpad=0.2,
+                           fontsize=fontsize * 0.833)
+
+            ax.set_title(f"{target_label}")
+
+    fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.5)
+    fig.text(0.33, 0.92, "b)", fontsize=fontsize * 1.5)
+    fig.text(0.64, 0.92, "c)", fontsize=fontsize * 1.5)
 
     # Save the plot to a file
     plt.savefig(f"{fig_dir}/{filename}")
@@ -2465,6 +2676,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                                        None, None, fig_dir, f"grad-{filename}", False)
 
             filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
+            filename2 = f"prem-{sample_id}-{dataset}-{target_rename}-1557.png"
 
             # Plot PREM comparisons
             if target == "rho":
@@ -2476,15 +2688,21 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                     results_mgm = results
                     results_ppx = None
                     visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
-                                   results_mgm, results_ppx, title="Depth Profile",
-                                   fig_dir=fig_dir, filename=filename)
+                                   ["low", "mid", "high"], results_mgm, results_ppx,
+                                   title="Depth Profile", fig_dir=fig_dir, filename=filename)
+                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                                   ["mid"], results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename2)
 
                 elif program == "perplex":
                     results_mgm = None
                     results_ppx = results
                     visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
-                                   results_mgm, results_ppx, title="Depth Profile",
-                                   fig_dir=fig_dir, filename=filename)
+                                   ["low", "mid", "high"], results_mgm, results_ppx,
+                                   title="Depth Profile", fig_dir=fig_dir, filename=filename)
+                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                                   ["mid"], results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename2)
 
             if target in ["Vp", "Vs"]:
                 # Print filepath
@@ -2495,15 +2713,21 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                     results_mgm = results
                     results_ppx = None
                     visualize_prem(program, sample_id, dataset, res, target, "km/s",
-                                   results_mgm, results_ppx, title="Depth Profile",
-                                   fig_dir=fig_dir, filename=filename)
+                                   ["low", "mid", "high"], results_mgm, results_ppx,
+                                   title="Depth Profile", fig_dir=fig_dir, filename=filename)
+                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                                   ["mid"], results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename2)
 
                 elif program == "perplex":
                     results_mgm = None
                     results_ppx = results
                     visualize_prem(program, sample_id, dataset, res, target, "km/s",
-                                   results_mgm, results_ppx, title="Depth Profile",
-                                   fig_dir=fig_dir, filename=filename)
+                                   ["low", "mid", "high"], results_mgm, results_ppx,
+                                   title="Depth Profile", fig_dir=fig_dir, filename=filename)
+                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                                   ["mid"], results_mgm, results_ppx, title="Depth Profile",
+                                   fig_dir=fig_dir, filename=filename2)
 
     return None
 
@@ -2658,8 +2882,8 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                             print(f"Saving figure: {filename}")
 
                         visualize_prem("perplex", sample_id, dataset, res, target,
-                                       "g/cm$^3$", results_mgm, results_ppx,
-                                       title="Depth Profile", fig_dir=fig_dir,
+                                       ["low", "mid", "high"], "g/cm$^3$", results_mgm,
+                                       results_ppx, title="Depth Profile", fig_dir=fig_dir,
                                        filename=filename)
 
                     if target in ["Vp", "Vs"]:
@@ -2668,8 +2892,9 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                             print(f"Saving figure: {filename}")
 
                         visualize_prem("perplex", sample_id, dataset, res, target, "km/s",
-                                       results_mgm, results_ppx, title="Depth Profile",
-                                       fig_dir=fig_dir, filename=filename)
+                                       ["low", "mid", "high"], results_mgm, results_ppx,
+                                       title="Depth Profile", fig_dir=fig_dir,
+                                       filename=filename)
 
     return None
 
@@ -2870,15 +3095,15 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             # Plot PREM comparisons
             if target == "rho":
                 visualize_prem(program, sample_id, "train", res, target, "g/cm$^3$",
-                               results_mgm, results_ppx, results_rocmlm, model_label,
-                               title="Depth Profile", fig_dir=fig_dir,
-                               filename=f"{filename}-prem.png")
+                               ["low", "mid", "high"], results_mgm, results_ppx,
+                               results_rocmlm, model_label, title="Depth Profile",
+                               fig_dir=fig_dir, filename=f"{filename}-prem.png")
 
             if target in ["Vp", "Vs"]:
                 visualize_prem(program, sample_id, "train", res, target, "km/s",
-                               results_mgm, results_ppx, results_rocmlm, model_label,
-                               title="Depth Profile", fig_dir=fig_dir,
-                               filename=f"{filename}-prem.png")
+                               ["low", "mid", "high"], results_mgm, results_ppx,
+                               results_rocmlm, model_label, title="Depth Profile",
+                               fig_dir=fig_dir, filename=f"{filename}-prem.png")
     return None
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3426,6 +3651,8 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
         if os.path.exists(path):
             df = pd.read_csv(path)
             df = df[(df[D_col] <= 1) & (df[D_col] >= 0)]
+            if name == "benchmark":
+                df = df[df["SECTION"] == "1–28 GPa"]
             dfs[name] = df.merge(df_analysis, on="SAMPLEID", how="inner")
         else:
             raise Exception(f"Missing sample data: {path}!")
@@ -3472,6 +3699,30 @@ def visualize_gfem_accuracy_vs_prem(batch=False, fig_dir="figs/other", figwidth=
             scatter = sns.scatterplot(x=data[D_col], y=data["RMSE_PREM"],
                                       hue=data["SECTION"], legend=False, edgecolor="none",
                                       s=72, ax=ax)
+
+        df_bench = dfs["benchmark"]
+        df_bench = df_bench[df_bench["TARGET"] == target]
+        mrkr = ["s", "^", "P"]
+        for l, name in enumerate(["PUM", "DMM", "PYR"]):
+            if j == 0:
+                if name == "PUM":
+                    offst = (10, -25)
+                elif name == "DMM":
+                    offst = (-55, -25)
+                else:
+                    offst = (-45, -20)
+            else:
+                if name == "PUM":
+                    offst = (10, -25)
+                elif name == "DMM":
+                    offst = (-55, -25)
+                else:
+                    offst = (-45, 10)
+
+            sns.scatterplot(data=df_bench[df_bench["SAMPLEID"] == name], x=D_col,
+                            y="RMSE_PREM", marker=mrkr[l], facecolor="white",
+                            edgecolor="black", linewidth=2, s=250, legend=False, ax=ax,
+                            zorder=7)
 
         ax.set_title(f"{target_label} vs. PREM")
         ax.set_xlabel("Fertility Index, $\\xi$")

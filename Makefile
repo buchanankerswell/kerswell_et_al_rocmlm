@@ -37,6 +37,10 @@ FIGSCLEAN = figs
 
 all: $(LOGFILE) $(PYTHON) gfems rocmlms
 
+test: $(LOGFILE) $(PYTHON) mixing_arrays
+	@$(CONDAPYTHON) -u python/test.py $(LOG)
+	@echo "=============================================" $(LOG)
+
 rocmlms: $(LOGFILE) $(PYTHON) mixing_arrays
 	@PYTHONWARNINGS="ignore" $(CONDAPYTHON) -u python/train-rocmlms.py $(LOG)
 	@echo "=============================================" $(LOG)
