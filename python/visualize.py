@@ -1874,7 +1874,7 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit,
 # visualize prem comps !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def visualize_prem_comps(gfem_models, fig_dir="figs/other", filename="prem-comps.png",
-                         figwidth=6.3, figheight=5.5, fontsize=22):
+                         figwidth=6.3, figheight=5.0, fontsize=22):
     """
     """
     # Data asset dir
@@ -1916,7 +1916,7 @@ def visualize_prem_comps(gfem_models, fig_dir="figs/other", filename="prem-comps
 
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(figwidth * 3, figheight))
 
-    for j, model in enumerate(gfem_models):
+    for j, model in enumerate([model for model in gfem_models if model.dataset == "train"]):
         # Get gfem model data
         res = model.res
         xi = model.fertility_index
@@ -1995,22 +1995,34 @@ def visualize_prem_comps(gfem_models, fig_dir="figs/other", filename="prem-comps
 
             ax = axes[i]
 
-            # Plot GFEM and RocMLM profiles
-            ax.plot(target2, P2, "-", linewidth=2, color=sm.to_rgba(xi))
-
             if j == 0:
                 # Plot reference models
-                ax.plot(target_prem, P_prem, "-", linewidth=2, color="black", label="PREM")
-                ax.plot(target_stw105, P_stw105, ":", linewidth=2, color="black",
-                        label="STW105")
+                ax.plot(target_prem, P_prem, "-", linewidth=3, color="forestgreen",
+                        label="PREM", zorder=7)
+                ax.plot(target_stw105, P_stw105, ":", linewidth=3, color="forestgreen",
+                        label="STW105", zorder=7)
+
+            if sample_id == "PSUM":
+                ax.plot(target2, P2, "-", linewidth=4.5, color=sm.to_rgba(xi),
+                        label="PSUM", zorder=6)
+            if sample_id == "DSUM":
+                ax.plot(target2, P2, "-", linewidth=4.5, color=sm.to_rgba(xi),
+                        label="DSUM", zorder=6)
+
+            # Plot GFEM and RocMLM profiles
+            ax.plot(target2, P2, "-", linewidth=1, color=sm.to_rgba(xi), alpha=0.1)
 
             if target == "rho":
                 target_label = "Density"
             else:
                 target_label = target
 
+            if i != 0:
+                ax.set_ylabel("")
+            else:
+                ax.set_ylabel("P (GPa)")
+
             ax.set_xlabel(f"{target_label} ({target_unit})")
-            ax.set_ylabel("P (GPa)")
 
             if target in ["Vp", "Vs", "rho"]:
                 ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
@@ -2020,25 +2032,25 @@ def visualize_prem_comps(gfem_models, fig_dir="figs/other", filename="prem-comps
             depth_conversion = lambda P: P * 30
             depth_values = depth_conversion(P_prem)
 
+            # Create the secondary y-axis and plot depth on it
+            ax2 = ax.secondary_yaxis(
+                "right", functions=(depth_conversion, depth_conversion))
+            ax2.set_yticks([410, 670])
+
             if i == 2:
-                # Create the secondary y-axis and plot depth on it
-                ax2 = ax.secondary_yaxis(
-                    "right", functions=(depth_conversion, depth_conversion))
-                ax2.set_yticks([410, 670])
                 ax2.set_ylabel("Depth (km)")
 
+            if i == 0:
                 cbaxes = inset_axes(ax, width="40%", height="3%", loc=2)
-                colorbar = plt.colorbar(sm, ax=ax2, cax=cbaxes, label="Fertility, $\\xi$",
+                colorbar = plt.colorbar(sm, ax=ax, cax=cbaxes, label="Fertility, $\\xi$",
                                         orientation="horizontal")
 
                 ax.legend(loc="lower right", columnspacing=0, handletextpad=0.2,
                            fontsize=fontsize * 0.833)
 
-            ax.set_title(f"{target_label}")
-
-    fig.text(0.0, 0.92, "a)", fontsize=fontsize * 1.5)
-    fig.text(0.33, 0.92, "b)", fontsize=fontsize * 1.5)
-    fig.text(0.64, 0.92, "c)", fontsize=fontsize * 1.5)
+    fig.text(0.00, 0.98, "a)", fontsize=fontsize * 1.5)
+    fig.text(0.33, 0.98, "b)", fontsize=fontsize * 1.5)
+    fig.text(0.66, 0.98, "c)", fontsize=fontsize * 1.5)
 
     # Save the plot to a file
     plt.savefig(f"{fig_dir}/{filename}")

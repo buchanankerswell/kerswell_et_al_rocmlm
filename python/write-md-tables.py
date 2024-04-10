@@ -1,173 +1,13 @@
 import os
 import re
 import shutil
-import argparse
 import numpy as np
 import pandas as pd
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# parse arguments !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def parse_arguments():
+def main():
     """
     """
-    # Create the argument parser
-    parser = argparse.ArgumentParser()
-
-    # Add the command-line arguments
-    parser.add_argument("--ms", type=str, required=False)
-
-    # Parse the command-line arguments
-    args = parser.parse_args()
-
-    return args
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# check arguments !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def check_arguments(args, script):
-    """
-    """
-    # Arguments
-    ms = args.ms
-
-    valid_args = {}
-
-    # Check arguments and print
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-    print(f"Running {script} with:")
-
-    if ms is not None:
-        print(f"    manuscript: {ms}")
-
-        valid_args["ms"] = ms
-
-    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-
-    return valid_args
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# copy assets !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def copy_assets():
-    """
-    """
-    # Get main directory paths
-    main_dir = os.path.dirname(os.getcwd())
-
-    # Copy assets from main directory
-    print("Copying data from main directory ...")
-
-    # Remove old directory if it exists
-    if os.path.exists("assets/data"):
-        shutil.rmtree("assets/data")
-
-    shutil.copytree(os.path.join(main_dir, "assets/data"), "assets/data")
-
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# copy figs !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def copy_figs(manuscript):
-    """
-    """
-    # Get draft directory paths
-    cwd = os.getcwd()
-    fig_dir_draft = os.path.join(cwd, "assets/figs")
-
-    # Get main directory paths
-    main_dir = os.path.dirname(cwd)
-    fig_dir_main = os.path.join(main_dir, "figs")
-
-    # Create draft fig directory
-    os.makedirs(fig_dir_draft, exist_ok=True)
-
-    # Copy figures from main fig directory
-    print("Copying figures:")
-
-    # Read manuscript markdown file and search for .png
-    with open(f"{manuscript}.md", "r") as md_file:
-        for line in md_file:
-            png_matches = re.findall(r"\(([^)]+\.png)\)", line)
-
-            # Get filepaths of figures to copy from main directory
-            for pngfile in png_matches:
-                basename = os.path.basename(pngfile)
-                fullpath = None
-
-                for root, _, files in os.walk(fig_dir_main):
-                    if basename in files:
-                        fullpath = os.path.join(root, basename)
-                        break
-
-                if fullpath is None:
-                    print(f"Warning: {basename} does not exist!")
-
-                else:
-                    shutil.copy(fullpath, os.path.join(fig_dir_draft, basename))
-                    print(f"    {basename}")
-
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# replace placeholders !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def replace_placeholders(filepath, out_filepath):
-    # Create a dictionary to cache file contents
-    filenames = {}
-
-    # Read the input markdown file
-    with open(filepath, "r") as input_file:
-        input_text = input_file.read()
-
-    # Regular expression pattern to find {{ ... }} placeholders
-    pattern = r'{{ ([^}]+) }}'
-
-    # Function to replace placeholders with file contents
-    def replace(match):
-        file = match.group(1)
-        replacement = ""
-
-        if file in filenames:
-            replacement = filenames[file]
-
-        else:
-            file_path = os.path.join("assets/pandoc", file)
-
-            if os.path.exists(file_path):
-                with open(file_path, "r") as file_contents:
-                    replacement = file_contents.read()
-
-                filenames[file] = replacement
-
-            else:
-                print(f"Warning: {file} does not exist!")
-
-        return replacement
-
-    # Perform replacements using regular expressions
-    output_text = re.sub(pattern, replace, input_text)
-
-    # Write the result to the output file
-    with open(out_filepath, "w") as output_file:
-        output_file.write(output_text)
-
-    return None
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# write markdown tables !!
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def write_markdown_tables():
-    """
-    """
-    # Data assets dir
     data_dir = "assets/data"
-
-    # Pandoc dir
-    pandoc_dir = "assets/pandoc"
-
-    # CSV paths
     df_path = f"{data_dir}/benchmark-samples-pca.csv"
     df_synth_path = f"{data_dir}/synthetic-samples-benchmarks.csv"
 
@@ -217,7 +57,7 @@ def write_markdown_tables():
                    "this study. {#tbl:benchmark-samples}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/benchmark-samples.md", "w") as file:
+        with open("draft/benchmark-samples.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
@@ -255,7 +95,7 @@ def write_markdown_tables():
                    "deviation, IQR = interquartile range. {#tbl:earthchem-counts}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/earthchem-counts.md", "w") as file:
+        with open("draft/earthchem-counts.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
@@ -285,7 +125,7 @@ def write_markdown_tables():
                    "[scikit-learn.org](htpps://scikit-learn.org)). {#tbl:rocmlm-config}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/rocmlm-config.md", "w") as file:
+        with open("draft/rocmlm-config.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
@@ -343,7 +183,6 @@ def write_markdown_tables():
                 std_col = col.replace("_mean", "_std")
                 if std_col in df.columns:
                     df[std_col] = df[std_col].apply(lambda x: f"{2 * x:.2g}")
-#                    df[col] = df[col].astype(str) + " ± " + (df[std_col]).astype(str)
 
         # Drop the std_ columns
         df.drop([col for col in df.columns if "_std" in col], axis=1, inplace=True)
@@ -372,7 +211,7 @@ def write_markdown_tables():
                    "validation dataset. {#tbl:rocmlm-performance}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/rocmlm-performance.md", "w") as file:
+        with open("draft/rocmlm-performance.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
@@ -397,7 +236,7 @@ def write_markdown_tables():
                    "{#tbl:gfem-efficiency}")
 
         # Write markdown table
-        with open(f"{pandoc_dir}/gfem-efficiency.md", "w") as file:
+        with open("draft/gfem-efficiency.md", "w") as file:
             file.write(f"{markdown_table}\n")
             file.write(f"\n{caption}")
 
@@ -407,3 +246,6 @@ def write_markdown_tables():
     print("write-markdown-tables.py done!")
 
     return None
+
+if __name__ == "__main__":
+    main()

@@ -20,7 +20,7 @@ for name, source in sources.items():
 
 # Visualize GFEM models
 visualize_gfem_pt_range(gfems["benchmark"][0])
-visualize_prem_comps(gfems["middle"][::32] + gfems["random"][::32])
+visualize_prem_comps(gfems["middle"] + gfems["random"])
 
 for name, models in gfems.items():
     visualize_gfem(models)

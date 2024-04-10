@@ -1,4 +1,4 @@
-![](draft/assets/images/repo-banner.png)
+![](draft/repo-banner.png)
 
 ***Figure:*** *Density models of a Primitive Upper Mantle composition (PUM, from Sun & McDonough, 1989) estimated by Perple_X ([Connolly, 2009](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2009GC002540)) and a simple three-layer Neural Network.*
 

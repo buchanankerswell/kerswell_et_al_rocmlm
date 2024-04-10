@@ -20,7 +20,8 @@ PYTHON = \
 				 python/rocmlm.py \
 				 python/scripting.py \
 				 python/train-rocmlms.py \
-				 python/visualize.py
+				 python/visualize.py \
+				 python/write-md-tables.py
 # Cleanup directories
 DATAPURGE = \
 						log \
@@ -37,8 +38,8 @@ FIGSCLEAN = figs
 
 all: $(LOGFILE) $(PYTHON) gfems rocmlms
 
-test: $(LOGFILE) $(PYTHON) mixing_arrays
-	@$(CONDAPYTHON) -u python/test.py $(LOG)
+write_md_tables: $(LOGFILE) $(PYTHON)
+	@$(CONDAPYTHON) -u python/write-md-tables.py $(LOG)
 	@echo "=============================================" $(LOG)
 
 rocmlms: $(LOGFILE) $(PYTHON) mixing_arrays
@@ -102,4 +103,4 @@ purge:
 clean: purge
 	@rm -rf $(DATACLEAN) $(FIGSCLEAN)
 
-.PHONY: clean purge find_conda_env create_conda_env remove_conda_env get_assets mixing_arrays gfems rocmlms initialize all
+.PHONY: clean purge find_conda_env create_conda_env remove_conda_env get_assets mixing_arrays gfems rocmlms initialize write_md_tables all
