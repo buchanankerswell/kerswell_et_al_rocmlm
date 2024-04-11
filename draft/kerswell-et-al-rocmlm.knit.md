@@ -66,11 +66,7 @@ header-includes:
   - \usepackage{hyperref}
 ---
 
-```{r echo=FALSE}
-knitr::opts_chunk$set(echo=F, message=F, warning=F, fig.pos='htbp', out.extra='', fig.align='center', out.width='100%')
 
-suppressMessages({library(knitr)})
-```
 
 # Introduction
 
@@ -104,9 +100,14 @@ Figure \@ref(fig:training-dataset-design) shows that our training dataset PT ran
 
 (ref:training-dataset-design-cap) PT diagram showing the range of conditions considered for generating RocMLM training data (hatched region) compared to a range of possible upper mantle conditions (inner white region). The dotted black lines are geotherms with arbitrary mantle potential temperatures of 673 K and 1773 K and a constant adiabatic gradient of 0.5 K/km, representing hypothetical lower and upper bounds for mantle PT conditions (including hypothetical cold lithospheric slabs). The dashed black line is an average geotherm for a mid-ocean ridge (1573 K adiabat). Phase boundaries for the 410 km and 670 km discontinuities (colored lines) are from a compilation by @li2019.
 
-```{r training-dataset-design, fig.cap='(ref:training-dataset-design-cap)'}
-include_graphics('training-dataset-design.png')
-```
+\begin{figure}[htbp]
+
+{\centering \includegraphics[width=1\linewidth,]{training-dataset-design} 
+
+}
+
+\caption{(ref:training-dataset-design-cap)}(\#fig:training-dataset-design)
+\end{figure}
 
 ### Bulk Mantle Compositions {#sec:bulk-rock-compositions}
 
@@ -120,8 +121,16 @@ In this PC space, we drew a mixing line connecting the lherzolite and harzburgit
 
 Table: (\#tab:earthchem-counts) Summary of the filtered and standardized peridotite dataset from Earthchem.org. Columns with an asterisk are in wt.%. Std = standard deviation, IQR = interquartile range.
 
-```{r earthchem-counts, child='earthchem-counts.md'}
-```
+
+| Oxide       |   Measured |   Missing |   Min$^{*}$ |   Max$^{*}$ |   Mean$^{*}$ |   Median$^{*}$ |   Std$^{*}$ |   IQR$^{*}$ |
+|:------------|-----------:|----------:|------------:|------------:|-------------:|---------------:|------------:|------------:|
+| SiO$_2$     |       3111 |         0 |      36.7   |      52     |       44.1   |         44.1   |       1.16  |       1.24  |
+| TiO$_2$     |       2835 |       276 |       0     |       0.268 |        0.051 |          0.03  |       0.05  |       0.068 |
+| Al$_2$O$_3$ |       3111 |         0 |       0.023 |       4.95  |        1.65  |          1.31  |       1.14  |       1.82  |
+| FeOT        |       3111 |         0 |       5.98  |      15.3   |        8.05  |          8.01  |       0.675 |       0.569 |
+| MgO         |       3111 |         0 |      31.8   |      50.8   |       43     |         43.6   |       2.96  |       4.38  |
+| CaO         |       3111 |         0 |       0.01  |       5.2   |        1.46  |          1.17  |       1.04  |       1.66  |
+| Na$_2$O     |       2008 |      1103 |       0     |       0.525 |        0.127 |          0.098 |       0.11  |       0.171 |
 
 ### Reducing Bulk Mantle Compositions to a Single Fertility Index Value {#sec:melt-fractions}
 
@@ -145,16 +154,27 @@ Training RocMLMs on $\xi$ instead of seven oxide components is beneficial for tw
 
 (ref:earthchem-mixing-array-cap) PC1-PC2 diagrams showing the standardized geochemical dataset of natural peridotite samples (a) and a mixing array between hypothetical end-member mantle compositions Primitive Synthetic Upper Mantle (PSUM) and Depleted Synthetic Upper Mantle (DSUM, b). Black arrows in (a) indicate PCA loading vectors. Colored data points in (b) are the synthetic mantle compositions used to train RocMLMs, which were sampled independently from the natural peridotite samples (gray data points). The inset (c) shows how the Fertility Index ($\xi$) changes nonlinearly with PC1. DMM, PUM, and PYR are from Table \@ref(tab:benchmark-samples).
 
-```{r earthchem-mixing-array, fig.cap='(ref:earthchem-mixing-array-cap)'}
-include_graphics('earthchem-mixing-array.png')
-```
+\begin{figure}[htbp]
+
+{\centering \includegraphics[width=1\linewidth,]{earthchem-mixing-array} 
+
+}
+
+\caption{(ref:earthchem-mixing-array-cap)}(\#fig:earthchem-mixing-array)
+\end{figure}
 
 The melting model in Equation \@ref(eq:shaw-melting) is oversimplified since it assumes: 1) melt is instantaneously removed from the source region, 2) $D_0$ is constant, and 3) minerals melt in the same proportions that they exist in the source rock. It nevertheless provides an efficient parameterization of the variation in mantle composition as a function of melt extraction and addition. Equation \@ref(eq:shaw-melting) predicts that a Depleted MORB Mantle (DMM) composition is produced through a time-integrated 2.2% melt extraction from a Primitive Upper Mantle (PUM) source (Table \@ref(tab:benchmark-samples)). This result is consistent with the degree of depletion inferred from trace element patterns and mass balance constraints [2-3% melt removal from PUM, @workman2005]. We therefore consider $\xi$ an adequate first-order proxy for describing the variations in bulk mantle composition used in our RocMLM training dataset. However, given that TiO$_2$ concentrations are strongly affected by reactive melt transport [e.g., @le2007], $\xi$ may only be estimated for the average compositional trend as expressed in PC1-PC2 space, rather than on individual peridotite samples.
 
 Table: (\#tab:benchmark-samples) Hypothetical upper mantle end-member compositions. Columns with an asterisk are in wt.%. Depleted MORB Mantle (DMM) is from @workman2005, Primitive Upper Mantle (PUM) is from @sun1989, and Pyrolite (PYR) is from @green1979. Primitive Synthetic Upper Mantle (PSUM) and Depleted Synthetic Upper Mantle (DSUM), are end-member compositions derived in this study.
 
-```{r benchmark-samples, child='benchmark-samples.md'}
-```
+
+| Sample   |   SiO$_2^{*}$ |   TiO$_2^{*}$ |   Al$_2$O$_3^{*}$ |   FeOT$^{*}$ |   MgO$^{*}$ |   CaO$^{*}$ |   Na$_2$O$^{*}$ |   $\xi$ |
+|:---------|--------------:|--------------:|------------------:|-------------:|------------:|------------:|----------------:|--------:|
+| DSUM     |          44.1 |        0.0012 |             0.261 |         7.96 |        47.4 |        0.22 |           0.042 |   0.764 |
+| DMM      |          44.7 |        0.13   |             3.98  |         8.18 |        38.7 |        3.17 |           0.13  |   0.974 |
+| PYR      |          45   |        0.16   |             4.4   |         7.6  |        38.8 |        3.4  |           0.34  |   0.984 |
+| PUM      |          44.9 |        0.2    |             4.44  |         8.03 |        37.7 |        3.54 |           0.36  |   0.996 |
+| PSUM     |          46.2 |        0.216  |             4.88  |         8.88 |        35.2 |        4.34 |           0.33  |   1     |
 
 ## Generating RocMLM Training Data {#sec:generate-training-data}
 
@@ -172,8 +192,21 @@ The preprocessed training data were then fit with three different nonlinear regr
 
 Table: (\#tab:rocmlm-config) RocMLM configuration. Hyperparameter values in parentheses are tested sequentially by a cross-validation grid search algorithm and the best set of hyperparameters is chosen by the lowest RMSE. Hyperparameters that are not shown use default values (see regression model documentation on scikit-learn.org).
 
-```{r rocmlm-config, child='rocmlm-config.md'}
-```
+
+| Model   | Hyperparameter     | Value                                      | Tuned   |
+|:--------|:-------------------|:-------------------------------------------|:--------|
+| DT      | splitter           | (best, random)                             | tuned   |
+|         | max features       | (1, 2, 3)                                  | tuned   |
+|         | min samples leaf   | (1, 2, 3)                                  | tuned   |
+|         | min samples split  | (2, 4, 6)                                  | tuned   |
+| KN      | n neighbors        | (2, 4, 8)                                  | tuned   |
+|         | weights            | (uniform, distance)                        | tuned   |
+| NN1     | hidden layer sizes | (8, 16, 32)                                | tuned   |
+| NN2     | hidden layer sizes | ([16, 16], [32, 16], [32, 32])             | tuned   |
+| NN3     | hidden layer sizes | ([32, 16, 16], [32, 32, 16], [32, 32, 32]) | tuned   |
+| NN(all) | learning rate      | (0.001, 0.005, 0.001)                      | tuned   |
+|         | batch size         | 20%                                        | fixed   |
+|         | max epochs         | 100                                        | fixed   |
 
 ## Evaluating RocMLM Accuracy and Performance {#sec:evaluate-rocmlms}
 
@@ -201,21 +234,36 @@ Within the MTZ, DT and NN3 profiles predict intermediate discontinuities, while 
 
 (ref:image12-PUM-DT-cap) PT diagrams showing density (left column, g/cm$^3$), Vp (middle column, km/s), and Vs (right column, km/s) predictions from a Perple_X model with a PUM bulk composition (a–c), a Decision Tree RocMLM (d–f), and absolute differences between Perple_X and DT (g–i) measured on the validation dataset. Depth profiles (j–l) compare Perple_X and DT predictions extracted along a 0.5 K/km adiabat with different mantle potential temperatures (white lines) with reference models PREM [solid black line, @dziewonski1981] and STW105 [dotted black line, @kustowski2008]. The RMSE in (j–l) indicates the measured differences between DT-1573 and PREM. Colored ribbons indicate 5% uncertainty in RocMLM predictions.
 
-```{r image12-PUM-DT, fig.cap='(ref:image12-PUM-DT-cap)'}
-include_graphics('image12-PUM-DT.png')
-```
+\begin{figure}[htbp]
+
+{\centering \includegraphics[width=1\linewidth,]{image12-PUM-DT} 
+
+}
+
+\caption{(ref:image12-PUM-DT-cap)}(\#fig:image12-PUM-DT)
+\end{figure}
 
 (ref:image12-PUM-NN1-cap) PT diagrams showing density (left column, g/cm$^3$), Vp (middle column, km/s), and Vs (right column, km/s) predictions from a Perple_X model with a PUM bulk composition (a–c), a single-layer Neural Network RocMLM (d–f), and absolute differences between Perple_X and NN1 (g–i) measured on the validation dataset. Other legend details are the same as in Figure 3.
 
-```{r image12-PUM-NN1, fig.cap='(ref:image12-PUM-NN1-cap)'}
-include_graphics('image12-PUM-NN1.png')
-```
+\begin{figure}[htbp]
+
+{\centering \includegraphics[width=1\linewidth,]{image12-PUM-NN1} 
+
+}
+
+\caption{(ref:image12-PUM-NN1-cap)}(\#fig:image12-PUM-NN1)
+\end{figure}
 
 (ref:image12-PUM-NN3-cap) PT diagrams showing density (left column, g/cm$^3$), Vp (middle column, km/s), and Vs (right column, km/s) predictions from a Perple_X model with a PUM bulk composition (a–c), a three-layer Neural Network RocMLM (d–f), and absolute differences between Perple_X and NN3 (g–i) measured on the validation dataset. Other legend details are the same as in Figure 3.
 
-```{r image12-PUM-NN3, fig.cap='(ref:image12-PUM-NN3-cap)'}
-include_graphics('image12-PUM-NN3.png')
-```
+\begin{figure}[htbp]
+
+{\centering \includegraphics[width=1\linewidth,]{image12-PUM-NN3} 
+
+}
+
+\caption{(ref:image12-PUM-NN3-cap)}(\#fig:image12-PUM-NN3)
+\end{figure}
 
 ## RocMLM Performance {#sec:rocmlm-performance-and-efficiency}
 
@@ -227,9 +275,14 @@ GFEM performance is reported using the range of average execution speeds (4–22
 
 (ref:rocmlm-performance-cap) Computational efficiency of various approaches in terms of execution speed (a) and model efficiency (b). “Capacity” (x-axis) is a proxy for the petrological “knowledge”, or predictive capabilities, of Lookup Tables and RocMLMs. White regions indicate GFEM efficiencies for different Perple_X configurations (thermodynamic dataset, chemical system, and number of solution phases are indicated in square brackets). stx21: @stixrude2022, hp633: @holland2011 updated in @holland2018. Perple_X was run without multilevel grid refinement. RMSE is measured between density predictions and the validation dataset.
 
-```{r rocmlm-performance, fig.cap='(ref:rocmlm-performance-cap)'}
-include_graphics('rocmlm-performance.png')
-```
+\begin{figure}[htbp]
+
+{\centering \includegraphics[width=1\linewidth,]{rocmlm-performance} 
+
+}
+
+\caption{(ref:rocmlm-performance-cap)}(\#fig:rocmlm-performance)
+\end{figure}
 
 For Lookup Tables, execution speed and efficiency both scale roughly linearly with capacity on a logarithmic scale—indicating an inverse power-law relationship between Lookup Table capacity and performance (Figure \@ref(fig:rocmlm-performance)). RocMLM performance, in contrast, scales differently depending on the performance metric and regression algorithm. For example, RocMLM execution speed remains roughly constant, or increasing slightly with capacity, and shows relatively small variance among all regression algorithms (0.14 ± 0.26 ms, 2$\sigma$, Figure \@ref(fig:rocmlm-performance)a). Yet RocMLM efficiency is markedly different for DT and KN algorithms compared to NN algorithms (Figure \@ref(fig:rocmlm-performance)b). Despite the fast execution times of KN and DT algorithms (Figure \@ref(fig:rocmlm-performance)a), their efficiency scales roughly linearly with capacity on a logarithmic scale—indicating an inverse power-law relationship between efficiency and capacity similar to Lookup Tables (Figure \@ref(fig:rocmlm-performance)b). NN algorithms, on the other hand, show roughly constant efficiencies that indicate a high degree of information compression without sacrificing execution speed (Figure \@ref(fig:rocmlm-performance)b). We note that training times for NN algorithms are many orders of magnitude larger than DT and KN algorithms (Supplementary Information). However, training times are neither limiting nor critical for geodynamic applications as training is independent from, and precedes numerical simulations.
 
@@ -255,9 +308,14 @@ In contrast to density, Vp and Vs are more sensitive to $\xi$ overall, especiall
 
 (ref:prem-comps-cap) Depth profiles of RocMLM training data along a 1573 K mantle adiabat showing the sensitivities of thermodynamic estimates of density (a), Vp (b), and Vs (c) to changes in bulk mantle composition (as represented by the Fertility Index, $\xi$). Geophysical profiles PREM and STW105 (green lines) and the profiles of synthetic mantle end-member compositions PSUM and DSUM (thick colored lines) are shown for reference. Thin colored lines show profiles for the entire range of RocMLM training data.
 
-```{r prem-comps, fig.cap='(ref:prem-comps-cap)'}
-include_graphics('prem-comps.png')
-```
+\begin{figure}[htbp]
+
+{\centering \includegraphics[width=1\linewidth,]{prem-comps} 
+
+}
+
+\caption{(ref:prem-comps-cap)}(\#fig:prem-comps)
+\end{figure}
 
 # Conclusions
 

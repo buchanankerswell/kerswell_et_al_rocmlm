@@ -7,9 +7,11 @@ from visualize import (visualize_gfem_pt_range, visualize_gfem, visualize_gfem_d
 valid_args = check_arguments(parse_arguments(), "build-gfems.py")
 locals().update(valid_args)
 
-# Sample sources
-sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
-           "middle": "assets/data/synthetic-samples-mixing-middle.csv",
+## Sample sources
+#sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",
+#           "middle": "assets/data/synthetic-samples-mixing-middle.csv",
+#           "random": "assets/data/synthetic-samples-mixing-random.csv"}
+sources = {"middle": "assets/data/synthetic-samples-mixing-middle.csv",
            "random": "assets/data/synthetic-samples-mixing-random.csv"}
 
 # Build GFEM models
@@ -19,12 +21,12 @@ for name, source in sources.items():
     gfems[name] = build_gfem_models(source, sids)
 
 # Visualize GFEM models
-visualize_gfem_pt_range(gfems["benchmark"][0])
+#visualize_gfem_pt_range(gfems["benchmark"][0])
 visualize_prem_comps(gfems["middle"] + gfems["random"])
 
-for name, models in gfems.items():
-    visualize_gfem(models)
-    visualize_gfem_diff(models)
-    compose_dataset_plots(models)
+#for name, models in gfems.items():
+#    visualize_gfem(models)
+#    visualize_gfem_diff(models)
+#    compose_dataset_plots(models)
 
 print("GFEM models built and visualized!")

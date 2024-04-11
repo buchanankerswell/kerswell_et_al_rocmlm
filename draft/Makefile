@@ -4,27 +4,29 @@ DIFF = g3_submission/kerswell-et-al-rocmlm
 
 all: get_tables paper supp
 
-paper: $(MS).Rmd get_tables
-	@echo "rendering $(MS) ..."
-	@R -q -e 'rmarkdown::render("$(MS).Rmd", quiet=T, clean=F)' > /dev/null 2>&1
-	@echo "============================================="
+paper: $(MS).pdf
+	@open $<
 
-supp: $(SUPP).Rmd get_tables
-	@echo "rendering $(SUPP) ..."
-	@R -q -e 'rmarkdown::render("$(SUPP).Rmd", quiet=T, clean=F)' > /dev/null 2>&1
-	@echo "============================================="
+supp: $(SUPP).pdf
+	@open $<
 
-diff: $(MS).tex $(DIFF).tex
-	@echo "latexdiff for $(DIFF).tex vs. $(MS).tex ..."
-	@latexdiff --type=CFONT --disable-citation-markup --graphics-markup=none --allow-spaces \
-		$(DIFF).tex $(MS).tex > diff.tex
-	@echo "============================================="
+diff: diff.tex
+
+$(MS).pdf: $(MS).Rmd
+	@R -q -e 'rmarkdown::render("$(MS).Rmd", quiet=T, clean=F)'
+
+$(SUPP).pdf: $(SUPP).Rmd
+	@R -q -e 'rmarkdown::render("$(SUPP).Rmd", quiet=T, clean=F)'
+
+diff.tex: $(MS).tex $(DIFF).tex
+	@printf "\nlatexdiff for %s vs. %s ..." "$(DIFF).tex" "$(MS).tex"
+	@latexdiff --type=CFONT --disable-citation-markup --graphics-markup=none --allow-spaces $(DIFF).tex $(MS).tex > diff.tex
 
 get_tables:
 	@$(MAKE) -C .. write_md_tables
 
 purge:
-	@rm -f *.{html,acr,alg,gz,glg,gls,ilg,nls,acn,glo,ist,lof,lot,nlo,aux,dvi,log,bbl,blg,brf,fls,toc,thm,out,fdb_latexmk,tex,md,pdf,md}
+	@rm -f *.{html,acr,alg,gz,glg,gls,ilg,nls,acn,glo,ist,lof,lot,nlo,aux,dvi,log,bbl,blg,brf,fls,toc,thm,out,fdb_latexmk,pdf}
 
 clean: purge
 

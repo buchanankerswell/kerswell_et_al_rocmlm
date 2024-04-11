@@ -47,19 +47,9 @@ def main():
         # Generate markdown table
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
-        # Table caption
-        caption = (": Hypothetical upper mantle end-member compositions (in wt.%). Fertility "
-                   "Index ($\\xi$) was calculated with a modal fractional melting model "
-                   "based on TiO$_2$ content (@eq:melt-fraction). Depleted MORB Mantle "
-                   "(DMM) is from @workman2005 and Primitive Upper Mantle (PUM) is from "
-                   "@sun1989. Primitive Synthetic Upper Mantle (PSUM) and Depleted "
-                   "Synthetic Upper Mantle (DSUM), are end-member compositions derived in "
-                   "this study. {#tbl:benchmark-samples}")
-
         # Write markdown table
         with open("draft/benchmark-samples.md", "w") as file:
-            file.write(f"{markdown_table}\n")
-            file.write(f"\n{caption}")
+            file.write(f"{markdown_table}")
 
     else:
         print(f"Warning: {df_path} does not exist!")
@@ -89,15 +79,9 @@ def main():
         # Generate markdown table
         markdown_table = df.to_markdown(index=False, floatfmt=".3g")
 
-        # Table caption
-        caption = (": Summary of the filtered and standardized peridotite dataset "
-                   "from Earthchem.org. Columns with an asterisk are in wt.%. Std = standard "
-                   "deviation, IQR = interquartile range. {#tbl:earthchem-counts}")
-
         # Write markdown table
         with open("draft/earthchem-counts.md", "w") as file:
-            file.write(f"{markdown_table}\n")
-            file.write(f"\n{caption}")
+            file.write(f"{markdown_table}")
 
     else:
         print(f"Warning: {data_dir}/earthchem-counts.csv does not exist!")
@@ -117,17 +101,9 @@ def main():
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)
 
-        # Table caption
-        caption = (": RocMLM configuration. Hyperparameter values in parentheses are tested "
-                   "individually and the best is chosen by a cross-validation grid search "
-                   "algorithm. Hyperparameters that are not shown use default values (see "
-                   "regression model documentation on "
-                   "[scikit-learn.org](htpps://scikit-learn.org)). {#tbl:rocmlm-config}")
-
         # Write markdown table
         with open("draft/rocmlm-config.md", "w") as file:
-            file.write(f"{markdown_table}\n")
-            file.write(f"\n{caption}")
+            file.write(f"{markdown_table}")
 
     else:
         print(f"Warning: {data_dir}/rocmlm-config.csv does not exist!")
@@ -206,14 +182,9 @@ def main():
         # Generate markdown table
         markdown_table = df.to_markdown(index=False)
 
-        # Table caption
-        caption = (": RocMLM size, accuracy, and performance measured on a "
-                   "validation dataset. {#tbl:rocmlm-performance}")
-
         # Write markdown table
         with open("draft/rocmlm-performance.md", "w") as file:
-            file.write(f"{markdown_table}\n")
-            file.write(f"\n{caption}")
+            file.write(f"{markdown_table}")
 
     else:
         print(f"Warning: {data_dir}/rocmlm-performance.csv does not exist!")
@@ -231,14 +202,9 @@ def main():
         # Generate markdown table
         markdown_table = df.to_markdown(index=False, floatfmt=".1f")
 
-        # Table caption
-        caption = (": Prediction efficiency (in seconds) for various bulk rock compositions. "
-                   "{#tbl:gfem-efficiency}")
-
         # Write markdown table
         with open("draft/gfem-efficiency.md", "w") as file:
-            file.write(f"{markdown_table}\n")
-            file.write(f"\n{caption}")
+            file.write(f"{markdown_table}")
 
     else:
         print(f"Warning {data_dir}/gfem-efficiency.csv does not exist!")
