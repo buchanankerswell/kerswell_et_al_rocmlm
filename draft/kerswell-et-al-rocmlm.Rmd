@@ -17,7 +17,7 @@ affiliations:
   - number: 1
     name: "Geosciences Montpellier, University of Montpellier, CNRS, University of Antilles, Place Eugène Bataillon, 34095 Montpellier, France"
   - number: 2
-    name: "Instituto Andaluz de Ciencias de la Tierra, CSIC–UGR, Granada, Spain"
+    name: "Instituto Andaluz de Ciencias de la Tierra (IACT), CSIC, Avda. de las Palmeras, 4, 18100 Armilla (Granada), Spain"
 corresponding_author:
   - name: "Buchanan Kerswell"
     email: "buchanan.kerswell@umontpellier.fr"
