@@ -2,7 +2,7 @@ MS = kerswell-et-al-rocmlm
 SUPP = kerswell-et-al-rocmlm-supporting
 DIFF = g3_submission/kerswell-et-al-rocmlm
 
-all: get_tables paper supp
+all: paper supp
 
 paper: $(MS).pdf
 	@open $<
