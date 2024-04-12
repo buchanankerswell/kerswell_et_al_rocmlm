@@ -15,7 +15,7 @@ authors:
     affil: 2
 affiliations:
   - number: 1
-    name: "Géosciences Montpellier, Université de Montpellier & CNRS, Montpellier, France"
+    name: "Geosciences Montpellier, University of Montpellier, CNRS, University of Antilles, Place Eugène Bataillon, 34095 Montpellier, France"
   - number: 2
     name: "Instituto Andaluz de Ciencias de la Tierra, CSIC–UGR, Granada, Spain"
 corresponding_author:
