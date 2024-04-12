@@ -1,14 +1,14 @@
 ![](draft/repo-banner.png)
 
-***Figure:*** *Density models of a Primitive Upper Mantle composition (PUM, from Sun & McDonough, 1989) estimated by Perple_X ([Connolly, 2009](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2009GC002540)) and a simple three-layer Neural Network.*
+***Figure:*** *A pseudosection model for a Primitive Upper Mantle composition (PUM, from Sun & McDonough, 1989) estimated by Perple_X ([Connolly, 2009](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2009GC002540)) showing density (a), the gradient of density highlighting phase transitions (b), and density depth profiles along a range of hypothetical mantle geotherms (c). 128$^3$ phase equilibria calculations were used to train RocMLMs. *
 
-# Kerswell et al. (2023; in prep.)
+# Kerswell et al. (2024)
 
-This work is in progress---stay tuned for updates.
+This work was recently submitted to G3---stay tuned for updates.
 
 ## Repository
 
-This repository provides all materials for the manuscript *Using Artificial Intellegence to Model Phase Changes in the Upper Mantle* (Kerswell et al., 2023; in prep.).
+This repository provides all materials for the manuscript *RocMLMs: Predicting Rock Properties through Machine Learning Models* (Kerswell et al., 2024; submitted to G3).
 
 This repository includes:
 
@@ -30,6 +30,8 @@ This study is written in [python](https://www.python.org). For most users, I rec
 Follow the instructions at [Hombrew's homepage](https://brew.sh) to download and install Homebrew on your machine. Once Homebrew is installed, use any of the following to install python and conda:
 
 ```
+# Run one of the following
+
 brew install anaconda
 brew install miniconda
 brew install miniforge
@@ -48,17 +50,28 @@ cd kerswell_et_al_rocmlm
 make
 ```
 
-This will build the required python environment and proceed to run the study. The study takes about ??? to run on my MacBook Pro (M2 16GB, 2022).
+This will build the required python environment and proceed to run the study. Building the RocMLM training dataset from scratch takes > 10 hours to run on my MacBook Pro (M2 16GB, 2022) with an additional number of hours for training.
+
+To save time building the RocMLMs from scratch, you can download the pre-built training dataset from [here](https://files.osf.io/v1/resources/k23tb/providers/osfstorage/6618fe01c05394445db4d272/?zip=&_gl=1*1qr44kl*_ga*NjQ1MzM5ODAxLjE3MDA2NTIyMTc.*_ga_YE9BMGGWX8*MTcxMjkxMzg0Ny43MC4xLjE3MTI5MTQ4MzUuMjEuMC4w), the pre-trained RocMLMs from [here](https://files.osf.io/v1/resources/k23tb/providers/osfstorage/6618fdf6c05394445eb4d276/?zip=&_gl=1*1pbsffn*_ga*NjQ1MzM5ODAxLjE3MDA2NTIyMTc.*_ga_YE9BMGGWX8*MTcxMjkxMzg0Ny43MC4xLjE3MTI5MTQ4NTIuNC4wLjA.), and the corresponding performance data from [here](https://files.osf.io/v1/resources/k23tb/providers/osfstorage/65f89cff18cee303351a297b/?zip=&_gl=1*b1khjq*_ga*NjQ1MzM5ODAxLjE3MDA2NTIyMTc.*_ga_YE9BMGGWX8*MTcxMjkxMzg0Ny43MC4xLjE3MTI5MTQ4MTUuNDEuMC4w). Move these directories into the kerswell_et_al_rocmlm directory and then run `make`.
 
 ## Coauthors
 
+- [Nestor Cerpa](https://scholar.google.com/citations?user=D0kBGqcAAAAJ&hl=en&oi=ao)(CNRS & Géosciences Montpellier)
+- [Andréa Tommasi](https://scholar.google.com/citations?user=4ibXyDwAAAAJ&hl=en)(CNRS & Géosciences Montpellier)
+- [Marguerite Godard](https://scholar.google.com/citations?user=rhF-80oAAAAJ&hl=en&oi=ao)(CNRS & Géosciences Montpellier)
+- [José Alberto Padrón-Navarta](https://scholar.google.com/citations?user=5x5JgpIAAAAJ&hl=en&oi=ao)(Instituto Andaluz de Ciencias de la Tierra)
+
 ## Acknowledgement
+
+This work was supported by the Tremplin-ERC grant LEARNING awarded to Nestor Cerpa by the I-SITE excellence program at the Université de Montpellier. We thank Maurine Montagnat, Fernando Carazo, Nicolas Berlie, and many researchers and students at Géosciences Montpellier for their thoughtful feedback during the development of this work. We gratefully acknowledge additional support from the European Research Council (ERC) under the European Union Horizon 2020 Research and Innovation program grant agreement No. 882450 (ERC RhEoVOLUTION) awarded to Andréa Tommasi.
 
 ## Open Research
 
-All data, code, and relevant information for reproducing this work can be found at [https://github.com/buchanankerswell/kerswell_et_al_rocmlm](https://github.com/buchanankerswell/kerswell_et_al_rocmlm), and at [https://doi.org/10.17605/OSF.IO/K23TB](https://doi.org/10.17605/OSF.IO/K23TB), the official Open Science Framework data repository ([Kerswell et al., 2023](https://doi.org/10.17605/OSF.IO/K23TB)). All code is MIT Licensed and free for use and distribution (see license details).
+All data, code, and relevant information for reproducing this work can be found at https://github.com/buchanankerswell/kerswell_et_al_rocmlm, and at https://doi.org/10.17605/OSF.IO/K23TB, the official Open Science Framework data repository [@kerswell2024]. All code is MIT Licensed and free for use and distribution (see license details). Reference models PREM and STW105 are freely available from the Incorporated Research Institutions for Seismology Earth Model Collaboration [IRIS EMC\, doi: 10.17611/DP/EMC.1, @trabant2012]. All computations were made using CPUs of a Macbook Pro (2022; M2 chip) with macOS 13.4 and using Python 3.11.4.
 
 ## Abstract
+
+Mineral phase transformations significantly alter the bulk density and elastic properties of mantle rocks and consequently have profound effects on mantle dynamics and seismic wave propagation. These changes in the physical properties of mantle rocks result from evolution in the equilibrium mineralogical composition, which can be predicted by the minimization of the  Gibbs Free Energy with respect to pressure (P), temperature (T), and chemical composition (X). Thus, numerical models that simulate mantle convection and/or probe the elastic structure of the Earth’s mantle must account for varying mineralogical compositions to be self-consistent. Yet coupling Gibbs Free Energy minimization (GFEM) approaches with numerical geodynamic models is currently intractable for high-resolution simulations because execution speeds of widely-used GFEM programs (10$^0$–10$^2$ ms) are impractical in many cases. As an alternative, this study introduces machine learning models (RocMLMs) that have been trained to predict thermodynamically self-consistent rock properties at arbitrary PTX conditions between 1–28 GPa, 773–2273 K, and mantle compositions ranging from fertile (lherzolitic) to refractory (harzburgitic) end-members defined with a large dataset of published mantle compositions. RocMLMs are 10$^1$–10$^3$ times faster than GFEM calculations or GFEM-based look-up table approaches with equivalent accuracy. Depth profiles of RocMLMs predictions are nearly indistinguishable from reference models PREM and STW105, demonstrating good agreement between thermodynamic-based predictions of density, Vp, and Vs and geophysical observations. RocMLMs are therefore capable, for the first time, of emulating dynamic evolution of density, Vp, and Vs in high-resolution numerical geodynamic models.
 
 # License
 
