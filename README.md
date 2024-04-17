@@ -37,7 +37,29 @@ brew install miniconda
 brew install miniforge
 ```
 
-## Running the study
+## Running the study with pre-built training data and pre-trained RocMLMs
+
+To save time building the RocMLMs from scratch, please download the pre-built training dataset (results_18_march_2024/gfems), the pre-trained RocMLMs (results_18_march_2024/rocmlms), and the corresponding performance data (results_18_march_2024/assets) from [here](https://osf.io/k23tb/files/osfstorage#), and then follow these steps:
+
+```
+# Clone this repository
+git clone https://github.com/buchanankerswell/kerswell_et_al_rocmlm.git
+
+# Change into the directory
+cd kerswell_et_al_rocmlm
+
+# Copy training data and RocMLMs into directory
+cp -r ~/path/to/downloaded_and_unzipped/results_18_march_2024/assets .
+cp -r ~/path/to/downloaded_and_unzipped/results_18_march_2024/gfems .
+cp -r ~/path/to/downloaded_and_unzipped/results_18_march_2024/rocmlms .
+
+# Use Makefile to compile
+make
+```
+
+## Running the study from scratch
+
+To build the training dataset and train RocMLMs from scratch, please follow these steps:
 
 ```
 # Clone this repository
@@ -51,8 +73,6 @@ make
 ```
 
 This will build the required python environment and proceed to run the study. Building the RocMLM training dataset from scratch takes > 10 hours to run on my MacBook Pro (M2 16GB, 2022) with an additional number of hours for training.
-
-To save time building the RocMLMs from scratch, you can download the pre-built training dataset from [here](https://files.osf.io/v1/resources/k23tb/providers/osfstorage/6618fe01c05394445db4d272/?zip=&_gl=1*1qr44kl*_ga*NjQ1MzM5ODAxLjE3MDA2NTIyMTc.*_ga_YE9BMGGWX8*MTcxMjkxMzg0Ny43MC4xLjE3MTI5MTQ4MzUuMjEuMC4w), the pre-trained RocMLMs from [here](https://files.osf.io/v1/resources/k23tb/providers/osfstorage/6618fdf6c05394445eb4d276/?zip=&_gl=1*1pbsffn*_ga*NjQ1MzM5ODAxLjE3MDA2NTIyMTc.*_ga_YE9BMGGWX8*MTcxMjkxMzg0Ny43MC4xLjE3MTI5MTQ4NTIuNC4wLjA.), and the corresponding performance data from [here](https://files.osf.io/v1/resources/k23tb/providers/osfstorage/65f89cff18cee303351a297b/?zip=&_gl=1*b1khjq*_ga*NjQ1MzM5ODAxLjE3MDA2NTIyMTc.*_ga_YE9BMGGWX8*MTcxMjkxMzg0Ny43MC4xLjE3MTI5MTQ4MTUuNDEuMC4w). Move these directories into the kerswell_et_al_rocmlm directory and then run `make`.
 
 ## Coauthors
 
