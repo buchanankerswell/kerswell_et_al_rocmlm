@@ -4,7 +4,7 @@
 
 # Kerswell et al. (2024)
 
-This work was recently submitted to G3&mdash;stay tuned for updates.
+This work was recently submitted to G3&mdash;stay tuned for updates. In the meantime, you can find the preprint [here](https://www.researchgate.net/publication/379848116_RocMLMs_Predicting_Rock_Properties_through_Machine_Learning_Models).
 
 ## Repository
 
