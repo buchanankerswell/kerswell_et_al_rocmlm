@@ -1,5 +1,5 @@
 ---
-journal: "Geochemistry, Geophysics, Geosystems"
+journal: "JGR: Machine Learning and Computation"
 classoption: "draft"
 title: "Supporting Information for RocMLMs: Predicting Rock Properties through Machine Learning Models"
 authors:
@@ -15,9 +15,9 @@ authors:
     affil: 2
 affiliations:
   - number: 1
-    name: "Géosciences Montpellier, Université de Montpellier & CNRS, Montpellier, France"
+    name: "Geosciences Montpellier, University of Montpellier, CNRS, University of Antilles, Place Eugène Bataillon, 34095 Montpellier, France"
   - number: 2
-    name: "Instituto Andaluz de Ciencias de la Tierra, CSIC–UGR, Granada, Spain"
+    name: "Instituto Andaluz de Ciencias de la Tierra (IACT), CSIC, Avda. de las Palmeras, 4, 18100 Armilla (Granada), Spain"
 corresponding_author:
   - name: "Buchanan Kerswell"
     email: "buchanan.kerswell@umontpellier.fr"
@@ -259,7 +259,7 @@ Table: (\#tab:rocmlm-performance) RocMLM PTX resolution, accuracy (RMSE vs. Perp
 | NN3     |            128 |            64 |      1.6e+06 |           0.12 |                0.011  |            0.025 |            0.023 |           0.069 |
 | NN3     |            128 |           128 |      2.9e+06 |           0.16 |                0.012  |            0.025 |            0.024 |           0.069 |
 
-# References
+\clearpage
 
 <div id="refs"></div>
 

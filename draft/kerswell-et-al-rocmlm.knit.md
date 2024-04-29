@@ -1,5 +1,5 @@
 ---
-journal: "Geochemistry, Geophysics, Geosystems"
+journal: "JGR: Machine Learning and Computation"
 classoption: "draft,linenumbers"
 title: "RocMLMs: Predicting Rock Properties through Machine Learning Models"
 authors:
@@ -337,7 +337,7 @@ This work was supported by the Tremplin-ERC grant LEARNING awarded to Nestor Cer
 
 All data, code, and relevant information for reproducing this work can be found at https://github.com/buchanankerswell/kerswell_et_al_rocmlm, and at https://doi.org/10.17605/OSF.IO/K23TB, the official Open Science Framework data repository [@kerswell2024]. All code is MIT Licensed and free for use and distribution (see license details). Reference models PREM and STW105 are freely available from the Incorporated Research Institutions for Seismology Earth Model Collaboration [IRIS EMC\, doi: 10.17611/DP/EMC.1, @trabant2012]. All computations were made using CPUs of a Macbook Pro (2022; M2 chip) with macOS 13.4 and using Python 3.11.4.
 
-# References
+\clearpage
 
 <div id="refs"></div>
 
