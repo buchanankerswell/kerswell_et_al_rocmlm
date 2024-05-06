@@ -567,9 +567,7 @@ class GFEMModel:
 
         elif self.program == "perplex":
             # Perplex dirs and filepaths
-            cwd = os.getcwd()
-            self.perplex_dir = f"{cwd}/Perple_X"
-            self.model_out_dir = (f"{cwd}/gfems/{self.program[:4]}_{self.perplex_db}_"
+            self.model_out_dir = (f"gfems/{self.program[:4]}_{self.perplex_db}_"
                                   f"{self.sample_id}_{self.dataset[0]}{self.res}")
             self.perplex_targets = f"{self.model_out_dir}/target-array.tab"
             self.perplex_assemblages = f"{self.model_out_dir}/assemblages.txt"
@@ -1290,7 +1288,6 @@ class GFEMModel:
         dataset = self.dataset
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
-        perplex_dir = self.perplex_dir
         res = self.res
 
         # Transform units to bar
@@ -1338,7 +1335,7 @@ class GFEMModel:
         # Modify the copied configuration files within the perplex directory
         self._replace_in_file(f"{model_out_dir}/{build}",
                               {"{SAMPLEID}": f"{model_prefix}",
-                               "{OUTDIR}": f"{model_out_dir}",
+                               "{OUTDIR}/": "",
                                "{TMIN}": str(T_min), "{TMAX}": str(T_max),
                                "{PMIN}": str(P_min), "{PMAX}": str(P_max),
                                "{SAMPLECOMP}": " ".join(map(str, norm_comp))})
@@ -1370,7 +1367,6 @@ class GFEMModel:
         log_file = self.log_file
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
-        perplex_dir = self.perplex_dir
         timeout = self.timeout
         verbose = self.verbose
 
@@ -1409,7 +1405,8 @@ class GFEMModel:
                 config_files.append(f"{model_out_dir}/pssect-draw")
 
             # Get program path
-            program_path = f"{perplex_dir}/{program}"
+            program_path = f"Perple_X/{program}"
+            relative_program_path = f"../../{program_path}"
 
             for i, config in enumerate(config_files):
                 try:
@@ -1418,7 +1415,8 @@ class GFEMModel:
 
                     # Open the subprocess and redirect input from the input file
                     with open(config, "rb") as input_stream:
-                        process = subprocess.Popen([program_path], stdin=input_stream,
+                        process = subprocess.Popen([relative_program_path],
+                                                   stdin=input_stream,
                                                    stdout=subprocess.PIPE,
                                                    stderr=subprocess.PIPE,
                                                    shell=True, cwd=model_out_dir)
