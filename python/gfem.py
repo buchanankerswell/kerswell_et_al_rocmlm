@@ -7,6 +7,7 @@
 import os
 import re
 import time
+import random
 import shutil
 import itertools
 import subprocess
@@ -1288,6 +1289,7 @@ class GFEMModel:
         dataset = self.dataset
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
+        digits = self.digits
         res = self.res
 
         # Transform units to bar
@@ -1301,11 +1303,15 @@ class GFEMModel:
         # Shift validation dataset
         if dataset != "train":
             P_step, T_step = 1e3, 25
+            comp_adj = 0.01
 
             P_min += P_step
             P_max -= P_step
             T_min += T_step
             T_max -= T_step
+
+            random.seed(42)
+            norm_comp = [round(x * 1 + comp_adj, digits) for x in norm_comp]
 
         # Config dir
         config_dir = f"assets/config_{perplex_db}"
