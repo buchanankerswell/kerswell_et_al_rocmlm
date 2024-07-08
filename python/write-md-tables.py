@@ -48,7 +48,7 @@ def main():
         markdown_table = df_combined.to_markdown(index=False, floatfmt=".3g")
 
         # Write markdown table
-        with open("draft/benchmark-samples.md", "w") as file:
+        with open("draft_v2/benchmark-samples.md", "w") as file:
             file.write(f"{markdown_table}")
 
     else:
@@ -80,7 +80,7 @@ def main():
         markdown_table = df.to_markdown(index=False, floatfmt=".3g")
 
         # Write markdown table
-        with open("draft/earthchem-counts.md", "w") as file:
+        with open("draft_v2/earthchem-counts.md", "w") as file:
             file.write(f"{markdown_table}")
 
     else:
@@ -102,7 +102,7 @@ def main():
         markdown_table = df.to_markdown(index=False)
 
         # Write markdown table
-        with open("draft/rocmlm-config.md", "w") as file:
+        with open("draft_v2/rocmlm-config.md", "w") as file:
             file.write(f"{markdown_table}")
 
     else:
@@ -183,7 +183,7 @@ def main():
         markdown_table = df.to_markdown(index=False)
 
         # Write markdown table
-        with open("draft/rocmlm-performance.md", "w") as file:
+        with open("draft_v2/rocmlm-performance.md", "w") as file:
             file.write(f"{markdown_table}")
 
     else:
@@ -203,7 +203,7 @@ def main():
         markdown_table = df.to_markdown(index=False, floatfmt=".1f")
 
         # Write markdown table
-        with open("draft/gfem-efficiency.md", "w") as file:
+        with open("draft_v2/gfem-efficiency.md", "w") as file:
             file.write(f"{markdown_table}")
 
     else:

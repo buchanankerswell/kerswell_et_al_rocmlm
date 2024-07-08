@@ -35,7 +35,6 @@ from sklearn.metrics import r2_score, mean_squared_error
 #######################################################
 ## .1.             Helper Functions              !!! ##
 #######################################################
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get unique value !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -231,7 +230,6 @@ def measure_gfem_model_accuracy_vs_prem(gfem_model, filename):
     # Get model attributes
     sample_id = gfem_model.sample_id
     program = gfem_model.program
-    dataset = gfem_model.dataset
     res = gfem_model.res
     results_model = gfem_model.results
     targets = ["rho", "Vp", "Vs"]
@@ -303,8 +301,8 @@ def measure_gfem_model_accuracy_vs_prem(gfem_model, filename):
             nan_mask_model = np.isnan(target_model)
             nan_mask_prem = np.isnan(target_prem)
             nan_mask_stw105 = np.isnan(target_stw105)
-            nan_mask = np.logical_or(nan_mask_model,
-                                     np.logical_or(nan_mask_prem, nan_mask_stw105))
+            nan_mask = np.logical_or(
+                nan_mask_model, np.logical_or(nan_mask_prem, nan_mask_stw105))
 
             # Remove nans
             P_model, target_model = P_model[~nan_mask], target_model[~nan_mask]
@@ -387,12 +385,12 @@ def gfem_iteration(args):
     """
 
     # Unpack arguments
-    program, perplex_db, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, \
-        oxides_exclude, targets, maskgeotherm, verbose, debug = args
+    program, perplex_db, sampleid, source, res, Pmin, Pmax, Tmin, Tmax, \
+        oxides_exclude, targets, verbose, debug = args
 
     # Initiate GFEM model
-    iteration = GFEMModel(program, perplex_db, dataset, sampleid, source, res, Pmin, Pmax,
-                          Tmin, Tmax, oxides_exclude, targets, maskgeotherm, verbose, debug)
+    iteration = GFEMModel(program, perplex_db, sampleid, source, res, Pmin, Pmax,
+                          Tmin, Tmax, oxides_exclude, targets, verbose, debug)
 
     if iteration.model_built:
         return iteration
@@ -415,10 +413,9 @@ def gfem_iteration(args):
 # build gfem models !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="stx21",
-                      datasets=["train", "valid"], batch="all", nbatches=8, res=128, Pmin=1,
-                      Pmax=28, Tmin=773, Tmax=2273, oxides_exclude=["H2O", "FE2O3"],
-                      targets=["rho", "Vp", "Vs"], maskgeotherm=False, parallel=True,
-                      nprocs=os.cpu_count(), verbose=1, debug=True):
+                      batch="all", nbatches=8, res=128, Pmin=1, Pmax=28, Tmin=773, Tmax=2273,
+                      oxides_exclude=["H2O", "FE2O3"], targets=["rho", "Vp", "Vs"],
+                      parallel=True, nprocs=os.cpu_count(), verbose=1, debug=True):
     """
     """
     # Check sampleids
@@ -447,8 +444,8 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="
     print("Building GFEM models for samples:")
     print(sampleids)
 
-    # Create combinations of samples and datasets
-    combinations = list(itertools.product(programs, datasets, sampleids))
+    # Create combinations of samples
+    combinations = list(itertools.product(programs, sampleids))
 
     # Define number of processors
     if not parallel:
@@ -466,9 +463,9 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="
         nprocs = len(combinations)
 
     # Create list of args for mp pooling
-    run_args = [(program, perplex_db, dataset, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
-                 oxides_exclude, targets, maskgeotherm, verbose, debug) for
-                program, dataset, sampleid in combinations]
+    run_args = [(program, perplex_db, sampleid, source, res, Pmin, Pmax, Tmin, Tmax,
+                 oxides_exclude, targets, verbose, debug) for
+                program, sampleid in combinations]
 
     # Create a multiprocessing pool
     with mp.Pool(processes=nprocs) as pool:
@@ -483,8 +480,7 @@ def build_gfem_models(source, sampleids=None, programs=["perplex"], perplex_db="
 
     # Measure GFEM model accuracy vs. PREM
     for model in successful_models:
-        if model.dataset == "train":
-            measure_gfem_model_accuracy_vs_prem(model, filename)
+        measure_gfem_model_accuracy_vs_prem(model, filename)
 
     # Check for errors in the models
     error_count = 0
@@ -510,10 +506,9 @@ class GFEMModel:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, program, perplex_db, dataset, sample_id, source, res, P_min=1,
+    def __init__(self, program, perplex_db, sample_id, source, res, P_min=1,
                  P_max=28, T_min=773, T_max=2273, oxides_exclude=["H2O", "FE2O3"],
-                 targets=["rho", "Vp", "Vs"], maskgeotherm=False, seed=42, verbose=1,
-                 debug=True):
+                 targets=["rho", "Vp", "Vs"], seed=42, verbose=1, debug=True):
         """
         """
         # Input
@@ -526,9 +521,7 @@ class GFEMModel:
         self.source = source
         self.sample_id = sample_id
         self.oxides_exclude = oxides_exclude
-        self.dataset = dataset
         self.targets = targets
-        self.mask_geotherm = maskgeotherm
         self.seed = seed
         self.verbose = verbose
         self.debug = debug
@@ -561,15 +554,14 @@ class GFEMModel:
         # Program and config paths
         if self.program == "magemin":
             # Magemin dirs and filepaths
-            self.model_out_dir = (f"gfems/{self.program[:4]}_{self.sample_id}_"
-                                  f"{self.dataset[0]}{self.res}")
+            self.model_out_dir = (f"gfems/{self.program[:4]}_{self.sample_id}_{self.res}")
             self.magemin_in_path = f"{self.model_out_dir}/in.dat"
             self.magemin_out_path = f"{self.model_out_dir}/output/_pseudosection_output.txt"
 
         elif self.program == "perplex":
             # Perplex dirs and filepaths
             self.model_out_dir = (f"gfems/{self.program[:4]}_{self.perplex_db}_"
-                                  f"{self.sample_id}_{self.dataset[0]}{self.res}")
+                                  f"{self.sample_id}_{self.res}")
             self.perplex_targets = f"{self.model_out_dir}/target-array.tab"
             self.perplex_assemblages = f"{self.model_out_dir}/assemblages.txt"
 
@@ -577,7 +569,7 @@ class GFEMModel:
             raise ValueError("Unrecognized GFEM program! Use 'magemin' or 'perplex' ...")
 
         # Output file paths
-        self.model_prefix = f"{self.sample_id}-{self.dataset[0]}{self.res}"
+        self.model_prefix = f"{self.sample_id}-{self.res}"
         self.fig_dir = f"figs/gfem/{self.program[:4]}_{self.sample_id}_{self.res}"
         self.log_file = f"log/log-{self.program[:4]}-{self.model_prefix}"
 
@@ -590,9 +582,7 @@ class GFEMModel:
         self.model_built = False
         self.results = {}
         self.feature_array = np.array([])
-        self.feature_array_unmasked = np.array([])
         self.target_array = np.array([])
-        self.target_array_unmasked = np.array([])
 
         # Errors
         self.timeout = (res**2) * 3
@@ -815,7 +805,6 @@ class GFEMModel:
         log_file = self.log_file
         program = self.program
         sample_id = self.sample_id
-        dataset = self.dataset
         res = self.res
 
         if os.path.exists(log_file) and os.path.exists("assets/data"):
@@ -859,15 +848,14 @@ class GFEMModel:
                 last_value = time_values_ppx[-1]
 
             # Create the line to append to the CSV file
-            line_to_append = (f"{sample_id},{program},{dataset},"
-                              f"{res**2},{last_value:.1f}")
+            line_to_append = (f"{sample_id},{program},{res**2},{last_value:.1f}")
 
             date_formatted = datetime.now().strftime("%d-%m-%Y")
             csv_filepath = f"assets/data/gfem-efficiency-{date_formatted}.csv"
 
             # Check if the CSV file already exists
             if not os.path.exists(csv_filepath):
-                header_line = "sample,program,dataset,size,time"
+                header_line = "sample,program,size,time"
 
                 # If the file does not exist, write the header line first
                 with open(csv_filepath, "w") as csv_file:
@@ -933,7 +921,6 @@ class GFEMModel:
         """
         """
         # Get self attributes
-        dataset = self.dataset
         res = self.res
         magemin_in_path = self.magemin_in_path
 
@@ -944,15 +931,6 @@ class GFEMModel:
         # Get sample composition
         sample_comp = self._get_sample_composition()
         norm_comp = self._normalize_sample_composition()
-
-        # Shift validation dataset
-        if dataset != "train":
-            P_step, T_step = 1, 25
-
-            P_min += P_step
-            P_max -= P_step
-            T_min += T_step
-            T_max -= T_step
 
         # Define PT arrays
         P_range = [P_min, P_max, (P_max - P_min) / res]
@@ -1286,7 +1264,6 @@ class GFEMModel:
         """
         # Get self attributes
         perplex_db = self.perplex_db
-        dataset = self.dataset
         model_out_dir = self.model_out_dir
         model_prefix = self.model_prefix
         digits = self.digits
@@ -1299,19 +1276,6 @@ class GFEMModel:
         # Get sample composition
         sample_comp = self._get_sample_composition()
         norm_comp = self._normalize_sample_composition()
-
-        # Shift validation dataset
-        if dataset != "train":
-            P_step, T_step = 1e3, 25
-            comp_adj = 0.01
-
-            P_min += P_step
-            P_max -= P_step
-            T_min += T_step
-            T_max -= T_step
-
-            random.seed(42)
-            norm_comp = [round(x * 1 + comp_adj, digits) for x in norm_comp]
 
         # Config dir
         config_dir = f"assets/config_{perplex_db}"
@@ -1781,55 +1745,6 @@ class GFEMModel:
         return None
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # create geotherm mask !!
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def _create_geotherm_mask(self, T_mantle1=673, T_mantle2=1773, grad_mantle1=0.5,
-                              grad_mantle2=0.5):
-        """
-        """
-        # Get self attributes
-        results = self.results
-
-        # Check for results
-        if not results:
-            raise Exception("No GFEM model results! Call get_results() first ...")
-
-        # Get PT values
-        P, T = results["P"].copy(), results["T"].copy()
-
-        # Get max PT
-        P_min, P_max, T_min, T_max = np.min(P), np.max(P), np.min(T), np.max(T)
-
-        # Find geotherm boundaries
-        T1_Pmax = (P_max * grad_mantle1 * 35) + T_mantle1
-        P1_Tmin = (T_min - T_mantle1) / (grad_mantle1 * 35)
-        T2_Pmin = (P_min * grad_mantle2 * 35) + T_mantle2
-        T2_Pmax = (P_max * grad_mantle2 * 35) + T_mantle2
-
-        # Iterate through PT array and set nan where PT is out of geotherm bounds
-        PT_array = np.stack((P, T), axis=-1)
-
-        for i in range(PT_array.shape[0]):
-            p = PT_array[i, 0]
-            t = PT_array[i, 1]
-
-            # Calculate mantle geotherms
-            geotherm1 = (t - T_mantle1) / (grad_mantle1 * 35)
-            geotherm2 = (t - T_mantle2) / (grad_mantle2 * 35)
-
-            # Set PT array to nan if outside of geotherm bounds
-            if (
-                   ((t <= T1_Pmax) and (p >= geotherm1)) or
-                   ((t >= T2_Pmin) and (p <= geotherm2))
-            ):
-                PT_array[i] = [np.nan, np.nan]
-
-        # Create nan mask
-        mask = np.isnan(PT_array[:,0])
-
-        return mask
-
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # get feature array !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def get_feature_array(self):
@@ -1838,7 +1753,6 @@ class GFEMModel:
         # Get self attributes
         results = self.results
         targets = self.targets
-        mask_geotherm = self.mask_geotherm
         model_built = self.model_built
         verbose = self.verbose
 
@@ -1854,24 +1768,7 @@ class GFEMModel:
         P, T = results["P"].copy(), results["T"].copy()
 
         # Stack PT arrays
-        self.feature_array_unmasked = np.stack((P, T), axis=-1)
-
-        # Mask geotherm
-        if mask_geotherm:
-            if verbose >= 2:
-                print("Masking geotherm!")
-
-            # Get geotherm mask
-            mask = self._create_geotherm_mask()
-
-            self.feature_array = self.feature_array_unmasked.copy()
-
-            # Apply mask to all target arrays
-            for j in range(self.feature_array.shape[1]):
-                self.feature_array[:, j][mask] = np.nan
-
-        else:
-            self.feature_array = self.feature_array_unmasked.copy()
+        self.feature_array = np.stack((P, T), axis=-1)
 
         return None
 
@@ -1940,7 +1837,6 @@ class GFEMModel:
         results = self.results
         targets = self.targets
         res = self.res
-        mask_geotherm = self.mask_geotherm
         model_built = self.model_built
         verbose = self.verbose
 
@@ -1993,23 +1889,7 @@ class GFEMModel:
                     target_array_list.append(self._process_array(imputed_array).flatten())
 
         # Stack target arrays
-        self.target_array_unmasked = np.stack(target_array_list, axis=-1)
-
-        if mask_geotherm:
-            if verbose >= 2:
-                print("Masking geotherm!")
-
-            # Get geotherm mask
-            mask = self._create_geotherm_mask()
-
-            self.target_array = self.target_array_unmasked.copy()
-
-            # Apply mask to all target arrays
-            for j in range(self.target_array.shape[1]):
-                self.target_array[:, j][mask] = np.nan
-
-        else:
-            self.target_array = self.target_array_unmasked.copy()
+        self.target_array = np.stack(target_array_list, axis=-1)
 
         return None
 

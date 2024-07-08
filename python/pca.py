@@ -25,7 +25,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 #######################################################
-## .0.             Helper Functions              !!! ##
+## .1.             Helper Functions              !!! ##
 #######################################################
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # convert to nio !!
@@ -259,7 +259,7 @@ def samples_to_csv(sampleids, source, filename):
     return None
 
 #######################################################
-## .0.            MixingArray Class              !!! ##
+## .2.            MixingArray Class              !!! ##
 #######################################################
 class MixingArray:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

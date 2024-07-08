@@ -107,7 +107,7 @@ def evaluate_lut_efficiency(name, gfem_models, PT_steps=[16, 8, 4, 2, 1],
     # Get feature (PTX) arrays
     P = np.unique(gfem_models[0].feature_array[:, 0])
     T = np.unique(gfem_models[0].feature_array[:, 1])
-    X = np.array([m.fertility_index for m in gfem_models if m.dataset == "train"])
+    X = np.array([m.fertility_index for m in gfem_models])
 
     # Make X increase monotonically
     X = np.linspace(np.min(X), np.max(X), X.shape[0])
@@ -118,10 +118,10 @@ def evaluate_lut_efficiency(name, gfem_models, PT_steps=[16, 8, 4, 2, 1],
     X_point = (np.max(X) - np.min(X)) / 2
 
     # Get target arrays
-    target_train = np.stack([m.target_array for m in gfem_models if m.dataset == "train"])
+    target_train = np.stack([m.target_array for m in gfem_models])
 
     # Initialize df columns
-    sample, program, dataset, size, eval_time, model_size_mb = [], [], [], [], [], []
+    sample, program, size, eval_time, model_size_mb = [], [], [], [], []
 
     # Check number of compositions X
     if X.shape[0] > 128:
@@ -178,7 +178,6 @@ def evaluate_lut_efficiency(name, gfem_models, PT_steps=[16, 8, 4, 2, 1],
                 sample.append(f"SYNTH{X_sub.shape[0]}")
 
             program.append("lut")
-            dataset.append("train")
             size.append((P_sub.shape[0] - 1) ** 2)
             eval_time.append(round(sum(eval_times), 5))
 
@@ -192,7 +191,7 @@ def evaluate_lut_efficiency(name, gfem_models, PT_steps=[16, 8, 4, 2, 1],
             model_size_mb.append(round(model_size / (1024 ** 2), 5))
 
     # Create df
-    evals = {"sample": sample, "program": program, "dataset": dataset, "size": size,
+    evals = {"sample": sample, "program": program, "size": size,
              "time": eval_time, "model_size_mb": model_size_mb}
 
     # Write csv
@@ -206,7 +205,7 @@ def evaluate_lut_efficiency(name, gfem_models, PT_steps=[16, 8, 4, 2, 1],
 def train_rocmlms(gfem_models, ml_models=["DT", "KN", "NN1", "NN2", "NN3"],
                   PT_steps=[16, 8, 4, 2, 1], X_steps=[16, 8, 4, 2, 1],
                   training_features=["D_FRAC"], training_targets=["rho", "Vp", "Vs"],
-                  tune=True, epochs=100, batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
+                  tune=True, epochs=100, batchprop=0.2, kfolds=5, parallel=True,
                   nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
     """
     """
@@ -215,94 +214,56 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "NN1", "NN2", "NN3"],
         raise Exception("No GFEM models to compile!")
 
     # Get model metadata
-    program = get_unique_value([m.program for m in gfem_models if m.dataset == "train"])
-    sample_ids = [m.sample_id for m in gfem_models if m.dataset == "train"]
-    res = get_unique_value([m.res for m in gfem_models if m.dataset == "train"])
-    targets = get_unique_value([m.targets for m in gfem_models if m.dataset == "train"])
-    mask_geotherm = get_unique_value([m.mask_geotherm for m in gfem_models if
-                                      m.dataset == "train"])
-    features = get_unique_value([m.features for m in gfem_models if m.dataset == "train"])
-    oxides_exclude = get_unique_value([m.oxides_exclude for m in gfem_models if
-                                       m.dataset == "train"])
-    oxides = get_unique_value([m.oxides_system for m in gfem_models if m.dataset == "train"])
+    program = get_unique_value([m.program for m in gfem_models])
+    sample_ids = [m.sample_id for m in gfem_models]
+    res = get_unique_value([m.res for m in gfem_models])
+    targets = get_unique_value([m.targets for m in gfem_models])
+    features = get_unique_value([m.features for m in gfem_models])
+    oxides_exclude = get_unique_value([m.oxides_exclude for m in gfem_models])
+    oxides = get_unique_value([m.oxides_system for m in gfem_models])
     subset_oxides = [oxide for oxide in oxides if oxide not in oxides_exclude]
     feature_list = subset_oxides + features
 
     # Get all PT arrays
-    pt_train = np.stack([m.feature_array for m in gfem_models if m.dataset == "train"])
-    pt_train_unmasked = np.stack([m.feature_array_unmasked for m in gfem_models if
-                                  m.dataset == "train"])
-    pt_valid = np.stack([m.feature_array for m in gfem_models if m.dataset == "valid"])
-    pt_valid_unmasked = np.stack([m.feature_array_unmasked for m in gfem_models if
-                                  m.dataset == "valid"])
+    pt_train = np.stack([m.feature_array for m in gfem_models])
 
     # Select features
     feature_indices = [i for i, feature in enumerate(feature_list) if feature in
                        training_features]
 
     # Get sample features
-    feat_train, feat_valid = [], []
+    feat_train = []
 
     for m in gfem_models:
-        if m.dataset == "train":
-            selected_features = [m.sample_features[i] for i in feature_indices]
-            feat_train.append(selected_features)
-
-        elif m.dataset == "valid":
-            selected_features = [m.sample_features[i] for i in feature_indices]
-            feat_valid.append(selected_features)
+        selected_features = [m.sample_features[i] for i in feature_indices]
+        feat_train.append(selected_features)
 
     feat_train = np.array(feat_train)
-    feat_valid = np.array(feat_valid)
 
     # Tile features to match PT array shape
     feat_train = np.tile(feat_train[:, np.newaxis, :], (1, pt_train.shape[1], 1))
-    feat_valid = np.tile(feat_valid[:, np.newaxis, :], (1, pt_valid.shape[1], 1))
 
     # Combine features
     combined_train = np.concatenate((feat_train, pt_train), axis=2)
-    combined_train_unmasked = np.concatenate((feat_train, pt_train_unmasked), axis=2)
-    combined_valid = np.concatenate((feat_valid, pt_valid), axis=2)
-    combined_valid_unmasked = np.concatenate((feat_valid, pt_valid_unmasked), axis=2)
 
     # Flatten features
     feature_train = combined_train.reshape(-1, combined_train.shape[-1])
-    feature_train_unmasked = combined_train_unmasked.reshape(-1, combined_train.shape[-1])
-    feature_valid = combined_valid.reshape(-1, combined_valid.shape[-1])
-    feature_valid_unmasked = combined_valid_unmasked.reshape(-1, combined_valid.shape[-1])
 
     # Define target indices
     target_indices = [targets.index(target) for target in training_targets]
     targets = [target for target in training_targets]
 
     # Get target arrays
-    target_train = np.stack([m.target_array for m in gfem_models if m.dataset == "train"])
-    target_train_unmasked = np.stack([m.target_array_unmasked for m in gfem_models if
-                                      m.dataset == "train"])
-    target_valid = np.stack([m.target_array for m in gfem_models if m.dataset == "valid"])
-    target_valid_unmasked = np.stack([m.target_array_unmasked for m in gfem_models if
-                                      m.dataset == "valid"])
+    target_train = np.stack([m.target_array for m in gfem_models])
 
     # Flatten targets
     target_train = target_train.reshape(-1, target_train.shape[-1])
-    target_train_unmasked = target_train_unmasked.reshape(-1, target_train.shape[-1])
-    target_valid = target_valid.reshape(-1, target_train.shape[-1])
-    target_valid_unmasked = target_valid_unmasked.reshape(-1, target_train.shape[-1])
 
     # Select training targets
     target_train = target_train[:, target_indices]
-    target_train_unmasked = target_train_unmasked[:, target_indices]
-    target_valid = target_valid[:, target_indices]
-    target_valid_unmasked = target_valid_unmasked[:, target_indices]
-
-    # Get geotherm mask
-    geotherm_mask_train = np.stack([m._create_geotherm_mask() for m in gfem_models if
-                                    m.dataset == "train"]).flatten()
-    geotherm_mask_valid = np.stack([m._create_geotherm_mask() for m in gfem_models if
-                                    m.dataset == "valid"]).flatten()
 
     # Define array shapes
-    M = int(len(gfem_models) / 2)
+    M = int(len(gfem_models))
     W = int((res + 1) ** 2)
     w = int(np.sqrt(W))
     F = int(len(training_features) + 2)
@@ -324,36 +285,14 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "NN1", "NN2", "NN3"],
         for step in PT_steps:
             # Reshape arrays
             new_feature_train = feature_train.reshape((shape_feature_square))
-            new_feature_train_unmasked = \
-                feature_train_unmasked.reshape((shape_feature_square))
             new_target_train = target_train.reshape((shape_target_square))
-            new_target_train_unmasked = target_train_unmasked.reshape((shape_target_square))
-            new_feature_valid = feature_valid.reshape((shape_feature_square))
-            new_feature_valid_unmasked = \
-                feature_valid_unmasked.reshape((shape_feature_square))
-            new_target_valid = target_valid.reshape((shape_target_square))
-            new_target_valid_unmasked = target_valid_unmasked.reshape((shape_target_square))
-            new_geotherm_mask_train = geotherm_mask_train.reshape((M, w, w))
-            new_geotherm_mask_valid = geotherm_mask_valid.reshape((M, w, w))
 
             # Subset arrays
             new_feature_train = new_feature_train[::X_step, ::step, ::step, :]
-            new_feature_train_unmasked = \
-                new_feature_train_unmasked[::X_step, ::step, ::step, :]
             new_target_train = new_target_train[::X_step, ::step, ::step, :]
-            new_target_train_unmasked = \
-                new_target_train_unmasked[::X_step, ::step, ::step, :]
-            new_feature_valid = new_feature_valid[::X_step, ::step, ::step, :]
-            new_feature_valid_unmasked = \
-                new_feature_valid_unmasked[::X_step, ::step, ::step, :]
-            new_target_valid = new_target_valid[::X_step, ::step, ::step, :]
-            new_target_valid_unmasked = \
-                new_target_valid_unmasked[::X_step, ::step, ::step, :]
-            new_geotherm_mask_train = new_geotherm_mask_train[::X_step, ::step, ::step]
-            new_geotherm_mask_valid = new_geotherm_mask_valid[::X_step, ::step, ::step]
 
             # Redefine array shapes
-            new_M = np.ceil((len(gfem_models) / 2 / X_step)).astype(int)
+            new_M = np.ceil((len(gfem_models) / X_step)).astype(int)
             new_W = int(((res / step) + 1) ** 2)
             new_w = int(np.sqrt(new_W))
             new_shape_feature = (new_M, new_W, F)
@@ -363,34 +302,18 @@ def train_rocmlms(gfem_models, ml_models=["DT", "KN", "NN1", "NN2", "NN3"],
 
             # Flatten arrays
             new_feature_train = new_feature_train.reshape(-1, new_feature_train.shape[-1])
-            new_feature_train_unmasked = \
-                new_feature_train_unmasked.reshape(-1, new_feature_train_unmasked.shape[-1])
             new_target_train = new_target_train.reshape(-1, new_target_train.shape[-1])
-            new_target_train_unmasked = \
-                new_target_train_unmasked.reshape(-1, new_target_train_unmasked.shape[-1])
-            new_feature_valid = new_feature_valid.reshape(-1, new_feature_valid.shape[-1])
-            new_feature_valid_unmasked = \
-                new_feature_valid_unmasked.reshape(-1, new_feature_valid_unmasked.shape[-1])
-            new_target_valid = new_target_valid.reshape(-1, new_target_valid.shape[-1])
-            new_target_valid_unmasked = \
-                new_target_valid_unmasked.reshape(-1, new_target_valid_unmasked.shape[-1])
-            new_geotherm_mask_train = new_geotherm_mask_train.flatten()
-            new_geotherm_mask_valid = new_geotherm_mask_valid.flatten()
 
             # Train rocmlm models
             rocmlms = []
 
             for model in ml_models:
-                rocmlm = RocMLM(program, sample_ids, res, targets, mask_geotherm,
-                                new_feature_train, new_feature_train_unmasked,
-                                new_target_train, new_target_train_unmasked,
-                                new_feature_valid, new_feature_valid_unmasked,
-                                new_target_valid, new_target_valid_unmasked,
+                rocmlm = RocMLM(program, sample_ids, res, targets,
+                                new_feature_train, new_target_train,
                                 new_shape_feature, new_shape_feature_square,
                                 new_shape_target, new_shape_target_square,
-                                new_geotherm_mask_train, new_geotherm_mask_valid,
-                                model, tune, epochs, batchprop, kfolds, parallel, nprocs,
-                                seed, palette, verbose)
+                                model, tune, epochs, batchprop, kfolds, parallel,
+                                nprocs, seed, palette, verbose)
 
                 # Check for pretrained model
                 rocmlm._check_pretrained_model()
@@ -417,13 +340,11 @@ class RocMLM:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # init !!
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def __init__(self, program, sample_ids, res, targets, mask_geotherm, feature_train,
-                 feature_train_unmasked, target_train, target_train_unmasked, feature_valid,
-                 feature_valid_unmasked, target_valid, target_valid_unmasked, shape_feature,
-                 shape_feature_square, shape_target, shape_target_square,
-                 geotherm_mask_train, geotherm_mask_valid,  ml_model, tune=True, epochs=100,
-                 batchprop=0.2, kfolds=os.cpu_count(), parallel=True,
-                 nprocs=os.cpu_count(), seed=42, palette="bone", verbose=1):
+    def __init__(self, program, sample_ids, res, targets, feature_train,
+                 target_train, shape_feature, shape_feature_square, shape_target,
+                 shape_target_square,  ml_model, tune=True, epochs=100, batchprop=0.2,
+                 kfolds=5, parallel=True, nprocs=os.cpu_count(), seed=42,
+                 palette="bone", verbose=1):
         """
         """
         # Input
@@ -431,13 +352,10 @@ class RocMLM:
         self.sample_ids = sample_ids
         self.res = res
         self.targets = targets
-        self.mask_geotherm = mask_geotherm
         self.shape_feature = shape_feature
         self.shape_feature_square = shape_feature_square
         self.shape_target = shape_target
         self.shape_target_square = shape_target_square
-        self.geotherm_mask_train = geotherm_mask_train
-        self.geotherm_mask_valid = geotherm_mask_valid
         if ml_model == "KN":
             ml_model_label = "K Neighbors"
         elif ml_model == "RF":
@@ -492,13 +410,7 @@ class RocMLM:
 
         # Feature and target arrays
         self.feature_train = feature_train
-        self.feature_train_unmasked = feature_train_unmasked
         self.target_train = target_train
-        self.target_train_unmasked = target_train_unmasked
-        self.feature_valid = feature_valid
-        self.feature_valid_unmasked = feature_valid_unmasked
-        self.target_valid = target_valid
-        self.target_valid_unmasked = target_valid_unmasked
 
         # ML model definition and tuning
         self.ml_model = None
@@ -759,8 +671,6 @@ class RocMLM:
         model_label = self.ml_model_label
         feature_train = self.feature_train
         target_train = self.target_train
-        feature_valid = self.feature_valid
-        target_valid = self.target_valid
         epochs = self.epochs
         batchprop = self.batchprop
         fig_dir = self.fig_dir
@@ -774,36 +684,23 @@ class RocMLM:
         if target_train.size == 0:
             raise Exception("No training targets!")
 
-        # Check for validation features
-        if feature_valid.size == 0:
-            raise Exception("No validation features!")
-
-        # Check for validation targets
-        if target_valid.size == 0:
-            raise Exception("No validation targets!")
-
         # Scale training dataset
         X_train, y_train, scaler_X_train, scaler_y_train, X_scaled_train, y_scaled_train = \
             self._scale_arrays(feature_train, target_train)
-
-        # Scale validation dataset
-        X_valid, y_valid, scaler_X_valid, scaler_y_valid, X_scaled_valid, y_scaled_valid = \
-            self._scale_arrays(feature_valid, target_valid)
 
         # Get fold indices
         (train_index, test_index) = fold_args
 
         # Split the data into training and testing sets
-        X_train, X_test = X_scaled_train[train_index], X_scaled_train[test_index]
-        y_train, y_test = y_scaled_train[train_index], y_scaled_train[test_index]
-        X_valid, y_valid = X_scaled_valid, y_scaled_valid
+        X_train_fold, X_test_fold = X_scaled_train[train_index], X_scaled_train[test_index]
+        y_train_fold, y_test_fold = y_scaled_train[train_index], y_scaled_train[test_index]
 
         if "NN" in model_label:
             # Initialize lists to store loss values
-            epoch_, train_loss_, valid_loss_ = [], [], []
+            epoch_, train_loss_, test_loss_ = [], [], []
 
             # Set batch size as a proportion of the training dataset size
-            batch_size = int(len(y_train) * batchprop)
+            batch_size = int(len(y_train_fold) * batchprop)
 
             # Ensure a minimum batch size
             batch_size = max(batch_size, 8)
@@ -815,7 +712,7 @@ class RocMLM:
             with tqdm(total=epochs, desc="Training NN", position=0) as pbar:
                 for epoch in range(epochs):
                     # Shuffle the training data for each epoch
-                    indices = np.arange(len(y_train))
+                    indices = np.arange(len(y_train_fold))
                     np.random.shuffle(indices)
 
                     for start_idx in range(0, len(indices), batch_size):
@@ -826,7 +723,8 @@ class RocMLM:
 
                         # Subset training data
                         batch_indices = indices[start_idx:end_idx]
-                        X_batch, y_batch = X_train[batch_indices], y_train[batch_indices]
+                        X_batch = X_train_fold[batch_indices]
+                        y_batch = y_train_fold[batch_indices]
 
                         # Train NN model on batch
                         model.partial_fit(X_batch, y_batch)
@@ -835,9 +733,9 @@ class RocMLM:
                     train_loss = model.loss_
                     train_loss_.append(train_loss)
 
-                    # Calculate and store validation loss
-                    valid_loss = mean_squared_error(y_valid, model.predict(X_valid) / 2)
-                    valid_loss_.append(valid_loss)
+                    # Calculate and store test loss
+                    test_loss = mean_squared_error(y_test_fold, model.predict(X_test_fold))
+                    test_loss_.append(test_loss)
 
                     # Store epoch
                     epoch_.append(epoch + 1)
@@ -850,14 +748,14 @@ class RocMLM:
 
             # Create loss curve dict
             loss_curve = {"epoch": epoch_, "train_loss": train_loss_,
-                          "valid_loss": valid_loss_}
+                          "test_loss": test_loss_}
 
         else:
             # Start training timer
             training_start_time = time.time()
 
             # Train ML model
-            model.fit(X_train, y_train)
+            model.fit(X_train_fold, y_train_fold)
 
             # End training timer
             training_end_time = time.time()
@@ -869,11 +767,10 @@ class RocMLM:
         training_time = training_end_time - training_start_time
 
         # Make predictions on the test dataset
-        y_pred_scaled = model.predict(X_test)
-        y_pred_scaled_valid = model.predict(X_valid)
+        y_pred_scaled = model.predict(X_test_fold)
 
         # Test inference time on single random PT datapoint from the test dataset
-        rand_PT_point = X_test[np.random.choice(X_test.shape[0], 1, replace=False)]
+        rand_PT_point = X_test_fold[np.random.choice(X_test_fold.shape[0], 1, replace=False)]
 
         inference_start_time = time.time()
         single_PT_pred = model.predict(rand_PT_point)
@@ -883,25 +780,17 @@ class RocMLM:
 
         # Inverse transform predictions
         y_pred_original = scaler_y_train.inverse_transform(y_pred_scaled)
-        y_pred_original_valid = scaler_y_valid.inverse_transform(y_pred_scaled_valid)
 
         # Inverse transform test dataset
-        y_test_original = scaler_y_train.inverse_transform(y_test)
-        y_valid_original = scaler_y_valid.inverse_transform(y_valid)
+        y_test_original = scaler_y_train.inverse_transform(y_test_fold)
 
         # Calculate performance metrics to evaluate the model
         rmse_test = np.sqrt(mean_squared_error(y_test_original, y_pred_original,
                                                multioutput="raw_values"))
 
-        rmse_valid = np.sqrt(mean_squared_error(y_valid_original, y_pred_original_valid,
-                                              multioutput="raw_values"))
-
         r2_test = r2_score(y_test_original, y_pred_original, multioutput="raw_values")
-        r2_valid = r2_score(y_valid_original, y_pred_original_valid,
-                            multioutput="raw_values")
 
-        return (loss_curve, rmse_test, r2_test, rmse_valid, r2_valid, training_time,
-                inference_time)
+        return (loss_curve, rmse_test, r2_test, training_time, inference_time)
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # process_kfold_results !!
@@ -925,19 +814,14 @@ class RocMLM:
         loss_curves = []
         rmse_test_scores = []
         r2_test_scores = []
-        rmse_val_scores = []
-        r2_val_scores = []
         training_times = []
         inference_times = []
 
         # Unpack results
-        for (loss_curve, rmse_test, r2_test, rmse_val, r2_val, training_time, inference_time
-             ) in results:
+        for (loss_curve, rmse_test, r2_test, training_time, inference_time) in results:
             loss_curves.append(loss_curve)
             rmse_test_scores.append(rmse_test)
             r2_test_scores.append(r2_test)
-            rmse_val_scores.append(rmse_val)
-            r2_val_scores.append(r2_val)
             training_times.append(training_time)
             inference_times.append(inference_time)
 
@@ -979,7 +863,7 @@ class RocMLM:
             colormap = plt.cm.get_cmap("tab10")
 
             plt.plot(df["epoch"], df["train_loss"], label="train loss", color=colormap(0))
-            plt.plot(df["epoch"], df["valid_loss"], label="valid loss", color=colormap(1))
+            plt.plot(df["epoch"], df["test_loss"], label="test loss", color=colormap(1))
             plt.xlabel("Epoch")
             plt.ylabel(f"Loss")
 
@@ -1002,18 +886,12 @@ class RocMLM:
         # Stack arrays
         rmse_test_scores = np.stack(rmse_test_scores)
         r2_test_scores = np.stack(r2_test_scores)
-        rmse_val_scores = np.stack(rmse_val_scores)
-        r2_val_scores = np.stack(r2_val_scores)
 
         # Calculate performance values with uncertainties
         rmse_test_mean = np.mean(rmse_test_scores, axis=0)
         rmse_test_std = np.std(rmse_test_scores, axis=0)
         r2_test_mean = np.mean(r2_test_scores, axis=0)
         r2_test_std = np.std(r2_test_scores, axis=0)
-        rmse_val_mean = np.mean(rmse_val_scores, axis=0)
-        rmse_val_std = np.std(rmse_val_scores, axis=0)
-        r2_val_mean = np.mean(r2_val_scores, axis=0)
-        r2_val_std = np.std(r2_val_scores, axis=0)
         training_time_mean = np.mean(training_times)
         training_time_std = np.std(training_times)
         inference_time_mean = np.mean(inference_times)
@@ -1035,28 +913,24 @@ class RocMLM:
 
         # Config and performance info
         cv_info = {
-            "model": model_label,
-            "program": program,
-            "sample": sample_label,
-            "size": (w - 1) ** 2,
-            "n_targets": len(targets),
-            "k_folds": kfolds,
-            "training_time_mean": round(training_time_mean, 5),
-            "training_time_std": round(training_time_std, 5),
-            "inference_time_mean": round(inference_time_mean, 5),
-            "inference_time_std": round(inference_time_std, 5)
+            "model": [model_label],
+            "program": [program],
+            "sample": [sample_label],
+            "size": [(w - 1) ** 2],
+            "n_targets": [len(targets)],
+            "k_folds": [kfolds],
+            "training_time_mean": [round(training_time_mean, 5)],
+            "training_time_std": [round(training_time_std, 5)],
+            "inference_time_mean": [round(inference_time_mean, 5)],
+            "inference_time_std": [round(inference_time_std, 5)]
         }
 
         # Add performance metrics for each parameter to the dictionary
         for i, target in enumerate(targets):
-            cv_info[f"rmse_test_mean_{target}"] = round(rmse_test_mean[i], 5)
-            cv_info[f"rmse_test_std_{target}"] = round(rmse_test_std[i], 5)
-            cv_info[f"r2_test_mean_{target}"] = round(r2_test_mean[i], 5),
-            cv_info[f"r2_test_std_{target}"] = round(r2_test_std[i], 5),
-            cv_info[f"rmse_val_mean_{target}"] = round(rmse_val_mean[i], 5),
-            cv_info[f"rmse_val_std_{target}"] = round(rmse_val_std[i], 5),
-            cv_info[f"r2_val_mean_{target}"] = round(r2_val_mean[i], 5),
-            cv_info[f"r2_val_std_{target}"] = round(r2_val_std[i], 5)
+            cv_info[f"rmse_test_mean_{target}"] = [round(rmse_test_mean[i], 5)]
+            cv_info[f"rmse_test_std_{target}"] = [round(rmse_test_std[i], 5)]
+            cv_info[f"r2_test_mean_{target}"] = [round(r2_test_mean[i], 5)]
+            cv_info[f"r2_test_std_{target}"] = [round(r2_test_std[i], 5)]
 
         if verbose >= 1:
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -1070,12 +944,6 @@ class RocMLM:
                 print(f"        {p}: {r:.5f} ± {e:.5f}")
             print(f"    r2 test:")
             for r, e, p in zip(r2_test_mean, r2_test_std, targets):
-                print(f"        {p}: {r:.5f} ± {e:.5f}")
-            print(f"    rmse valid:")
-            for r, e, p in zip(rmse_val_mean, rmse_val_std, targets):
-                print(f"        {p}: {r:.5f} ± {e:.5f}")
-            print(f"    r2 valid:")
-            for r, e, p in zip(r2_val_mean, r2_val_std, targets):
                 print(f"        {p}: {r:.5f} ± {e:.5f}")
             print("+++++++++++++++++++++++++++++++++++++++++++++")
 
@@ -1147,12 +1015,10 @@ class RocMLM:
         model_prefix = self.model_prefix
         model_out_dir = self.model_out_dir
         targets = self.targets
-        feature_array = self.feature_train_unmasked.copy()
-        target_array = self.target_train_unmasked.copy()
+        feature_array = self.feature_train.copy()
+        target_array = self.target_train.copy()
         shape_feature_square = self.shape_feature_square
         shape_target_square = self.shape_target_square
-        geotherm_mask = self.geotherm_mask_train
-        mask_geotherm = self.mask_geotherm
         epochs = self.epochs
         batchprop = self.batchprop
         seed = self.seed
@@ -1176,11 +1042,11 @@ class RocMLM:
 
         print(f"Retraining model {model_prefix} ...")
 
-        # Scale unmasked arrays
+        # Scale arrays
         X, y, scaler_X, scaler_y, X_scaled, y_scaled = \
             self._scale_arrays(feature_array, target_array)
 
-        # Train model on entire (unmasked) training dataset
+        # Train model on entire training dataset
         X_train, X_test, y_train, y_test = \
             train_test_split(X_scaled, y_scaled, test_size=0.2, random_state=seed)
 
@@ -1231,21 +1097,11 @@ class RocMLM:
         # Scale features array
         X_scaled = scaler_X.transform(X)
 
-        # Make predictions on unmasked features
+        # Make predictions on features
         pred_scaled = model.predict(X_scaled)
 
         # Inverse transform predictions
         pred_original = scaler_y.inverse_transform(pred_scaled)
-
-        # Mask geotherm
-        if mask_geotherm:
-            if verbose >= 2:
-                print("Masking geotherm!")
-
-            # Apply mask to all target arrays
-            for array in [X, y, pred_original]:
-                for j in range(array.shape[-1]):
-                    array[:, j][geotherm_mask] = np.nan
 
         # Reshape arrays into squares for visualization
         feature_square = X.reshape(shape_feature_square)
@@ -1306,8 +1162,8 @@ class RocMLM:
             self._configure_ml_model()
 
             if self.verbose >= 1:
-                feat_train = self.feature_train_unmasked
-                target_train = self.target_train_unmasked
+                feat_train = self.feature_train
+                target_train = self.target_train
 
                 # Print rocmlm config
                 print("+++++++++++++++++++++++++++++++++++++++++++++")
@@ -1329,7 +1185,7 @@ class RocMLM:
             # Run kfold cross validation
             self._kfold_cv()
 
-            # Retrain ml model on unmasked training dataset
+            # Retrain ml model on training dataset
             self._retrain()
 
             # Save ml model only

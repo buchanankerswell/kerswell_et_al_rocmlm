@@ -1,11 +1,6 @@
-from scripting import parse_arguments, check_arguments
 from gfem import get_sampleids, build_gfem_models
 from rocmlm import train_rocmlms, evaluate_lut_efficiency
 from visualize import (visualize_rocmlm_performance, visualize_rocmlm, compose_rocmlm_plots)
-
-# Parse and check arguments
-valid_args = check_arguments(parse_arguments(), "train-rocmlms.py")
-locals().update(valid_args)
 
 # Sample sources
 sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",

@@ -1,11 +1,6 @@
-from scripting import parse_arguments, check_arguments
 from gfem import get_sampleids, build_gfem_models
 from visualize import (visualize_gfem_pt_range, visualize_gfem, visualize_gfem_diff,
                        visualize_prem_comps, compose_dataset_plots)
-
-# Parse and check arguments
-valid_args = check_arguments(parse_arguments(), "build-gfems.py")
-locals().update(valid_args)
 
 # Sample sources
 sources = {"benchmark": "assets/data/benchmark-samples-pca.csv",

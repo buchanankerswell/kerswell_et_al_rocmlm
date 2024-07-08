@@ -274,12 +274,10 @@ def compose_dataset_plots(gfem_models):
     """
     """
     # Parse and sort models
-    magemin_models = [m if m.program == "magemin" and m.dataset == "valid" else
-                      None for m in gfem_models]
+    magemin_models = [m if m.program == "magemin" else None for m in gfem_models]
     magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
 
-    perplex_models = [m if m.program == "perplex" and m.dataset == "valid" else
-                      None for m in gfem_models]
+    perplex_models = [m if m.program == "perplex" else None for m in gfem_models]
     perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
     # Iterate through all models
@@ -300,10 +298,6 @@ def compose_dataset_plots(gfem_models):
                 res = magemin_model.res
             else:
                 raise ValueError("Model resolutions are not the same!")
-            if magemin_model.dataset == perplex_model.dataset:
-                dataset = magemin_model.dataset
-            else:
-                raise ValueError("Model datasets are not the same!")
             if magemin_model.targets == perplex_model.targets:
                 targets = magemin_model.targets
             else:
@@ -330,7 +324,6 @@ def compose_dataset_plots(gfem_models):
             program = "magemin"
             sample_id = magemin_model.sample_id
             res = magemin_model.res
-            dataset = magemin_model.dataset
             targets = magemin_model.targets
             fig_dir = magemin_model.fig_dir
             model_prefix = magemin_model.model_prefix
@@ -341,7 +334,6 @@ def compose_dataset_plots(gfem_models):
             program = "perplex"
             sample_id = perplex_model.sample_id
             res = perplex_model.res
-            dataset = perplex_model.dataset
             targets = perplex_model.targets
             fig_dir = perplex_model.fig_dir
             model_prefix = perplex_model.model_prefix
@@ -356,10 +348,10 @@ def compose_dataset_plots(gfem_models):
         # Check for existing plots
         existing_figs = []
         for target in targets_rename:
-            fig_1 = f"{fig_dir}/image2-{sample_id}-{dataset}-{target}.png"
-            fig_2 = f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png"
-            fig_3 = f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png"
-            fig_4 = f"{fig_dir}/image9-{sample_id}-{dataset}.png"
+            fig_1 = f"{fig_dir}/image2-{sample_id}-{target}.png"
+            fig_2 = f"{fig_dir}/image3-{sample_id}-{target}.png"
+            fig_3 = f"{fig_dir}/image4-{sample_id}-{target}.png"
+            fig_4 = f"{fig_dir}/image9-{sample_id}.png"
 
             check = ((os.path.exists(fig_3) and os.path.exists(fig_4)) |
                      (os.path.exists(fig_1) and os.path.exists(fig_2)) |
@@ -376,8 +368,8 @@ def compose_dataset_plots(gfem_models):
             for target in targets_rename:
                 if target not in ["assemblage", "variance"]:
                     combine_plots_horizontally(
-                        f"{fig_dir_mage}/magemin-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir_perp}/perplex-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_mage}/magemin-{sample_id}-{target}.png",
+                        f"{fig_dir_perp}/perplex-{sample_id}-{target}.png",
                         f"{fig_dir}/temp1.png",
                         caption1="a)",
                         caption2="b)"
@@ -385,24 +377,24 @@ def compose_dataset_plots(gfem_models):
 
                     combine_plots_horizontally(
                         f"{fig_dir}/temp1.png",
-                        f"{fig_dir_diff}/diff-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_diff}/diff-{sample_id}-{target}.png",
+                        f"{fig_dir}/image3-{sample_id}-{target}.png",
                         caption1="",
                         caption2="c)"
                     )
 
                 if target in ["rho", "Vp", "Vs"]:
                     combine_plots_horizontally(
-                        f"{fig_dir_mage}/magemin-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir_perp}/perplex-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_mage}/magemin-{sample_id}-{target}.png",
+                        f"{fig_dir_perp}/perplex-{sample_id}-{target}.png",
                         f"{fig_dir}/temp1.png",
                         caption1="a)",
                         caption2="b)"
                     )
 
                     combine_plots_horizontally(
-                        f"{fig_dir_diff}/diff-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir_diff}/prem-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir_diff}/diff-{sample_id}-{target}.png",
+                        f"{fig_dir_diff}/prem-{sample_id}-{target}.png",
                         f"{fig_dir}/temp2.png",
                         caption1="c)",
                         caption2="d)"
@@ -411,7 +403,7 @@ def compose_dataset_plots(gfem_models):
                     combine_plots_vertically(
                         f"{fig_dir}/temp1.png",
                         f"{fig_dir}/temp2.png",
-                        f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/image4-{sample_id}-{target}.png",
                         caption1="",
                         caption2=""
                     )
@@ -423,17 +415,17 @@ def compose_dataset_plots(gfem_models):
             for target in targets_rename:
                 if target not in ["assemblage", "variance"]:
                     combine_plots_horizontally(
-                        f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/grad-magemin-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/image2-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/magemin-{sample_id}-{target}.png",
+                        f"{fig_dir}/grad-magemin-{sample_id}-{target}.png",
+                        f"{fig_dir}/image2-{sample_id}-{target}.png",
                         caption1="a)",
                         caption2="b)"
                     )
 
                     if target in ["rho", "Vp", "Vs"]:
                         combine_plots_horizontally(
-                            f"{fig_dir}/magemin-{sample_id}-{dataset}-{target}.png",
-                            f"{fig_dir}/grad-magemin-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/magemin-{sample_id}-{target}.png",
+                            f"{fig_dir}/grad-magemin-{sample_id}-{target}.png",
                             f"{fig_dir}/temp1.png",
                             caption1="a)",
                             caption2="b)"
@@ -441,8 +433,8 @@ def compose_dataset_plots(gfem_models):
 
                         combine_plots_horizontally(
                             f"{fig_dir}/temp1.png",
-                            f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
-                            f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/prem-{sample_id}-{target}.png",
+                            f"{fig_dir}/image3-{sample_id}-{target}.png",
                             caption1="",
                             caption2="c)"
                         )
@@ -451,17 +443,17 @@ def compose_dataset_plots(gfem_models):
             for target in targets_rename:
                 if target not in ["assemblage", "variance"]:
                     combine_plots_horizontally(
-                        f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/grad-perplex-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/image2-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/perplex-{sample_id}-{target}.png",
+                        f"{fig_dir}/grad-perplex-{sample_id}-{target}.png",
+                        f"{fig_dir}/image2-{sample_id}-{target}.png",
                         caption1="a)",
                         caption2="b)"
                     )
 
                     if target in ["rho", "Vp", "Vs"]:
                         combine_plots_horizontally(
-                            f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
-                            f"{fig_dir}/grad-perplex-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/perplex-{sample_id}-{target}.png",
+                            f"{fig_dir}/grad-perplex-{sample_id}-{target}.png",
                             f"{fig_dir}/temp1.png",
                             caption1="a)",
                             caption2="b)"
@@ -469,8 +461,8 @@ def compose_dataset_plots(gfem_models):
 
                         combine_plots_horizontally(
                             f"{fig_dir}/temp1.png",
-                            f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
-                            f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png",
+                            f"{fig_dir}/prem-{sample_id}-{target}.png",
+                            f"{fig_dir}/image3-{sample_id}-{target}.png",
                             caption1="",
                             caption2="c)"
                         )
@@ -481,8 +473,8 @@ def compose_dataset_plots(gfem_models):
 
                 for i, target in enumerate(targets):
                     combine_plots_horizontally(
-                        f"{fig_dir}/perplex-{sample_id}-{dataset}-{target}.png",
-                        f"{fig_dir}/grad-perplex-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/perplex-{sample_id}-{target}.png",
+                        f"{fig_dir}/grad-perplex-{sample_id}-{target}.png",
                         f"{fig_dir}/temp1.png",
                         caption1=captions[i][0],
                         caption2=captions[i][1]
@@ -490,7 +482,7 @@ def compose_dataset_plots(gfem_models):
 
                     combine_plots_horizontally(
                         f"{fig_dir}/temp1.png",
-                        f"{fig_dir}/prem-{sample_id}-{dataset}-{target}.png",
+                        f"{fig_dir}/prem-{sample_id}-{target}.png",
                         f"{fig_dir}/temp-{target}.png",
                         caption1="",
                         caption2=captions[i][2]
@@ -507,7 +499,7 @@ def compose_dataset_plots(gfem_models):
                 combine_plots_vertically(
                     f"{fig_dir}/temp1.png",
                     f"{fig_dir}/temp-Vs.png",
-                    f"{fig_dir}/image9-{sample_id}-{dataset}.png",
+                    f"{fig_dir}/image9-{sample_id}.png",
                     caption1="",
                     caption2=""
                 )
@@ -532,12 +524,10 @@ def create_dataset_movies(gfem_models):
     """
     """
     # Parse and sort models
-    magemin_models = [m if m.program == "magemin" and m.dataset == "valid" else
-                      None for m in gfem_models]
+    magemin_models = [m if m.program == "magemin" else None for m in gfem_models]
     magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
 
-    perplex_models = [m if m.program == "perplex" and m.dataset == "valid" else
-                      None for m in gfem_models]
+    perplex_models = [m if m.program == "perplex" else None for m in gfem_models]
     perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
     # Iterate through all models
@@ -558,10 +548,6 @@ def create_dataset_movies(gfem_models):
                 res = magemin_model.res
             else:
                 raise ValueError("Model resolutions are not the same!")
-            if magemin_model.dataset == perplex_model.dataset:
-                dataset = magemin_model.dataset
-            else:
-                raise ValueError("Model datasets are not the same!")
             if magemin_model.targets == perplex_model.targets:
                 targets = magemin_model.targets
             else:
@@ -588,7 +574,6 @@ def create_dataset_movies(gfem_models):
             program = "magemin"
             sample_id = magemin_model.sample_id
             res = magemin_model.res
-            dataset = magemin_model.dataset
             targets = magemin_model.targets
             fig_dir = magemin_model.fig_dir
             model_prefix = magemin_model.model_prefix
@@ -599,7 +584,6 @@ def create_dataset_movies(gfem_models):
             program = "perplex"
             sample_id = perplex_model.sample_id
             res = perplex_model.res
-            dataset = perplex_model.dataset
             targets = perplex_model.targets
             fig_dir = perplex_model.fig_dir
             model_prefix = perplex_model.model_prefix
@@ -647,13 +631,13 @@ def create_dataset_movies(gfem_models):
                 for target in targets_rename:
                     if perplex and magemin:
                         ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                                  f"'figs/gfem/{pattern}_{res}/image2-{pattern}-{dataset}-"
+                                  f"'figs/gfem/{pattern}_{res}/image2-{pattern}-"
                                   f"{target}.png' -vf 'scale=3915:1432' -c:v h264 -pix_fmt "
                                   f"yuv420p 'figs/movies/image2-{prefix}-{target}.mp4'")
                     else:
                         ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
                                   f"'figs/gfem/{program[:4]}_{pattern}_{res}/image2-"
-                                  f"{pattern}-{dataset}-{target}.png' -vf 'scale=3915:1432' "
+                                  f"{pattern}-{target}.png' -vf 'scale=3915:1432' "
                                   f"-c:v h264 -pix_fmt yuv420p 'figs/movies/image2-{prefix}-"
                                   f"{target}.mp4'")
 
@@ -669,13 +653,13 @@ def create_dataset_movies(gfem_models):
                         if perplex and magemin:
                             ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
                                       f"'figs/gfem/{pattern}_{res}/image3-{pattern}-"
-                                      f"{dataset}-{target}.png' -vf 'scale=5832:1432' -c:v "
+                                      f"{target}.png' -vf 'scale=5832:1432' -c:v "
                                       f"h264 -pix_fmt yuv420p 'figs/movies/image3-{prefix}-"
                                       f"{target}.mp4'")
                         else:
                             ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
                                       f"'figs/gfem/{program[:4]}_{pattern}_{res}/image3-"
-                                      f"{pattern}-{dataset}-{target}.png' -vf 'scale=5832:"
+                                      f"{pattern}-{target}.png' -vf 'scale=5832:"
                                       f"1432' -c:v h264 -pix_fmt yuv420p 'figs/movies/"
                                       f"image3-{prefix}-{target}.mp4'")
                             ffmpeg2 = (f"ffmpeg -i 'figs/movies/image3-"
@@ -695,13 +679,13 @@ def create_dataset_movies(gfem_models):
 
                     if perplex and magemin:
                         ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
-                                  f"'figs/gfem/{pattern}_{res}/image9-{pattern}-{dataset}."
+                                  f"'figs/gfem/{pattern}_{res}/image9-{pattern}."
                                   f"png' -vf 'scale=5842:4296' -c:v h264 -pix_fmt yuv420p "
                                   f"'figs/movies/image9-{prefix}.mp4'")
                     else:
                         ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
                                   f"'figs/gfem/{program[:4]}_{pattern}_{res}/image9-"
-                                  f"{pattern}-{dataset}.png' -vf 'scale=5842:4296' -c:v "
+                                  f"{pattern}.png' -vf 'scale=5842:4296' -c:v "
                                   f"h264 -pix_fmt yuv420p 'figs/movies/image9-{prefix}.mp4'")
                         ffmpeg2 = (f"ffmpeg -i 'figs/movies/image9-{prefix}.mp4' -"
                                    f"filter_complex '[0:v]reverse,fifo[r];[0:v][r] "
@@ -1289,9 +1273,9 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     data_lut = pd.read_csv(f"{data_dir}/lut-efficiency.csv")
 
     # Add RMSE
-    data_lut["rmse_val_mean_rho"] = 0
-    data_lut["rmse_val_mean_Vp"] = 0
-    data_lut["rmse_val_mean_Vs"] = 0
+    data_lut["rmse_test_mean_rho"] = 0
+    data_lut["rmse_test_mean_Vp"] = 0
+    data_lut["rmse_test_mean_Vs"] = 0
 
     # Calculate efficiency in milliseconds/Megabyte
     data_lut["model_efficiency"] = data_lut["time"] * 1e3 * data_lut["model_size_mb"]
@@ -1302,9 +1286,7 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     # Process rocmlm df for merging
     data_rocmlm.drop([col for col in data_rocmlm.columns if "training" in col],
                      axis=1, inplace=True)
-    data_rocmlm.drop([col for col in data_rocmlm.columns if "rmse_test" in col],
-                     axis=1, inplace=True)
-    data_rocmlm.drop([col for col in data_rocmlm.columns if "rmse_val_std" in col],
+    data_rocmlm.drop([col for col in data_rocmlm.columns if "rmse_test_std" in col],
                      axis=1, inplace=True)
     data_rocmlm.drop([col for col in data_rocmlm.columns if "r2" in col],
                      axis=1, inplace=True)
@@ -1316,16 +1298,15 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     data_rocmlm["program"] = data_rocmlm.apply(label_rocmlm_model, axis=1)
     data_rocmlm.drop(["n_targets", "k_folds", "inference_time_std"], axis=1, inplace=True)
     data_rocmlm.rename(columns={"inference_time_mean": "time"}, inplace=True)
-    data_rocmlm["dataset"] = "train"
 
     # Calculate efficiency in milliseconds/Megabyte
     data_rocmlm["model_efficiency"] = (data_rocmlm["time"] * 1e3 *
                                        data_rocmlm["model_size_mb"])
 
     # Select columns
-    data_rocmlm = data_rocmlm[["sample", "program", "dataset", "size", "time",
-                               "model_size_mb", "model_efficiency", "rmse_val_mean_rho",
-                               "rmse_val_mean_Vp", "rmse_val_mean_Vs"]]
+    data_rocmlm = data_rocmlm[["sample", "program", "size", "time", "model_size_mb",
+                               "model_efficiency", "rmse_test_mean_rho",
+                               "rmse_test_mean_Vp", "rmse_test_mean_Vs"]]
 
     # Combine data
     data = pd.concat([data_lut, data_rocmlm], axis=0, ignore_index=True)
@@ -1342,9 +1323,6 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
             return row["program"]
 
     data["program"] = data.apply(label_programs, axis=1)
-
-    # Filter out validation dataset
-    data = data[data["dataset"] == "train"]
 
     # Filter samples and programs
     data = data[data["sample"].isin(["SYNTH258", "SYNTH129", "SYNTH65", "SYNTH33"])]
@@ -1377,9 +1355,9 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     # Compute summary statistics
     summary_stats = data.groupby(["program"]).agg({
         "time": ["mean", "std", "min", "max"],
-        "rmse_val_mean_rho": ["mean", "std", "min", "max"],
-        "rmse_val_mean_Vp": ["mean", "std", "min", "max"],
-        "rmse_val_mean_Vs": ["mean", "std", "min", "max"],
+        "rmse_test_mean_rho": ["mean", "std", "min", "max"],
+        "rmse_test_mean_Vp": ["mean", "std", "min", "max"],
+        "rmse_test_mean_Vs": ["mean", "std", "min", "max"],
         "model_efficiency": ["mean", "std", "min", "max"]
     })
     summary_stats_gfem = data_gfem.agg({
@@ -1401,13 +1379,13 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     print(summary_stats_gfem["model_efficiency"])
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 #    print("RMSE rho:")
-#    print(summary_stats["rmse_val_mean_rho"])
+#    print(summary_stats["rmse_test_mean_rho"])
 #    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 #    print("RMSE Vp:")
-#    print(summary_stats["rmse_val_mean_Vp"])
+#    print(summary_stats["rmse_test_mean_Vp"])
 #    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 #    print("RMSE Vs:")
-#    print(summary_stats["rmse_val_mean_Vs"])
+#    print(summary_stats["rmse_test_mean_Vs"])
 #    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     # Set plot style and settings
@@ -1425,16 +1403,16 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
                    "RocMLM (NN1)": "X", "RocMLM (NN3)": "^"}
 
     # Create a colormap
-    palette = sns.color_palette("mako_r", data["rmse_val_mean_rho"].nunique())
+    palette = sns.color_palette("mako_r", data["rmse_test_mean_rho"].nunique())
     cmap = cm.get_cmap("mako_r")
 
     # Create a ScalarMappable to map rmse to colors
-    norm = Normalize(data["rmse_val_mean_rho"].min(), data["rmse_val_mean_rho"].max())
+    norm = Normalize(data["rmse_test_mean_rho"].min(), data["rmse_test_mean_rho"].max())
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
 
     # Map X resolution to colors
-    color_dict = dict(zip(sorted(data["rmse_val_mean_rho"].unique()),
-                          cmap(norm(sorted(data["rmse_val_mean_rho"].unique())))))
+    color_dict = dict(zip(sorted(data["rmse_test_mean_rho"].unique()),
+                          cmap(norm(sorted(data["rmse_test_mean_rho"].unique())))))
 
     fig = plt.figure(figsize=(figwidth * 2, figheight))
     ax = fig.add_subplot(121)
@@ -1455,7 +1433,7 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
 
     # Plot rocmlm efficiency
     for program, group in data.groupby("program"):
-        for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
+        for rmse, sub_group in group.groupby("rmse_test_mean_rho"):
             if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
                 ax.scatter(x=sub_group["size"], y=(sub_group["time"] * 1e3),
                            marker=marker_dict.get(program, "o"), s=65,
@@ -1482,7 +1460,7 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
 
     # Plot lut and rocmlm efficiency
     for program, group in data.groupby("program"):
-        for rmse, sub_group in group.groupby("rmse_val_mean_rho"):
+        for rmse, sub_group in group.groupby("rmse_test_mean_rho"):
             if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
                 ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
                             marker=marker_dict.get(program, "o"), s=65,
@@ -1545,7 +1523,7 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # visualize prem !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def visualize_prem(program, sample_id, dataset, res, target, target_unit,
+def visualize_prem(program, sample_id, res, target, target_unit,
                    geotherms=["low", "mid", "high"], results_mgm=None, results_ppx=None,
                    results_ml=None, model=None, title=None, fig_dir="figs", filename=None,
                    figwidth=6.3, figheight=4.725, fontsize=22):
@@ -1582,12 +1560,12 @@ def visualize_prem(program, sample_id, dataset, res, target, target_unit,
     target_mgm3, target_ppx3, target_ml3, target_pyr3 = None, None, None, None
 
     # Get benchmark models
-    pyr_path = f"gfems/{program[:4]}_PYR_{dataset[0]}{res}/results.csv"
+    pyr_path = f"gfems/{program[:4]}_PYR_{res}/results.csv"
     source = "assets/data/benchmark-samples-pca.csv"
     targets = ["rho", "Vp", "Vs"]
 
     if os.path.exists(pyr_path) and sample_id != "PYR":
-        pyr_model = GFEMModel(program, dataset, "PYR", source, res, 1, 28, 773, 2273, "all",
+        pyr_model = GFEMModel(program, "PYR", source, res, 1, 28, 773, 2273, "all",
                               targets, False, 0, False)
         results_pyr = pyr_model.results
     else:
@@ -1916,7 +1894,7 @@ def visualize_prem_comps(gfem_models, fig_dir="figs/other", filename="prem-comps
 
     fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(figwidth * 3, figheight))
 
-    for j, model in enumerate([model for model in gfem_models if model.dataset == "train"]):
+    for j, model in enumerate(gfem_models):
         # Get gfem model data
         res = model.res
         xi = model.fertility_index
@@ -2500,7 +2478,7 @@ def visualize_target_surf(P, T, target_array, target, title, palette, color_disc
 def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
     """
     """
-    for model in [m if m.dataset == "valid" else None for m in gfem_models]:
+    for model in gfem_models:
         # Check for model
         if model is None:
             continue
@@ -2510,9 +2488,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
         sample_id = model.sample_id
         model_prefix = model.model_prefix
         res = model.res
-        dataset = model.dataset
         targets = model.targets
-        mask_geotherm = model.mask_geotherm
         results = model.results
         P, T = results["P"], results["T"]
         target_array = model.target_array
@@ -2530,9 +2506,9 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
         # Check for existing plots
         existing_figs = []
         for i, target in enumerate(targets):
-            fig_1 = f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png"
-            fig_2 = f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png"
-            fig_3 = f"{fig_dir}/image9-{sample_id}-{dataset}.png"
+            fig_1 = f"{fig_dir}/image3-{sample_id}-{target}.png"
+            fig_2 = f"{fig_dir}/image4-{sample_id}-{target}.png"
+            fig_3 = f"{fig_dir}/image9-{sample_id}.png"
 
             check = ((os.path.exists(fig_1) and os.path.exists(fig_3)) |
                      (os.path.exists(fig_1) and os.path.exists(fig_3)))
@@ -2578,7 +2554,7 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
             target_rename = target.replace("_", "-")
 
             # Print filepath
-            filename = f"{program}-{sample_id}-{dataset}-{target_rename}.png"
+            filename = f"{program}-{sample_id}-{target_rename}.png"
             if verbose >= 2:
                 print(f"Saving figure: {filename}")
 
@@ -2608,8 +2584,8 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                                        color_discrete, color_reverse, vmin_mag, vmax_mag,
                                        None, None, fig_dir, f"grad-{filename}", False)
 
-            filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
-            filename2 = f"prem-{sample_id}-{dataset}-{target_rename}-1557.png"
+            filename = f"prem-{sample_id}-{target_rename}.png"
+            filename2 = f"prem-{sample_id}-{target_rename}-1557.png"
 
             # Plot PREM comparisons
             if target == "rho":
@@ -2620,20 +2596,20 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                 if program == "magemin":
                     results_mgm = results
                     results_ppx = None
-                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                    visualize_prem(program, sample_id, res, target, "g/cm$^3$",
                                    ["low", "mid", "high"], results_mgm, results_ppx,
                                    title="Depth Profile", fig_dir=fig_dir, filename=filename)
-                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                    visualize_prem(program, sample_id, res, target, "g/cm$^3$",
                                    ["mid"], results_mgm, results_ppx, title="Depth Profile",
                                    fig_dir=fig_dir, filename=filename2)
 
                 elif program == "perplex":
                     results_mgm = None
                     results_ppx = results
-                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                    visualize_prem(program, sample_id, res, target, "g/cm$^3$",
                                    ["low", "mid", "high"], results_mgm, results_ppx,
                                    title="Depth Profile", fig_dir=fig_dir, filename=filename)
-                    visualize_prem(program, sample_id, dataset, res, target, "g/cm$^3$",
+                    visualize_prem(program, sample_id, res, target, "g/cm$^3$",
                                    ["mid"], results_mgm, results_ppx, title="Depth Profile",
                                    fig_dir=fig_dir, filename=filename2)
 
@@ -2645,20 +2621,20 @@ def visualize_gfem(gfem_models, edges=True, palette="bone", verbose=1):
                 if program == "magemin":
                     results_mgm = results
                     results_ppx = None
-                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                    visualize_prem(program, sample_id, res, target, "km/s",
                                    ["low", "mid", "high"], results_mgm, results_ppx,
                                    title="Depth Profile", fig_dir=fig_dir, filename=filename)
-                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                    visualize_prem(program, sample_id, res, target, "km/s",
                                    ["mid"], results_mgm, results_ppx, title="Depth Profile",
                                    fig_dir=fig_dir, filename=filename2)
 
                 elif program == "perplex":
                     results_mgm = None
                     results_ppx = results
-                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                    visualize_prem(program, sample_id, res, target, "km/s",
                                    ["low", "mid", "high"], results_mgm, results_ppx,
                                    title="Depth Profile", fig_dir=fig_dir, filename=filename)
-                    visualize_prem(program, sample_id, dataset, res, target, "km/s",
+                    visualize_prem(program, sample_id, res, target, "km/s",
                                    ["mid"], results_mgm, results_ppx, title="Depth Profile",
                                    fig_dir=fig_dir, filename=filename2)
 
@@ -2671,12 +2647,10 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
     """
     """
     # Parse models
-    magemin_models = [m if m.program == "magemin" and m.dataset == "valid" else
-                      None for m in gfem_models]
+    magemin_models = [m if m.program == "magemin" else None for m in gfem_models]
     magemin_models = sorted(magemin_models, key=lambda m: (m.sample_id if m else ""))
 
-    perplex_models = [m if m.program == "perplex" and m.dataset == "valid" else
-                      None for m in gfem_models]
+    perplex_models = [m if m.program == "perplex" else None for m in gfem_models]
     perplex_models = sorted(perplex_models, key=lambda m: (m.sample_id if m else ""))
 
     # Iterate through models
@@ -2694,18 +2668,10 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
             res = magemin_model.res
         else:
             raise ValueError("Model resolutions are not the same!")
-        if magemin_model.dataset == perplex_model.dataset:
-            dataset = magemin_model.dataset
-        else:
-            raise ValueError("Model datasets are not the same!")
         if magemin_model.targets == perplex_model.targets:
             targets = magemin_model.targets
         else:
-            raise ValueError("Model datasets are not the same!")
-        if magemin_model.mask_geotherm == perplex_model.mask_geotherm:
-            mask_geotherm = magemin_model.mask_geotherm
-        else:
-            raise ValueError("Model geotherm masks are not the same!")
+            raise ValueError("Model targets are not the same!")
         if magemin_model.verbose == perplex_model.verbose:
             verbose = magemin_model.verbose
         else:
@@ -2721,9 +2687,9 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
 
         for i, target in enumerate(targets):
             # Check for existing figures
-            fig_1 = f"{fig_dir}/image3-{sample_id}-{dataset}-{target}.png"
-            fig_2 = f"{fig_dir}/image4-{sample_id}-{dataset}-{target}.png"
-            fig_3 = f"{fig_dir}/image9-{sample_id}-{dataset}.png"
+            fig_1 = f"{fig_dir}/image3-{sample_id}-{target}.png"
+            fig_2 = f"{fig_dir}/image4-{sample_id}-{target}.png"
+            fig_3 = f"{fig_dir}/image9-{sample_id}.png"
 
             if os.path.exists(fig_1) and os.path.exists(fig_2) and os.path.exists(fig_3):
                 print(f"Found composed plots at {fig_1}!")
@@ -2797,7 +2763,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                     target_rename = target.replace("_", "-")
 
                     # Print filepath
-                    filename = f"diff-{sample_id}-{dataset}-{target_rename}.png"
+                    filename = f"diff-{sample_id}-{target_rename}.png"
                     if verbose >= 2:
                         print(f"Saving figure: {filename}")
 
@@ -2806,7 +2772,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                                            "seismic", color_discrete, False, vmin, vmax,
                                            rmse, r2, fig_dir, filename)
 
-                    filename = f"prem-{sample_id}-{dataset}-{target_rename}.png"
+                    filename = f"prem-{sample_id}-{target_rename}.png"
 
                     # Plot PREM comparisons
                     if target == "rho":
@@ -2814,7 +2780,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                         if verbose >= 2:
                             print(f"Saving figure: {filename}")
 
-                        visualize_prem("perplex", sample_id, dataset, res, target,
+                        visualize_prem("perplex", sample_id, res, target,
                                        ["low", "mid", "high"], "g/cm$^3$", results_mgm,
                                        results_ppx, title="Depth Profile", fig_dir=fig_dir,
                                        filename=filename)
@@ -2824,7 +2790,7 @@ def visualize_gfem_diff(gfem_models, palette="bone", verbose=1):
                         if verbose >= 2:
                             print(f"Saving figure: {filename}")
 
-                        visualize_prem("perplex", sample_id, dataset, res, target, "km/s",
+                        visualize_prem("perplex", sample_id, res, target, "km/s",
                                        ["low", "mid", "high"], results_mgm, results_ppx,
                                        title="Depth Profile", fig_dir=fig_dir,
                                        filename=filename)
@@ -2952,8 +2918,8 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
             diff = target_array[: ,: , i] - pred_array[: , :, i]
 
             # Get relevant metrics for target array plot
-            rmse = cv_info[f"rmse_val_mean_{target}"][0]
-            r2 = cv_info[f"r2_val_mean_{target}"][0]
+            rmse = cv_info[f"rmse_test_mean_{target}"][0]
+            r2 = cv_info[f"r2_test_mean_{target}"][0]
 
             # Make nans consistent
             diff[mask] = np.nan
@@ -3027,13 +2993,13 @@ def visualize_rocmlm(rocmlm, skip=1, figwidth=6.3, figheight=4.725, fontsize=22)
 
             # Plot PREM comparisons
             if target == "rho":
-                visualize_prem(program, sample_id, "train", res, target, "g/cm$^3$",
+                visualize_prem(program, sample_id, res, target, "g/cm$^3$",
                                ["low", "mid", "high"], results_mgm, results_ppx,
                                results_rocmlm, model_label, title="Depth Profile",
                                fig_dir=fig_dir, filename=f"{filename}-prem.png")
 
             if target in ["Vp", "Vs"]:
-                visualize_prem(program, sample_id, "train", res, target, "km/s",
+                visualize_prem(program, sample_id, res, target, "km/s",
                                ["low", "mid", "high"], results_mgm, results_ppx,
                                results_rocmlm, model_label, title="Depth Profile",
                                fig_dir=fig_dir, filename=f"{filename}-prem.png")
@@ -3144,7 +3110,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
     else:
         num_plots = 1
 
-    for dataset in ["middle", "random"]:
+    for ds in ["middle", "random"]:
         for rng in ["full", "skip"]:
             if rng == "full":
                 frames = range(num_plots * 2 - 1, -1, -1)
@@ -3155,7 +3121,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
                 if n < num_plots:
                     if movie:
                         print("Processing mixing array movie frame:", n)
-                    if dataset == "middle":
+                    if ds == "middle":
                         row = df_synth_middle.iloc[n].to_frame().T
                     else:
                         row = df_synth_random.iloc[n].to_frame().T
@@ -3163,7 +3129,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
                     if movie:
                         print("Processing mixing array movie frame:",
                               (num_plots * 2 - 1) - n)
-                    if dataset == "middle":
+                    if ds == "middle":
                         row = df_synth_middle.iloc[(num_plots * 2 - 1) - n].to_frame().T
                     else:
                         row = df_synth_random.iloc[(num_plots * 2 - 1) - n].to_frame().T
@@ -3372,7 +3338,7 @@ def visualize_mixing_array(mixing_array, fig_dir="figs/mixing_array", filename="
                 ffmpeg = (f"ffmpeg -framerate 15 -pattern_type glob -i "
                           f"'{fig_dir}/{filename}-tmp???.png' -vf 'scale=3604:1684' "
                           f"-c:v h264 -pix_fmt yuv420p "
-                          f"'figs/movies/{filename}-mixing-array-{dataset}-{rng}.mp4'")
+                          f"'figs/movies/{filename}-mixing-array-{ds}-{rng}.mp4'")
 
                 try:
                     subprocess.run(ffmpeg, stdout=subprocess.DEVNULL,
