@@ -67,9 +67,11 @@ header-includes:
 ---
 
 ```{r echo=FALSE}
-knitr::opts_chunk$set(echo=F, message=F, warning=F, fig.pos='htbp', out.extra='', fig.align='center', out.width='100%')
+knitr::opts_chunk$set(echo=F, message=F, warning=F, fig.pos='htbp', out.extra='',
+                      fig.align='center', out.width='100%')
 
-suppressMessages({library(knitr)})
+suppressWarnings({suppressMessages({library(knitr)})})
+suppressWarnings({suppressMessages({library(kableExtra)})})
 ```
 
 # Introduction

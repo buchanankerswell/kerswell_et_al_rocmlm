@@ -11,6 +11,7 @@ import warnings
 import subprocess
 from scipy.interpolate import interp1d
 from sklearn.metrics import r2_score, mean_squared_error
+warnings.simplefilter("ignore", category=RuntimeWarning)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # dataframes and arrays !!
@@ -39,15 +40,13 @@ from matplotlib.colors import ListedColormap, Normalize, SymLogNorm
 from matplotlib.colorbar import ColorbarBase
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-warnings.simplefilter("ignore", category=RuntimeWarning)
+
 #######################################################
 ## .1.              Visualizations               !!! ##
 #######################################################
-
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #+ .1.1            Helper Functions              !!! ++
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get geotherm !!
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1358,10 +1357,12 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
         "rmse_test_mean_rho": ["mean", "std", "min", "max"],
         "rmse_test_mean_Vp": ["mean", "std", "min", "max"],
         "rmse_test_mean_Vs": ["mean", "std", "min", "max"],
+        "model_size_mb": ["mean", "std", "min", "max"],
         "model_efficiency": ["mean", "std", "min", "max"]
     })
     summary_stats_gfem = data_gfem.agg({
         "time": ["mean", "std", "min", "max"],
+        "model_size_mb": ["mean", "std", "min", "max"],
         "model_efficiency": ["mean", "std", "min", "max"]
     })
 
@@ -1372,21 +1373,18 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     print("Inference time GFEM:")
     print(summary_stats_gfem["time"] * 1e3)
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("Model size:")
+    print(summary_stats["model_size_mb"])
+    print("....................................")
+    print("Model size GFEM:")
+    print(summary_stats_gfem["model_size_mb"])
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print("Model efficiency:")
     print(summary_stats["model_efficiency"])
     print("....................................")
     print("Model efficiency GFEM:")
     print(summary_stats_gfem["model_efficiency"])
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-#    print("RMSE rho:")
-#    print(summary_stats["rmse_test_mean_rho"])
-#    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-#    print("RMSE Vp:")
-#    print(summary_stats["rmse_test_mean_Vp"])
-#    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-#    print("RMSE Vs:")
-#    print(summary_stats["rmse_test_mean_Vs"])
-#    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     # Set plot style and settings
     plt.rcParams["legend.facecolor"] = "0.9"
@@ -1417,21 +1415,18 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     fig = plt.figure(figsize=(figwidth * 2, figheight))
     ax = fig.add_subplot(121)
 
-    # Plot gfem efficiency
+    # Plot gfem comp time
     ax.fill_between(data["size"], data_gfem["time"].min() * 1e3,
                     data_gfem["time"].max() * 1e3, facecolor="white", edgecolor="black")
 
-    plt.text(data["size"].min(), data_gfem["time"].min() * 1e3, "Perple_X",
-             fontsize=fontsize * 0.833, horizontalalignment="left",
-             verticalalignment="bottom")
     plt.text(data["size"].min(), data_gfem["time"].min() * 1e3 * 1.2,
              " [stx21, NCFMAS, 15]", fontsize=fontsize * 0.833,
-             horizontalalignment="left", verticalalignment="top")
+             horizontalalignment="left", verticalalignment="bottom")
     plt.text(data["size"].min(), data_gfem["time"].max() * 1e3 * 0.80,
              " [hp633, KNCFMASTCr, 21]", fontsize=fontsize * 0.833,
-             horizontalalignment="left", verticalalignment="bottom")
+             horizontalalignment="left", verticalalignment="top")
 
-    # Plot rocmlm efficiency
+    # Plot lut and rocmlm comp time
     for program, group in data.groupby("program"):
         for rmse, sub_group in group.groupby("rmse_test_mean_rho"):
             if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
@@ -1445,28 +1440,27 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
 
     # Set labels and title
     plt.xlabel("Log2 Capacity")
-    plt.ylabel("Elapsed Time (ms)")
-    plt.title("Execution Speed")
+    plt.ylabel("Inference Time (ms)")
+    plt.title("Prediction Speed")
     plt.yscale("log")
-    plt.gca().invert_yaxis()
     plt.xticks(np.arange(11, 22, 2))
 
     ax2 = fig.add_subplot(122)
 
-    # Plot gfem efficiency
-    ax2.fill_between(data["size"], data_gfem["model_efficiency"].min(),
-                     data_gfem["model_efficiency"].max(), facecolor="white",
+    # Plot gfem size
+    ax2.fill_between(data["size"], data_gfem["model_size_mb"].min(),
+                     data_gfem["model_size_mb"].max(), facecolor="white",
                      edgecolor="black")
 
-    # Plot lut and rocmlm efficiency
+    # Plot lut and rocmlm size
     for program, group in data.groupby("program"):
         for rmse, sub_group in group.groupby("rmse_test_mean_rho"):
             if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
-                ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
+                ax2.scatter(x=sub_group["size"], y=sub_group["model_size_mb"],
                             marker=marker_dict.get(program, "o"), s=65,
                             color=color_dict[rmse], edgecolor="black", zorder=2)
             else:
-                ax2.scatter(x=sub_group["size"], y=sub_group["model_efficiency"],
+                ax2.scatter(x=sub_group["size"], y=sub_group["model_size_mb"],
                             marker=marker_dict.get(program, "o"), s=65,
                             color="pink", edgecolor="black", zorder=2)
 
@@ -1475,16 +1469,12 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     for program, marker in marker_dict.items():
         if program in ["RocMLM (DT)", "RocMLM (KN)", "RocMLM (NN1)", "RocMLM (NN3)"]:
             legend_elements.append(
-                mlines.Line2D(
-                    [0], [0], marker=marker, color="none", label=program,
-                    markerfacecolor="black", markersize=10)
-            )
+                mlines.Line2D([0], [0], marker=marker, color="none", label=program,
+                              markerfacecolor="black", markersize=10))
         else:
             legend_elements.append(
-                mlines.Line2D(
-                    [0], [0], marker=marker, color="none", markeredgecolor="black",
-                    label=program, markerfacecolor="pink", markersize=10)
-            )
+                mlines.Line2D([0], [0], marker=marker, color="none", markeredgecolor="black",
+                              label=program, markerfacecolor="pink", markersize=10))
 
     fig.legend(handles=legend_elements, title="Method", loc="center right", ncol=1,
                bbox_to_anchor=(1.22, 0.6), columnspacing=0.2, handletextpad=-0.1,
@@ -1498,10 +1488,9 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
 
     # Set labels and title
     plt.xlabel("Log2 Capacity")
-    plt.ylabel("Inefficiency (ms$\\cdot$Mb)")
-    plt.title("Model Efficiency")
+    plt.ylabel("Size (Mb)")
+    plt.title("Model Size")
     plt.yscale("log")
-    plt.gca().invert_yaxis()
     plt.xticks(np.arange(11, 22, 2))
 
     # Add captions
@@ -2025,7 +2014,7 @@ def visualize_prem_comps(gfem_models, fig_dir="figs/other", filename="prem-comps
 
     fig.text(0.00, 0.98, "a)", fontsize=fontsize * 1.4)
     fig.text(0.33, 0.98, "b)", fontsize=fontsize * 1.4)
-    fig.text(0.65, 0.98, "c)", fontsize=fontsize * 1.4)
+    fig.text(0.63, 0.98, "c)", fontsize=fontsize * 1.4)
 
     # Save the plot to a file
     plt.savefig(f"{fig_dir}/{filename}")

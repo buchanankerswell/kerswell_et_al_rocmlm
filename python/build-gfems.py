@@ -17,9 +17,9 @@ for name, source in sources.items():
 visualize_gfem_pt_range(gfems["benchmark"][0])
 visualize_prem_comps(gfems["middle"] + gfems["random"])
 
-for name, models in gfems.items():
-    visualize_gfem(models)
-    visualize_gfem_diff(models)
-    compose_dataset_plots(models)
+#for name, models in gfems.items():
+#    visualize_gfem(models)
+#    visualize_gfem_diff(models)
+#    compose_dataset_plots(models)
 
 print("GFEM models built and visualized!")

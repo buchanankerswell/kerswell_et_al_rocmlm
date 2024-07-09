@@ -106,6 +106,20 @@
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \def\tightlist{}
 \usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
 
 \begin{document}
 
@@ -267,15 +281,15 @@ We applied Principal Component Analysis (PCA) to the standardized peridotite dat
 In this PC space, we drew a mixing line connecting the lherzolite and harzburgite group centroids (i.e., the median values for PC1 and PC2 for each group). The lherzolite-harzburgite mixing line was then extended until reaching the approximate location of the most fertile (Al\(_2\)O\(_3\)-CaO-TiO\(_2\)-rich) and most refractory (MgO-rich, SiO\(_2\)-poor) peridotite samples, hereafter referred to as Primitive Synthetic Upper Mantle (PSUM) and Depleted Synthetic Upper Mantle (DSUM, Figure \ref{fig:earthchem-mixing-array}b), respectively. The mixing line approximates the widest array of mantle compositions derived from the natural rock record and may be interpreted as representing the first order composition variation in response to melt extraction (depletion) or addition (refertilization) in the mantle. The mixing line therefore provides a basis for sampling synthetic bulk mantle compositions directly from PC space, which were then used to generate RocMLM training data.
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1102}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1017}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.0932}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1102}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1102}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1186}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1356}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1102}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1102}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1102}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1017}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0932}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1102}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1102}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1186}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1356}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1102}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1102}}@{}}
 \caption{\label{tab:earthchem-counts} Summary of the filtered and standardized peridotite dataset from Earthchem.org. Columns with an asterisk are in wt.\%. Std = standard deviation, IQR = interquartile range.}\tabularnewline
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
@@ -366,15 +380,15 @@ Training RocMLMs on \(\xi\) instead of seven oxide components is beneficial for 
 The melting model in Equation \eqref{eq:shaw-melting} is oversimplified since it assumes: 1) melt is instantaneously removed from the source region, 2) \(D_0\) is constant, and 3) minerals melt in the same proportions that they exist in the source rock. It nevertheless provides an efficient parameterization of the variation in mantle composition as a function of melt extraction and addition. Equation \eqref{eq:shaw-melting} predicts that a Depleted MORB Mantle (DMM) composition is produced through a time-integrated 2.2\% melt extraction from a Primitive Upper Mantle (PUM) source (Table \ref{tab:benchmark-samples}). This result is consistent with the degree of depletion inferred from trace element patterns and mass balance constraints \citep[2-3\% melt removal from PUM,][]{workman2005}. We therefore consider \(\xi\) an adequate first-order proxy for describing the variations in bulk mantle composition used in our RocMLM training dataset. However, given that TiO\(_2\) concentrations are strongly affected by reactive melt transport \citep[e.g.,][]{le2007}, \(\xi\) may only be estimated for the average compositional trend as expressed in PC1-PC2 space, rather than on individual peridotite samples.
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.0800}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1200}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1200}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1520}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1120}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1040}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1040}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.1360}}
-  >{\raggedleft\arraybackslash}p{(\columnwidth - 16\tabcolsep) * \real{0.0720}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0800}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1200}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1200}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1520}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1120}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1040}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1040}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1360}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0720}}@{}}
 \caption{\label{tab:benchmark-samples} Hypothetical upper mantle end-member compositions. Columns with an asterisk are in wt.\%. Depleted MORB Mantle (DMM) is from \citet{workman2005}, Primitive Upper Mantle (PUM) is from \citet{sun1989}, and Pyrolite (PYR) is from \citet{green1979}. Primitive Synthetic Upper Mantle (PSUM) and Depleted Synthetic Upper Mantle (DSUM), are end-member compositions derived in this study.}\tabularnewline
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
@@ -444,10 +458,10 @@ RocMLM training data were preprocessed using the following procedure. First, two
 The preprocessed training data were then fit with three different nonlinear regression algorithms (Decision Tree: DT, k-Neighbors: KN, and Neural Networks: NN) from the scikit-learn python library \citep{scikit2011}. Each regression algorithm was tuned with a grid search approach, where a performance score (RMSE) was evaluated over all hyperparameter combinations relevant to the particular regression algorithm (Table \ref{tab:rocmlm-config}). The set of hyperparameters that produced the best score (lowest RMSE) was used to train the RocMLM.
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.1098}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2439}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.5366}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.1098}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1098}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2439}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.5366}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1098}}@{}}
 \caption{\label{tab:rocmlm-config} RocMLM configuration. Hyperparameter values in parentheses are tested sequentially by a cross-validation grid search algorithm and the best set of hyperparameters is chosen by the lowest RMSE. Hyperparameters that are not shown use default values (see regression model documentation on scikit-learn.org).}\tabularnewline
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright

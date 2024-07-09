@@ -147,7 +147,6 @@ def main():
         # Drop columns
         df.drop(["n_targets", "k_folds"], axis=1, inplace=True)
         df.drop([col for col in df.columns if "r2_" in col], axis=1, inplace=True)
-        df.drop([col for col in df.columns if "_test" in col], axis=1, inplace=True)
 
         # Sort by prediction efficiency
         df.sort_values(by=["inference_time_mean"], inplace=True)
@@ -168,7 +167,7 @@ def main():
 
         # Order df
         df = df[["model", "size", "x_res", "training_time_mean", "inference_time_mean",
-                 "rmse_val_mean_rho", "rmse_val_mean_Vp", "rmse_val_mean_Vs",
+                 "rmse_test_mean_rho", "rmse_test_mean_Vp", "rmse_test_mean_Vs",
                  "model_size_mb"]]
 
         # Sort df
