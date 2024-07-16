@@ -1419,7 +1419,7 @@ def visualize_rocmlm_performance(fig_dir="figs/other", filename="rocmlm-performa
     ax.fill_between(data["size"], data_gfem["time"].min() * 1e3,
                     data_gfem["time"].max() * 1e3, facecolor="white", edgecolor="black")
 
-    plt.text(data["size"].min(), data_gfem["time"].min() * 1e3 * 1.2,
+    plt.text(data["size"].min(), data_gfem["time"].min() * 1e3 * 3.0,
              " [stx21, NCFMAS, 15]", fontsize=fontsize * 0.833,
              horizontalalignment="left", verticalalignment="bottom")
     plt.text(data["size"].min(), data_gfem["time"].max() * 1e3 * 0.80,

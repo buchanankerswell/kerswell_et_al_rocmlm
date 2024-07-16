@@ -5,7 +5,7 @@ title: "Supporting Information for RocMLMs: Predicting Rock Properties through M
 authors:
   - name: "Buchanan Kerswell"
     affil: 1
-  - name: "Nestor Cerpa"
+  - name: "Nestor G. Cerpa"
     affil: 1
   - name: "Andréa Tommasi"
     affil: 1

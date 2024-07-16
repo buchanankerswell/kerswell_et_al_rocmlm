@@ -27,26 +27,26 @@ $(SUP).tex: $(SUP).Rmd
 	@R -q -e 'rmarkdown::render("$(SUP).Rmd", quiet=T, clean=F)'
 
 diff-sup.pdf: diff-sup.tex
-	@printf "\npdflatex for diff-sup.tex ..."
+	@echo "pdflatex for diff-sup.tex ..."
 	@pdflatex diff-sup.tex > /dev/null 2>&1
 	@bibtex diff-sup > /dev/null 2>&1
 	@pdflatex diff-sup.tex > /dev/null 2>&1
 	@pdflatex diff-sup.tex > /dev/null 2>&1
 
 diff-ms.pdf: diff-ms.tex
-	@printf "\npdflatex for diff-ms.tex ..."
+	@echo "pdflatex for diff-ms.tex ..."
 	@pdflatex diff-ms.tex > /dev/null 2>&1
 	@bibtex diff-ms > /dev/null 2>&1
 	@pdflatex diff-ms.tex > /dev/null 2>&1
 	@pdflatex diff-ms.tex > /dev/null 2>&1
 
 diff-ms.tex: $(MS).tex $(DIFFMS).tex
-	@printf "\nlatexdiff for %s vs. %s ..." "$(DIFFMS).tex" "$(MS).tex"
+	@echo "latexdiff for $(DIFFMS).tex vs. $(MS).tex ..."
 	@latexdiff --type=CFONT --disable-citation-markup --graphics-markup=none --allow-spaces \
 		$(DIFFMS).tex $(MS).tex > diff-ms.tex
 
 diff-sup.tex: $(SUP).tex $(DIFFSUP).tex
-	@printf "\nlatexdiff for %s vs. %s ..." "$(DIFFSUP).tex" "$(MS).tex"
+	@echo "latexdiff for $(DIFFSUP).tex vs. $(MS).tex ..."
 	@latexdiff --type=CFONT --disable-citation-markup --graphics-markup=none --allow-spaces \
 		$(DIFFSUP).tex $(SUP).tex > diff-sup.tex
 
