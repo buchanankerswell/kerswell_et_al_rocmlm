@@ -158,7 +158,7 @@ Table: (\#tab:benchmark-samples) Hypothetical upper mantle end-member compositio
 ```{r benchmark-samples, child='benchmark-samples.md'}
 ```
 
-Note that the procedure above assumes a dry and volatile-free mantle, which precludes the presence of hydrous phases and free-fluid that could significantly impact density and seismic wave velocities predicted for our training dataset. Since this work was intended to demonstrate a proof-of-concept, we adopted a dry volatile-free mantle assumption with the following rationale: dry mantle rocks are a simpler system to model thermodynamically with well-constrained thermodynamic data and equations of state [@stixrude2022], yet provide an adequate framework for comparing RocMLM, Lookup Table, and GFEM approaches. Future works will expand the RocMLM approach to hydrous systems with a wider variety of potential mantle end-member compositions.
+Note that the procedure above assumes a dry (i.e., volatile-free) mantle, which precludes the presence of hydrous phases and free-fluid that could significantly impact density and seismic wave velocities predicted for our training dataset. Since this work was intended to demonstrate a proof-of-concept, we adopted a dry mantle assumption with the following rationale: dry mantle rocks are a simpler system to model thermodynamically with well-constrained thermodynamic data and equations of state [@stixrude2022], yet provide an adequate framework for comparing RocMLM, Lookup Table, and GFEM approaches. Future works will expand the RocMLM approach to hydrous systems with a wider variety of potential mantle end-member compositions.
 
 ## Generating RocMLM Training Data {#sec:generate-training-data}
 
