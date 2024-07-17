@@ -1,4 +1,4 @@
-![](draft/repo-banner.png)
+![](draft_v2/repo-banner.png)
 
 ***Figure:*** *A pseudosection model for a Primitive Upper Mantle composition (PUM, from Sun & McDonough, 1989) estimated by Perple_X ([Connolly, 2009](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2009GC002540)) showing density (a), the gradient of density highlighting phase transitions (b), and density depth profiles along a range of hypothetical mantle geotherms (c). A total of 128$`^3`$ phase equilibria calculations (128 pseudosections at 128 x 128 PT resolution) were used to train RocMLMs.*
 
@@ -39,7 +39,7 @@ brew install miniforge
 
 ## Running the study with pre-built training data and pre-trained RocMLMs
 
-To save time building the RocMLMs from scratch, please download the pre-built training dataset (results_18_march_2024/gfems), the pre-trained RocMLMs (results_18_march_2024/rocmlms), and the corresponding performance data (results_18_march_2024/assets) from [here](https://osf.io/k23tb/files/osfstorage#), and then follow these steps:
+To save time building the RocMLMs from scratch, please download the pre-built training dataset (results_17_july_2024/gfems), the pre-trained RocMLMs (results_17_july_2024/rocmlms), and the corresponding performance data (results_17_july_2024/assets) from [here](https://osf.io/k23tb/files/osfstorage#), and then follow these steps:
 
 ```
 # Clone this repository
@@ -49,9 +49,9 @@ git clone https://github.com/buchanankerswell/kerswell_et_al_rocmlm.git
 cd kerswell_et_al_rocmlm
 
 # Copy training data and RocMLMs into directory
-cp -r ~/path/to/downloaded_and_unzipped/results_18_march_2024/assets .
-cp -r ~/path/to/downloaded_and_unzipped/results_18_march_2024/gfems .
-cp -r ~/path/to/downloaded_and_unzipped/results_18_march_2024/rocmlms .
+cp -r ~/path/to/downloaded_and_unzipped/results_17_july_2024/assets .
+cp -r ~/path/to/downloaded_and_unzipped/results_17_july_2024/gfems .
+cp -r ~/path/to/downloaded_and_unzipped/results_17_july_2024/rocmlms .
 
 # Use Makefile to compile
 make
