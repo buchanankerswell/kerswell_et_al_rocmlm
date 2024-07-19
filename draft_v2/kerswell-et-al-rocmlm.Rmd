@@ -281,7 +281,7 @@ We gratefully thank Dr. Zhou Zhang and one anonymous reviewer for their thoughtf
 
 # Open Research
 
-All data, code, and relevant information for reproducing this work can be found at https://github.com/buchanankerswell/kerswell_et_al_rocmlm, and at https://doi.org/10.17605/OSF.IO/K23TB, the official Open Science Framework data repository [@kerswell2024]. All code is MIT Licensed and free for use and distribution (see license details). Reference models PREM and STW105 are freely available from the Incorporated Research Institutions for Seismology Earth Model Collaboration [IRIS EMC\, doi: 10.17611/DP/EMC.1, @trabant2012]. All computations were made using CPUs of a Macbook Pro (2022; M2 chip) with macOS 13.4 and using Python 3.11.4.
+All data, code, and relevant information for reproducing this work are published on GitHub [@kerswell2024a] and archived on the Open Science Framework data repository [@kerswell2024b]. All code is MIT Licensed and free for use and distribution (see license details). Reference models PREM and STW105 are freely available from the Incorporated Research Institutions for Seismology Earth Model Collaboration [@trabant2012]. All computations were made using CPUs of a Macbook Pro (2022; M2 chip) with macOS 14.5 and using Python 3.12.3.
 
 \clearpage
 

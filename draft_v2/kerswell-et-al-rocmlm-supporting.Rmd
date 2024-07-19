@@ -1,7 +1,7 @@
 ---
 journal: "JGR: Machine Learning and Computation"
 classoption: "draft"
-title: "Supporting Information for RocMLMs: Predicting Rock Properties through Machine Learning Models"
+title: "Supplementary Information for RocMLMs: Predicting Rock Properties through Machine Learning Models"
 authors:
   - name: "Buchanan Kerswell"
     affil: 1
@@ -125,7 +125,7 @@ include_graphics('image12-PUM-NN3.png')
 
 # GFEM, Lookup Table, and RocMLM Performance Datasets {-}
 
-The Lookup Table and GFEM performance data referenced in the main text are not included here for brevity, but can be found at https://doi.org/10.17605/OSF.IO/K23TB. These data are shown in Figure 6 of the main text and referenced in the Introduction of the main text to give a sense of the execution speeds of widely-used GFEM programs (4–228 ms per PTX point). The Introduction of the main text also references a feasibility objective for RocMLM performance (10$^0$–10$^{−1}$ ms), which was estimated with the following reasoning. Numerical geodynamic models on the order of 2000 x 300 km in scale, containing at least 277,221 nodes [921 x 301\, e.g., @kerswell2021] are widely-considered “high-resolution”. Running GFEM on each node (at 4–228 ms/node) would take between 18.5 minutes to 17.5 hours with modern GFEM programs, depending on their configuration and assuming a simple sequential computation. At execution speeds of 10$^0$–10$^{−1}$ ms, however, only 0.5–4.5 minutes of computation time would be added to each timestep, in a similar context. We consider an additional 0.5–4.5 minutes per timestep reasonable considering the advantage of implementing thermodynamic self-consistency in numerical experiments, especially given that parallel computing would further decrease these time estimations. We therefore set 10$^0$–10$^{−1}$ ms as a minimum feasibility objective for RocMLM execution speeds. 
+RocMLM performance data are shown below in Table \@ref(tab:rocmlm-performance). However, the Lookup Table and GFEM performance data referenced in the main text are not included here for brevity, but are published on GitHub [@kerswell2024a] and the Open Science Framework data repository [@kerswell2024b]. These data are shown in Figure 6 of the main text and referenced in the Introduction of the main text to give a sense of the execution speeds of widely-used GFEM programs (4–228 ms per PTX point). The Introduction of the main text also references a feasibility objective for RocMLM performance (10$^0$–10$^{−1}$ ms), which was estimated with the following reasoning. Numerical geodynamic models on the order of 2000 x 300 km in scale, containing at least 277,221 nodes [921 x 301\, e.g., @kerswell2021] are widely-considered “high-resolution”. Running GFEM on each node (at 4–228 ms/node) would take between 18.5 minutes to 17.5 hours with modern GFEM programs, depending on their configuration and assuming a simple sequential computation. At execution speeds of 10$^0$–10$^{−1}$ ms, however, only 0.5–4.5 minutes of computation time would be added to each timestep, in a similar context. We consider an additional 0.5–4.5 minutes per timestep reasonable considering the advantage of implementing thermodynamic self-consistency in numerical experiments, especially given that parallel computing would further decrease these time estimations. We therefore set 10$^0$–10$^{−1}$ ms as a minimum feasibility objective for RocMLM execution speeds. 
 
 Note that Figure 6 of the main text shows a representative subset of the RocMLM performance data evaluated in this study. RocMLM performance was measured multiple times for each regression algorithm: iterating over all combinations of PT and X resolutions (Table \@ref(tab:rocmlm-performance)), or model “capacities”, which was too much data to include in the main text. For graphical clarity, Figure 6 of the main text only shows the set of RocMLM models with the lowest prediction times for each unique model capacity (ranging from 2$^{11}$–2$^{21}$). The same filtering procedure is equally applied to Lookup Table results. Removing this filtering step (or alternatively selecting for the highest prediction times) does not alter the main conclusions discussed in Section 4 of the main text, but does make the results presented in Figure 6 of the main text easier to digest for the reader. For transparency and reproducibility, the complete RocMLM performance dataset is contained in Table \@ref(tab:rocmlm-performance) below.
 
@@ -133,6 +133,10 @@ Table: (\#tab:rocmlm-performance) RocMLM PTX resolution, accuracy (RMSE vs. Perp
 
 ```{r rocmlm-performance, child='rocmlm-performance.md'}
 ```
+
+# Open Research {-}
+
+All data, code, and relevant information for reproducing this supplementary information are published on GitHub [@kerswell2024a] and archived on the Open Science Framework data repository [@kerswell2024b]. All code is MIT Licensed and free for use and distribution (see license details). All computations were made using CPUs of a Macbook Pro (2022; M2 chip) with macOS 14.5 and using Python 3.12.3.
 
 \clearpage
 

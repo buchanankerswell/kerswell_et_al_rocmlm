@@ -54,7 +54,7 @@ get_tables:
 	@$(MAKE) -C .. write_md_tables
 
 purge:
-	@rm -f *.{html,acr,alg,gz,glg,gls,ilg,nls,acn,glo,ist,lof,lot,nlo,aux,dvi,log,bbl,blg,brf,fls,toc,thm,out,fdb_latexmk,pdf} *.knit.md $(MS).tex $(SUP).tex diff-ms.tex diff-sup.tex
+	@rm -f *.{html,acr,alg,gz,glg,gls,ilg,nls,acn,glo,ist,lof,lot,nlo,aux,dvi,log,bbl,blg,brf,fls,toc,thm,out,fdb_latexmk} *.knit.md $(MS).tex $(SUP).tex diff-ms.tex diff-sup.tex $(MS).pdf $(SUP).pdf diff-ms.pdf diff-sup.pdf
 
 clean: purge
 
