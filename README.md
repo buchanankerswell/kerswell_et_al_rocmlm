@@ -1,10 +1,10 @@
-![](draft_v2/repo-banner.png)
+![](draft/repo-banner.png)
 
 ***Figure:*** *A pseudosection model for a Primitive Upper Mantle composition (PUM, from Sun & McDonough, 1989) estimated by Perple_X ([Connolly, 2009](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2009GC002540)) showing density (a), the gradient of density highlighting phase transitions (b), and density depth profiles along a range of hypothetical mantle geotherms (c). A total of 128$`^3`$ phase equilibria calculations (128 pseudosections at 128 x 128 PT resolution) were used to train RocMLMs.*
 
 # Kerswell et al. (2024; JGR:MLC)
 
-This work is is published at JGR: Machine Learning and Computation. You can find the manuscript [here]().
+This work is is in production at JGR: Machine Learning and Computation as of 11 Sept 2024. I will post a link to the published version when it is available.
 
 ## Repository
 
