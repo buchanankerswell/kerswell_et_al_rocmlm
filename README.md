@@ -4,7 +4,7 @@
 
 # Kerswell et al. (2024; JGR:MLC)
 
-This work is is in production at JGR: Machine Learning and Computation as of 11 Sept 2024. I will post a link to the published version when it is available.
+This work is is in production at JGR: Machine Learning and Computation as of 11 Sept 2024. You can find the production preprint [here](https://buchanankerswell.com/assets/pdf/kerswell-et-al-rocmlm-jgr-2024.pdf).
 
 ## Repository
 
